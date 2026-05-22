@@ -851,5 +851,5 @@ stdlib packages missing. No IBC
 
 ---
 
-*Maintained as part of [gno-skills](https://github.com/samouraiworld/gno-skills).
+*Maintained as part of [gno-agent-workspace](https://github.com/samouraiworld/gno-agent-workspace).
 See also [awesome-gno](https://github.com/gnoverse/awesome-gno).*
