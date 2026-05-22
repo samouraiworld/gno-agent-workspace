@@ -1,0 +1,29 @@
+# Adversarial: example uses recover() internally to swallow its own panic.
+# Should NOT be reported as panicked. Output comparison should still run.
+
+gno test -v .
+
+stderr '--- PASS: ExampleInternalRecover'
+
+-- p.gno --
+package internalrec
+
+-- p_test.gno --
+package internalrec
+
+import "fmt"
+
+func ExampleInternalRecover() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("caught:", r)
+		}
+	}()
+	panic("internal")
+	// Output:
+	// caught: internal
+}
+
+-- gnomod.toml --
+module = "gno.test/p/internalrec"
+gno = "0.9"

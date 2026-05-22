@@ -1,0 +1,34 @@
+# Run:
+#   cp reviews/pr/5xxx/5599-slice-to-array-conversion/1-e8168367/tests/view_assign_through_array.txtar \
+#      .worktrees/gno-review-5599/gno.land/pkg/integration/testdata/view_assign_through_array.txtar
+#   go test -C .worktrees/gno-review-5599/gno.land -v -run 'TestTestdata/view_assign_through_array' ./pkg/integration/ -timeout 5m
+#   rm .worktrees/gno-review-5599/gno.land/pkg/integration/testdata/view_assign_through_array.txtar
+#
+# Companion to slice_through_view_alias.txtar:
+# probe whether assigning a slice through the view to a global panics
+# during persistence (instead of silently losing aliasing).
+
+loadpkg gno.land/p/nt/ufmt/v0
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/viewassign -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/viewassign -func Run -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+-- gnomod.toml --
+module = "gno.land/r/test/viewassign"
+gno = "0.9"
+
+-- viewassign.gno --
+package viewassign
+
+var g []int
+
+func Run(cur realm) {
+	data := []int{1, 2, 3, 4, 5}
+	p := (*[3]int)(data)
+	g = (*p)[:]
+}

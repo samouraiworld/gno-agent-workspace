@@ -1,0 +1,54 @@
+# Run:
+#   cp reviews/pr/5xxx/5599-slice-to-array-conversion/1-e8168367/tests/slice_through_view_alias.txtar \
+#      .worktrees/gno-review-5599/gno.land/pkg/integration/testdata/slice_through_view_alias.txtar
+#   go test -C .worktrees/gno-review-5599/gno.land -v -run 'TestTestdata/slice_through_view_alias' ./pkg/integration/ -timeout 5m
+#   rm .worktrees/gno-review-5599/gno.land/pkg/integration/testdata/slice_through_view_alias.txtar
+#
+# Stronger check: after persisting g = (*p)[:], does mutating g (via slice ops)
+# show up when we read the original `data` slice? Expected (Go semantics):
+# yes, they share backing.
+
+loadpkg gno.land/p/nt/ufmt/v0
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/svalias -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/svalias -func Init -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/svalias -func MutateG -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/svalias -func ReadData -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("99 2 3 4 5" string)'
+stdout OK!
+
+-- gnomod.toml --
+module = "gno.land/r/test/svalias"
+gno = "0.9"
+
+-- svalias.gno --
+package svalias
+
+import "gno.land/p/nt/ufmt/v0"
+
+var (
+	data []byte
+	g    []byte
+)
+
+func Init(cur realm) {
+	data = []byte{1, 2, 3, 4, 5}
+	p := (*[3]byte)(data)
+	g = (*p)[:]
+}
+
+func MutateG(cur realm) {
+	g[0] = 99
+}
+
+func ReadData(cur realm) string {
+	return ufmt.Sprintf("%d %d %d %d %d", data[0], data[1], data[2], data[3], data[4])
+}

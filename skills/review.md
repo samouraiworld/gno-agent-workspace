@@ -1,0 +1,198 @@
+---
+name: gno-review
+description: Quick adversarial review of one or more Gno PRs. Takes space-separated PR numbers, outputs severity-grouped findings per PR.
+argument-hint: <pr-number> [pr-number...]
+---
+
+# Gno PR Review
+
+Review one or more PRs from the `gnolang/gno` repository.
+
+**Input:** `$ARGUMENTS` — space-separated PR numbers or GitHub URLs. Process each PR independently.
+
+## Parallel dispatch (multi-PR runs)
+
+When `$ARGUMENTS` contains more than one PR, dispatch **one Agent per PR** in a single message (multiple `Agent` tool calls in the same response so they run concurrently). Use `subagent_type: general-purpose` and pass each subagent a self-contained prompt of the form:
+
+> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, regenerate the index. Do not commit or push; the parent will commit and push all reviews at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
+
+Do **not** sequence the agents (no waiting for one before launching the next). After all subagents return, the parent runs `./scripts/build-reviews-readme.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
+
+For a single-PR run, skip the dispatch and execute the steps below directly.
+
+## For each PR
+
+### Fetch & understand
+
+- Fetch the latest master in the `gno/` submodule: `git -C gno fetch origin master`
+- Create a new git worktree for each PR based on latest master to keep reviews independent:
+  ```bash
+  git -C gno worktree add ../.worktrees/gno-review-<number> origin/master
+  ```
+  This creates the worktree at `<gno-skills-root>/.worktrees/gno-review-<number>` (relative to `gno/`, `../` resolves to the gno-skills repo root).
+- Checkout the PR **inside that worktree** (use the worktree path as the working directory):
+  ```bash
+  # workdir: <gno-skills-root>/.worktrees/gno-review-<number>
+  gh pr checkout <number> -R gnolang/gno
+  ```
+  All subsequent file reads and test runs for this PR must also use this worktree path as the working directory.
+- `gh pr view <number> -R gnolang/gno --json title,body,author,baseRefName,headRefName,files,additions,deletions,commits`
+- `gh pr diff <number> -R gnolang/gno`
+- **Always read the PR body, all comments (`gh api repos/gnolang/gno/issues/<number>/comments`), and review comments (`gh api repos/gnolang/gno/pulls/<number>/comments`).** Note unresolved threads.
+- Check `reviews/pr/<thousand>xxx/<number>-*/` for past reviews of this PR (e.g. PR #5405 → `reviews/pr/5xxx/5405-*/`). `<thousand>` is the leading digit(s) of the PR number (4 for 4000–4999, 5 for 5000–5999). Always read previous reviews first — they provide context on known issues, prior discussions, and what changed since. Focus on what changed since the last reviewed commit.
+- Read linked issues for motivation.
+- Read every changed file in full (not just diff hunks) for surrounding context.
+- Identify callers, dependents, and sibling files to understand blast radius.
+
+### Run tests
+
+- Check CI status first: `gh pr checks <number> -R gnolang/gno`. Note any failures.
+- `.gno` packages: `gno test -v ./path/to/package`
+- `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
+- Record pass/fail per affected package.
+
+### Review the diff
+
+Read every line. Look for:
+
+- Correctness (logic errors, nil checks, type assertions, off-by-one)
+- Security (caller validation, access control, coin/banker handling)
+- Determinism violations
+- Realm state safety (partial updates, re-entrancy)
+- Error handling (panics vs errors, swallowed errors)
+- Untested code paths
+- Breaking changes without migration
+- Style inconsistencies with the codebase
+- Check if the PR touches areas covered by `docs/`. Flag if documentation needs updating.
+
+**Verify every finding against the actual file before including it.** Re-read the source — never write findings from memory or summaries.
+
+### (Optional) Write adversarial tests
+
+When findings suggest fragile or under-tested code, write edge-case tests to validate or break the PR. Run them. Failures are potential bugs — report them. Save all test files to `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/tests/`.
+
+Each adversarial test file MUST start with this two-part header, in this order, BEFORE the `package` line:
+
+1. A single-line audit disclaimer: `// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.`
+2. A `/* Run: ... */` multiline block giving the exact commands to reproduce. Use `/* */` (not `//` per line) so the commands paste cleanly into a shell.
+
+The disclaimer makes it unambiguous to any reader (including future me, future contributors, or anyone reading the gno-skills repo if it goes public) that these scripts are AI-generated review artifacts, not audited code — they should not be executed in privileged contexts without verification.
+
+**The header MUST be runnable from a gno checkout alone** — external readers (PR author, other reviewers) don't have gno-skills, so don't reference `reviews/...`, `.worktrees/gno-review-<N>/`, `$GNO`, or any home-directory path. Anchor at `gh pr checkout` plus the reviewed commit hash (from the directory name `<n>-<short-commit-hash>`) so the repro is durable across PR force-pushes:
+
+```
+/* Run: from a gno checkout:
+gh pr checkout <N> -R gnolang/gno && git checkout <short-commit-hash>
+# (save this file at gnovm/tests/files/<name>.gno)
+go test -v -run 'TestFiles/<name>.gno$' ./gnovm/pkg/gnolang/
+*/
+```
+
+For the review's empirical-claim `**Repro:**` block, prefer a heredoc that recreates the test inline so the bug shape scans without following a reference — anchor at the same `gh pr checkout … && git checkout <hash>`, then `cat > … <<'EOF' … EOF`, `go test`, `rm`.
+
+### Gno vs Go comparison
+
+When the PR contains `.gno` code, write an equivalent Go test to verify behavior parity. Run both and note any discrepancies. Save test files to the same `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/tests/` directory.
+
+## Output
+
+Reviews are read by humans. Optimize for top-to-bottom skim: verdict first, then narrative, then findings. Maximize signal per line. Strip articles, hedging, filler. No emoji. No ADR framing — refer to file paths only, not "the ADR's argument". One block per PR, in this exact format:
+
+```markdown
+# PR #<number>: <title>
+
+URL: https://github.com/gnolang/gno/pull/<number>
+Author: <author> | Base: <base> | Files: <count> | +<add> -<del>
+Reviewed by: <GitHub username> | Model: <model used>
+
+**Verdict: APPROVE / REQUEST CHANGES / NEEDS DISCUSSION** — <one terse sentence stating decision and the open concerns by name>.
+
+## Summary
+<2-4 dense sentences. What the bug/feature is, why it matters (anchor numbers — "20% of MaxTxBytes", "multiple block-production budgets"), the one-sentence shape of the fix. No jargon yet; that comes in Glossary.>
+
+<Optional ASCII diagram when the bug/fix is shape-y (tree, chain, state machine, dataflow). A picture saves a paragraph.>
+
+## Glossary
+<Include only if 2+ project-internal terms (e.g. `setSpan`, `SpanFromGo`, `Realm`, `MsgRun`) appear below. One terse line each, in order of first use. Skip section if not needed.>
+
+## Fix
+<2-4 sentence prose explanation of what the PR changed: before-state in one sentence, after-state in one sentence, the load-bearing constraint or gate. Avoid code blocks here — the goal is to let the reader understand the change without reading code. Link to `file:Lstart-Lend` inline. Skip the section if the diff is purely additive/trivial.>
+
+## Benchmarks / Numbers
+<Table when comparing N values, before/after, or percentages. Strip prose explaining the table — let the columns speak. Always anchor naked numbers to a known budget.>
+
+## Critical (must fix)
+- **[<priority tag, plain-English>]** `file:line` — <one-line TL;DR, scannable in 2 seconds>
+  <details><summary>details</summary>
+
+  <2-4 sentence prose explanation, then a final sentence starting "Fix:" with the concrete suggestion. Only use labeled sub-bullets (**Shape:** / **Mechanism:** / etc.) when the finding has a concrete, shaped repro that benefits from being parsed structurally — bug + input + output. For conceptual findings (dead code, decay risk, audit gap) use plain prose; labels just slow the reader down.>
+  </details>
+
+## Warnings (should fix)
+- **[<priority tag, plain-English>]** `file:line` — <one-line TL;DR>
+  <details><summary>details</summary>
+
+  <Same approach: prose by default, labeled sub-bullets only when the finding has a tangible Shape/Mechanism/Result/Fix breakdown.>
+  </details>
+
+If a finding was already raised by another reviewer, surface it in the TL;DR before the tag, e.g.: `- **[parse-time O(N²)]** [@thehowl](review-url) file:line — TL;DR`. The reader sees one source of truth.
+
+## Nits
+- `file:line` — <one-line TL;DR>
+  <Omit `<details>` for trivial nits; add only if reasoning is non-obvious.>
+
+## Missing Tests
+- **[<priority tag>]** `file:line` — <one-line TL;DR of the missing scenario>
+  <details><summary>details</summary>
+
+  <Why the gap matters, what edge case it covers, link to adversarial test if written.>
+  </details>
+
+## Suggestions
+- `file:line` — <one-line TL;DR>
+  <details><summary>details</summary>
+
+  <Rationale.>
+  </details>
+
+## Questions for Author
+- <one-line question; collapse short rationale into the same line. Use `<details>` only when context is long enough to wrap.>
+```
+
+Efficiency rules:
+- **Verdict at top.** Reader knows decision before scrolling.
+- **Summary, not Story.** Plain-English narrative carrying the bug for someone who hasn't opened the diff.
+- **Glossary over in-line definitions.** Define each term once at the top, not sprinkled through prose.
+- **Diff/diagram up top, not buried.** Shape-y bug = draw it. Small fix = show it inline.
+- **Priority tags on findings, in plain English.** Short bracketed label, prefer plain language (`[bug can come back invisibly]`) over jargon (`[invariant decay risk]`). Reader skims tags first; if the tag needs translating, it's failed.
+- **Cross-reviewer attribution in the TL;DR**, not buried in `<details>`. Surfaces overlap without duplicating analysis.
+- **Prose in `<details>` by default**; use labeled sub-bullets (`**Shape:**` / `**Mechanism:**` / `**Fix:**`) only when the finding has a tangible repro to structure. For conceptual findings, 2-4 sentences flow better than five one-line tags.
+- **No emoji.** Status/icons are noise; the bullet structure and tags carry the visual hierarchy.
+- **No Test Results section.** Test names are noise to the reader. If a test failure is review-worthy, surface it as a Critical or Warning. Otherwise stay silent — the reviewer ran the tests, that's enough.
+- **Anchor numbers.** "13s" alone is meaningless; "13s = multiple block-production budgets" tells the reader why to care.
+- **Cite line numbers for every assumption.** When the review claims something is true ("every translated child already has a non-zero Span", "this function is only called from X", "the cap is enforced at parse time") back it up with the `file:line` where the reader can see it for themselves. No hand-waved facts.
+- **Every `file:line` reference is a clickable markdown link** that opens the file at the cited line in the reader's editor. Format: `` [`file:line`](relative/path/to/file#Lline) ``. For PR reviews, paths are relative to the review file and point into the worktree, e.g. `../../../../../.worktrees/gno-review-<number>/<full-path>#L<line>` (or `#L<a>-L<b>` for ranges). Applies to TL;DRs, details, suggestions, nits — every reference. A bare `file:line` in backticks is wrong; readers can't click it.
+- **Drop GitHub checkboxes (`- [ ]`)** unless reviewer wants the author to tick items — the reviewer chooses, not the template.
+- **Never frame findings as "the ADR says X is fine, but actually..."** — refer to the file by path (e.g. `pr5648_spanfromgo_quadratic.md:195`) and critique the argument directly. No "the ADR" / "the audit table" editorializing.
+- **Ship a copy-pasteable reproducer for every empirical claim** ("I ran X and saw Y"). Fenced `bash` block, self-contained (restore any reverted files at the end), one clear pass/fail signal. Only pin env vars (`GNOROOT=$PWD`, etc.) when the test actually depends on them — defensive padding adds noise.
+
+Calibration — finding count and severity:
+- **No target count.** Stop when the diff is read in full and blast radius mapped — not when the review looks proportionate. A clean PR has zero warnings; a sprawling one may have ten. The comfortable middle is a tell you stopped early or padded.
+- **Severity is binary, not a slider.** Warnings = a maintainer could plausibly block on it (correctness, security, decay, missing invariant). Nits = style, polish, optional. If a finding could go either way, it's a Nit.
+- **Map the full call graph before claiming dead / redundant / unused.** Grep every caller, not just the one in the diff. One missed caller flips a real finding to a wrong one.
+
+Rules:
+- Write one file per review: save each PR review to `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/<model>_<reviewer>.md` (e.g. `reviews/pr/5xxx/5405-fix-banker-overflow/1-a1b2c3f/claude-sonnet-4_davd-gzl.md`). `<thousand>xxx` buckets PRs by leading digit(s) (4xxx for 4000–4999, 5xxx for 5000–5999). `<short-slug>` is 3-4 words from the PR title, lowercase, hyphenated. `<n>` is the review round number, incremented per PR in the order reviews are written (check existing directories to determine the next number). `<model>` is the model used (lowercase, hyphenated). `<reviewer>` is the GitHub username (get it via `gh api user --jq '.login'`). Use the HEAD commit hash of the PR branch. Multiple reviews of the same commit share the same directory, making it easy to compare across reviewers and models.
+- Every finding has two layers: a one-line TL;DR with priority tag (scannable in 2 seconds, states the problem) and a `<details>` block below with sub-bullet structure: **Shape:** / **What you see:** / **Why it matters:** / **Fix:**. The TL;DR must stand alone — no "see below", no hedging. Trivial nits may omit the `<details>` block.
+- Keep bold/emphasis to a minimum. The bullet structure and `file:line` in backticks already provide enough visual separation — don't bold every TL;DR or label. Reserve bold for the rare phrase that genuinely needs to stand out inside a paragraph.
+- The review is meant to be pasted into a GitHub PR comment, so the format must render correctly in GitHub-flavored markdown. Key constraints: `<details>` blocks need a blank line after `<summary>` for the inner markdown to render; indent continuation content by 2 spaces under list items; do not nest `<details>` more than one level deep.
+- Every finding MUST include `file:line`.
+- Empty categories: write "None" — never fabricate issues.
+- Priority: correctness > security > determinism > state safety > tests > docs > style.
+- Be direct. No filler. State the problem and why it matters.
+- Large PRs (>20 files): summarize changes by area first, then deep-dive on critical paths.
+- After writing the review file(s), regenerate the index: `./scripts/build-reviews-readme.sh`. Then commit and push to gno-skills (`git@github.com:samouraiworld/gno-skills.git`) only: `git add reviews/ && git commit -m "review: PR #<number>" && git push`. For a multi-PR parallel run, the **parent** does this once after all subagents return (use a multi-PR commit message like `review: PRs #<a> and #<b>`); subagents must not commit or push.
+- **Push is pre-authorized for this skill.** The user has standing approval for commit + push when running the review skill — do not stop to ask. This overrides the global "ask before push" rule, scoped to this skill only.
+- Never push to the gnolang/gno repository.
+- This skill must be run from the gno-skills repository root.
+- Once the review is finished (file written, index regenerated, commit done), ask the user before opening the review worktree in VSCode. If they confirm, open it as a new window: `code <gno-skills-root>/.worktrees/gno-review-<number>`.

@@ -1,0 +1,36 @@
+# Adversarial: example prints output to stdout, then panics.
+# Verifies the panicking example is reported as FAIL (not as PASS by accidental output match)
+# and that the printed output does NOT cause the next example to be polluted.
+
+! gno test -v .
+
+stderr '=== RUN   ExamplePanicAfterPrint'
+stderr 'panic: boom'
+stderr '--- FAIL: ExamplePanicAfterPrint'
+stderr '=== RUN   ExampleNext'
+stderr '--- PASS: ExampleNext'
+
+-- p.gno --
+package panicaftermix
+
+-- p_test.gno --
+package panicaftermix
+
+import "fmt"
+
+func ExamplePanicAfterPrint() {
+	fmt.Println("hello")
+	panic("boom")
+	// Output:
+	// hello
+}
+
+func ExampleNext() {
+	fmt.Println("ok")
+	// Output:
+	// ok
+}
+
+-- gnomod.toml --
+module = "gno.test/p/panicaftermix"
+gno = "0.9"
