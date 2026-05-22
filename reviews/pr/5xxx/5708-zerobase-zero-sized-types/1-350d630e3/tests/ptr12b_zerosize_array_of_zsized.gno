@@ -1,8 +1,10 @@
-// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+// AI generated
 /* Run: from a gno checkout:
 gh pr checkout 5708 -R gnolang/gno
-# (save this file at gnovm/tests/files/ptr12b_zerosize_array_of_zsized.gno)
+curl -fsSL -o gnovm/tests/files/ptr12b_zerosize_array_of_zsized.gno \
+  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5708-zerobase-zero-sized-types/1-350d630e3/tests/ptr12b_zerosize_array_of_zsized.gno
 go test -v -run 'TestFiles/ptr12b_zerosize_array_of_zsized' -test.short -timeout 60s ./gnovm/pkg/gnolang/
+rm gnovm/tests/files/ptr12b_zerosize_array_of_zsized.gno
 */
 
 // run

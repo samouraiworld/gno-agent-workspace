@@ -1,8 +1,9 @@
-// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+// AI generated
 /* Run: from a gno checkout:
 gh pr checkout 5704 -R gnolang/gno
-# (save this file at examples/gno.land/p/test/seal/filetests/z_seal_violation_mismatched_directive_filetest.gno)
 DEST=examples/gno.land/p/test/seal/filetests/z_seal_violation_mismatched_directive_filetest.gno
+curl -fsSL -o "$DEST" \
+  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5704-lint-filetest-isolation/1-4ff865d10/tests/z_seal_violation_mismatched_directive_filetest.gno
 
 # (1) lint silently absorbs the (unrelated) preprocess panic because a directive is present.
 go run ./gnovm/cmd/gno lint -C examples ./gno.land/p/test/seal/... ; echo "lint exit: $?"   # expect: 0 (BAD)

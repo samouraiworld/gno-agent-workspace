@@ -1,8 +1,10 @@
-// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+// AI generated
 /* Run: from a gno checkout:
 gh pr checkout 5707 -R gnolang/gno && git checkout 5c52d8ea3
-# (save this file at gnovm/tests/files/var_initorder_methodexpr_closure.gno)
+curl -fsSL -o gnovm/tests/files/var_initorder_methodexpr_closure.gno \
+  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5707-method-expr-init-order/2-5c52d8ea3/tests/var_initorder_methodexpr_closure.gno
 go test -v -run 'TestFiles/var_initorder_methodexpr_closure.gno$' ./gnovm/pkg/gnolang/
+rm gnovm/tests/files/var_initorder_methodexpr_closure.gno
 */
 package main
 
