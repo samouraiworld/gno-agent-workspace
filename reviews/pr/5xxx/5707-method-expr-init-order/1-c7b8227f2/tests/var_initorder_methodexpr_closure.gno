@@ -1,5 +1,5 @@
 /* Run: from a gno checkout:
-gh pr checkout 5707 -R gnolang/gno && git checkout c7b8227f2
+gh pr checkout 5707 -R gnolang/gno
 # (save this file at gnovm/tests/files/var_initorder_methodexpr_closure.gno)
 go test -v -run 'TestFiles/var_initorder_methodexpr_closure.gno$' ./gnovm/pkg/gnolang/
 */

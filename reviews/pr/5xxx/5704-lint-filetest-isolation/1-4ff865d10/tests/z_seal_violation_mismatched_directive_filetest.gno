@@ -1,43 +1,21 @@
-/* Run:
+// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+/* Run: from a gno checkout:
+gh pr checkout 5704 -R gnolang/gno
+# (save this file at examples/gno.land/p/test/seal/filetests/z_seal_violation_mismatched_directive_filetest.gno)
+DEST=examples/gno.land/p/test/seal/filetests/z_seal_violation_mismatched_directive_filetest.gno
 
-   # Drop the adversarial filetest into the seal package's filetests/ dir.
-   cp reviews/pr/5xxx/5704-lint-filetest-isolation/1-4ff865d10/tests/z_seal_violation_mismatched_directive_filetest.gno \
-      .worktrees/gno-review-5704/examples/gno.land/p/test/seal/filetests/
+# (1) lint silently absorbs the (unrelated) preprocess panic because a directive is present.
+go run ./gnovm/cmd/gno lint -C examples ./gno.land/p/test/seal/... ; echo "lint exit: $?"   # expect: 0 (BAD)
 
-   # Build the PR's gno binary once.
-   go build -C .worktrees/gno-review-5704 -o /tmp/gno-5704-bin ./gnovm/cmd/gno
+# (2) gno test catches the directive/panic mismatch.
+go run ./gnovm/cmd/gno test ./examples/gno.land/p/test/seal/ 2>&1 | head -10
+# expect: FAIL with Error diff between "integer divide by zero" and the seal-violation panic
 
-   cd .worktrees/gno-review-5704
+# (3) Control: strip the `// Error:` block; lint then exits 1 with the panic printed, proving (1) is keyed off directive presence.
+sed -i '/^\/\/ Error:/,$d' "$DEST"
+go run ./gnovm/cmd/gno lint -C examples ./gno.land/p/test/seal/... ; echo "lint exit: $?"   # expect: 1
 
-   # (1) gno lint — silently absorbs the panic, exits 0, prints nothing.
-   #     This is the regression surface: the directive's mere presence
-   #     turns off lint's signal for any preprocess panic in the file.
-   GNOROOT=$PWD /tmp/gno-5704-bin lint -C examples ./gno.land/p/test/seal/...
-   echo "lint exit: $?"   # expect: 0   (BAD — should flag the mismatch)
-
-   # (2) gno test — correctly catches the mismatch and prints a
-   #     clean Expected/Actual diff. Exit code is currently 0 (a
-   #     separate bug; the FAIL line is the meaningful signal).
-   GNOROOT=$PWD /tmp/gno-5704-bin test ./examples/gno.land/p/test/seal/ 2>&1 | head -10
-   # expect:
-   #   --- FAIL: ./gno.land/p/test/seal/z_seal_violation_mismatched_directive_filetest.gno
-   #   Error diff:
-   #   - integer divide by zero
-   #   + ...foreignImpl does not implement ...Sealed (missing method isSealed)
-
-   # (3) Control: strip the `// Error:` block and re-run lint. With
-   #     no directive present, lint correctly reports the panic and
-   #     exits 1 — proving the absorption above is keyed solely off
-   #     the directive's presence, not its content.
-   sed -i '/^\/\/ Error:/,$d' \
-     examples/gno.land/p/test/seal/filetests/z_seal_violation_mismatched_directive_filetest.gno
-   GNOROOT=$PWD /tmp/gno-5704-bin lint -C examples ./gno.land/p/test/seal/...
-   echo "lint exit: $?"   # expect: 1 with the seal-violation panic printed
-
-   # Cleanup.
-   cd ..
-   rm .worktrees/gno-review-5704/examples/gno.land/p/test/seal/filetests/z_seal_violation_mismatched_directive_filetest.gno
-
+rm "$DEST"
 */
 // PKGPATH: gno.land/r/test/sealviolation_mismatch
 package sealviolation_mismatch

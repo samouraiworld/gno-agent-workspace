@@ -31,11 +31,34 @@ Before: `new(struct{})` and `&var` for any type — zero-sized or not — went t
   Adversarial tests [`ptr12b_zerosize_array_of_zsized.gno`](tests/ptr12b_zerosize_array_of_zsized.gno) and [`ptr12c_zerosize_nested_array.gno`](tests/ptr12c_zerosize_nested_array.gno) both `// run` with expected `// Output: ok` but fail on this branch (`new([10]struct{})` and `new([5][0]int)` return distinct pointers). The Go reference at [`tests/go_zerosize_reference_test.go`](tests/go_zerosize_reference_test.go) confirms `unsafe.Sizeof([10]struct{}) == 0` and observes Go's heap shares the zerobase for these (both `new` calls returned `0x6f4b80` in my run).
 
   ```bash
-  WT=/home/davd/Projects/gno-skills/.worktrees/gno-review-5708
-  cd /home/davd/Projects/gno-skills/reviews/pr/5xxx/5708-zerobase-zero-sized-types/1-350d630e3/tests
-  cp ptr12b_zerosize_array_of_zsized.gno ptr12c_zerosize_nested_array.gno "$WT/gnovm/tests/files/"
-  go test -C "$WT" ./gnovm/pkg/gnolang/ -run 'TestFiles/ptr12[bc]' -test.short -v -timeout 60s
-  rm "$WT/gnovm/tests/files/ptr12b_zerosize_array_of_zsized.gno" "$WT/gnovm/tests/files/ptr12c_zerosize_nested_array.gno"
+  # from a gno checkout:
+  gh pr checkout 5708 -R gnolang/gno
+  cat > gnovm/tests/files/ptr12b_zerosize_array_of_zsized.gno <<'EOF'
+  // run
+  package main
+  func main() {
+      p := new([10]struct{})
+      q := new([10]struct{})
+      if p != q { println("FAIL"); return }
+      println("ok")
+  }
+  // Output:
+  // ok
+  EOF
+  cat > gnovm/tests/files/ptr12c_zerosize_nested_array.gno <<'EOF'
+  // run
+  package main
+  func main() {
+      p := new([5][0]int)
+      q := new([5][0]int)
+      if p != q { println("FAIL"); return }
+      println("ok")
+  }
+  // Output:
+  // ok
+  EOF
+  go test -v -run 'TestFiles/ptr12[bc]' -test.short -timeout 60s ./gnovm/pkg/gnolang/
+  rm gnovm/tests/files/ptr12b_zerosize_array_of_zsized.gno gnovm/tests/files/ptr12c_zerosize_nested_array.gno
   ```
 
   Fix: recurse into the element type, e.g.

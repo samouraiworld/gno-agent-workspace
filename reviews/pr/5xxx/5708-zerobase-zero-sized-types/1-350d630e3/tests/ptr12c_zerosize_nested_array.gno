@@ -1,8 +1,8 @@
-/* Run:
-WT=/home/davd/Projects/gno-skills/.worktrees/gno-review-5708
-cp ptr12c_zerosize_nested_array.gno "$WT/gnovm/tests/files/"
-go test -C "$WT" ./gnovm/pkg/gnolang/ -run 'TestFiles/ptr12c_zerosize_nested_array' -test.short -v -timeout 60s
-rm "$WT/gnovm/tests/files/ptr12c_zerosize_nested_array.gno"
+// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+/* Run: from a gno checkout:
+gh pr checkout 5708 -R gnolang/gno
+# (save this file at gnovm/tests/files/ptr12c_zerosize_nested_array.gno)
+go test -v -run 'TestFiles/ptr12c_zerosize_nested_array' -test.short -timeout 60s ./gnovm/pkg/gnolang/
 */
 
 // run

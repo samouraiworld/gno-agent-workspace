@@ -33,7 +33,7 @@ The load-bearing constraint is the `n.X.(*ConstExpr)` cast: it only matches when
   **Repro:** fails on PR head with `panic: dummy != 7`.
 
   ```bash
-  gh pr checkout 5707 -R gnolang/gno && git checkout c7b8227f2
+  gh pr checkout 5707 -R gnolang/gno
   cat > gnovm/tests/files/var_initorder_methodexpr_ptrrcvr.gno <<'EOF'
   // run
   package main

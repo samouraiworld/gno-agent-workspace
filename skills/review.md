@@ -78,17 +78,17 @@ Each adversarial test file MUST start with this two-part header, in this order, 
 
 The disclaimer makes it unambiguous to any reader (including future me, future contributors, or anyone reading this public repo) that these scripts are AI-generated review artifacts, not audited code — they should not be executed in privileged contexts without verification.
 
-**The header MUST be runnable from a gno checkout alone** — external readers (PR author, other reviewers) don't have this workspace, so don't reference `reviews/...`, `.worktrees/gno-review-<N>/`, `$GNO`, or any home-directory path. Anchor at `gh pr checkout` plus the reviewed commit hash (from the directory name `<n>-<short-commit-hash>`) so the repro is durable across PR force-pushes:
+**The header MUST be runnable from a gno checkout alone** — external readers (PR author, other reviewers) don't have this workspace, so don't reference `reviews/...`, `.worktrees/gno-review-<N>/`, `$GNO`, or any home-directory path. Anchor at `gh pr checkout`:
 
 ```
 /* Run: from a gno checkout:
-gh pr checkout <N> -R gnolang/gno && git checkout <short-commit-hash>
+gh pr checkout <N> -R gnolang/gno
 # (save this file at gnovm/tests/files/<name>.gno)
 go test -v -run 'TestFiles/<name>.gno$' ./gnovm/pkg/gnolang/
 */
 ```
 
-For the review's empirical-claim `**Repro:**` block, prefer a heredoc that recreates the test inline so the bug shape scans without following a reference — anchor at the same `gh pr checkout … && git checkout <hash>`, then `cat > … <<'EOF' … EOF`, `go test`, `rm`.
+For the review's empirical-claim `**Repro:**` block, prefer a heredoc that recreates the test inline so the bug shape scans without following a reference — anchor at the same `gh pr checkout`, then `cat > … <<'EOF' … EOF`, `go test`, `rm`.
 
 ### Gno vs Go comparison
 
@@ -175,6 +175,7 @@ Efficiency rules:
 - **Drop GitHub checkboxes (`- [ ]`)** unless reviewer wants the author to tick items — the reviewer chooses, not the template.
 - **Never frame findings as "the ADR says X is fine, but actually..."** — refer to the file by path (e.g. `pr5648_spanfromgo_quadratic.md:195`) and critique the argument directly. No "the ADR" / "the audit table" editorializing.
 - **Ship a copy-pasteable reproducer for every empirical claim** ("I ran X and saw Y"). Fenced `bash` block, self-contained (restore any reverted files at the end), one clear pass/fail signal. Only pin env vars (`GNOROOT=$PWD`, etc.) when the test actually depends on them — defensive padding adds noise.
+- **Every bash block in the review MUST start with `gh pr checkout <N> -R gnolang/gno` and contain ZERO references to local paths.** No `/home/...`, no `$HOME`, no `cd .worktrees/...`, no `cd reviews/...`, no `$WT`/`$REVIEW` variables pointing at this workspace. No trailing `git checkout <hash>` pin either — `gh pr checkout` lands on the PR head, that's the contract. Reviews are pasted into public GitHub PR comments — external readers run them from a fresh gno checkout, not from our workspace. If the repro needs a test file, inline it with a heredoc (`cat > path/to/file.gno <<'EOF' ... EOF`) rather than referencing it under `reviews/...` or `.worktrees/...`. Clean up at the end (`rm path/to/file.gno`, `git checkout HEAD -- ...`).
 
 Calibration — finding count and severity:
 - **No target count.** Stop when the diff is read in full and blast radius mapped — not when the review looks proportionate. A clean PR has zero warnings; a sprawling one may have ten. The comfortable middle is a tell you stopped early or padded.

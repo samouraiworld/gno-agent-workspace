@@ -1,12 +1,16 @@
-/* Run:
-   cp reviews/pr/4xxx/4008-address-prefix-check/1-32f0c57e/tests/adv_address_prefix_test.gno \
-      .worktrees/gno-review-4008/gnovm/stdlibs/chain/adv_prefix_test.gno
-   (cd .worktrees/gno-review-4008/gnovm/stdlibs/chain && /tmp/gno-master test -v -run TestPrefixCheck .)
-   rm -f .worktrees/gno-review-4008/gnovm/stdlibs/chain/adv_prefix_test.gno
-
-   Note: this test file lives at the post-std-split location (`gnovm/stdlibs/chain/`),
-   not the PR's pre-split path. Build /tmp/gno-master from origin/master beforehand:
-   (cd gno && go build -o /tmp/gno-master ./gnovm/cmd/gno)
+// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+/* Run: from a gno checkout:
+gh pr checkout 4008 -R gnolang/gno
+# (save this file at gnovm/stdlibs/chain/adv_prefix_test.gno)
+# Note: this file targets the post-std-split layout (gnovm/stdlibs/chain/),
+# not the PR's original pre-split path. If your checkout predates the split,
+# adjust the destination to the equivalent pre-split path.
+# The PR's runtime change to address.IsValid is what the test exercises;
+# build the gno binary from the PR source (or master if you want to test
+# the post-split layout in isolation):
+go build -o /tmp/gno-bin ./gnovm/cmd/gno
+(cd gnovm/stdlibs/chain && /tmp/gno-bin test -v -run TestPrefixCheck .)
+rm -f gnovm/stdlibs/chain/adv_prefix_test.gno
 */
 package chain_test
 

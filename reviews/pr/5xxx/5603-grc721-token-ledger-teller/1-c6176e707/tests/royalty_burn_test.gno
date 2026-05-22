@@ -1,9 +1,9 @@
-/* Run:
-  WORKTREE=/home/davd/Projects/gno-skills/.worktrees/gno-review-5603
-  PKG=$WORKTREE/examples/gno.land/p/demo/tokens/grc721/royalty
-  cp /home/davd/Projects/gno-skills/reviews/pr/5xxx/5603-grc721-token-ledger-teller/1-c6176e707/tests/royalty_burn_test.gno "$PKG/royalty_burn_test.gno"
-  (cd "$WORKTREE/examples" && go run ../gnovm/cmd/gno test -v -run 'TestRoyaltyInfo_AfterBurn|TestRoyaltyInfo_Remint_Inherits' ./gno.land/p/demo/tokens/grc721/royalty/)
-  rm "$PKG/royalty_burn_test.gno"
+// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+/* Run: from a gno checkout:
+gh pr checkout 5603 -R gnolang/gno
+# (save this file at examples/gno.land/p/demo/tokens/grc721/royalty/royalty_burn_test.gno)
+(cd examples && go run ../gnovm/cmd/gno test -v -run 'TestRoyaltyInfo_AfterBurn|TestRoyaltyInfo_Remint_Inherits' ./gno.land/p/demo/tokens/grc721/royalty/)
+rm examples/gno.land/p/demo/tokens/grc721/royalty/royalty_burn_test.gno
 */
 package royalty
 
