@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# NOT AUDITED — AI-generated tooling. Review before executing in any privileged context.
+#
 #
 # weekly-report.sh
 #

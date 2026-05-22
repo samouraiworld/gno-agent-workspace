@@ -1,0 +1,47 @@
+# Run:
+#   cp reviews/pr/5xxx/5599-slice-to-array-conversion/1-e8168367/tests/slice_through_array_ptr_view_persist.txtar \
+#      .worktrees/gno-review-5599/gno.land/pkg/integration/testdata/slice_through_array_ptr_view_persist.txtar
+#   go test -C .worktrees/gno-review-5599/gno.land -v -run 'TestTestdata/slice_through_array_ptr_view_persist' ./pkg/integration/ -timeout 5m
+#   rm .worktrees/gno-review-5599/gno.land/pkg/integration/testdata/slice_through_array_ptr_view_persist.txtar
+#
+# Assign a slice taken THROUGH the slice-to-array-ptr view ((*p)[:]) into a
+# realm global, then read it back in a later tx. Probes whether the view
+# (transient, unreal Object) leaks into SliceValue.Base persistence.
+
+loadpkg gno.land/p/nt/ufmt/v0
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/sliceview -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/sliceview -func Init -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/sliceview -func Read -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("1 2 3" string)'
+stdout OK!
+
+-- gnomod.toml --
+module = "gno.land/r/test/sliceview"
+gno = "0.9"
+
+-- sliceview.gno --
+package sliceview
+
+import "gno.land/p/nt/ufmt/v0"
+
+var (
+	data []byte
+	g    []byte
+)
+
+func Init(cur realm) {
+	data = []byte{1, 2, 3, 4, 5}
+	p := (*[3]byte)(data)
+	g = (*p)[:]
+}
+
+func Read(cur realm) string {
+	return ufmt.Sprintf("%d %d %d", g[0], g[1], g[2])
+}

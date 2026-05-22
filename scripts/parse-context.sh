@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# NOT AUDITED — AI-generated tooling. Review before executing in any privileged context.
+#
 # Parse context.md for AI consumption: strip titles and auto-detected statuses.
 # The AI already has PR status from the JSON data — only manual notes matter.
 # Usage: ./scripts/parse-context.sh reports/weekly/2026-04-12/context.md

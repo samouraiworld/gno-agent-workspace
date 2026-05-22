@@ -1,0 +1,54 @@
+# Adversarial: multiple panicking examples interleaved with passing/failing ones.
+# Verifies all examples run independently regardless of panic in any one.
+
+! gno test -v .
+
+# Each example runs.
+stderr '=== RUN   ExampleA'
+stderr '=== RUN   ExampleB'
+stderr '=== RUN   ExampleC'
+stderr '=== RUN   ExampleD'
+
+# A panics, B passes, C panics, D passes.
+stderr 'panic: A panics'
+stderr '--- FAIL: ExampleA'
+stderr '--- PASS: ExampleB'
+stderr 'panic: C panics'
+stderr '--- FAIL: ExampleC'
+stderr '--- PASS: ExampleD'
+
+-- p.gno --
+package multipanic
+
+-- p_test.gno --
+package multipanic
+
+import "fmt"
+
+func ExampleA() {
+	panic("A panics")
+	// Output:
+	// never reached
+}
+
+func ExampleB() {
+	fmt.Println("b")
+	// Output:
+	// b
+}
+
+func ExampleC() {
+	panic("C panics")
+	// Output:
+	// never reached
+}
+
+func ExampleD() {
+	fmt.Println("d")
+	// Output:
+	// d
+}
+
+-- gnomod.toml --
+module = "gno.test/p/multipanic"
+gno = "0.9"

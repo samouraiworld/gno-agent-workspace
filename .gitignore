@@ -1,0 +1,15 @@
+# Generated data
+data/
+pr-history.jsonl
+issue-history.jsonl
+*.jsonl
+!skills/**/*.jsonl
+
+# OS
+.DS_Store
+
+# Worktrees
+.worktrees/
+
+# Personal Claude Code settings
+.claude/settings.local.json
