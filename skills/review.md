@@ -29,10 +29,10 @@ For a single-PR run, skip the dispatch and execute the steps below directly.
   ```bash
   git -C gno worktree add ../.worktrees/gno-review-<number> origin/master
   ```
-  This creates the worktree at `<gno-skills-root>/.worktrees/gno-review-<number>` (relative to `gno/`, `../` resolves to the gno-skills repo root).
+  This creates the worktree at `<workspace-root>/.worktrees/gno-review-<number>` (relative to `gno/`, `../` resolves to the workspace root).
 - Checkout the PR **inside that worktree** (use the worktree path as the working directory):
   ```bash
-  # workdir: <gno-skills-root>/.worktrees/gno-review-<number>
+  # workdir: <workspace-root>/.worktrees/gno-review-<number>
   gh pr checkout <number> -R gnolang/gno
   ```
   All subsequent file reads and test runs for this PR must also use this worktree path as the working directory.
@@ -76,9 +76,9 @@ Each adversarial test file MUST start with this two-part header, in this order, 
 1. A single-line audit disclaimer: `// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.`
 2. A `/* Run: ... */` multiline block giving the exact commands to reproduce. Use `/* */` (not `//` per line) so the commands paste cleanly into a shell.
 
-The disclaimer makes it unambiguous to any reader (including future me, future contributors, or anyone reading the gno-skills repo if it goes public) that these scripts are AI-generated review artifacts, not audited code — they should not be executed in privileged contexts without verification.
+The disclaimer makes it unambiguous to any reader (including future me, future contributors, or anyone reading this public repo) that these scripts are AI-generated review artifacts, not audited code — they should not be executed in privileged contexts without verification.
 
-**The header MUST be runnable from a gno checkout alone** — external readers (PR author, other reviewers) don't have gno-skills, so don't reference `reviews/...`, `.worktrees/gno-review-<N>/`, `$GNO`, or any home-directory path. Anchor at `gh pr checkout` plus the reviewed commit hash (from the directory name `<n>-<short-commit-hash>`) so the repro is durable across PR force-pushes:
+**The header MUST be runnable from a gno checkout alone** — external readers (PR author, other reviewers) don't have this workspace, so don't reference `reviews/...`, `.worktrees/gno-review-<N>/`, `$GNO`, or any home-directory path. Anchor at `gh pr checkout` plus the reviewed commit hash (from the directory name `<n>-<short-commit-hash>`) so the repro is durable across PR force-pushes:
 
 ```
 /* Run: from a gno checkout:
@@ -191,8 +191,8 @@ Rules:
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Be direct. No filler. State the problem and why it matters.
 - Large PRs (>20 files): summarize changes by area first, then deep-dive on critical paths.
-- After writing the review file(s), regenerate the index: `./scripts/build-reviews-readme.sh`. Then commit and push to gno-skills (`git@github.com:samouraiworld/gno-skills.git`) only: `git add reviews/ && git commit -m "review: PR #<number>" && git push`. For a multi-PR parallel run, the **parent** does this once after all subagents return (use a multi-PR commit message like `review: PRs #<a> and #<b>`); subagents must not commit or push.
+- After writing the review file(s), regenerate the index: `./scripts/build-reviews-readme.sh`. Then commit and push to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only: `git add reviews/ && git commit -m "review: PR #<number>" && git push`. For a multi-PR parallel run, the **parent** does this once after all subagents return (use a multi-PR commit message like `review: PRs #<a> and #<b>`); subagents must not commit or push.
 - **Push is pre-authorized for this skill.** The user has standing approval for commit + push when running the review skill — do not stop to ask. This overrides the global "ask before push" rule, scoped to this skill only.
 - Never push to the gnolang/gno repository.
-- This skill must be run from the gno-skills repository root.
-- Once the review is finished (file written, index regenerated, commit done), ask the user before opening the review worktree in VSCode. If they confirm, open it as a new window: `code <gno-skills-root>/.worktrees/gno-review-<number>`.
+- This skill must be run from the workspace root.
+- Once the review is finished (file written, index regenerated, commit done), ask the user before opening the review worktree in VSCode. If they confirm, open it as a new window: `code <workspace-root>/.worktrees/gno-review-<number>`.

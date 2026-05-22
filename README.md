@@ -1,6 +1,6 @@
-# gno-docs
+# gno-agent-workspace
 
-Unofficial knowledge base and review workspace for [Gno](https://gno.land).
+Unofficial knowledge base and review workspace for [Gno](https://gno.land), designed to be driven by an AI coding agent.
 
 Made by [samourai](https://github.com/samouraiworld).
 
@@ -9,7 +9,7 @@ Made by [samourai](https://github.com/samouraiworld).
 ## Setup
 
 ```bash
-git clone --recursive git@github.com:samouraiworld/gno-docs.git
+git clone --recursive git@github.com:samouraiworld/gno-agent-workspace.git
 ```
 
 Already cloned? Init the submodule:
