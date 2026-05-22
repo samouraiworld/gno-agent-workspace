@@ -1,7 +1,8 @@
-// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+// AI generated
 /* Run: from a gno checkout:
 gh pr checkout 5603 -R gnolang/gno
-# (save this file at examples/gno.land/p/demo/tokens/grc721/royalty/royalty_burn_test.gno)
+curl -fsSL -o examples/gno.land/p/demo/tokens/grc721/royalty/royalty_burn_test.gno \
+  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5603-grc721-token-ledger-teller/1-c6176e707/tests/royalty_burn_test.gno
 (cd examples && go run ../gnovm/cmd/gno test -v -run 'TestRoyaltyInfo_AfterBurn|TestRoyaltyInfo_Remint_Inherits' ./gno.land/p/demo/tokens/grc721/royalty/)
 rm examples/gno.land/p/demo/tokens/grc721/royalty/royalty_burn_test.gno
 */

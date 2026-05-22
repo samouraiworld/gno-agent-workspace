@@ -73,20 +73,24 @@ When findings suggest fragile or under-tested code, write edge-case tests to val
 
 Each adversarial test file MUST start with this two-part header, in this order, BEFORE the `package` line:
 
-1. A single-line audit disclaimer: `// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.`
+1. A single-line marker: `// AI generated`
 2. A `/* Run: ... */` multiline block giving the exact commands to reproduce. Use `/* */` (not `//` per line) so the commands paste cleanly into a shell.
 
-The disclaimer makes it unambiguous to any reader (including future me, future contributors, or anyone reading this public repo) that these scripts are AI-generated review artifacts, not audited code — they should not be executed in privileged contexts without verification.
+The marker makes it clear at a glance that these scripts are AI-generated review artifacts and not part of the project's vetted test suite.
 
-**The header MUST be runnable from a gno checkout alone** — external readers (PR author, other reviewers) don't have this workspace, so don't reference `reviews/...`, `.worktrees/gno-review-<N>/`, `$GNO`, or any home-directory path. Anchor at `gh pr checkout`:
+**The header MUST be runnable from a gno checkout alone** — external readers (PR author, other reviewers) don't have this workspace, so don't reference `.worktrees/gno-review-<N>/`, `$GNO`, or any home-directory path. Anchor at `gh pr checkout <N>` + `git checkout <short-commit-hash>` (so the repro survives force-pushes), then fetch the test file from this repo via `curl` so the reader doesn't have to copy-paste:
 
 ```
 /* Run: from a gno checkout:
-gh pr checkout <N> -R gnolang/gno
-# (save this file at gnovm/tests/files/<name>.gno)
+gh pr checkout <N> -R gnolang/gno && git checkout <short-commit-hash>
+curl -fsSL -o gnovm/tests/files/<name>.gno \
+  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/tests/<name>.gno
 go test -v -run 'TestFiles/<name>.gno$' ./gnovm/pkg/gnolang/
+rm gnovm/tests/files/<name>.gno
 */
 ```
+
+The `curl` URL is the raw GitHub URL of the test file *in this repo*. It only resolves after the review commit is pushed, which is fine — pushing is the final step of the review skill, and external readers run the block after the review is published.
 
 For the review's empirical-claim `**Repro:**` block, prefer a heredoc that recreates the test inline so the bug shape scans without following a reference — anchor at the same `gh pr checkout`, then `cat > … <<'EOF' … EOF`, `go test`, `rm`.
 
