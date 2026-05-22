@@ -1,9 +1,9 @@
-/* Run:
-  WORKTREE=/home/davd/Projects/gno-skills/.worktrees/gno-review-5603
-  PKG=$WORKTREE/examples/gno.land/p/demo/tokens/grc721
-  cp /home/davd/Projects/gno-skills/reviews/pr/5xxx/5603-grc721-token-ledger-teller/1-c6176e707/tests/burn_leak_test.gno "$PKG/burn_leak_test.gno"
-  (cd "$WORKTREE/examples" && go run ../gnovm/cmd/gno test -v -run 'TestBurn_Leak|TestBurn_TokenURI_AfterBurn|TestBurn_TokenURI_Mint_Same_ID|TestBurn_OperatorApproval_Persists' ./gno.land/p/demo/tokens/grc721/)
-  rm "$PKG/burn_leak_test.gno"
+// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+/* Run: from a gno checkout:
+gh pr checkout 5603 -R gnolang/gno
+# (save this file at examples/gno.land/p/demo/tokens/grc721/burn_leak_test.gno)
+(cd examples && go run ../gnovm/cmd/gno test -v -run 'TestBurn_Leak|TestBurn_TokenURI_AfterBurn|TestBurn_TokenURI_Mint_Same_ID|TestBurn_OperatorApproval_Persists' ./gno.land/p/demo/tokens/grc721/)
+rm examples/gno.land/p/demo/tokens/grc721/burn_leak_test.gno
 */
 package grc721
 

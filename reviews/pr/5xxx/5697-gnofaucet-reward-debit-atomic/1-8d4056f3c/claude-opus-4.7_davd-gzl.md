@@ -30,7 +30,8 @@ In [`gh.go:251-266`](../../../../../.worktrees/gno-review-5697/contribs/gnofauce
 The author's PR notes "lost 11 of 50 debits in a sanity-check run." Reverting just `Apply` to the old `Get`+`Set` form and running the new test 5× under `-race`:
 
 ```bash
-cd /home/davd/Projects/gno-skills/.worktrees/gno-review-5697
+# from a gno checkout:
+gh pr checkout 5697 -R gnolang/gno
 git show HEAD~1:contribs/gnofaucet/github/rewarder.go > /tmp/old-rewarder.go
 cp /tmp/old-rewarder.go contribs/gnofaucet/github/rewarder.go
 go test -count=5 -race -v -run TestApply_ConcurrentDebitsAreAtomic ./contribs/gnofaucet/github/

@@ -30,8 +30,9 @@ Pre-PR, `Alloc.stampPkgID(oi)` always stamped `oi.PkgID = alloc.currentRealmID`.
   The pinned multistore commit hash was minted before type-driven stamping landed. With `NewStruct` now stamping declared-realm PkgIDs, the save set for the crossrealm38 scenario changes — exactly what the pin is designed to catch. Reproduced locally:
 
   ```bash
-  ( cd .worktrees/gno-review-5706 && \
-    go test ./gno.land/pkg/sdk/vm/ -run TestAppHashCrossrealm38 -v 2>&1 | tail -10 )
+  # from a gno checkout:
+  gh pr checkout 5706 -R gnolang/gno
+  go test ./gno.land/pkg/sdk/vm/ -run TestAppHashCrossrealm38 -v 2>&1 | tail -10
   # expected: 77eeee7c455c8c8e99c4d27825ab52912125a2fb22ce20f8110b49e5b07277fd
   # actual:   daa554529ce43b80c3dedd658de8fe787e0a057e60aa01c897364dd80f9dfc65
   ```
