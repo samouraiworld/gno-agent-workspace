@@ -8,6 +8,8 @@ argument-hint: <pr-number> [pr-number...]
 
 Review one or more PRs from the `gnolang/gno` repository.
 
+**Always optimize for the human reader.** Reviews, repros, test files, commit messages, comments — every artifact this skill produces is read by a person making a decision (merge or block; trust or verify; paste or edit; pay attention or skim). Optimize for their cognitive load, not the LLM's convenience. Concrete consequences: skimmable structure (verdict first, then narrative, then findings); concise prose (strip filler, hedging, articles); clickable references (markdown links over bare paths); self-sufficient artifacts (a file pulled out of context still makes sense); enough explanation to act on, no more.
+
 **Input:** `$ARGUMENTS` — space-separated PR numbers or GitHub URLs. Process each PR independently.
 
 ## Parallel dispatch (multi-PR runs)
@@ -73,12 +75,10 @@ When findings suggest fragile or under-tested code, write edge-case tests to val
 
 Each adversarial test file MUST start with this two-part header, in this order, BEFORE the `package` line:
 
-1. A single-line marker: `// AI generated`
+1. A single-line audit disclaimer: `// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.`
 2. A `/* Run: ... */` multiline block giving the exact commands to reproduce. Use `/* */` (not `//` per line) so the commands paste cleanly into a shell.
 
-The marker makes it clear at a glance that these scripts are AI-generated review artifacts and not part of the project's vetted test suite.
-
-**The header MUST be runnable from a gno checkout alone** — external readers (PR author, other reviewers) don't have this workspace, so don't reference `.worktrees/gno-review-<N>/`, `$GNO`, or any home-directory path. Anchor at `gh pr checkout <N>` + `git checkout <short-commit-hash>` (so the repro survives force-pushes), then fetch the test file from this repo via `curl` so the reader doesn't have to copy-paste:
+**The header MUST be runnable from a gnolang/gno clone alone** — no `.worktrees/`, `$GNO`, or home paths. The `git checkout <hash>` pin is what makes the repro survive a force-push.
 
 ```
 /* Run: from a gno checkout:
@@ -90,9 +90,11 @@ rm gnovm/tests/files/<name>.gno
 */
 ```
 
-The `curl` URL is the raw GitHub URL of the test file *in this repo*. It only resolves after the review commit is pushed, which is fine — pushing is the final step of the review skill, and external readers run the block after the review is published.
+Same shape for `.txtar` integration tests — `#` comments instead of `/* */`, destination under `gno.land/pkg/integration/testdata/`.
 
-For the review's empirical-claim `**Repro:**` block, prefer a heredoc that recreates the test inline so the bug shape scans without following a reference — anchor at the same `gh pr checkout`, then `cat > … <<'EOF' … EOF`, `go test`, `rm`.
+For empirical-claim `**Repro:**` blocks inside the review itself, prefer inline heredocs (`cat > … <<'EOF' … EOF`) over `curl` so the bug shape scans without following a reference.
+
+**Adversarial test/repro headers must stand alone (~20 lines).** Name code paths by actual symbol, not review labels (`Warning 2`, `finding above`). Shape: disclaimer + `Run:` block, one paragraph on the mechanism, 2-3 lines on the observed result, one line on how to flip the assertion.
 
 ### Gno vs Go comparison
 
