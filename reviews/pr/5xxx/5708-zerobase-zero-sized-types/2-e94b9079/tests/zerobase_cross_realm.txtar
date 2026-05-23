@@ -1,0 +1,66 @@
+# NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+#
+# Run: from a local clone of gnolang/gno:
+#   gh pr checkout 5708 -R gnolang/gno && git checkout e94b9079
+#   curl -fsSL -o gno.land/pkg/integration/testdata/zerobase_cross_realm.txtar \
+#     https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5708-zerobase-zero-sized-types/2-e94b9079/tests/zerobase_cross_realm.txtar
+#   go test -v -run 'TestTestdata/zerobase_cross_realm' -timeout 120s ./gno.land/pkg/integration/
+#   rm gno.land/pkg/integration/testdata/zerobase_cross_realm.txtar
+#
+# Demonstrates that GetZerobase's per-machine cache (machine.go:300-312)
+# is shared across realms in a single tx. r/zerobase_a calls new(struct{})
+# first — the cache mints a HIV via NewHeapItem, which stamps
+# PkgID = currentRealmID = r/zerobase_a. r/zerobase_b's subsequent
+# new(struct{}) hits the cache and reuses that HIV; assigning it to
+# r/zerobase_b's `Stored` global persists r/zerobase_b's state, but the
+# underlying HIV's PkgID still says r/zerobase_a — so storage rent and
+# touchForeignRealm routing for r/B's value attribute to r/A.
+#
+# Observed on PR #5708 HEAD (e94b9079): "pa==pb=true"
+#   - pointers from two different realms compare equal → shared HIV (the
+#     precondition for the leak; PkgID is internal and not surfaced to
+#     Gno code)
+# A per-realm cache, or skipping stampPkgID inside GetZerobase, would
+# flip this. To assert the bug for CI gating, flip the `stdout` line.
+
+loadpkg gno.land/r/zerobase_b $WORK/b
+loadpkg gno.land/r/zerobase_a $WORK/a
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/zerobase_a -func Demo -gas-fee 5000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+
+stdout 'pa==pb=true'
+
+-- a/gnomod.toml --
+module = "gno.land/r/zerobase_a"
+gno = "0.9"
+
+-- a/a.gno --
+package zerobase_a
+
+import (
+	"strconv"
+
+	b "gno.land/r/zerobase_b"
+)
+
+func Demo(cur realm) string {
+	pa := new(struct{})                // cache populated; HIV stamped PkgID=r/zerobase_a
+	pb := b.AllocAndStore(cross(cur))  // shared HIV reused inside r/zerobase_b
+	return "pa==pb=" + strconv.FormatBool(pa == pb)
+}
+
+-- b/gnomod.toml --
+module = "gno.land/r/zerobase_b"
+gno = "0.9"
+
+-- b/b.gno --
+package zerobase_b
+
+var Stored *struct{} // realm-global → forces persistence of the leaked HIV
+
+func AllocAndStore(cur realm) *struct{} {
+	Stored = new(struct{})
+	return Stored
+}
