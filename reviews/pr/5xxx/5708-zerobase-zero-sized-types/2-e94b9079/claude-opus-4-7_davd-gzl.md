@@ -46,16 +46,22 @@ None.
 ## Warnings (should fix)
 
 - **[cross-tx pointer-identity break once persisted]** [`machine.go:300-312`](../../../../../.worktrees/gno-review-5708/gnovm/pkg/gnolang/machine.go#L300-L312) — `zerobaseAllocs` is a field on `Machine`, so the cache lives only as long as the live machine. Once a `new(struct{})` pointer reaches realm state, the underlying HIV gets a stable `ObjectID` and persists. The *next* tx starts with a fresh `Machine` (`zerobaseAllocs == nil`), so the next `new(struct{})` mints a different HIV with a different `ObjectID`. Pointer equality in Gno compares `Base.ObjectID`, so `globalP == new(struct{})` flips from true (originating tx) to false (reload). `GetZerobase`'s new doc hedges "within a machine execution" — accurate, but worth pinning explicitly since realm-persisted pointers naturally outlive their machine.
+  <details><summary>details</summary>
+
+[`tests/zerobase_cross_tx.txtar`](tests/zerobase_cross_tx.txtar) pins this directly: genesis sets `var p = new(struct{})`; tx 2 calls `Check()` which does `q := new(struct{}); r := new(struct{})` and returns the comparison. On PR HEAD: `"p==q=false q==r=true"` — cross-tx break visible (`p≠q`), within-tx invariant intact (`q==r`).
+
+  Fix options, roughly in order of effort: (a) document the within-machine scoping in the PR description and add a filetest that locks the surprising behavior in; (b) refuse to share when the pointer can escape to realm state (preprocess-time detect zero-sized pointer escaping to a package-level var and skip the cache there) — also incidentally retires the cross-realm warning but weakens the PR's within-tx guarantee for the escapable case; (c) sentinel HIV per `TypeID` with a stable, well-known `ObjectID` baked into the realm — significantly more work but fixes both warnings cleanly.
+  </details>
 
 - **[cross-realm HIV ownership leak in one tx]** [`machine.go:300-312`](../../../../../.worktrees/gno-review-5708/gnovm/pkg/gnolang/machine.go#L300-L312) — `GetZerobase` calls `m.Alloc.NewHeapItem`, which stamps `PkgID = currentRealmID` ([`alloc.go:629`](../../../../../.worktrees/gno-review-5708/gnovm/pkg/gnolang/alloc.go#L629)). The *first* realm to call `new(zero-sized)` owns the cached HIV. A second realm in the same tx that allocates the same type and persists the result keeps the first realm's `PkgID`; `assignNewObjectID` ([`realm.go:1937-1964`](../../../../../.worktrees/gno-review-5708/gnovm/pkg/gnolang/realm.go#L1937-L1964)) routes via `touchForeignRealm` and storage rent for `r/B` attributes to `r/A`.
-  <details><summary>reproducer</summary>
+  <details><summary>details</summary>
 
-  [`tests/zerobase_cross_realm.txtar`](tests/zerobase_cross_realm.txtar) loads two realms, calls `r/zerobase_a.Demo` which (1) does `pa := new(struct{})` (cache populated, HIV stamped `PkgID = r/zerobase_a`), (2) cross-calls `r/zerobase_b.AllocAndStore` which does `Stored = new(struct{})` (shared HIV reused, persisted under `r/zerobase_b`'s state). On the new HEAD: `"pa==pb=true"` — pointers from two different realms compare equal. The tx's storage `EVENTS` charge both realms (516 bytes to `r/zerobase_a`, 139 to `r/zerobase_b`); a cleaner attribution signal would require separating realm-init from cache-exercise into two txs, but the shared identity is the necessary precondition.
+  [`tests/zerobase_cross_realm.txtar`](tests/zerobase_cross_realm.txtar) loads two realms, calls `r/zerobase_a.Demo` which (1) does `pa := new(struct{})` (cache populated, HIV stamped `PkgID = r/zerobase_a`), (2) does `pa2 := new(struct{})` (within-realm cache hit), (3) cross-calls `r/zerobase_b.AllocAndStore` which does `Stored = new(struct{})` (shared HIV reused, persisted under `r/zerobase_b`'s state). On PR HEAD: `"pa==pa2=true pa==pb=true"` — within-realm cache hit intact, cross-realm cache shared. The tx's storage `EVENTS` charge both realms (516 bytes to `r/zerobase_a`, 139 to `r/zerobase_b`); a cleaner attribution signal would require separating realm-init from cache-exercise into two txs, but the shared identity is the necessary precondition.
 
   Minimal fix: skip `stampPkgID` inside `GetZerobase` so `assignNewObjectID`'s `PkgID.IsZero()` branch adopts the HIV into the persisting realm — same code path used for stdlib-block-allocated heap items. A more invasive fix (sentinel HIV per `TypeID` with a stable, well-known `ObjectID` baked into the realm) retires both warnings cleanly: same identity across txs *and* no per-realm ownership question.
   </details>
 
-A targeted fix for one warning does not automatically fix the other: skipping `stampPkgID` retires only W2; scoping the cache to "skip when escapable" retires W2 incidentally but weakens the within-tx guarantee for W1. The sentinel-per-`TypeID` design is the only path that fixes both.
+A targeted fix for one warning does not automatically fix the other: skipping `stampPkgID` retires only the cross-realm warning; scoping the cache to "skip when escapable" retires the cross-realm one incidentally but weakens the cross-tx within-tx guarantee. The sentinel-per-`TypeID` design is the only path that fixes both.
 
 ## Nits
 
@@ -65,8 +71,8 @@ A targeted fix for one warning does not automatically fix the other: skipping `s
 
 ## Missing Tests
 
-- No filetest in the PR rounds a zero-sized pointer through realm save/load and asserts equality against a fresh `new(T)` in a follow-up tx — the doc hedge is the only thing documenting the within-machine scoping. [`tests/zerobase_cross_realm.txtar`](tests/zerobase_cross_realm.txtar) (this review) demonstrates the shape; adopting it (or a variant) into the PR would lock in whichever side of W1 the author commits to.
-- No test pinning cross-realm cache sharing; same txtar covers it.
+- No filetest in the PR rounds a zero-sized pointer through realm save/load and asserts equality against a fresh `new(T)` in a follow-up tx. [`tests/zerobase_cross_tx.txtar`](tests/zerobase_cross_tx.txtar) (this review) demonstrates the shape.
+- No test pinning cross-realm cache sharing. [`tests/zerobase_cross_realm.txtar`](tests/zerobase_cross_realm.txtar) (this review) demonstrates the shape.
 
 ## Questions for Author
 
