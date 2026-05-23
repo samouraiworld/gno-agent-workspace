@@ -1,0 +1,57 @@
+# NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+#
+# Run: from a local clone of gnolang/gno:
+#   gh pr checkout 5708 -R gnolang/gno && git checkout e94b9079
+#   curl -fsSL -o gno.land/pkg/integration/testdata/zerobase_cross_tx.txtar \
+#     https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5708-zerobase-zero-sized-types/2-e94b9079/tests/zerobase_cross_tx.txtar
+#   go test -v -run 'TestTestdata/zerobase_cross_tx' -timeout 120s ./gno.land/pkg/integration/
+#   rm gno.land/pkg/integration/testdata/zerobase_cross_tx.txtar
+#
+# Demonstrates the cross-tx pointer-identity break in the GetZerobase cache
+# (machine.go:300-312). m.zerobaseAllocs lives only as long as the Machine;
+# the next tx starts with a fresh cache, so `p` (loaded from realm state)
+# and a freshly minted `new(struct{})` point at different HIVs with
+# different ObjectIDs.
+#
+# Observed on PR #5708 HEAD (e94b9079): "p==q=false q==r=true"
+#   - p==q=false → cross-tx break (the bug)
+#   - q==r=true  → within-tx invariant holds (the PR's stated guarantee)
+# A fix that preserves the parity across persistence would yield
+# "p==q=true q==r=true". To assert the bug for CI gating, flip the
+# `stdout` line below from the BUG expectation to the FIXED one.
+
+loadpkg gno.land/r/zerobasebug $WORK
+
+gnoland start
+
+# tx1 was the addpkg (loadpkg), which initialized `var p = new(struct{})`.
+# Now in tx2, call Check() to see if the just-allocated new(struct{}) equals
+# the persisted p. If GetZerobase's cache scope is truly "within machine
+# execution", these will compare unequal and the function will return false.
+
+gnokey maketx call -pkgpath gno.land/r/zerobasebug -func Check -gas-fee 5000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
+
+stdout 'p==q=false q==r=true'
+
+-- gnomod.toml --
+module = "gno.land/r/zerobasebug"
+gno = "0.9"
+
+-- zerobasebug.gno --
+package zerobasebug
+
+import "strconv"
+
+// p is initialized at package-init (genesis tx). Its Base HIV gets a stable
+// ObjectID when realm state is persisted.
+var p = new(struct{})
+
+// Check is invoked in a *later* tx. The Machine for this tx is fresh, so
+// m.zerobaseAllocs starts nil. new(struct{}) below mints a different HIV
+// (with a different ObjectID) than the one p still points at.
+func Check(_ realm) string {
+	q := new(struct{})
+	r := new(struct{})
+	return "p==q=" + strconv.FormatBool(p == q) +
+		" q==r=" + strconv.FormatBool(q == r)
+}

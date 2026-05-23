@@ -16,12 +16,14 @@
 # underlying HIV's PkgID still says r/zerobase_a — so storage rent and
 # touchForeignRealm routing for r/B's value attribute to r/A.
 #
-# Observed on PR #5708 HEAD (e94b9079): "pa==pb=true"
-#   - pointers from two different realms compare equal → shared HIV (the
-#     precondition for the leak; PkgID is internal and not surfaced to
-#     Gno code)
+# Observed on PR #5708 HEAD (e94b9079): "pa==pa2=true pa==pb=true"
+#   - pa==pa2=true  → within-realm cache hit (the PR's stated guarantee)
+#   - pa==pb=true   → cross-realm cache sharing (the precondition for
+#                     the leak; PkgID is internal and not surfaced to
+#                     Gno code)
 # A per-realm cache, or skipping stampPkgID inside GetZerobase, would
-# flip this. To assert the bug for CI gating, flip the `stdout` line.
+# flip pa==pb to false. To assert the bug for CI gating, flip the
+# `stdout` line.
 
 loadpkg gno.land/r/zerobase_b $WORK/b
 loadpkg gno.land/r/zerobase_a $WORK/a
@@ -30,7 +32,7 @@ gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/zerobase_a -func Demo -gas-fee 5000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
 
-stdout 'pa==pb=true'
+stdout 'pa==pa2=true pa==pb=true'
 
 -- a/gnomod.toml --
 module = "gno.land/r/zerobase_a"
@@ -47,8 +49,10 @@ import (
 
 func Demo(cur realm) string {
 	pa := new(struct{})                // cache populated; HIV stamped PkgID=r/zerobase_a
+	pa2 := new(struct{})               // same-realm cache hit (within-realm invariant)
 	pb := b.AllocAndStore(cross(cur))  // shared HIV reused inside r/zerobase_b
-	return "pa==pb=" + strconv.FormatBool(pa == pb)
+	return "pa==pa2=" + strconv.FormatBool(pa == pa2) +
+		" pa==pb=" + strconv.FormatBool(pa == pb)
 }
 
 -- b/gnomod.toml --

@@ -96,6 +96,8 @@ For empirical-claim `**Repro:**` blocks inside the review itself, prefer inline 
 
 **Adversarial test/repro headers must stand alone (~20 lines).** Name code paths by actual symbol, not review labels (`Warning 2`, `finding above`). Shape: disclaimer + `Run:` block, one paragraph on the mechanism, 2-3 lines on the observed result, one line on how to flip the assertion.
 
+**Pair the bug with its related baseline invariant in one assertion.** E.g. `"p==q=false q==r=true"`.
+
 ### Gno vs Go comparison
 
 When the PR contains `.gno` code, write an equivalent Go test to verify behavior parity. Run both and note any discrepancies. Save test files to the same `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/tests/` directory.
