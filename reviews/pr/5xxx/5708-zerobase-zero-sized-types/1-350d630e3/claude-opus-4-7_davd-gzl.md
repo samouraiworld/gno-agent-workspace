@@ -31,7 +31,7 @@ Before: `new(struct{})` and `&var` for any type — zero-sized or not — went t
   Adversarial tests [`ptr12b_zerosize_array_of_zsized.gno`](tests/ptr12b_zerosize_array_of_zsized.gno) and [`ptr12c_zerosize_nested_array.gno`](tests/ptr12c_zerosize_nested_array.gno) both `// run` with expected `// Output: ok` but fail on this branch (`new([10]struct{})` and `new([5][0]int)` return distinct pointers). The Go reference at [`tests/go_zerosize_reference_test.go`](tests/go_zerosize_reference_test.go) confirms `unsafe.Sizeof([10]struct{}) == 0` and observes Go's heap shares the zerobase for these (both `new` calls returned `0x6f4b80` in my run).
 
   ```bash
-  # from a gno checkout:
+  # from a local clone of gnolang/gno:
   gh pr checkout 5708 -R gnolang/gno
   cat > gnovm/tests/files/ptr12b_zerosize_array_of_zsized.gno <<'EOF'
   // run
