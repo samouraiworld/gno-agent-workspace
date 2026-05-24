@@ -16,6 +16,8 @@ Knowledge base and review workspace for [gnolang/gno](https://github.com/gnolang
 
 When given a PR number or URL, read and follow `skills/review.md`.
 
+When asked for a **parallel**, **red-team / blue-team**, or **deeper** review of a single PR (or "review and loop until perfect"), read and follow `skills/parallel-review.md` instead.
+
 ## Fix Issue
 
 When asked to fix a gnolang/gno issue (bug, security fix, etc.), read and follow `skills/fix-issue.md`. Supports two modes: `fix` to implement and open a PR, `cleanup` to remove worktrees for merged PRs.
