@@ -98,6 +98,13 @@ For empirical-claim `**Repro:**` blocks inside the review itself, prefer inline 
 
 **Pair the bug with its related baseline invariant in one assertion.** E.g. `"p==q=false q==r=true"`.
 
+**Ship two `stdout` assertions side-by-side — one active (current bug), one commented (post-fix expectation).** Flipping the comment is a one-line edit to assert the fix:
+
+```
+stdout 'p==q=false q==r=true'   # IS:     bug — cross-tx pointer-identity break
+# stdout 'p==q=true q==r=true'  # SHOULD: parity preserved across persistence
+```
+
 ### Gno vs Go comparison
 
 When the PR contains `.gno` code, write an equivalent Go test to verify behavior parity. Run both and note any discrepancies. Save test files to the same `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/tests/` directory.
