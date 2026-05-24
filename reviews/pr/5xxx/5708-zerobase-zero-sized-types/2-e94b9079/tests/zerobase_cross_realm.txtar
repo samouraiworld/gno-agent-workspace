@@ -32,7 +32,8 @@ gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/zerobase_a -func Demo -gas-fee 5000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
 
-stdout 'pa==pa2=true pa==pb=true'
+stdout 'pa==pa2=true pa==pb=true'   # IS:     bug — cache shared across realms
+# stdout 'pa==pa2=true pa==pb=false' # SHOULD: per-realm cache (or sentinel HIV)
 
 -- a/gnomod.toml --
 module = "gno.land/r/zerobase_a"

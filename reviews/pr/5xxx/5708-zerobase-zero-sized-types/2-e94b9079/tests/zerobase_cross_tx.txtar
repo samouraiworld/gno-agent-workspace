@@ -1,5 +1,3 @@
-# NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
-#
 # Run: from a local clone of gnolang/gno:
 #   gh pr checkout 5708 -R gnolang/gno && git checkout e94b9079
 #   curl -fsSL -o gno.land/pkg/integration/testdata/zerobase_cross_tx.txtar \
@@ -31,7 +29,8 @@ gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/zerobasebug -func Check -gas-fee 5000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 
-stdout 'p==q=false q==r=true'
+stdout 'p==q=false q==r=true'   # IS:     bug — cross-tx pointer-identity break
+# stdout 'p==q=true q==r=true'  # SHOULD: parity preserved across persistence
 
 -- gnomod.toml --
 module = "gno.land/r/zerobasebug"
