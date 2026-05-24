@@ -1,6 +1,6 @@
 ---
 name: gno-parallel-review
-description: Deeper multi-angle review of a single Gno PR. Dispatches red-team / blue-team / correctness agents in parallel, then loops a critic until convergence. Use when a PR warrants more scrutiny than the single-reviewer `skills/review.md` (large diffs, security-sensitive, consensus-relevant, prior review felt thin).
+description: Deeper multi-angle review of a single Gno PR. Dispatches red-team / blue-team / correctness agents in parallel, then a single parallel critic pass with a hard severity bar. Use when a PR warrants more scrutiny than the single-reviewer `skills/review.md` (large diffs, security-sensitive, consensus-relevant, prior review felt thin).
 argument-hint: <pr-number>
 ---
 
@@ -9,7 +9,7 @@ argument-hint: <pr-number>
 Multi-angle adversarial review of ONE PR. Different from `skills/review.md`:
 
 - `skills/review.md` runs ONE reviewer per PR and parallelizes ACROSS PRs.
-- This skill runs MANY reviewers on ONE PR (different lenses), then loops a critic.
+- This skill runs MANY reviewers on ONE PR (different lenses), then a single parallel critic pass.
 
 **Always optimize for the human reader.** Same artifact discipline as `skills/review.md` — verdict first, concrete consequences, clickable references, self-sufficient files.
 
