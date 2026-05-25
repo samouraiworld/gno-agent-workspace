@@ -1,0 +1,114 @@
+# PR #5016: docs: add new `r/docs/...` examples
+
+URL: https://github.com/gnolang/gno/pull/5016
+Author: davd-gzl | Base: master | Files: 28 | +1804 -16
+Reviewed by: davd-gzl | Model: claude-opus-4-7
+
+**Verdict: REQUEST CHANGES** — every new realm is written against the pre-#5669 `runtime.PreviousRealm()` / `banker.NewBanker(bt)` API that no longer exists on master; the PR also carries a merge conflict on `soliditypatterns/ownable/render.gno`. Self-review by the PR author; disclosed per AGENTS.md.
+
+## Summary
+
+The PR adds 11 new documentation realms under `examples/gno.land/r/docs/` (composition, crossing, factory, json, mistakes, registry, soliditypatterns/banker, soliditypatterns/reentrancy, tdd, userprofile) plus a reorganized `home.gno` index. Last meaningful update was 2026-04-15 (`a9e2631f2`); master moved through #5669 ("Phase 3: captured realm capabilities") on 2026-05-21, which (1) moved `runtime.PreviousRealm()`/`CurrentRealm()`/`OriginCaller()`/`OriginSend()` out of `chain/runtime` into the quarantined `chain/runtime/unsafe` package, (2) changed `banker.NewBanker(bt)` to `banker.NewBanker(bt, rlm realm)`, and (3) established `cur.Previous()` / `cur.Address()` / `cur.PkgPath()` on a threaded `cur realm` parameter as the idiomatic API. Every new realm in this PR uses the obsolete surface; even with the merge conflict resolved, the realms won't compile against master.
+
+## Glossary
+
+- `#5669` — "Phase 3: captured realm capabilities" merged 2026-05-21; the breaking-change commit this PR is stale against ([`1bed667a3`](../../../../../.worktrees/gno-review-5016/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno#L13)).
+- `chain/runtime/unsafe` — post-#5669 quarantine package for stack-walking primitives (`PreviousRealm`, `CurrentRealm`, `OriginCaller`, `OriginSend`); kept usable but greppable to discourage misuse ([`unsafe.gno:1-12`](../../../../../.worktrees/gno-review-5016/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno#L1-L12)).
+- `cur realm` — first parameter of a crossing function; the post-#5669 capability that carries caller identity safely (`cur.Previous()`, `cur.PkgPath()`, `cur.Address()`).
+- `(_ realm)` — pre-#5669 marker for a crossing function where the realm value is discarded; current code on master either threads `cur` or uses `(_ int, rlm realm, ...)` non-crossing helpers.
+
+## Fix
+
+Not applicable — this is a feature-addition PR, not a bug fix. The blocking item is a rebase + full API migration of every new realm before re-review.
+
+## Critical (must fix)
+
+- **[PR is stale against master — won't compile]** all new realms — every realm uses `runtime.PreviousRealm()`/`runtime.CurrentRealm()` (e.g. [`composition/counter/counter.gno:33`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/counter/counter.gno#L33), [`composition/logger/logger.gno:28`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/logger/logger.gno#L28), [`crossing/crossing.gno:12`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/crossing/crossing.gno#L12), [`factory/factory.gno:108`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/factory/factory.gno#L108), [`registry/registry.gno:42`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/registry/registry.gno#L42), [`soliditypatterns/banker/banker.gno:24`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/soliditypatterns/banker/banker.gno#L24)).
+  <details><summary>details</summary>
+
+  Master removed `PreviousRealm`/`CurrentRealm`/`OriginCaller`/`OriginSend` from `chain/runtime` in #5669 and relocated them under `chain/runtime/unsafe` ([`unsafe.gno:13-77`](../../../../../.worktrees/gno-review-5016/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno#L13-L77)) precisely to flag the call sites as security-sensitive. The idiomatic replacement, threaded into every crossing function, is `cur.Previous()` / `cur.PkgPath()` / `cur.Address()` on the `cur realm` parameter. Every `/r/docs/` example already on master ([16 files](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/)) was migrated by #5669 — this PR's new realms are the only outliers. None of them will type-check against `chain/runtime` post-#5669, so the PR is unmergeable until rewritten. Fix: rebase, replace every `func F(_ realm)` with `func F(cur realm)` (or `(_ int, rlm realm)` for non-crossing helpers per the unsafe doc), swap `runtime.PreviousRealm().Address()` → `cur.Previous().Address()` (or `cur.Origin()` when EOA-scope is what's wanted), and audit every doc-text code block for the same.
+  </details>
+
+- **[banker realm uses the removed `NewBanker(bt)` and `banker.OriginSend()` signatures]** [`soliditypatterns/banker/banker.gno:25`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/soliditypatterns/banker/banker.gno#L25), [`:68`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/soliditypatterns/banker/banker.gno#L68) — both the realm code and the in-doc snippets call `banker.OriginSend()` and `banker.NewBanker(banker.BankerTypeRealmSend)`.
+  <details><summary>details</summary>
+
+  Post-#5669, `banker.NewBanker(bt BankerType, rlm realm) Banker` requires a `realm` capability ([`banker.gno:89`](../../../../../.worktrees/gno-review-5016/gnovm/stdlibs/chain/banker/banker.gno#L89)) and `OriginSend` no longer lives in the `banker` package — it's `unsafe.OriginSend()` ([`unsafe.gno:56-65`](../../../../../.worktrees/gno-review-5016/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno#L56-L65)). The doc realm and its prose both teach the wrong API; a learner copying this verbatim now gets a "function not declared" preprocess error. Fix: `bnk := banker.NewBanker(banker.BankerTypeRealmSend, cur)`, `sent := unsafe.OriginSend()` after `import "chain/runtime/unsafe"`, and update every prose code block to match.
+  </details>
+
+- **[merge conflict on master]** [`soliditypatterns/ownable/render.gno`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/soliditypatterns/ownable/render.gno) — `gh pr view 5016 --json mergeable` reports `CONFLICTING`/`DIRTY`; the PR diff replaces `unsafe.PreviousRealm()` → `runtime.PreviousRealm()` in the doc text while master's #4040 ("std split") and #5669 land the opposite migration (`runtime.PreviousRealm()` → `unsafe.PreviousRealm()`).
+  <details><summary>details</summary>
+
+  The conflict is real: this PR is dragging the prose backwards. After rebase, the desired text on master is the `unsafe.PreviousRealm()` form (since the function lives in `chain/runtime/unsafe` now), exactly the opposite of what this PR commits. Fix: take master's version (`unsafe.PreviousRealm()`) and drop this PR's revert. The change is unnecessary collateral from a stale branch.
+  </details>
+
+- **[composition realm: documented access-control is broken on master]** [`composition/counter/counter.gno:33`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/counter/counter.gno#L33), [`composition/logger/logger.gno:28`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/logger/logger.gno#L28) — `assertAuthorized()` is called from a non-crossing helper and reads `runtime.PreviousRealm().PkgPath()`; the explicit warning in [`unsafe.gno:18-22`](../../../../../.worktrees/gno-review-5016/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno#L18-L22) is "in a non-crossing helper it identifies whichever realm was outermost-crossing in the chain, NOT the immediate caller".
+  <details><summary>details</summary>
+
+  The pattern this PR teaches — "store `const allowedCaller = "gno.land/r/docs/composition"` then check `runtime.PreviousRealm().PkgPath() != allowedCaller` inside a non-crossing helper" — is exactly the bug class #5669 quarantined the API to surface. The composition realm `IncrementAndLog` calls `counter.Increment(cross)`; `Increment` is `(_ realm)` (crossing) but `assertAuthorized` is non-crossing, so the stack walk picks up `composition` here only because it happens to be the outermost crossing. If composition is itself wrapped by a third realm that crosses through, the assertion still sees `composition` and lets the call through under a different threat model than the docs imply. The PR description even says "Direct calls to `counter.Increment()` or `logger.Log()` will fail with an authorization error" ([`composition.gno:82`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/composition.gno#L82)) — that's the load-bearing security claim of the example and it's exactly the brittle pattern the docs are meant to discourage. Fix: switch to the post-#5669 idiom — pass `cur realm` through to the helper, assert `cur.Previous().PkgPath() == allowedCaller`. Better still, since composition has no per-sub-realm state requirement, follow the PR's own "Alternative" note and make `counter`/`logger` `/p/` packages so bypass is structurally impossible.
+  </details>
+
+## Warnings (should fix)
+
+- **[unresolved reviewer comment]** [@mvallenet](https://github.com/gnolang/gno/pull/5016#discussion_r1898) [`tdd/tdd.gno:1`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/tdd/tdd.gno#L1) — "this realm should include crossing on exported functions that modify lastResult"; PR's "Fix" reply links to commit `a7b9043df` but that commit isn't in the current branch history (`git log` shows the last fixup as `edb0a6292`).
+  <details><summary>details</summary>
+
+  All five mutating functions (`Add`, `Subtract`, `Multiply`, `Divide`, plus `GetLastResult`) take `(_ realm)` — discarded. The reviewer's point is that they should take `cur realm` so a caller can attribute the mutation and the test path matches the production call path. The test file uses `Add(cross, …)` which works pre-#5669 but on master the API is `cur.Add(...)` invoked from a crossing test. Fix: change every signature in `tdd.gno` to `func Add(cur realm, a, b int64) int64`. Same applies to `userprofile.RenderUser` example block which doesn't take a realm.
+  </details>
+
+- **[unresolved reviewer comment]** [@mvallenet](https://github.com/gnolang/gno/pull/5016#discussion_r1899) [`composition/counter/counter.gno:14`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/counter/counter.gno#L14) — reviewer asked for `Increment`/`Decrement`/`Reset` to be crossing functions and to update all call sites; current code is still `(_ realm)`. The author's "Fix" link points to a non-existent commit (same as above).
+  <details><summary>details</summary>
+
+  `_ realm` discards the capability that #5669 made the security primitive. On master the only reason to discard is to keep an internal helper non-crossing; for any function callable across realm boundaries `cur realm` is the right shape so the implementation can do `cur.Previous().PkgPath()`. Fix: rename to `cur realm`, drop the `assertAuthorized()` helper, inline `if cur.Previous().PkgPath() != allowedCaller { panic(...) }`. Same edit applies to `logger.Log`/`Clear`.
+  </details>
+
+- **[userprofile prose uses wrong UserData method]** [`userprofile/userprofile.gno:36`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/userprofile/userprofile.gno#L36) — code block says `addr := data.Address()` but `UserData` exposes `Addr()`, not `Address()` ([`r/sys/users/store.gno:36`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/sys/users/store.gno#L36)).
+  <details><summary>details</summary>
+
+  Three call sites in the prose teach `data.Address()` ([line 36](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/userprofile/userprofile.gno#L36), [line 41](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/userprofile/userprofile.gno#L41), [line 81](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/userprofile/userprofile.gno#L81)); the runtime code at line 126 correctly uses `userData.Addr()`. A reader copy-pastes the doc snippet and gets "method not declared". Fix: replace `data.Address()` → `data.Addr()` in all three prose snippets. The Render-side test path (`renderUser`) is correct so this is doc-only drift.
+  </details>
+
+- **[unresolved reviewer comment]** [@mvallenet](https://github.com/gnolang/gno/pull/5016#discussion_r1900) [`factory/factory.gno`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/factory/factory.gno) — "should you replace `g1caller` by `runtime.PreviousRealm().Address()` ?" The reviewer wanted every `g1caller` placeholder turned into a real call; "Fix" link points to non-existent commit. None of the doc prose actually uses `g1caller` anymore — but the code uses `runtime.PreviousRealm().Address()` which #5669 deprecates (see Critical #1 above). Fix: replace with `cur.Previous().Address()`.
+
+- **[unresolved reviewer comment]** [@mvallenet](https://github.com/gnolang/gno/pull/5016#discussion_r1901) [`soliditypatterns/reentrancy/reentrancy.gno`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy.gno) — "old API, should match current state with chain/runtime"; PR's "Fix" reply links to a commit not in branch history. Realm has no executable code, just markdown, but every code snippet inside the markdown teaches `banker.NewBanker(banker.BankerTypeRealmSend)` (old single-arg) and `runtime.PreviousRealm().Address()` (now unsafe). Fix: update snippets to `banker.NewBanker(banker.BankerTypeRealmSend, cur)` and `cur.Previous().Address()`.
+
+- **[`json.Marshal` doc-fact unverified]** [`json/json.gno:26`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/json/json.gno#L26) — the realm `panic`s on `json.Marshal` error, but `p/onbloc/json.Marshal` for a freshly-constructed `*Node` tree has no realistic error path (the error case is for cyclic graphs or invalid number types). The panic is defensive but never triggered, which makes the example slightly misleading about what error handling looks like. Fix: either drop the error check (and add a one-line comment "Marshal cannot fail for trees built via the builder API"), or use a path that actually can fail. Minor.
+
+- **[registry redundant auth check, already raised]** [@mvallenet](https://github.com/gnolang/gno/pull/5016#discussion_r1903) [`registry/registry.gno:69`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/registry/registry.gno#L69) — `Update`/`Deactivate`/`Delete` look up by `caller.String() + ":" + name`, so the key already enforces ownership; an extra `if service.Owner != caller` check would be redundant. The current code doesn't have that redundant check — it just looks up by composite key — which is correct, but the model is opaque to a learner. Fix: add a one-line comment at line 69 explaining that the `caller:name` key is the auth gate, and consider adding a separate `caller.String()` lookup with an explicit owner check as a teaching contrast.
+
+- **[`mistakes.gno` advice on `IsValid`]** [`mistakes/mistakes.gno:112-115`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/mistakes/mistakes.gno#L112-L115) — example uses `if !newAdmin.IsValid()` to catch "zero address". In Gno, `address` is a bech32 string and the "zero address" is just an empty/invalid bech32; `IsValid()` does check bech32 well-formedness ([`address_test.gno:11-33`](../../../../../.worktrees/gno-review-5016/gnovm/stdlibs/chain/address_test.gno#L11-L33)), so the advice is technically correct, but the prose framing borrows Solidity vocabulary ("zero address") that doesn't map cleanly. Fix: rephrase to "Could be an empty or malformed address" — the bech32 framing is the right mental model.
+
+## Nits
+
+- [`composition/counter/counter.gno:8`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/counter/counter.gno#L8) — `var count int64 = 0` — drop the `= 0`, zero-value is already 0.
+- [`composition/composition.gno:97`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/composition.gno#L97) — `logger.RenderLog()` embedded in the `Render` text-block string means every render rebuilds the substring inside the closure. Fine for a demo but worth a comment that this pattern is O(n) per render.
+- [`factory/factory.gno`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/factory/factory.gno) — no exported `Transfer` wrapper, so the `Transfer` methods on the three token types are unreachable from outside the realm. Either expose `TransferLast(cur realm, to address, amount uint64) string` or drop the methods from the doc text.
+- [`factory/factory.gno:32,44,62,84`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/factory/factory.gno#L32) — `strconv.Itoa(int(f.amount))` truncates a `uint64` to `int` (matches @jeronimoalbi's suggestion). Use `strconv.FormatUint(f.amount, 10)`.
+- [`soliditypatterns/banker/banker.gno:17-19`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/soliditypatterns/banker/banker.gno#L17-L19) — `init()` body `deposits = avl.Tree{}` is a no-op; the global already declares `var deposits avl.Tree`. Drop the `init`. (Matches @jeronimoalbi's suggestion at [comment](https://github.com/gnolang/gno/pull/5016#discussion_r1907).)
+- [`json/json.gno:13`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/json/json.gno#L13) — `User` struct is declared but never used in this realm. Drop. (Matches @jeronimoalbi's suggestion.)
+- [`json/json.gno:53`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/json/json.gno#L53) — `ParseJSON` returns a `string, error` but isn't a `crossing` function (no `_ realm`), so it can't be called from a `gnokey maketx call`. Either add `_ realm` or document that it's intended for in-realm use.
+- [`registry/registry.gno:138`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/registry/registry.gno#L138) — `address(parts[0])` casts a raw string from a render path to `address` without validation. If the user passes garbage `Lookup` returns `nil` — fine — but consider validating with `.IsValid()` first so the "Service Not Found" page is the right error rather than an implicit fallthrough.
+- [`crossing/crossing.gno:24`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/crossing/crossing.gno#L24) — `InternalHelper` returns "I'm a helper function" with no caller info. @jeronimoalbi suggested showing what `runtime.CurrentRealm().Address()` returns inside a non-crossing helper as the actual teaching point.
+- [`home/home.gno:53`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/home/home.gno#L53) — meta-issue link is to #3292, which is still open. Worth a re-scan after this PR lands to update the checklist there.
+- [`soliditypatterns/reentrancy/reentrancy.gno:82`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy.gno#L82) — "See Also: Banker" links to `/r/docs/banker`, but the actual path is `/r/docs/soliditypatterns/banker`. Broken link.
+
+## Missing Tests
+
+- **[no tests for any new realm except `tdd`]** all new realms — `composition`, `crossing`, `factory`, `json`, `mistakes`, `registry`, `soliditypatterns/banker`, `soliditypatterns/reentrancy`, `userprofile`. Only `tdd/tdd_test.gno` ships.
+  <details><summary>details</summary>
+
+  These are doc realms, so deep test coverage isn't expected, but at least one `_test.gno` per realm that calls each exported function once would catch the API drift this PR has accumulated (the entire "Critical #1" finding would have been caught by a `gno test ./...` that compiles against current `chain/runtime`). Concretely: `composition_test.gno` exercising the cross-realm bypass-rejection path is the single most useful addition because it's the load-bearing security claim of the realm. `json_test.gno` would have caught the unused `User` struct and verified `prettyPrint` output. The factory realm in particular has unexported `*Token` methods with no caller path — a test that drives them is the only way the methods stay correct.
+  </details>
+
+## Suggestions
+
+- [`composition/composition.gno:71-74`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/composition.gno#L71-L74) — the "Alternative: pure packages" callout is the *correct* recommendation but the PR doesn't demonstrate it. Adding a parallel `composition_p/` example with `/p/docs/composition_p/counter` + `/p/docs/composition_p/logger` would make the contrast concrete and demonstrate the "structurally impossible bypass" claim instead of just asserting it.
+- [`registry/registry.gno`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/registry/registry.gno) — the realm composes its own AVL `services` rather than registering against `/r/sys/users` or `/r/leon/hor`, which the prose links to as examples. A "register your service against the global hor" sub-example would tighten the loop between the registry pattern and the actual `r/leon/hor` invocation it points the reader to.
+- [`tdd/tdd.gno:56`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/tdd/tdd.gno#L56) — show `import "testing"` in the first code block so a learner copying the snippet to a fresh file gets a working test (matches @jeronimoalbi suggestion).
+- [`json/json.gno:53`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/json/json.gno#L53) — rename `ParseJSON` → `PrettyPrintJSON` (matches @jeronimoalbi suggestion); the function pretty-prints, the name implies parsing.
+- Cross-link the realms more aggressively: `mistakes.gno` should link directly to `composition` for the OriginCaller-bypass-via-realm example, and `crossing.gno` should link to `factory` and `registry` as concrete consumers of the `cur realm` pattern. Right now the doc tree reads as a flat list rather than a curriculum.
+
+## Questions for Author
+
+- Has the PR been re-tested locally with `gno test ./examples/gno.land/r/docs/...` against current master after a `git submodule update`? If not, please run it before re-requesting review — the API breakage is mechanical to verify.
+- The "Alternative: pure packages" note at [`composition.gno:71-74`](../../../../../.worktrees/gno-review-5016/examples/gno.land/r/docs/composition/composition.gno#L71-L74) is the better pattern. Is there a reason the realm-based variant is shipped first, rather than the pure-package variant as the recommended path?
+- `mvallenet` approved on 2026-01-05 at commit `63901d9` — that approval is now five months stale and predates two `master` merges plus #5669. Worth re-requesting once the API migration lands.

@@ -1,0 +1,98 @@
+# PR #4931: feat(examples): add subscriptions package
+
+URL: https://github.com/gnolang/gno/pull/4931
+Author: mvallenet | Base: master | Files: 17 | +2873 -0
+Reviewed by: davd-gzl | Model: claude-opus-4-7
+
+**Verdict: REQUEST CHANGES** — `normalizedcoins.LessCoinsThan` is asymmetric and lets a subscriber bypass both the initial-deposit price gate and the per-period coverage check, and `subscription.dueAmount(charge=true)` silently skips state updates when funds are insufficient, leaving `vault` out of sync with realm balance and locking subscribers out of `Unsubscribe`.
+
+## Summary
+
+Two new realms under `r/samcrew`: a `normalizedcoins` toolkit that prefixes denoms with `/native/` and `/grc20/` so native and GRC20 can be summed in one `chain.Coins` value, and a `subscriptions` realm that uses it to bill recurring fees from a per-subscriber vault. The accounting primitive is broken in two ways. First, [`normalizedcoins.LessCoinsThan`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/normalizedcoins/coins.gno#L103-L120) iterates only the left side — denoms required by the right side but missing from the left are never checked, so `LessCoinsThan([/native/ugnot:5000], [/grc20/foo20:1000])` returns `false` and any caller using it as a "have ≥ want" check fails open. Second, [`subscription.dueAmount`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/subscription.gno#L32-L63) returns early when vault can't cover the next period and never reaches the `if charge { … }` block, so a caller passing `charge=true` walks away thinking funds were deducted when nothing changed. Fix both by making `LessCoinsThan` symmetric (or by introducing an explicit "Covers" helper) and by moving the `vault -= due` / `lastChargedAt` update into the early-return path of `dueAmount`.
+
+## Glossary
+
+- `LessCoinsThan(a, b)` — intended as `a < b` (per-denom). Currently returns `false` when `a` has any positive-amount denom absent from `b`, regardless of denoms required by `b`.
+- `PrefixCoins(native, grc20)` — packs both coin kinds into one `chain.Coins` with `/native/` or `/grc20/` prefixes.
+- `service` — owner + price (as prefixed `chain.Coins`) + AVL tree of subscribers, keyed by `ownerAddr:displayName`.
+- `subscription.vault` — per-subscriber accounting balance, prefixed-denom. Should always mirror the subscriber's claim on the realm's actual coin holdings.
+- `dueAmount(charge, …)` — computes accrued debt; when `charge=true`, is supposed to deduct vault and advance `lastChargedAt`.
+- `ServiceClaimVault` — owner sweep across all subscribers, calls `dueAmount(true, …)` per subscriber, sends total to owner.
+
+## Fix
+
+This is a new feature, not a bug fix; the file paths under `examples/gno.land/r/samcrew/` are all new. The author has iterated on the package across many commits in response to prior in-PR comments (denom-prefix bug, missing `lastChargedAt` updates in some paths, ensuring coins are positive, splitting `normalizedcoins` into its own realm), and CI is green. What remains are the accounting bugs below, which are not surfaced by the existing tests because every test happens to subscribe/pay with denoms that match the service price exactly.
+
+## Critical (must fix)
+
+- **[price gate bypassed — pay nothing, get the service]** [`examples/gno.land/r/samcrew/normalizedcoins/coins.gno:103-120`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/normalizedcoins/coins.gno#L103-L120) — `LessCoinsThan` returns `false` whenever the left side has a denom missing from the right, so `Subscribe` lets a user enroll in a GRC20-only service by sending native coins (and vice-versa).
+  <details><summary>details</summary>
+
+  The loop iterates `a` only, and the first iteration's "denom not found in `b`, amount > 0 → return false" short-circuit fires before any denom required by `b` is checked. [`Subscribe` line 121](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/public.gno#L121) gates the initial deposit with `!CoinsHasPositive(sCoins) || LessCoinsThan(sCoins, svc.price)`. For a GRC20-priced service (`svc.price = [/grc20/foo20:1000]`) and a native-only deposit (`sCoins = [/native/ugnot:5000]`), `CoinsHasPositive` is true and `LessCoinsThan` returns false — gate passes. The same bypass then makes [`dueAmount`'s loop check](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/subscription.gno#L51) `LessCoinsThan(sub.vault, due)` return false forever, so `IsSubscribed` keeps reporting active. Settlement (`ServiceClaimVault`, `Unsubscribe`) eventually attempts to send GRC20 the realm doesn't have and panics, locking the subscriber. The adversarial test [`tests/subscribe_wrong_denom_test.gno`](tests/subscribe_wrong_denom_test.gno) demonstrates the free subscription end-to-end; [`tests/less_coins_than_bypass_test.gno`](tests/less_coins_than_bypass_test.gno) isolates the primitive. Fix: make `LessCoinsThan` (or a new `CoinsCovers(have, want)` helper) iterate `want` and require that every denom in `want` exists in `have` with `have.Amount >= want.Amount`; treat missing denoms in `have` as zero.
+  </details>
+
+- **[charge that doesn't charge — vault drifts from realm balance]** [`examples/gno.land/r/samcrew/subscriptions/subscription.gno:49-60`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/subscription.gno#L49-L60) — when vault can't cover the next full period, `dueAmount` returns `(due-price, false)` *before* the `if charge { vault -= due; lastChargedAt += … }` block, so `dueAmount(true, …)` silently skips its side effects.
+  <details><summary>details</summary>
+
+  Concrete repro in [`tests/inactive_double_claim_test.gno`](tests/inactive_double_claim_test.gno): subscriber deposits 2500 ugnot to a 1000 ugnot/hour service, time advances three periods, owner calls `ServiceClaimVault` — `dueAmount(true)` returns 2000 but never decrements `sub.vault` or advances `lastChargedAt`. The realm sends 2000 ugnot to the owner (down to 500), but `sub.vault.AmountOf("/native/ugnot")` still reads 2500. Consequences: (a) a second `ServiceClaimVault` recomputes the same 2000 due and tries to send it again, succeeding until realm runs dry (no double-spend beyond what subscribers deposited, but interleaved with other subscribers' funds it can drain the wrong subscriber); (b) the subscriber's eventual `Unsubscribe` computes due=2000 again, attempts to forward 2000 to the owner from a realm holding only 500, and panics in the banker — subscriber permanently locked. Fix: when the for-loop breaks early on insufficiency, apply the same `if charge { vault -= due; lastChargedAt += periodsCovered * renewalPeriod }` update using only the periods actually covered, before returning. Decide explicitly whether partial-period charging is desired or whether inactive subs should be force-removed; either way, the vault must always reflect what left it.
+  </details>
+
+## Warnings (should fix)
+
+- **[unchecked debt erased on topup]** [`examples/gno.land/r/samcrew/subscriptions/public.gno:202-215`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/public.gno#L202-L215) — when an inactive subscriber tops up enough to cover one period, `lastChargedAt` is reset to `time.Now()`, erasing every period of debt that accrued while they were inactive. The author flagged this with an `XXX` comment but the code is shipped.
+  <details><summary>details</summary>
+
+  The pre-topup `active` flag uses `dueAmount(false, …)`, then after topup the branch `if !active && !LessCoinsThan(sub.vault, svc.price)` re-bases `startedAt` and `lastChargedAt` to now and clears `initialPaid`. A subscriber who was 5 periods behind can top up one period's worth and get 5 periods of free service plus a fresh billing cycle. Fix: either charge the accrued debt as part of the topup path (call `dueAmount(true, …)` with capped periods), or refuse the topup until the subscriber has paid down the backlog, or remove the reset and let `dueAmount` resume from the original `lastChargedAt`. The current "treat as new subscription" behavior should be an explicit `Resubscribe` entry point, not a side effect of `Topup`.
+  </details>
+
+- **[over-privileged banker permission]** [`examples/gno.land/r/samcrew/normalizedcoins/coins.gno:170`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/normalizedcoins/coins.gno#L170) — `SendCoins` uses `BankerTypeRealmIssue`, which grants the realm permission to **mint and burn** its own coins, when `BankerTypeRealmSend` is sufficient.
+  <details><summary>details</summary>
+
+  Per the type docs in [`gnovm/stdlibs/chain/banker/banker.gno:42-45`](../../../../../.worktrees/gno-review-4931/gnovm/stdlibs/chain/banker/banker.gno#L42-L45), `BankerTypeRealmSend` already covers "send from all realm coins," which is the only operation `SendCoins` performs. Using `BankerTypeRealmIssue` widens the attack surface for any future bug that calls the banker with attacker-controlled denom/amount (e.g., `IssueCoin`). Fix: switch to `BankerTypeRealmSend`. Principle of least privilege; no behavioral change for the intended use.
+  </details>
+
+- **[broken doc link to non-existent symbol]** [`examples/gno.land/r/samcrew/subscriptions/internal/grc20_test_script/test_grc20.gno:44`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/internal/grc20_test_script/test_grc20.gno#L44) — the script tells users to call `gno.land/r/samcrew/subscriptions.GetRealmAddress()`, which is not defined in the realm. Users following the script will get "function not found."
+  <details><summary>details</summary>
+
+  Grep confirms no `GetRealmAddress` symbol exists anywhere in the package. The realm address is recoverable by clients via `chain.PackageAddress("gno.land/r/samcrew/subscriptions")` in another script, or by reading the address out of any tx receipt, but the README/script needs to either expose a `GetRealmAddress() string` helper that returns `runtime.CurrentRealm().Address().String()` or rewrite the instruction to the working alternative. Same script also assumes a `foo20` faucet at `gno.land/r/demo/defi/foo20` — verify the realm actually exists at the path before pasting it into the README.
+  </details>
+
+- **[README API drift]** [`examples/gno.land/r/samcrew/subscriptions/README.md:97`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/README.md#L97) — README documents `WithdrawFees(cur realm, serviceName string)` which doesn't exist (real name: `ServiceClaimVault`); also calls `Subscribe(cross, "Premium Plan", ...)` with a bare display name instead of the `owner:displayName` service key the code requires.
+  <details><summary>details</summary>
+
+  Every usage example in the README passes the display name as the first argument to `Subscribe`/`Topup`/`Unsubscribe`. The implementation requires the full service key (`serviceKey(owner, displayName)`); a caller pasting these examples will hit `panic("service not found")` on every call. Fix: regenerate the README from the actual public API. Mention that the user must obtain the service key from `Render` (which already links via `svcKey`) or expose a `ListServices()` query so callers can resolve names → keys without scraping HTML.
+  </details>
+
+- **[map iteration in Render]** [`examples/gno.land/r/samcrew/subscriptions/render.gno:345-372`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/render.gno#L345-L372) — `formatCoinsWithLinks` builds a `map[string]int64` and iterates it for output, so the rendered order of denoms in the price column flickers between calls.
+  <details><summary>details</summary>
+
+  Pure cosmetic on a read-only path, but the surrounding code already uses sorted `chain.Coins` everywhere else, so the inconsistency is jarring on the UI. Fix: iterate `coins` directly (the totals map duplicates work — `chain.Coins` from `PrefixCoins` is already deduped per-denom), or sort the map keys before formatting.
+  </details>
+
+## Nits
+
+- [`examples/gno.land/r/samcrew/subscriptions/render.gno:332`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/render.gno#L332) — `if slashIdx != 1` looks like a typo for `!= -1`; happens to work because real `pkgPath` values always have their first `/` past index 1, but the negative-case fallback (`return ""`) is unreachable in practice. Replace with `!= -1` to match intent, or drop the helper and inline `strings.TrimPrefix(pkgPath, "gno.land")`.
+- [`examples/gno.land/r/samcrew/subscriptions/service.gno:20`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/service.gno#L20) — `parseServiceKey` is never called. Either delete it or use it in `Render` to extract the owner for display.
+- [`examples/gno.land/r/samcrew/normalizedcoins/coins.gno:91`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/normalizedcoins/coins.gno#L91) — `MultiplyCoins` is never called (only its test). Dead code in an example package is fine if intentional; otherwise delete.
+- [`examples/gno.land/r/samcrew/subscriptions/subscription.gno:97-100`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/subscription.gno#L97-L100) — `token := grc20reg.MustGet(fqName); if token == nil { panic(...) }` is contradictory: `MustGet` already panics with its own message on miss, so the nil check and the bespoke error are dead. Drop the check.
+- [`examples/gno.land/r/samcrew/subscriptions/public.gno:194-198`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/public.gno#L194-L198) — `Topup` validates fqName only when both `fqName != ""` and `amount != 0`. If a caller passes `fqName=""` with `amount=5`, the validation is skipped and the failure surfaces deeper in `topupGRC20` as `MustGet("")`. Add `if fqName == "" && amount != 0 { panic("amount requires fqName") }`.
+- [`examples/gno.land/r/samcrew/normalizedcoins/render.gno:1`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/normalizedcoins/render.gno#L1) — already raised by @davd-gzl in PR discussion; not yet addressed. `normalizedcoins` is a coin-arithmetic utility — should be a pure package (`p/samcrew/normalizedcoins`) with no `Render`, not a realm with a Render that duplicates the README.
+- [`examples/gno.land/r/samcrew/subscriptions/public.gno:89`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/public.gno#L89) — `Subscribe`'s param comment for `amount` reads "the amount of GRC20 tokens to deposit initially (0 for native coins)" but for native coins `amount` is simply ignored (no role at all). Reword to "amount of GRC20 tokens to deposit initially; ignored when fqName is empty."
+
+## Missing Tests
+
+- **[bypassable price gate]** [`examples/gno.land/r/samcrew/subscriptions/public_test.gno:278`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/public_test.gno#L278) — `insufficient deposit panics` only tests under-paying with the *same* denom. No test pays a different denom and expects rejection, which is why the Critical-1 bug was never caught. See [`tests/subscribe_wrong_denom_test.gno`](tests/subscribe_wrong_denom_test.gno).
+- **[inactive subscriber settlement]** [`examples/gno.land/r/samcrew/subscriptions/public_test.gno:615`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/public_test.gno#L615) — `TestServiceClaimVault` only covers the all-active case. Add a scenario with a subscriber whose vault can cover some but not all elapsed periods, claim, then attempt a second claim and an `Unsubscribe` — both currently produce the divergence in [`tests/inactive_double_claim_test.gno`](tests/inactive_double_claim_test.gno).
+- **[GRC20 settlement on `ServiceClaimVault`]** none of the existing tests claim a vault that holds GRC20 tokens — only native ugnot. The GRC20 transfer path in `normalizedcoins.SendCoins` runs through `grc20reg.MustGet(coin.Denom).RealmTeller().Transfer(dst, coin.Amount)`, but `coin.Denom` is the prefixed form (`/grc20/r/demo/foo20`). Add a test that creates a GRC20-priced service, subscribes with `Subscribe(..., tokenRealm, amount)`, advances time, and calls `ServiceClaimVault`. Either this works (and the prefix strip in `SendCoins` is correct) or it fails and exposes another bug in the prefix→fqName round-trip.
+
+## Suggestions
+
+- [`examples/gno.land/r/samcrew/normalizedcoins/coins.gno:27`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/normalizedcoins/coins.gno#L27) — `PrefixCoins(native, grc20)` returns an error for "no coins provided" but panics nowhere else. Subscribers calling `Subscribe` with no native (and `fqName=""`, `amount=0`) hit this error and `Subscribe` re-`panic`s — fine for a realm, but the function is now mostly a panic-in-error-clothing. Consider just panicking inline and dropping the (error) return.
+- [`examples/gno.land/r/samcrew/subscriptions/service.gno:41`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/subscriptions/service.gno#L41) — `service.balance(charge bool)` mixes a read-only path with a side-effecting path in the same method via a bool parameter. Split into `balance()` (pure) and `chargeAll()` (returns the same total but performs the deduction); calls become unambiguous and prevents accidental "wrong bool" bugs like the one in `Unsubscribe`/`ServiceClaimVault` already noted.
+- [`examples/gno.land/r/samcrew/normalizedcoins/coins.gno:71`](../../../../../.worktrees/gno-review-4931/examples/gno.land/r/samcrew/normalizedcoins/coins.gno#L71) — `AddCoins`/`SubCoins`/`AddCoinAmount` allocate a new slice on every iteration. For an example realm this is fine, but the subscriber-tree iteration in `balance(true)` is `O(N_subs × N_denoms²)`. If anyone ever copies this pattern into a hot path, the quadratic copy will bite them. Worth a comment.
+
+## Questions for Author
+
+- The `// XXX: reset subscription if it was inactive and now has enough balance` block in `Topup` is intentional? If yes, the docs should call out "topping up an inactive subscription resets the billing cycle and forgives accrued debt"; if not, see Warning above.
+- Is `normalizedcoins` meant to be reused outside this realm? If yes, the broken `LessCoinsThan` will silently corrupt any downstream consumer too — strong reason to move it to a `p/` package with stricter test coverage and to fix the symmetry bug before other code starts depending on it.
+- The `internal/{native,grc20}_test_script/` directories are committed as a `main` package per script. These are nice manual-test scaffolds, but they ship to production examples. Are they meant to live in the example tree long-term, or should they migrate to `docs/` or a script under `gno.land/cmd/`?
