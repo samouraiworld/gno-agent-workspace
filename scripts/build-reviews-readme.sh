@@ -99,7 +99,7 @@ gh pr list -R "$REPO" --state open --limit 300 \
   echo
   echo "Team coverage legend: 🟢 approved · 🔴 changes requested · 💬 commented only · ⏳ no team review"
   echo
-  echo "AI review verdict (parsed from our AI-generated review files): 🟢 APPROVE · 🔴 REQUEST CHANGES · 🟡 NEEDS DISCUSSION · ⚪ no verdict (file exists but verdict line was not parseable). Model used follows after \`·\` (e.g. \`opus-4-7\`; \`claude-\` prefix stripped)."
+  echo "AI review verdict (parsed from our AI-generated review files): 🟢 APPROVE · 🔴 REQUEST CHANGES · 🟡 NEEDS DISCUSSION · 🚫 CLOSE (PR should not be merged at all — superseded, abandoned, or wrong direction) · ⚪ no verdict (file exists but verdict line was not parseable). Model used follows after \`·\` (e.g. \`opus-4-7\`; \`claude-\` prefix stripped)."
   echo
 
   # ── Team coverage on open PRs ───────────────────────────────────────────────
@@ -152,8 +152,8 @@ gh pr list -R "$REPO" --state open --limit 300 \
     #   ## Verdict\nAPPROVE — ...
     #   ## Verdict\n**REQUEST CHANGES** — ...
     # Strategy: grab the line containing "Verdict" plus the next 3 lines, then
-    # match the first APPROVE / REQUEST CHANGES / NEEDS DISCUSSION keyword.
-    has_rc=0; has_nd=0; has_ap=0
+    # match the first CLOSE / REQUEST CHANGES / NEEDS DISCUSSION / APPROVE keyword.
+    has_close=0; has_rc=0; has_nd=0; has_ap=0
     models=""
     for f in "$latest_round"/*.md; do
       [[ -s "$f" ]] || continue
@@ -162,8 +162,9 @@ gh pr list -R "$REPO" --state open --limit 300 \
       # occurrence if not found (body text using "verdict" loosely is rare).
       ctx=$( { grep -A3 -E "^## Verdict|^\*\*Verdict" "$f" 2>/dev/null || true; } )
       [[ -z "$ctx" ]] && ctx=$( { grep -A3 -i "verdict" "$f" 2>/dev/null || true; } )
-      v=$( printf '%s\n' "$ctx" | { grep -oE "REQUEST CHANGES|NEEDS DISCUSSION|APPROVE" || true; } | head -1)
+      v=$( printf '%s\n' "$ctx" | { grep -oE "REQUEST CHANGES|NEEDS DISCUSSION|APPROVE|CLOSE" || true; } | head -1)
       case "$v" in
+        "CLOSE")             has_close=1 ;;
         "REQUEST CHANGES")   has_rc=1 ;;
         "NEEDS DISCUSSION")  has_nd=1 ;;
         "APPROVE")           has_ap=1 ;;
@@ -182,9 +183,10 @@ gh pr list -R "$REPO" --state open --limit 300 \
         models="${models:+$models,}$model"
       fi
     done
-    if   (( has_rc )); then LOCAL_VERDICT[$n]="🔴 REQUEST CHANGES"
-    elif (( has_nd )); then LOCAL_VERDICT[$n]="🟡 NEEDS DISCUSSION"
-    elif (( has_ap )); then LOCAL_VERDICT[$n]="🟢 APPROVE"
+    if   (( has_close )); then LOCAL_VERDICT[$n]="🚫 CLOSE"
+    elif (( has_rc ));    then LOCAL_VERDICT[$n]="🔴 REQUEST CHANGES"
+    elif (( has_nd ));    then LOCAL_VERDICT[$n]="🟡 NEEDS DISCUSSION"
+    elif (( has_ap ));    then LOCAL_VERDICT[$n]="🟢 APPROVE"
     fi
     [[ -n "$models" ]] && LOCAL_MODELS[$n]="$models"
   done < <(find reviews/pr -mindepth 2 -maxdepth 2 -type d | sort)
