@@ -37,7 +37,7 @@ A PR can have multiple prefixes, ordered: `⚠️ 🆕 ✅ 📥 🚫 💥`. `�
 | Emoji | Meaning | Source |
 |-------|---------|--------|
 | ⚠️ | High priority | `context.md` priority is `high` |
-| 🆕 | New this week | PR not in last week's `context.md` |
+| 🆕 | New this week | PR's `createdAt` ≥ window start date (the report period's Monday) |
 | ✅ | Approved by core team | `reviewDecision: APPROVED` AND `reviewStats.approvers` has ≥1 **Core team member** |
 | 📥 | Waiting for first review | `review/triage-pending` label |
 | 🚫 | Don't merge | `don't merge` label |
@@ -70,7 +70,7 @@ ls -td reports/weekly/*/ | head -1                  # find latest
 ./scripts/parse-context.sh <path>/context.md         # read (strips titles + auto-detected statuses)
 ```
 
-Do NOT read the previous `report.md`. A PR is 🆕 if its number is absent from last week's `context.md`.
+Do NOT read the previous `report.md`. The previous `context.md` is only used for carry-forward priorities and manual notes (Step 3) — **never** for deciding 🆕. 🆕 is computed from `createdAt` against the report window (see Emoji indicators table). This avoids spurious 🆕 flags when the prior report is older than 7 days (skipped weeks).
 
 ### 3. Build new context.md
 
