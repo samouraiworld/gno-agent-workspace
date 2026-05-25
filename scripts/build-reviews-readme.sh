@@ -19,6 +19,10 @@ set -euo pipefail
 OUTPUT="reviews/README.md"
 REPO="gnolang/gno"
 
+# Samourai team handles. Mirror of TEAM_MEMBERS in scripts/weekly-report.sh —
+# keep both in sync.
+: "${TEAM_MEMBERS:=davd-gzl omarsy mvallenet Villaquiranm WaDadidou zxxma louis14448 AmozPay}"
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -o|--output) OUTPUT="$2"; shift 2 ;;
@@ -75,6 +79,14 @@ for num in "${PR_NUMS[@]}"; do
 done
 wait
 
+# Fetch every open PR with its reviews + comments in one shot for the team
+# coverage section below. We do this here (parallel to per-review fetches above)
+# so we pay one round-trip even though it's a larger payload.
+echo "Fetching open PRs + reviews for team coverage section..." >&2
+gh pr list -R "$REPO" --state open --limit 300 \
+  --json number,title,url,isDraft,author,createdAt,updatedAt,reviews,comments \
+  > "$TMP/open-prs.json" 2>/dev/null || echo "[]" > "$TMP/open-prs.json"
+
 # Build markdown
 {
   echo "# Reviews"
@@ -84,6 +96,90 @@ wait
   echo "_Last updated: $(date -u +%Y-%m-%dT%H:%M:%SZ)_"
   echo
   echo "Status legend: 🟢 open · 🟡 draft · 🟣 merged · 🔴 closed · ⚪ unknown"
+  echo
+  echo "Team coverage legend: 🟢 approved · 🔴 changes requested · 💬 commented only · ⏳ no team review"
+  echo
+
+  # ── Team coverage on open PRs ───────────────────────────────────────────────
+  # For each non-draft open PR, surface the Samourai team's latest review state.
+  # Aggregation: any CHANGES_REQUESTED → 🔴; else any APPROVED → 🟢; else any
+  # COMMENTED review or any issue comment by a team member → 💬; else ⏳.
+  team_count=$(jq --arg team "$TEAM_MEMBERS" '
+    ($team | split(" ")) as $T
+    | map(select(.isDraft | not))
+    | length
+  ' "$TMP/open-prs.json")
+
+  echo "## Team coverage on open PRs ($team_count)"
+  echo
+  echo "Triage view. Samourai handles: $(echo "$TEAM_MEMBERS" | sed 's/ /, /g'). Sorted with ⏳ first, then 💬, then 🔴, then 🟢; ties broken by most-recently-updated."
+  echo
+  echo "| PR | Title | Author | Team coverage | Local review |"
+  echo "|---:|:------|:-------|:--------------|:-------------|"
+
+  # Build a list of local-review dirs keyed by PR number once.
+  declare -A LOCAL_REVIEW
+  while IFS= read -r d; do
+    base=$(basename "$d")
+    n="${base%%-*}"
+    [[ "$n" =~ ^[0-9]+$ ]] || continue
+    # First (any) local review dir for this PR.
+    LOCAL_REVIEW[$n]="${d#reviews/}"
+  done < <(find reviews/pr -mindepth 2 -maxdepth 2 -type d | sort)
+
+  # jq computes one TSV row per non-draft open PR with: sort_key, n, title, author, url, state_icon, state_label
+  jq -r --arg team "$TEAM_MEMBERS" '
+    ($team | split(" ")) as $T
+    | map(select(.isDraft | not))
+    | map(
+        . as $pr
+        | ($pr.reviews // []) as $revs
+        | ($pr.comments // []) as $comments
+        # latest formal review state per team member (APPROVED / CHANGES_REQUESTED / COMMENTED)
+        | (
+            $T | map(
+              . as $m
+              | ($revs | map(select(.author.login == $m and (.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "COMMENTED"))) | sort_by(.submittedAt) | last // null)
+              | select(. != null)
+              | .state
+            )
+          ) as $member_states
+        | (any($comments[]; .author.login as $a | $T | index($a))) as $any_comment
+        | (
+            if   ($member_states | index("CHANGES_REQUESTED")) then {icon: "🔴", label: "changes requested", rank: 2}
+            elif ($member_states | index("APPROVED"))          then {icon: "🟢", label: "approved",          rank: 3}
+            elif ($member_states | index("COMMENTED")) or $any_comment then {icon: "💬", label: "commented",  rank: 1}
+            else                                                    {icon: "⏳", label: "no team review",   rank: 0}
+            end
+          ) as $state
+        # which team members touched it (review or comment), de-duped
+        | (
+            ($revs    | map(select(.author.login as $a | $T | index($a)) | .author.login))
+            +
+            ($comments | map(select(.author.login as $a | $T | index($a)) | .author.login))
+            | unique | join(",")
+          ) as $touchers
+        | {n: .number, title: .title, author: (.author.login // "?"), url: .url, updatedAt: .updatedAt, icon: $state.icon, label: $state.label, rank: $state.rank, touchers: $touchers}
+      )
+    | sort_by([.rank, ([(- (.updatedAt | fromdateiso8601 // 0))])])
+    | .[]
+    | [.rank, .n, .title, .author, .url, .icon, .label, .touchers] | @tsv
+  ' "$TMP/open-prs.json" | while IFS=$'\t' read -r rank n title author url icon label touchers; do
+    safe_title=$(printf '%s' "$title" | sed 's/|/\\|/g')
+    if [[ -n "$touchers" ]]; then
+      coverage="$icon $label ($touchers)"
+    else
+      coverage="$icon $label"
+    fi
+    local_rev="${LOCAL_REVIEW[$n]:-}"
+    if [[ -n "$local_rev" ]]; then
+      local_link="[review]($local_rev/)"
+    else
+      local_link="—"
+    fi
+    echo "| [#$n]($url) | $safe_title | $author | $coverage | $local_link |"
+  done
+
   echo
   echo "## PR reviews"
   echo
