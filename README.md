@@ -22,7 +22,7 @@ git submodule update --init --recursive
 
 - `gno/` — gnolang/gno submodule
 - `skills/` — AI skill definitions
-- `reviews/pr/` — PR review reports (one directory per PR)
+- `reviews/pr/` — PR review reports (one directory per PR). See [`reviews/README.md`](reviews/README.md) for a team-coverage triage view of every open upstream PR (approved / changes requested / commented / no team review).
 - `reports/weekly/` — weekly team status reports
 - `reports/weekly-ux/` — weekly UX status reports
 - `scripts/` — data-gathering and helper scripts
@@ -45,7 +45,7 @@ git submodule update --init --recursive
 | `scripts/parse-context.sh` | Parse `context.md` for AI-optimized reading |
 | `scripts/fetch-pr-history.sh` | Fetch PR history |
 | `scripts/fetch-issue-history.sh` | Fetch issue history |
-| `scripts/build-reviews-readme.sh` | Rebuild the `reviews/README.md` index |
+| `scripts/build-reviews-readme.sh` | Rebuild the `reviews/README.md` index, including the team-coverage triage table |
 
 ## Usage
 

@@ -99,6 +99,8 @@ gh pr list -R "$REPO" --state open --limit 300 \
   echo
   echo "Team coverage legend: 🟢 approved · 🔴 changes requested · 💬 commented only · ⏳ no team review"
   echo
+  echo "AI review verdict (parsed from our AI-generated review files): 🟢 APPROVE · 🔴 REQUEST CHANGES · 🟡 NEEDS DISCUSSION · \"review\" when no verdict line was found."
+  echo
 
   # ── Team coverage on open PRs ───────────────────────────────────────────────
   # For each non-draft open PR, surface the Samourai team's latest review state.
@@ -114,17 +116,44 @@ gh pr list -R "$REPO" --state open --limit 300 \
   echo
   echo "Triage view. Samourai handles: $(echo "$TEAM_MEMBERS" | sed 's/ /, /g'). Sorted with ⏳ first, then 💬, then 🔴, then 🟢; ties broken by most-recently-updated."
   echo
-  echo "| PR | Title | Author | Team coverage | Local review |"
+  echo "| PR | Title | Author | Team coverage | AI review |"
   echo "|---:|:------|:-------|:--------------|:-------------|"
 
-  # Build a list of local-review dirs keyed by PR number once.
+  # Build local-review dir + verdict maps, keyed by PR number.
+  # Verdict aggregation across the latest round's review files:
+  #   REQUEST CHANGES > NEEDS DISCUSSION > APPROVE; "?" if nothing extractable.
   declare -A LOCAL_REVIEW
+  declare -A LOCAL_VERDICT
   while IFS= read -r d; do
     base=$(basename "$d")
     n="${base%%-*}"
     [[ "$n" =~ ^[0-9]+$ ]] || continue
-    # First (any) local review dir for this PR.
     LOCAL_REVIEW[$n]="${d#reviews/}"
+
+    # Latest round dir: <n>-<hash>, sorted by leading round number.
+    latest_round=$(find "$d" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended -regex '.*/[0-9]+-[a-f0-9]+' \
+      | awk -F/ '{print $NF, $0}' \
+      | sort -k1,1n \
+      | tail -1 \
+      | awk '{print $2}')
+    [[ -z "$latest_round" ]] && continue
+
+    # Aggregate verdict across every reviewer file in the latest round.
+    has_rc=0; has_nd=0; has_ap=0
+    for f in "$latest_round"/*.md; do
+      [[ -s "$f" ]] || continue
+      # `|| true` because empty or no-match grep is fine under pipefail.
+      v=$( { grep -m3 -E "Verdict" "$f" 2>/dev/null || true; } | { grep -oE "APPROVE|REQUEST CHANGES|NEEDS DISCUSSION" || true; } | head -1)
+      case "$v" in
+        "REQUEST CHANGES")   has_rc=1 ;;
+        "NEEDS DISCUSSION")  has_nd=1 ;;
+        "APPROVE")           has_ap=1 ;;
+      esac
+    done
+    if   (( has_rc )); then LOCAL_VERDICT[$n]="🔴 REQUEST CHANGES"
+    elif (( has_nd )); then LOCAL_VERDICT[$n]="🟡 NEEDS DISCUSSION"
+    elif (( has_ap )); then LOCAL_VERDICT[$n]="🟢 APPROVE"
+    fi
   done < <(find reviews/pr -mindepth 2 -maxdepth 2 -type d | sort)
 
   # jq computes one TSV row per non-draft open PR with: sort_key, n, title, author, url, state_icon, state_label
@@ -173,7 +202,8 @@ gh pr list -R "$REPO" --state open --limit 300 \
     fi
     local_rev="${LOCAL_REVIEW[$n]:-}"
     if [[ -n "$local_rev" ]]; then
-      local_link="[review]($local_rev/)"
+      local_verdict="${LOCAL_VERDICT[$n]:-review}"
+      local_link="[$local_verdict]($local_rev/)"
     else
       local_link="—"
     fi
