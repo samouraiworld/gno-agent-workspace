@@ -107,27 +107,34 @@ EOF
   cleanup_worktrees "${BATCH[@]}"
 done
 
-# Final: rebuild index, commit locally only (NO push — push is reserved for explicit user approval).
+# Final: rebuild index, commit + push. Push is gated behind the main-branch check.
+#
+# ⚠️  NEVER USE --force / --force-with-lease ON THIS PUSH. Reviews are append-only
+#     artifacts on the main branch; a force-push could overwrite teammates' commits.
+#     If you find yourself needing --force here, something else is wrong upstream.
 echo
-echo "[$(date -u +%FT%TZ)] === Final: rebuild + commit (no push) ==="
+echo "[$(date -u +%FT%TZ)] === Final: rebuild + commit + push ==="
 ./scripts/build-reviews-readme.sh
 COUNT=$(git status --porcelain reviews/ | wc -l)
 if (( COUNT > 0 )); then
   BRANCH=$(git rev-parse --abbrev-ref HEAD)
   if [[ "$BRANCH" != "main" ]]; then
-    echo "[$(date -u +%FT%TZ)] REFUSE commit: HEAD is on '$BRANCH', expected 'main'. Reviews left uncommitted in working tree."
-    PUSH_HINT="run 'git checkout main && git add reviews/ && git commit && git push' manually"
+    echo "[$(date -u +%FT%TZ)] REFUSE commit+push: HEAD is on '$BRANCH', expected 'main'. Reviews left uncommitted in working tree."
+    PUSH_HINT="checkout main, then commit + push manually"
   else
     git add reviews/
     git commit -m "review: scheduled sweep — $total_done PRs
 
 Autonomous review sweep dispatched via scheduled-review-sweep.sh.
 List: $(basename "$LIST")
-Log:  $(basename "$LOG")
-
-NOTE: not pushed automatically — run \`git push\` manually after inspecting."
-    echo "[$(date -u +%FT%TZ)] Committed locally. Run \`git push\` manually to publish."
-    PUSH_HINT="run 'git push' to publish"
+Log:  $(basename "$LOG")"
+    if git push 2>&1; then
+      echo "[$(date -u +%FT%TZ)] Committed and pushed."
+      PUSH_HINT="pushed to origin"
+    else
+      echo "[$(date -u +%FT%TZ)] Push failed; commit is local — run \`git push\` manually."
+      PUSH_HINT="commit landed locally; push failed, run 'git push' manually"
+    fi
   fi
 else
   echo "[$(date -u +%FT%TZ)] No changes to commit."
