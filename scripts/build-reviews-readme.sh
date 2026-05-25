@@ -131,23 +131,38 @@ gh pr list -R "$REPO" --state open --limit 300 \
     base=$(basename "$d")
     n="${base%%-*}"
     [[ "$n" =~ ^[0-9]+$ ]] || continue
-    LOCAL_REVIEW[$n]="${d#reviews/}"
-
     # Latest round dir: <n>-<hash>, sorted by leading round number.
     latest_round=$(find "$d" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended -regex '.*/[0-9]+-[a-f0-9]+' \
       | awk -F/ '{print $NF, $0}' \
       | sort -k1,1n \
       | tail -1 \
       | awk '{print $2}')
-    [[ -z "$latest_round" ]] && continue
+    if [[ -n "$latest_round" ]]; then
+      # Link to the latest round (its dir name encodes the commit hash).
+      LOCAL_REVIEW[$n]="${latest_round#reviews/}"
+    else
+      LOCAL_REVIEW[$n]="${d#reviews/}"
+      continue
+    fi
 
     # Aggregate verdict + collect models across every reviewer file in the latest round.
+    # Verdict line may take any of these forms (in priority order):
+    #   **Verdict: APPROVE** — ...
+    #   **Verdict: APPROVE — ...
+    #   ## Verdict\nAPPROVE — ...
+    #   ## Verdict\n**REQUEST CHANGES** — ...
+    # Strategy: grab the line containing "Verdict" plus the next 3 lines, then
+    # match the first APPROVE / REQUEST CHANGES / NEEDS DISCUSSION keyword.
     has_rc=0; has_nd=0; has_ap=0
     models=""
     for f in "$latest_round"/*.md; do
       [[ -s "$f" ]] || continue
       # `|| true` because empty or no-match grep is fine under pipefail.
-      v=$( { grep -m3 -E "Verdict" "$f" 2>/dev/null || true; } | { grep -oE "APPROVE|REQUEST CHANGES|NEEDS DISCUSSION" || true; } | head -1)
+      # First try strict heading/bold patterns; fall back to any "verdict"
+      # occurrence if not found (body text using "verdict" loosely is rare).
+      ctx=$( { grep -A3 -E "^## Verdict|^\*\*Verdict" "$f" 2>/dev/null || true; } )
+      [[ -z "$ctx" ]] && ctx=$( { grep -A3 -i "verdict" "$f" 2>/dev/null || true; } )
+      v=$( printf '%s\n' "$ctx" | { grep -oE "REQUEST CHANGES|NEEDS DISCUSSION|APPROVE" || true; } | head -1)
       case "$v" in
         "REQUEST CHANGES")   has_rc=1 ;;
         "NEEDS DISCUSSION")  has_nd=1 ;;
