@@ -32,13 +32,13 @@ From 18/05 to 25/05  **: Samourai crew**
 
 **🛡️ PR Waiting for review (Security)**
 
-- ✅ fix(gnovm): use proportional refund for storage deposit to prevent fund lock on storage price change - https://github.com/gnolang/gno/pull/5198 - MikaelVallenet
+- ⚠️ fix(gnovm): add truncation protection to ProtectedString for slices, arrays, and maps - https://github.com/gnolang/gno/pull/5155 - davd-gzl
+- ✅ fix(gnovm): use proportional refund for storage deposit to prevent fund lock on storage price change - https://github.com/gnolang/gno/pull/5198 - mvallenet
 - ✅ 🚫 fix(consensus): handle conflicting votes instead of panicking - https://github.com/gnolang/gno/pull/5216 - davd-gzl
-- fix(gnovm): add truncation protection to ProtectedString for slices, arrays, and maps - https://github.com/gnolang/gno/pull/5155 - davd-gzl
 - fix(gnovm/debugger): add bounds checks to prevent index panics - https://github.com/gnolang/gno/pull/5202 - davd-gzl
 - fix: prevent path traversal in `pkgdownload.Download` and `MemPackage.WriteTo` - https://github.com/gnolang/gno/pull/5219 - davd-gzl
 - fix(gnovm): recover from preprocessing panics on node restart - https://github.com/gnolang/gno/pull/5384 - davd-gzl
-- feat(gno): load bank param from genesis_param.toml - https://github.com/gnolang/gno/pull/5370 - MikaelVallenet
+- feat(gno): load bank param from genesis_param.toml - https://github.com/gnolang/gno/pull/5370 - mvallenet
 - 🚫 fix(consensus): implement `RemovePeer` cleanup - https://github.com/gnolang/gno/pull/5231 - davd-gzl
 - ⚠️ 💥 fix(gnokey): inject block height when not provided in ABCI requests - https://github.com/gnolang/gno/pull/5049 - davd-gzl
 - ✅ 💥 fix(gnovm): Add panic on `Deepfill` execution on constant type - https://github.com/gnolang/gno/pull/4891 - davd-gzl
@@ -49,18 +49,18 @@ From 18/05 to 25/05  **: Samourai crew**
 
 **⚙️ PR Waiting for review (GnoVM / TM2)**
 
-- ✅ feat(gnovm/lint): enforce last elem of pkg path to match pkg name - https://github.com/gnolang/gno/pull/5048 - MikaelVallenet
-- ✅ feat: Blocks backup restore WebSocket - https://github.com/gnolang/gno/pull/5169 - Villaquiranm (Waiting on core team decision, RPC vs WebSocket. See also #4950)
+- ✅ feat(gnovm/lint): enforce last elem of pkg path to match pkg name - https://github.com/gnolang/gno/pull/5048 - mvallenet
+- ✅ feat: Blocks backup restore WebSocket - https://github.com/gnolang/gno/pull/5169 - Villaquiranm
 - fix(gnovm): allow []byte -> string cast on realm owned fields - https://github.com/gnolang/gno/pull/4831 - Villaquiranm
 - fix(gnovm): Add missing checks - https://github.com/gnolang/gno/pull/4886 - davd-gzl
 - fix(gnoland): recover validator changes after node restart - https://github.com/gnolang/gno/pull/5469 - omarsy
 - fix(gnovm): allow `fallthrough` from non-last default clause - https://github.com/gnolang/gno/pull/5682 - davd-gzl
 - 🆕 fix(gnolang): allow indirect cur-call through a local func variable - https://github.com/gnolang/gno/pull/5689 - omarsy
 - feat(gnovm): consume gas when we preprocess - https://github.com/gnolang/gno/pull/4571 - omarsy
-- feat(gnovm): add extensible linting framework with AVL001 and GLOBAL001 rules - https://github.com/gnolang/gno/pull/5068 - MikaelVallenet
+- feat(gnovm): add extensible linting framework with AVL001 and GLOBAL001 rules - https://github.com/gnolang/gno/pull/5068 - mvallenet
 - feat(gnovm): skip print/println in production discard-output mode - https://github.com/gnolang/gno/pull/5206 - omarsy
-- feat(tm2): add transfer event for bank ops - https://github.com/gnolang/gno/pull/5361 - MikaelVallenet
-- feat(validators): add attributes to validator event emissions - https://github.com/gnolang/gno/pull/5366 - MikaelVallenet
+- feat(tm2): add transfer event for bank ops - https://github.com/gnolang/gno/pull/5361 - mvallenet
+- feat(validators): add attributes to validator event emissions - https://github.com/gnolang/gno/pull/5366 - mvallenet
 - feat(gnovm): add `errors.Unwrap`, `errors.Is`, and `errors.Join` to stdlib - https://github.com/gnolang/gno/pull/5385 - davd-gzl
 - 📥 fix(autofile): halt writes on disk space exhaustion with auto-recovery - https://github.com/gnolang/gno/pull/5313 - davd-gzl
 - 📥 fix(validators): handle duplicate validator entries in same block - https://github.com/gnolang/gno/pull/5478 - omarsy
@@ -74,7 +74,7 @@ From 18/05 to 25/05  **: Samourai crew**
 
 **📖 PR Waiting for review (Documentation)**
 
-- docs: add editor setup guide - https://github.com/gnolang/gno/pull/5553 - davd-gzl
+- ⚠️ ✅ docs: add editor setup guide - https://github.com/gnolang/gno/pull/5553 - davd-gzl
 - 📥 docs: list per-function stdlib gaps in compatibility doc - https://github.com/gnolang/gno/pull/5677 - davd-gzl
 - 📥 💥 docs(builders): consolidate and clean up builder documentation - https://github.com/gnolang/gno/pull/5656 - davd-gzl
 - 💥 docs: add cheat sheet page - https://github.com/gnolang/gno/pull/5551 - davd-gzl
@@ -85,7 +85,7 @@ From 18/05 to 25/05  **: Samourai crew**
 
 - ⚠️ fix(example/avl): simplify `Get` to return `nil` as "no value" - https://github.com/gnolang/gno/pull/5314 - davd-gzl
 - ✅ fix(avl): add missing checks in avl package - https://github.com/gnolang/gno/pull/4908 - davd-gzl
-- feat(examples): add subscriptions package - https://github.com/gnolang/gno/pull/4931 - MikaelVallenet
+- feat(examples): add subscriptions package - https://github.com/gnolang/gno/pull/4931 - mvallenet
 - feat(examples/urequire): add missing uassert wrappers - https://github.com/gnolang/gno/pull/5673 - davd-gzl
 - 📥 feat(example): add `r/sys/security` dashboard realm - https://github.com/gnolang/gno/pull/5354 - davd-gzl
 - ✅ 💥 feat(daokit): update daokit framework with latest version - https://github.com/gnolang/gno/pull/4884 - davd-gzl
@@ -107,7 +107,7 @@ From 18/05 to 25/05  **: Samourai crew**
 
 **🔧 PR Waiting for review (Tools)**
 
-- feat(gnokms): add insecure flag - https://github.com/gnolang/gno/pull/5360 - MikaelVallenet
+- feat(gnokms): add insecure flag - https://github.com/gnolang/gno/pull/5360 - mvallenet
 - 📥 feat(gnokey): print pkgpath after `maketx addpkg` - https://github.com/gnolang/gno/pull/5608 - davd-gzl
 
 ---
