@@ -7,7 +7,9 @@
 5663 highlight: Approved - `test(misc/e2e): add gnovm audit and e2e regression scripts`
 
 5049 high: - `fix(gnokey): inject block height when not provided in ABCI requests`
+5155 high: - `fix(gnovm): add truncation protection to ProtectedString for slices, arrays, and maps`
 5314 high: - `fix(example/avl): simplify Get to return nil as "no value"`
+5553 high: Approved - `docs: add editor setup guide`
 
 4884: Approved - `feat(daokit): update daokit framework with latest version`
 4891: Approved - `fix(gnovm): Add panic on Deepfill execution on constant type`
@@ -29,8 +31,6 @@
 5678: In progress - `WIP feat(gnovm): add math/big stdlib (Int subset)`
 5680: In progress - `feat(gnodev): auto-import the dev key into the local keybase`
 5712: In progress - `feat(tm2/std,gnovm): drop _filetest.gno suffix requirement`
-
-5169: Waiting on core team decision, RPC vs WebSocket. See also #4950 - `feat: Blocks backup restore WebSocket`
 
 5051: Waiting for first review - `feat(govdao): upgrade UI/UX`
 5230: Waiting for first review - `feat(bank): TotalCoin - track total supply of a denom`
@@ -54,7 +54,7 @@
 4931: - `feat(examples): add subscriptions package`
 4944: - `feat(govdao): add proposal fee-based for non-member`
 5069: - `feat(grc20reg): implement pagination`
-5155: - `fix(gnovm): add truncation protection to ProtectedString for slices, arrays, and maps`
+5169: - `feat: Blocks backup restore WebSocket`
 5202: - `fix(gnovm/debugger): add bounds checks to prevent index panics`
 5206: - `feat(gnovm): skip print/println in production discard-output mode`
 5219: - `fix: prevent path traversal in pkgdownload.Download and MemPackage.WriteTo`
@@ -67,7 +67,6 @@
 5385: - `feat(gnovm): add errors.Unwrap, errors.Is, and errors.Join to stdlib`
 5469: - `fix(gnoland): recover validator changes after node restart`
 5551: - `docs: add cheat sheet page`
-5553: - `docs: add editor setup guide`
 5563: - `feat(gnodev): add gnodev version command`
 5618: - `feat(gnoweb): expose render link on realm directory views`
 5622: - `feat(gnoweb): differenciate render and dir view with $dir`
