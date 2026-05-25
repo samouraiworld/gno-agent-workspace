@@ -99,7 +99,7 @@ gh pr list -R "$REPO" --state open --limit 300 \
   echo
   echo "Team coverage legend: 🟢 approved · 🔴 changes requested · 💬 commented only · ⏳ no team review"
   echo
-  echo "AI review verdict (parsed from our AI-generated review files): 🟢 APPROVE · 🔴 REQUEST CHANGES · 🟡 NEEDS DISCUSSION · \"review\" when no verdict line was found."
+  echo "AI review verdict (parsed from our AI-generated review files): 🟢 APPROVE · 🔴 REQUEST CHANGES · 🟡 NEEDS DISCUSSION · ⚪ no verdict (file exists but verdict line was not parseable). Model used follows after \`·\` (e.g. \`opus-4-7\`; \`claude-\` prefix stripped)."
   echo
 
   # ── Team coverage on open PRs ───────────────────────────────────────────────
@@ -119,11 +119,14 @@ gh pr list -R "$REPO" --state open --limit 300 \
   echo "| PR | Title | Author | Team coverage | AI review |"
   echo "|---:|:------|:-------|:--------------|:-------------|"
 
-  # Build local-review dir + verdict maps, keyed by PR number.
+  # Build local-review dir + verdict + model maps, keyed by PR number.
   # Verdict aggregation across the latest round's review files:
-  #   REQUEST CHANGES > NEEDS DISCUSSION > APPROVE; "?" if nothing extractable.
+  #   REQUEST CHANGES > NEEDS DISCUSSION > APPROVE; ⚪ no verdict if nothing extractable.
+  # Model: every unique <model> parsed from `<model>_<reviewer>.md` filenames,
+  # `claude-` prefix stripped for compactness.
   declare -A LOCAL_REVIEW
   declare -A LOCAL_VERDICT
+  declare -A LOCAL_MODELS
   while IFS= read -r d; do
     base=$(basename "$d")
     n="${base%%-*}"
@@ -138,8 +141,9 @@ gh pr list -R "$REPO" --state open --limit 300 \
       | awk '{print $2}')
     [[ -z "$latest_round" ]] && continue
 
-    # Aggregate verdict across every reviewer file in the latest round.
+    # Aggregate verdict + collect models across every reviewer file in the latest round.
     has_rc=0; has_nd=0; has_ap=0
+    models=""
     for f in "$latest_round"/*.md; do
       [[ -s "$f" ]] || continue
       # `|| true` because empty or no-match grep is fine under pipefail.
@@ -149,11 +153,25 @@ gh pr list -R "$REPO" --state open --limit 300 \
         "NEEDS DISCUSSION")  has_nd=1 ;;
         "APPROVE")           has_ap=1 ;;
       esac
+
+      # Parse model from filename: <model>_<reviewer>[__<tier>].md
+      fname=$(basename "$f" .md)
+      # strip optional __<tier> suffix, then take everything before the last _
+      base_no_tier="${fname%%__*}"
+      model="${base_no_tier%_*}"
+      # strip leading "claude-" for compactness (e.g. claude-opus-4-7 → opus-4-7)
+      model="${model#claude-}"
+      [[ -z "$model" ]] && continue
+      # append if not already in the list
+      if [[ ",$models," != *",$model,"* ]]; then
+        models="${models:+$models,}$model"
+      fi
     done
     if   (( has_rc )); then LOCAL_VERDICT[$n]="🔴 REQUEST CHANGES"
     elif (( has_nd )); then LOCAL_VERDICT[$n]="🟡 NEEDS DISCUSSION"
     elif (( has_ap )); then LOCAL_VERDICT[$n]="🟢 APPROVE"
     fi
+    [[ -n "$models" ]] && LOCAL_MODELS[$n]="$models"
   done < <(find reviews/pr -mindepth 2 -maxdepth 2 -type d | sort)
 
   # jq computes one TSV row per non-draft open PR with: sort_key, n, title, author, url, state_icon, state_label
@@ -202,8 +220,13 @@ gh pr list -R "$REPO" --state open --limit 300 \
     fi
     local_rev="${LOCAL_REVIEW[$n]:-}"
     if [[ -n "$local_rev" ]]; then
-      local_verdict="${LOCAL_VERDICT[$n]:-review}"
-      local_link="[$local_verdict]($local_rev/)"
+      local_verdict="${LOCAL_VERDICT[$n]:-⚪ no verdict}"
+      local_models="${LOCAL_MODELS[$n]:-}"
+      if [[ -n "$local_models" ]]; then
+        local_link="[$local_verdict · $local_models]($local_rev/)"
+      else
+        local_link="[$local_verdict]($local_rev/)"
+      fi
     else
       local_link="—"
     fi
