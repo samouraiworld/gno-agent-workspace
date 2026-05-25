@@ -120,7 +120,7 @@ URL: https://github.com/gnolang/gno/pull/<number>
 Author: <author> | Base: <base> | Files: <count> | +<add> -<del>
 Reviewed by: <GitHub username> | Model: <model used>
 
-**Verdict: APPROVE / REQUEST CHANGES / NEEDS DISCUSSION** — <one terse sentence stating decision and the open concerns by name>.
+**Verdict: APPROVE / REQUEST CHANGES / NEEDS DISCUSSION / CLOSE** — <one terse sentence stating decision and the open concerns by name>. Use `CLOSE` only when the PR should not be merged at all — superseded by a merged PR, abandoned for months with no path forward, premise invalidated by a later design decision, or fundamentally wrong direction. Cite the load-bearing reason in the same sentence.
 
 ## Summary
 <2-4 dense sentences. What the bug/feature is, why it matters (anchor numbers — "20% of MaxTxBytes", "multiple block-production budgets"), the one-sentence shape of the fix. No jargon yet; that comes in Glossary.>
