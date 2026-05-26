@@ -251,6 +251,57 @@ gh pr list -R "$REPO" --state open --limit 300 \
   done
 
   echo
+
+  # ── Team-authored open PRs needing iteration ────────────────────────────────
+  # Focused view: open non-draft PRs authored by a Samourai team member where
+  # our AI review verdict is 🔴 REQUEST CHANGES or 🟡 NEEDS DISCUSSION.
+  # Reuses the LOCAL_VERDICT/LOCAL_REVIEW/LOCAL_MODELS maps built above.
+  rc_lines=""
+  nd_lines=""
+  while IFS=$'\t' read -r n title author url; do
+    local_verdict="${LOCAL_VERDICT[$n]:-}"
+    [[ "$local_verdict" == "🔴 REQUEST CHANGES" || "$local_verdict" == "🟡 NEEDS DISCUSSION" ]] || continue
+    local_rev="${LOCAL_REVIEW[$n]:-}"
+    local_models="${LOCAL_MODELS[$n]:-}"
+    safe_title=$(printf '%s' "$title" | sed 's/|/\\|/g')
+    if [[ -n "$local_models" ]]; then
+      link="[$local_verdict · $local_models]($local_rev/)"
+    else
+      link="[$local_verdict]($local_rev/)"
+    fi
+    row="| [#$n]($url) | $safe_title | $author | $link |"
+    if [[ "$local_verdict" == "🔴 REQUEST CHANGES" ]]; then
+      rc_lines+="$row"$'\n'
+    else
+      nd_lines+="$row"$'\n'
+    fi
+  done < <(jq -r --arg team "$TEAM_MEMBERS" '
+    ($team | split(" ")) as $T
+    | map(select(.isDraft | not))
+    | map(select(.author.login as $a | $T | index($a)))
+    | sort_by(- (.updatedAt | fromdateiso8601 // 0))
+    | .[]
+    | [.number, .title, (.author.login // "?"), .url] | @tsv
+  ' "$TMP/open-prs.json")
+
+  rc_count=$(printf '%s' "$rc_lines" | grep -c '^|' || true)
+  nd_count=$(printf '%s' "$nd_lines" | grep -c '^|' || true)
+  iter_total=$((rc_count + nd_count))
+
+  echo "## Team-authored open PRs needing iteration ($iter_total)"
+  echo
+  echo "Open non-draft PRs authored by Samourai team members where our AI review flagged 🔴 REQUEST CHANGES or 🟡 NEEDS DISCUSSION. Sorted: 🔴 first ($rc_count), then 🟡 ($nd_count); within each, most-recently-updated first."
+  echo
+  if (( iter_total == 0 )); then
+    echo "_None — all team-authored open PRs are clear of AI-flagged issues._"
+  else
+    echo "| PR | Title | Author | AI review |"
+    echo "|---:|:------|:-------|:----------|"
+    printf '%s' "$rc_lines"
+    printf '%s' "$nd_lines"
+  fi
+  echo
+
   echo "## PR reviews"
   echo
 
