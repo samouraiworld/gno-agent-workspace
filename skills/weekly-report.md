@@ -13,7 +13,7 @@ Generate the Samourai team weekly status report.
 ## Team & Repos
 
 - **Samourai:** `davd-gzl`, `omarsy`, `mvallenet`, `Villaquiranm`, `WaDadidou`, `zxxma`, `louis14448`, `AmozPay` (keep in sync with `scripts/weekly-report.sh`)
-- **Mergers** (only their approvals count for ✅): `thehowl`, `moul`, `jeronimoalbi`, `gfanton`, `ltzmaxwell`, `sw360cab`, `alexiscolin`, `aeddi`, `zivkovicmilos`, `jaekwon`, `nemanjantic`, `ajnavarro`, `Kouteki`
+- **Mergers** (only their approvals count for ✅): `thehowl`, `moul`, `jeronimoalbi`, `gfanton`, `ltzmaxwell`, `sw360cab`, `alexiscolin`, `aeddi`, `zivkovicmilos`, `jaekwon`, `nemanjantic`, `ajnavarro`, `Kouteki`, `NotJoon`
 - **Repos:** `gnolang/gno`, `samouraiworld/gnomonitoring`
 
 ## Classification rules
