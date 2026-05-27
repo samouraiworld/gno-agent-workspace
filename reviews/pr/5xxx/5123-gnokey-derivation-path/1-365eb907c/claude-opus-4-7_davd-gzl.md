@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5123
 Author: D4ryl00 | Base: master | Files: 2 | +412 -55
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5123 365eb907c` (then `gh -R gnolang/gno pr checkout 5123` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `365eb907c` (stale — +8 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5123 365eb907c`
 
 **Verdict: APPROVE** — fixes a real bug (`--derivation-path` printed addresses but never persisted derived keys); collision handling, passphrase preflight, and tests look correct. One minor warning on silent duplicate-path collapse, otherwise nits and questions.
 

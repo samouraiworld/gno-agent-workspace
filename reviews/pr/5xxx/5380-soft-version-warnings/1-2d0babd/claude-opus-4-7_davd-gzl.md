@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5380
 Author: davd-gzl | Base: master | Files: 10 | +638 -7
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5380 2d0babd` (then `gh -R gnolang/gno pr checkout 5380` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `2d0babd` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5380 2d0babd`
 Note: self-authored PR — flagged for transparency; findings stand on their own.
 
 **Verdict: REQUEST CHANGES** — two real correctness issues: `QueryLatestVersion` over-counts versions from nested sibling packages under `/vN/.../vM`, and the CLI conflates "no versions" with "unknown ABCI endpoint", silently blocking deploys of `vN` (N>5) against any pre-PR node unless `--force`.

@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4823
 Author: audrenbdb | Base: master | Files: 5 | +23 -23
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4823 acd0a3e0b` (then `gh -R gnolang/gno pr checkout 4823` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `acd0a3e0b` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4823 acd0a3e0b`
 
 **Verdict: NEEDS DISCUSSION** — title and body promise two renames, but the `Allocate -> Account` half was reverted in commit `acd0a3e0b`; what remains (`InterfaceType.Methods -> FieldTypes`) is mechanically correct but inconsistent with the still-unrenamed sibling `InterfaceTypeExpr.Methods` ([`nodes.go:706`](https://github.com/gnolang/gno/blob/acd0a3e0b/gnovm/pkg/gnolang/nodes.go#L706) · [↗](../../../../.worktrees/gno-review-4823/gnovm/pkg/gnolang/nodes.go#L706)) and method `GetMethodFieldType` ([`types.go:943`](https://github.com/gnolang/gno/blob/acd0a3e0b/gnovm/pkg/gnolang/types.go#L943) · [↗](../../../../.worktrees/gno-review-4823/gnovm/pkg/gnolang/types.go#L943)), and maintainer @mvertes contested the rename direction itself ([review comment](https://github.com/gnolang/gno/pull/4823#discussion_r2387627316)). Decide scope (drop, expand, or land partial) before merging.
 

@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5655
 Author: jeronimoalbi | Base: master | Files: 4 | +63 -26
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5655 418812d` (then `gh -R gnolang/gno pr checkout 5655` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `418812d` (stale)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5655 418812d`
 
 ## Summary
 

@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5720
 Author: ltzmaxwell | Base: master | Files: 4 | +195 -3
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5720 b12c78eb1` (then `gh -R gnolang/gno pr checkout 5720` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `b12c78eb1` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5720 b12c78eb1`
 
 **Verdict: APPROVE** — correct, minimal fix for a real Go-spec violation; tests are extensive and the single-LHS fast path keeps the dominant case allocation-free. CI failures (`gno-checks/lint` on `sealviolation`, integration `params_valset_rotation_throttle`) are unrelated to this diff and reproduce on master.
 

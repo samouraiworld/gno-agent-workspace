@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4707
 Author: piux2 | Base: master | Files: 18 | +521 -39
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4707 03a2bc7` (then `gh -R gnolang/gno pr checkout 4707` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `03a2bc7` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4707 03a2bc7`
 
 **Verdict: REQUEST CHANGES** — the invariant is a silent no-op because writer and reader disagree on the storage key, the comparator (`inc.Sub(dec) != nil`) panics on burns instead of reporting "broken", state is never cleared between blocks (cumulative storage growth), `IsCheckTx`-only skip lets ReCheck/Simulate corrupt counters, and the branch is six months behind master so the diff reverts unrelated features (session accounts, hardfork mechanism, gas calibration, valoper coverage).
 

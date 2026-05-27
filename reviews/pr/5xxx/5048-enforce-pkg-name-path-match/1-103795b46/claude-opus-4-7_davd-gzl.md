@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5048
 Author: mvallenet | Base: master | Files: 99 | +590 -233
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5048 103795b46` (then `gh -R gnolang/gno pr checkout 5048` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `103795b46` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5048 103795b46`
 
 **Verdict: REQUEST CHANGES** — sound design, three prior approvals, but PR has drifted out of date with master: two unmerged-rebase `loader/load_govdao.gno` txtar files ([`addpkg_cla.txtar`](https://github.com/gnolang/gno/blob/103795b46/gno.land/pkg/integration/testdata/addpkg_cla.txtar#L165-L166) · [↗](../../../../../.worktrees/gno-review-5048/gno.land/pkg/integration/testdata/addpkg_cla.txtar#L165-L166), [`governance_param_validation.txtar`](https://github.com/gnolang/gno/blob/103795b46/gno.land/pkg/integration/testdata/governance_param_validation.txtar#L51-L52) · [↗](../../../../../.worktrees/gno-review-5048/gno.land/pkg/integration/testdata/governance_param_validation.txtar#L51-L52)) declare `package load_govdao` at path `gno.land/r/gov/dao/v3/loader` and now break CI. Two-line fix, then merge.
 

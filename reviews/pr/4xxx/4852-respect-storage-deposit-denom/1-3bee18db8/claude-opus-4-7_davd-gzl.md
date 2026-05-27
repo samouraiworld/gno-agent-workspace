@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4852
 Author: julienrbrt | Base: master | Files: 3 | +135 -68
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4852 3bee18db8` (then `gh -R gnolang/gno pr checkout 4852` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `3bee18db8` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4852 3bee18db8`
 
 **Verdict: REQUEST CHANGES** — fix is direction-correct but the denom contract is incomplete: multi-coin `default_deposit` still chain-halts (pre-existing, but the PR is the right place to close it), the new "got %d%s" error misreports user-supplied deposit under denom mismatch, and `rlm.Deposit` remains a denom-less `uint64` so a governance-mediated denom swap can desynchronise locked funds from the refund denom.
 

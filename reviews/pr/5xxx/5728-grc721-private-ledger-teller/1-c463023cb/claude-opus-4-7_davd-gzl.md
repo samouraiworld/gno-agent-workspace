@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5728
 Author: jinoosss | Base: master | Files: 37 | +2789 -1380
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5728 c463023cb` (then `gh -R gnolang/gno pr checkout 5728` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `c463023cb` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5728 c463023cb`
 
 **Verdict: REQUEST CHANGES** — host-forget-burn leaks stale `TokenURI`/`RoyaltyInfo` (same shape as the prior PR #5603 critical, now downgraded to a documented host contract — but `TokenMetadata` is gated while `TokenURI` and `RoyaltyInfo` are not, so the contract fails silently rather than uniformly); extension Tellers ship dead `accountFn` + three functionally-identical factory variants; `foo721.gno` carries stale `basicNFT`/`igrc721.gno` doc comments; `tokenhub/render.gno` example snippet is wrong (missing `cross(cur)`). Inter-realm v2 application, `IsCanonicalTeller` defense, and the host-burn-contract regression tests are all sound — the core split is good, the rough edges are at the seams.
 

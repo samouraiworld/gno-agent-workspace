@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5016
 Author: davd-gzl | Base: master | Files: 28 | +1804 -16
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5016 a9e2631f2` (then `gh -R gnolang/gno pr checkout 5016` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `a9e2631f2` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5016 a9e2631f2`
 
 **Verdict: REQUEST CHANGES** — every new realm is written against the pre-#5669 `runtime.PreviousRealm()` / `banker.NewBanker(bt)` API that no longer exists on master; the PR also carries a merge conflict on `soliditypatterns/ownable/render.gno`. Self-review by the PR author; disclosed per AGENTS.md.
 

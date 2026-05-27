@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5350
 Author: davd-gzl | Base: master | Files: 12 | +66 -34
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5350 5b7bdc9` (then `gh -R gnolang/gno pr checkout 5350` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5b7bdc9` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5350 5b7bdc9`
 
 Verdict: APPROVE — clean, scoped feature; only concerns are an optional-regex gap in the txtar fixtures and a stale rebase against master. Already approved by [@Villaquiranm](https://github.com/Villaquiranm) and [@notJoon](https://github.com/notJoon); reviewer feedback (type alias, AGENT docs) addressed.
 

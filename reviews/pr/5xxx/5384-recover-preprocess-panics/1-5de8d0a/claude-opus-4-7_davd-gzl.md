@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5384
 Author: davd-gzl | Base: master | Files: 6 | +297 -24
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5384 5de8d0a` (then `gh -R gnolang/gno pr checkout 5384` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5de8d0a` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5384 5de8d0a`
 
 **Verdict: NEEDS DISCUSSION** — recovery logic is sound and well-tested, but two design choices need clarification: (1) the gnoweb broken-package detection swallows every non-specific `Realm()`/`Doc()` error into "Package Unavailable" — masking ordinary `Render()` panics and transient RPC failures; (2) `keeper.Initialize` treats stdlib preprocess panics as non-fatal despite the ADR claiming they remain fatal. Self-review by author — flagging openly.
 

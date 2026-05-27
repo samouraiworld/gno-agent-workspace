@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5723
 Author: ltzmaxwell | Base: master | Files: 2 | +42 -2
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5723 1817e52` (then `gh -R gnolang/gno pr checkout 5723` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `1817e52` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5723 1817e52`
 
 **Verdict: REQUEST CHANGES** — fix is correct for the two paths it patches, but the same unrecoverable-host-panic shape still exists in [`AllocateMap`](https://github.com/gnolang/gno/blob/1817e52/gnovm/pkg/gnolang/alloc.go#L381-L383) · [↗](../../../../../.worktrees/gno-review-5723/gnovm/pkg/gnolang/alloc.go#L381-L383), [`AllocateString`](https://github.com/gnolang/gno/blob/1817e52/gnovm/pkg/gnolang/alloc.go#L336-L338) · [↗](../../../../../.worktrees/gno-review-5723/gnovm/pkg/gnolang/alloc.go#L336-L338), [`AllocateBlock`](https://github.com/gnolang/gno/blob/1817e52/gnovm/pkg/gnolang/alloc.go#L397-L399) · [↗](../../../../../.worktrees/gno-review-5723/gnovm/pkg/gnolang/alloc.go#L397-L399), [`AllocateBlockItems`](https://github.com/gnolang/gno/blob/1817e52/gnovm/pkg/gnolang/alloc.go#L401-L403) · [↗](../../../../../.worktrees/gno-review-5723/gnovm/pkg/gnolang/alloc.go#L401-L403), [`AllocateStructFields`](https://github.com/gnolang/gno/blob/1817e52/gnovm/pkg/gnolang/alloc.go#L373-L375) · [↗](../../../../../.worktrees/gno-review-5723/gnovm/pkg/gnolang/alloc.go#L373-L375), and [`Allocate`](https://github.com/gnolang/gno/blob/1817e52/gnovm/pkg/gnolang/alloc.go#L303-L304) · [↗](../../../../../.worktrees/gno-review-5723/gnovm/pkg/gnolang/alloc.go#L303-L304) itself. `make(map[int]int, MaxInt)` reproduces the same Go-host panic the PR claims to fix.
 

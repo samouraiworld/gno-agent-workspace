@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5649
 Author: alexiscolin | Base: master | Files: 63 | +11135 -188
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5649 1506642` (then `gh -R gnolang/gno pr checkout 5649` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `1506642` (stale)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5649 1506642`
 
 **Verdict: APPROVE** — well-tested feature work with sensible defense-in-depth; warnings are polish, none blocking. Closest to a real concern is `maxTypeDepth=8` mislabeling fields on deep generic-flavored types.
 

@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4892
 Author: davd-gzl | Base: master | Files: 25 | +338 -54
-Reviewed by: davd-gzl | Model: claude-opus-4-7 (self-review — flag for second human reviewer)
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4892 5a0ec86` (then `gh -R gnolang/gno pr checkout 4892` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 (self-review — flag for second human reviewer) | Commit: `5a0ec86` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4892 5a0ec86`
 
 **Verdict: REQUEST CHANGES** — premise largely superseded by master (constants already fixed in [`alloc.go:82-90`](https://github.com/gnolang/gno/blob/5a0ec86/gnovm/pkg/gnolang/alloc.go#L82-L90) · [↗](../../../../../.worktrees/gno-review-4892/gnovm/pkg/gnolang/alloc.go#L82-L90) on master, `_allocPackageValue` now `296` due to interrealm v2 PkgID), `AllocatePackageValue` becomes dead code, `slice_alloc.gno` flipped from success-at-threshold to failure-just-above-threshold (weakens coverage), `alloc_11a.gno` now triggers the "should not happen" panic branch instead of the regular alloc-limit panic; rebase onto current master and re-evaluate whether anything beyond the `PkgName` accounting and `AddFileBlock` allocator-plumbing still applies.
 

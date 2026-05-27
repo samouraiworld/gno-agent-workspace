@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5521
 Author: aronpark1007 | Base: master | Files: 2 | +30 -13
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5521 a26b7d0` (then `gh -R gnolang/gno pr checkout 5521` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `a26b7d0` (stale)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5521 a26b7d0`
 
 Verdict: APPROVE — small, correct UX fix; only nit is a missing trailing newline in the new txtar file.
 

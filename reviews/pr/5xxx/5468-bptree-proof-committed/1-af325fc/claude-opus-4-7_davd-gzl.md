@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5468
 Author: notJoon | Base: feat/jae/bp32tree | Files: 5 | +133 -27
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5468 af325fc` (then `gh -R gnolang/gno pr checkout 5468` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `af325fc` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5468 af325fc`
 
 Verdict: APPROVE — fix is correct and narrowly scoped; the only public proof-API path that touched `MutableTree` returned proofs unverifiable against `MutableTree.Hash()`, and `t.lastSaved` is the right snapshot to anchor them to. One open thread from [@clockworkgr](https://github.com/gnolang/gno/pull/5468#issuecomment-4212077149) about preferring the `GetImmutable(t.version)` pattern deserves a one-line answer in the PR before merge.
 

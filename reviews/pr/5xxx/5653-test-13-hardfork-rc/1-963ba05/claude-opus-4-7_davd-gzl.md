@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5653
 Author: aeddi | Base: master | Files: 87 | +6343 -68
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5653 963ba05` (then `gh -R gnolang/gno pr checkout 5653` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `963ba05` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5653 963ba05`
 
 **Verdict: NEEDS DISCUSSION** — design is sound and the `SkipSigVerificationKey` boundary holds, but two failing CI jobs (`gno-checks/lint`, one `main/test`), 13 commits tagged `TMP` whose intent is unstated, and operational hot spots (per-tx `--patch-txs` shell pipeline, large `gen-genesis.sh`, sequence semantics for caller-swap patches) need author clarification before merge.
 

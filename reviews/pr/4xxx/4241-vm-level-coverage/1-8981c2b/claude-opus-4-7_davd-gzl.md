@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4241
 Author: notJoon | Base: master | Files: 19 | +1903 -12
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4241 8981c2b` (then `gh -R gnolang/gno pr checkout 4241` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `8981c2b` (stale — +42 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4241 8981c2b`
 
 **Verdict: REQUEST CHANGES** — coverage report counts test-file lines as production code; coverage mode silently drops the gas meter and force-loads realm dependencies, changing test behavior vs. plain `gno test`; recursive `RLock` in `ShowFileCoverage`; the interface adds dead methods and pays interface-dispatch cost on every `doOpEval`/`doOpExec` even when disabled; `-coverprofile` writes an unparseable text dump.
 

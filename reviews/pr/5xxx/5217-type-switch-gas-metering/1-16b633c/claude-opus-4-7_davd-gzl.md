@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5217
 Author: davd-gzl | Base: master | Files: 14 | +413 -47
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5217 16b633c` (then `gh -R gnolang/gno pr checkout 5217` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `16b633c` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5217 16b633c`
 
 **Disclosure:** the reviewer is also the PR author. Review is best-effort adversarial; the verdict reflects what a third-party reviewer should see, not author endorsement.
 

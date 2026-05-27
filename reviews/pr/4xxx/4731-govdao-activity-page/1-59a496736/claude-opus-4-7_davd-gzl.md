@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4731
 Author: davd-gzl | Base: master | Files: 9 | +182 -10
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4731 59a496736` (then `gh -R gnolang/gno pr checkout 4731` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `59a496736` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4731 59a496736`
 
 Verdict: REQUEST CHANGES — heavy master drift forces a full rewrite (interrealm signatures, `cross(rlm)`, `bptree`); loader re-adds members already removed by merged PR #4716; `Available` counter increments for tier-ineligible members on filtered proposals; orphan activity rows on member removal; render rebuilds the pager tree every request, defeating the pager.
 

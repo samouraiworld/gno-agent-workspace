@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5431
 Author: Villaquiranm | Base: master | Files: 14 | +628 -35
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5431 f3c8706a` (then `gh -R gnolang/gno pr checkout 5431` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `f3c8706a` (stale — +5 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5431 f3c8706a`
 Prior review: [`1-02458c712/claude-opus-4-6_davd-gzl.md`](../1-02458c712/claude-opus-4-6_davd-gzl.md)
 
 > **Verdict: APPROVE** — round-2 fixes close the `cacheNodes` race [@omarsy](https://github.com/gnolang/gno/pull/5431#issuecomment-2802541619) flagged and the gas-overestimation regression; remaining items are stale-comment and test-precision nits, none blocking.

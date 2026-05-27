@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4831
 Author: Villaquiranm | Base: master | Files: 3 | +119 -1
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4831 310bc01` (then `gh -R gnolang/gno pr checkout 4831` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `310bc01` (stale — +4 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4831 310bc01`
 
 **Verdict: APPROVE with caveats** — fix is correct and the security-critical copy semantics hold; remaining issues are test-coverage gaps (txtar asserts only `OK!`, never the converted values), an out-of-date interrealm doc that still prints the old guard, and one style nit. Round 2 since [round 1 (`5c30fba`)](../1-5c30fba/claude-sonnet-4-6_davd-gzl.md); the `baseOf(...)` wrap from notJoon's comment landed in `c45a2ed`, the new commit `e10f5c9` added the declared-type txtar.
 

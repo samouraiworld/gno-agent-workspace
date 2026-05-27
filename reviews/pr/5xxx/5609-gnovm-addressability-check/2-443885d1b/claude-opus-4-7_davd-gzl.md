@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5609
 Author: aronpark1007 | Base: master | Files: 27 | +135 -26
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5609 443885d1b` (then `gh -R gnolang/gno pr checkout 5609` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `443885d1b` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5609 443885d1b`
 
 **Verdict: APPROVE** — Closes #5586 for the listed expression classes (binary/unary, type-assert, map index, call result, slice literal) and moves the validation from a runtime crash to a structured preprocess panic; the `*NameExpr → true` branch leaves three pre-existing escape hatches (`&funcName`, `&t.M`, `&s[i]`) but those are not regressions, and the author has explicitly scoped them out for a follow-up.
 

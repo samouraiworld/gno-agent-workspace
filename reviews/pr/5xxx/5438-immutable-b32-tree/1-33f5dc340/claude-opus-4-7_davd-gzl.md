@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5438
 Author: jaekwon | Base: master | Files: 243 | +37938 -2463
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5438 33f5dc340` (then `gh -R gnolang/gno pr checkout 5438` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `33f5dc340` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5438 33f5dc340`
 
 **Verdict: REQUEST CHANGES** — bptree library is solid and well-tested in isolation, but the PR bundles ~5 unrelated major refactors (gas model overhaul, MDBX/LMDB backends, stdlib byte cache, PkgID flag nibble, MinDepth governance param) under a misleading title, and ships with 27 failing CI checks plus known data-loss bugs already fixed in stacked follow-ups (#5570, #5591). Should be split, rebased on current master, and CI greened before merge.
 

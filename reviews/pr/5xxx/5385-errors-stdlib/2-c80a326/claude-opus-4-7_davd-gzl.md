@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5385
 Author: davd-gzl | Base: master | Files: 16 | +486 -73
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5385 c80a32609` (then `gh -R gnolang/gno pr checkout 5385` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `c80a326` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5385 c80a326`
 
 **Verdict: APPROVE with nits** — Implementation is a faithful port of Go's `errors` package, tests pass, the consumer migrations look right, and the package fills a real hole (closes #486). Open items are doc accuracy (`breadth first` claim vs depth-first impl, stale `Is` doc comment about "Unwrap on either"), the missing `errors.As` row in `docs/resources/go-gno-compatibility.md`, and a couple of `wrap_test.gno` coverage gaps inherited from the Go stdlib test table. None block merge.
 

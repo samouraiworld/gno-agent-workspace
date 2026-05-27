@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5361
 Author: mvallenet | Base: master | Files: 11 | +321 -52
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5361 5b40714` (then `gh -R gnolang/gno pr checkout 5361` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5b40714` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5361 5b40714`
 
 **Verdict: APPROVE** — additive, well-scoped wiring of bank events on top of the typed-ABCI-event infrastructure (#4630); known gaps (ante-handler invisibility, missing mint/burn) are correctly documented in the ADR. One asymmetric zero-amount guard between `sendCoins` and `InputOutputCoins`, plus a stale proto field type, are minor.
 

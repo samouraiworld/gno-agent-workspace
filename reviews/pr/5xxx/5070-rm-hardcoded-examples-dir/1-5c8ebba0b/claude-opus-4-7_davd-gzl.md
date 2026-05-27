@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5070
 Author: moonia | Base: master | Files: 2 | +5 -3
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5070 5c8ebba0b` (then `gh -R gnolang/gno pr checkout 5070` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5c8ebba0b` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5070 5c8ebba0b`
 
 **Verdict: REQUEST CHANGES** — preserves a pre-existing `"example"` vs `examples/` typo in [`pkg/dev/node.go`](https://github.com/gnolang/gno/blob/5c8ebba0b/contribs/gnodev/pkg/dev/node.go#L85) · [↗](../../../../../.worktrees/gno-review-5070/contribs/gnodev/pkg/dev/node.go#L85), splits one logical constant into two divergent ones (`examplesDirName="examples"` in `app.go`, `exampleDirName="example"` in `node.go`), and misses two other hardcoded `"examples"` literals in the same package, so the refactor neither fixes the underlying TODO nor makes future centralization easier.
 

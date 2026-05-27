@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5169
 Author: Villaquiranm | Base: master | Files: 28 | +1941 -18
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5169 f2b889f` (then `gh -R gnolang/gno pr checkout 5169` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `f2b889f` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5169 f2b889f`
 
 **Verdict: REQUEST CHANGES** — `reader.read` truncates blocks larger than the zstd decoder buffer (silent state corruption on restore); the WS `backup` endpoint is unauthenticated and unrate-limited (DoS vector); `WriteSync` errors in the restore batch loop are dropped.
 

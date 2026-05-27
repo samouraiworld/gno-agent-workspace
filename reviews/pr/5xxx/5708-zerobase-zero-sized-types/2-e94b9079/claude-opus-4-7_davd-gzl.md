@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5708
 Author: ltzmaxwell | Base: master | Files: 8 | +210 -13
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5708 e94b9079` (then `gh -R gnolang/gno pr checkout 5708` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `e94b9079` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5708 e94b9079`
 Prior review (for history; this review stands alone): [1-350d630e3/](../1-350d630e3/claude-opus-4-7_davd-gzl.md)
 
 **Verdict: NEEDS DISCUSSION** — `isZeroSizeType` now recurses into array elements, closing the parity gap flagged in round 1; ptr12b/ptr12c filetests pin the fix. Two architectural warnings carry over unaddressed: pointer identity for shared zero-size HIVs breaks across tx boundaries (per-machine cache evaporates), and HIV ownership leaks across realms within a single tx (PkgID stamped at first allocation). Neither is a bug in the *new* commits, but both shape the contract worth pinning before merge. CI is red for reasons unrelated to this PR.

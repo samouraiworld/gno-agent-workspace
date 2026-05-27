@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5370
 Author: mvallenet | Base: master | Files: 4 | +129 -2
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5370 aa08ad2d` (then `gh -R gnolang/gno pr checkout 5370` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `aa08ad2d` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5370 aa08ad2d`
 
 **Verdict: APPROVE** — small, well-scoped TODO-completion + denom-typo fix; only gap is a missing test for the new `std.ValidateDenom` error path on the loader.
 

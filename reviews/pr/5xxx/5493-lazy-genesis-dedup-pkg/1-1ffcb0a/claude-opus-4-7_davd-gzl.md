@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5493
 Author: aronpark1007 | Base: master | Files: 1 | +24 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5493 1ffcb0a` (then `gh -R gnolang/gno pr checkout 5493` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `1ffcb0a` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5493 1ffcb0a`
 
 Verdict: REQUEST CHANGES — fix is directionally correct and resolves the reported `package already exists` panic from #5140, but lands without any unit test for the new dedup path (codecov: 45% patch coverage, the entire `slices.DeleteFunc` body is uncovered) and silently swallows two adjacent edge cases (intra-`genesisTxs` duplicates, multi-message txs containing a dup `MsgAddPackage`).
 

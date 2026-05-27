@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5108
 Author: alexiscolin | Base: master | Files: 100 (intent: 5 source + ~20 filetests) | +11026 -11074
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5108 9d2e0cfe8` (then `gh -R gnolang/gno pr checkout 5108` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `9d2e0cfe8` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5108 9d2e0cfe8`
 
 Verdict: CLOSE — superseded by merged [`README.md`](https://github.com/gnolang/gno/blob/9d2e0cfe8/examples/gno.land/r/gnoland/boards2/v1/README.md) · [↗](../../../../../.worktrees/gno-review-5108/examples/gno.land/r/gnoland/boards2/v1/README.md) (#5135) and [`doc.gno`](https://github.com/gnolang/gno/blob/9d2e0cfe8/examples/gno.land/r/gnoland/boards2/v1/doc.gno) · [↗](../../../../../.worktrees/gno-review-5108/examples/gno.land/r/gnoland/boards2/v1/doc.gno) (#5636), premise invalidated by removed-username-requirement (#5254), stale 3+ months with unanswered rebase request from [jefft0](https://github.com/gnolang/gno/pull/5108#issuecomment-2848614552).
 

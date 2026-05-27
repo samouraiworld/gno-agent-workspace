@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4879
 Author: alexiscolin | Base: master | Files: 33 | +14927 -1
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4879 df4af7fd1` (then `gh -R gnolang/gno pr checkout 4879` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `df4af7fd1` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4879 df4af7fd1`
 
 **Verdict: REQUEST CHANGES** — Stored XSS via LaTeX in any user-rendered markdown: `\text{}` writes attacker bytes straight into the page DOM and `\class{}` injects arbitrary HTML attributes (including `onclick=`). Output goes through the MathML renderer's raw `BufWriter.WriteString`, bypassing every escaping layer. Reachable from boards, forms, anything that renders user markdown. Must fix before merge.
 

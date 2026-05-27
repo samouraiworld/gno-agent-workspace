@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5314
 Author: davd-gzl | Base: master | Files: 94 | +543 -533
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5314 325ced1` (then `gh -R gnolang/gno pr checkout 5314` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `325ced1` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5314 325ced1`
 
 **Verdict: APPROVE** — clean breaking-API change across all in-tree `avl.Tree` callers (94 files, 2 approvals already), correctly skips deletion semantics, all targeted tests pass; only concerns are documentation of the breaking nature in the PR body, a contract subtlety in `record.Get` worth a code comment, and one stale test-error message in `p/moul/cow`. Self-review: I'm the author of this PR — bias disclosed.
 

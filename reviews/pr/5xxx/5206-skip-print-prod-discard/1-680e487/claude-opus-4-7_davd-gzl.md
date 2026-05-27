@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5206
 Author: omarsy | Base: master | Files: 11 | +85 -63
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5206 680e487` (then `gh -R gnolang/gno pr checkout 5206` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `680e487` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5206 680e487`
 
 Verdict: NEEDS DISCUSSION — fast-path is safe in current production wiring, but breaks `MsgRun` DeliverTx.Data semantics (RPC/CLI regression flagged by [@thehowl](https://github.com/gnolang/gno/pull/5206#pullrequestreview-3070000000)), creates a latent consensus-divergence trap if any validator sets `VMOutput`, and silently removes the gas charge for `print`/`println` in production. Decide whether to land it as-is, narrow it to format-only skipping while still capturing into a per-tx buffer (preserves DeliverTx.Data + gas), or take the broader scalar-only redesign thehowl proposes.
 

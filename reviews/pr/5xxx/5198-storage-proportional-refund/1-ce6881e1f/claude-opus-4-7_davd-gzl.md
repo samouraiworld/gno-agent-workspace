@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5198
 Author: mvallenet | Base: master | Files: 3 | +363 -1
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5198 ce6881e1f` (then `gh -R gnolang/gno pr checkout 5198` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `ce6881e1f` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5198 ce6881e1f`
 
 Verdict: REQUEST CHANGES — fix logic is correct and well-tested, but the integration test [`storage_deposit_price_change.txtar:33`](https://github.com/gnolang/gno/blob/ce6881e1f/gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar#L33) · [↗](../../../../../.worktrees/gno-review-5198/gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar#L33) fails on PR head; hardcoded balance assertion has already drifted from actual gas cost.
 

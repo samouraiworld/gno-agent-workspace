@@ -154,6 +154,7 @@ BODY="$TMP/body.md"
   declare -A LOCAL_REVIEW
   declare -A LOCAL_VERDICT
   declare -A LOCAL_MODELS
+  declare -A LOCAL_STALE  # set to "+N" when review is stale, "" if latest, unset if unknown
   while IFS= read -r d; do
     base=$(basename "$d")
     n="${base%%-*}"
@@ -208,6 +209,18 @@ BODY="$TMP/body.md"
       # append if not already in the list
       if [[ ",$models," != *",$model,"* ]]; then
         models="${models:+$models,}$model"
+      fi
+
+      # Extract staleness from the "Commit: `<sha>` (latest)" or
+      # "(stale — +N commits since)" line written by convert-review-links.py.
+      # Last one wins if multiple reviewer files differ.
+      commit_line=$(grep -m1 -E "^Reviewed by:.*Commit:" "$f" 2>/dev/null || true)
+      if [[ "$commit_line" == *"(latest)"* ]]; then
+        LOCAL_STALE[$n]=""
+      elif [[ "$commit_line" =~ \(stale[^+]*\+([0-9]+) ]]; then
+        LOCAL_STALE[$n]="+${BASH_REMATCH[1]}"
+      elif [[ "$commit_line" == *"(stale"* ]]; then
+        LOCAL_STALE[$n]="stale"
       fi
     done
     if   (( has_close )); then LOCAL_VERDICT[$n]="🚫 CLOSE"
@@ -266,10 +279,14 @@ BODY="$TMP/body.md"
     if [[ -n "$local_rev" ]]; then
       local_verdict="${LOCAL_VERDICT[$n]:-⚪ no verdict}"
       local_models="${LOCAL_MODELS[$n]:-}"
+      stale_tag=""
+      if [[ -v LOCAL_STALE[$n] && -n "${LOCAL_STALE[$n]}" ]]; then
+        stale_tag=" · 🕒 ${LOCAL_STALE[$n]}"
+      fi
       if [[ -n "$local_models" ]]; then
-        local_link="[$local_verdict · $local_models]($local_rev/)"
+        local_link="[$local_verdict · $local_models${stale_tag}]($local_rev/)"
       else
-        local_link="[$local_verdict]($local_rev/)"
+        local_link="[$local_verdict${stale_tag}]($local_rev/)"
       fi
     else
       local_link="—"
@@ -416,7 +433,7 @@ BODY="$TMP/body.md"
   echo
   echo "Team coverage legend: 🟢 approved · 🔴 changes requested · 💬 commented only · ⏳ no team review"
   echo
-  echo "AI review verdict (parsed from our AI-generated review files): 🟢 APPROVE · 🔴 REQUEST CHANGES · 🟡 NEEDS DISCUSSION · 🚫 CLOSE (PR should not be merged at all — superseded, abandoned, or wrong direction) · ⚪ no verdict (file exists but verdict line was not parseable). Model used follows after \`·\` (e.g. \`opus-4-7\`; \`claude-\` prefix stripped)."
+  echo "AI review verdict (parsed from our AI-generated review files): 🟢 APPROVE · 🔴 REQUEST CHANGES · 🟡 NEEDS DISCUSSION · 🚫 CLOSE (PR should not be merged at all — superseded, abandoned, or wrong direction) · ⚪ no verdict (file exists but verdict line was not parseable). Model used follows after \`·\` (e.g. \`opus-4-7\`; \`claude-\` prefix stripped). A 🕒 \`+N\` suffix means the review is stale — the PR has +N commits since the reviewed sha."
   echo
 
   # ── Table of contents ───────────────────────────────────────────────────────

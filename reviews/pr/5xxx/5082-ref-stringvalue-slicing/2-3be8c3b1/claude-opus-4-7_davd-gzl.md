@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5082
 Author: notJoon | Base: master | Files: 13 | +226 -24
-Reviewed by: davd-gzl | Model: claude-opus-4.7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5082 3be8c3b1` (then `gh -R gnolang/gno pr checkout 5082` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4.7 | Commit: `3be8c3b1` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5082 3be8c3b1`
 
 Verdict: REQUEST CHANGES — landed integration test [`stdlib_restart_compare`](https://github.com/gnolang/gno/blob/3be8c3b1/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar) · [↗](../../../../../.worktrees/gno-review-5082/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar) fails on this branch (reproduced locally), `gnovm/cmd/benchstore` no longer builds with `-tags=genproto2`, `MaxAllocBytes` self-check in [`alloc.go:132`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L132-L151) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L132-L151) misses the new struct so both `allocString` and `allocStringRef` under-charge by 8 bytes, and a ref-slice survives GC counted as 24 bytes while pinning the parent's full backing array in Go memory.
 

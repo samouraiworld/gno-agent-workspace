@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5348
 Author: D4ryl00 | Base: master | Files: 4 | +336 -2
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5348 47ab55a40` (then `gh -R gnolang/gno pr checkout 5348` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `47ab55a40` (stale — +164 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5348 47ab55a40`
 
 Verdict: APPROVE — small, well-scoped consensus-layer guard against re-signing already-cast self votes; only nit is the conflict-vote branch logs and returns silently when called for a different `BlockID` at the same `H/R/T`, which is the correct safety choice but could be surfaced via a metric for fleet observability.
 

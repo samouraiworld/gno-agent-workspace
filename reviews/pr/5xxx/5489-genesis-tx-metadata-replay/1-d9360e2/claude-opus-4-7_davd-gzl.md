@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5489
 Author: moul | Base: master | Files: 22 | +1097 -25
-Reviewed by: davd-gzl | Model: claude-opus-4.7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5489 d9360e2` (then `gh -R gnolang/gno pr checkout 5489` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4.7 | Commit: `d9360e2` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5489 d9360e2`
 
 **Verdict: REQUEST CHANGES** — protocol mechanism is sound and well-tested, but the chain-ID override is fail-open (piux2): a non-empty `metadata.ChainID` not in `PastChainIDs` silently falls back to the current chain ID instead of rejecting the tx, and `ValidateGenState` does not check `PastChainIDs` (empty strings, overlong IDs) or `GnoGenesisState.InitialHeight`. `GnoGenesisState.InitialHeight` is informational-only and silently desyncs from the load-bearing `GenesisDoc.InitialHeight`.
 

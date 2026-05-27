@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5725
 Author: moul | Base: master | Files: 60 | +3904 -4
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5725 7e09b440b` (then `gh -R gnolang/gno pr checkout 5725` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `7e09b440b` (stale)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5725 7e09b440b`
 
 **Verdict: NEEDS DISCUSSION** — six new stdlibs land clean (tests green, determinism txtar pins gas, apphash pinned correctly), but four open items must close before merge: gas table is a Xeon-Silver-4114 draft (not the reference Xeon 8168), modexp's linear gas schema mis-charges a cubic primitive, ship-decision between `cometbls` (monolithic native) vs `cometblszk` (pure-gno on top of bn254/keccak/modexp) is still TBD, and the embedded verifying-key constants are union-devnet-1337 — not mainnet material. EIP-196 padding parity also drifts between `g1Add` (right-pads short input) and `g1Mul` (strict 96-byte reject), which contradicts both the package doc and the precompile spec.
 

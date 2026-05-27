@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5431
 Author: Villaquiranm | Base: master | Files: 14 | +628 -35
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5431 b84ee8bdb` (then `gh -R gnolang/gno pr checkout 5431` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `b84ee8bdb` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5431 b84ee8bdb`
 Prior reviews: [`1-02458c712/claude-opus-4-6_davd-gzl.md`](../1-02458c712/claude-opus-4-6_davd-gzl.md), [`2-f3c8706a/claude-opus-4-7_davd-gzl.md`](../2-f3c8706a/claude-opus-4-7_davd-gzl.md)
 
 > **Verdict: APPROVE** — round 3 is the round-2 head with master merged on top of it (`b84ee8bdb`); no PR code changes, all round-2 findings still apply as non-blocking. Already approved by [@tbruyelle](https://github.com/gnolang/gno/pull/5431#pullrequestreview-3017038438) and [@notJoon](https://github.com/gnolang/gno/pull/5431#pullrequestreview-3221068194). Failing CI checks (`gno-checks/lint`, `main/test`) are master regressions from [PR #5669 (interrealm Phase 3)](https://github.com/gnolang/gno/pull/5669), not introduced by this PR.

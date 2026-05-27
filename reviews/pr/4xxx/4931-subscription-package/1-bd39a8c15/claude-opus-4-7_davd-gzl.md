@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4931
 Author: mvallenet | Base: master | Files: 17 | +2873 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4931 bd39a8c15` (then `gh -R gnolang/gno pr checkout 4931` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `bd39a8c15` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4931 bd39a8c15`
 
 **Verdict: REQUEST CHANGES** — `normalizedcoins.LessCoinsThan` is asymmetric and lets a subscriber bypass both the initial-deposit price gate and the per-period coverage check, and `subscription.dueAmount(charge=true)` silently skips state updates when funds are insufficient, leaving `vault` out of sync with realm balance and locking subscribers out of `Unsubscribe`.
 

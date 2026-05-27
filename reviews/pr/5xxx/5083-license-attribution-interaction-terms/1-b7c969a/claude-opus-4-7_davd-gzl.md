@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5083
 Author: jmsamv | Base: master | Files: 1 (semantic) / 291 (with merge drift) | +6 -4 (semantic) / +7433 -3150 (with merge drift)
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5083 b7c969a` (then `gh -R gnolang/gno pr checkout 5083` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `b7c969a` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5083 b7c969a`
 
 Verdict: NEEDS DISCUSSION — substantive change is a one-paragraph legal-text edit owned by the Licensor (NewTendermint); technical reviewers cannot judge whether the conditional "if the interface enables package uploads" CLA link belongs in `LICENSE.md` (a copyleft license body) vs. `TERMS.md` / `CLA.md` (where the surrounding obligations already live). Branch is also 318 commits behind master, has been Stale for 4+ months, and currently re-introduces removed files via merge. Rebase required regardless of the legal decision.
 

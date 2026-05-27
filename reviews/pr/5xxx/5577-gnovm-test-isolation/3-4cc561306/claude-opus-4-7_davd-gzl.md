@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5577
 Author: notJoon | Base: master | Files: 10 | +357 -107
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5577 4cc561306` (then `gh -R gnolang/gno pr checkout 5577` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `4cc561306` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5577 4cc561306`
 
 **Verdict: REQUEST CHANGES** — the round-2 critical (stale doc comment on `NewPackageInstance`) is still shipped; everything else round-2 flagged still holds. The HEAD jump `dff0112a9 → 4cc561306` is a single merge of master with zero PR-file changes, so nothing on this branch was rewritten in response to the round-2 review.
 

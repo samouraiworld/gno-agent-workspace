@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5591
 Author: clockworkgr | Base: feat/jae/bp32tree | Files: 22 | +1313 -107
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5591 ee34a2dad` (then `gh -R gnolang/gno pr checkout 5591` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `ee34a2dad` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5591 ee34a2dad`
 
 **Verdict: APPROVE** — 15 surgical fixes targeting real bugs (SaveVersion swallowing DB errors, idempotent-replay corruption, iterator-vs-prune race, first-version orphan leak, eager value-key copy on updates) with matching regression tests; all bptree and store/bptree suites pass. Two doc inconsistencies (README contradicts itself, prune flush-threshold default mismatch — both round-1 findings, unresolved) plus one new design asymmetry to flag (`ImmutableTree.Get` is unprotected against pruning while `ImmutableTree.Iterator` is).
 

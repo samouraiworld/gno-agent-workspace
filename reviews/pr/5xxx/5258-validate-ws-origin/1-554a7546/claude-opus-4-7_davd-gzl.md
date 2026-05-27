@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5258
 Author: davd-gzl | Base: master | Files: 10 | +123 -10
-Reviewed by: davd-gzl (self-review, scheduled sweep) | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5258 554a7546` (then `gh -R gnolang/gno pr checkout 5258` inside it)
+Reviewed by: davd-gzl (self-review, scheduled sweep) | Model: claude-opus-4-7 | Commit: `554a7546` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5258 554a7546`
 
 Verdict: APPROVE (with one compat note) — wires `CORSAllowedOrigins` into WS upgrade via `rs/cors`, mirrors HTTP CORS, gorilla default same-origin check kicks in when CORS is disabled; one behavior change worth flagging: a restricted (non-`["*"]`, non-empty) `CORSAllowedOrigins` list now rejects no-Origin requests with 403, which blocks the in-tree Go WS client that sends no Origin header.
 

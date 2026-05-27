@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5068
 Author: mvallenet | Base: master | Files: 50 | +2777 -234
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5068 fe6cb1070` (then `gh -R gnolang/gno pr checkout 5068` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `fe6cb1070` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5068 fe6cb1070`
 
 **Verdict: REQUEST CHANGES** — solid framework, three real bugs in `//nolint` parsing and `--disable-rules` flag handling silently mis-suppress or fail to suppress; redundant sort and a dead `Issue.Pos` field already flagged by @notJoon are still open.
 

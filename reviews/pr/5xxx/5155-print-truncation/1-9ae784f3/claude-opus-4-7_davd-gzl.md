@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5155
 Author: davd-gzl | Base: master | Files: 3 | +251 -11
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5155 9ae784f3` (then `gh -R gnolang/gno pr checkout 5155` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `9ae784f3` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5155 9ae784f3`
 
 **Verdict: APPROVE** — fix correctly caps the per-level native `make([]string)` / `strings.Join` allocations driving the HackenProof report ([NEWTENDG-59](https://dashboard.hackenproof.com/manager/companies/newtendermint/gno-dot-land/reports/NEWTENDG-59)); only nit is the `printOutputLimit` safety net is dead code on the actual `print()`/`println()` path because `Sprint`/`ProtectedSprint` bypass it. Self-review disclaimer: this review is on the author's own PR — flagged for independent confirmation before merge.
 

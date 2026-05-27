@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5706
 Author: jaekwon | Base: master | Files: 67 | +563 -269
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5706 0e2dda69` (then `gh -R gnolang/gno pr checkout 5706` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `0e2dda69` (stale)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5706 0e2dda69`
 
 Verdict: REQUEST CHANGES — pinned `TestAppHashCrossrealm38` apphash is stale and CI currently red; minor doc/sed artifacts ("borrow rule #2ed", one missed "borrow rule #N borrow" doubling); lint swallow-recover masks unrelated preprocess panics whenever a filetest has `// Error:`. Core stamping change and `realm.seal` mechanism look sound.
 

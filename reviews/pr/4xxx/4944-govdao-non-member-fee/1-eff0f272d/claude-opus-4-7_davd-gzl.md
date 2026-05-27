@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4944
 Author: davd-gzl | Base: master | Files: 9 | +351 -83
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4944 eff0f272d` (then `gh -R gnolang/gno pr checkout 4944` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `eff0f272d` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4944 eff0f272d`
 
 **Verdict: REQUEST CHANGES** — fee is checked but never captured: with MsgRun the coins never leave the caller (zero-cost spam), with MsgCall they land on the `r/gov/dao` proxy address with no withdrawal path; PR description claims they go to "GovDAO implementation" which is wrong for both paths.
 

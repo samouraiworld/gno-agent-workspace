@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5707
 Author: ltzmaxwell | Base: master | Files: 2 | +66 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5707 c7b8227f2` (then `gh -R gnolang/gno pr checkout 5707` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `c7b8227f2` (stale — +2 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5707 c7b8227f2`
 
 **Verdict: REQUEST CHANGES** — fix is correct for the canonical `T.M` form but misses the pointer-receiver form `(*T).M`, which still produces incorrect init order.
 
