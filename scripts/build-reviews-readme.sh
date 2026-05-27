@@ -231,7 +231,10 @@ BODY="$TMP/body.md"
     [[ -n "$models" ]] && LOCAL_MODELS[$n]="$models"
   done < <(find reviews/pr -mindepth 2 -maxdepth 2 -type d | sort)
 
-  # jq computes one TSV row per non-draft open PR with: sort_key, n, title, author, url, state_icon, state_label
+  # jq computes one TSV row per non-draft open PR. The bash side then prepends
+  # a "stale rank" column from the LOCAL_STALE map (stale → 0, fresh → 1), so
+  # within each tier the stale reviews bubble up. Final sort key: tier rank,
+  # stale rank, then most-recently-updated.
   jq -r --arg team "$TEAM_MEMBERS" '
     ($team | split(" ")) as $T
     | map(select(.isDraft | not))
@@ -256,20 +259,43 @@ BODY="$TMP/body.md"
             else                                                    {icon: "⏳", label: "no team review",   rank: 0}
             end
           ) as $state
-        # which team members touched it (review or comment), de-duped
+        # which team members touched it (review or comment), de-duped.
+        # NOTE: emit "-" as sentinel for empty so bash `read -r` (which collapses
+        # consecutive tab-separators because tab is whitespace IFS) keeps fields
+        # aligned. Bash decodes "-" back to empty before rendering.
         | (
-            ($revs    | map(select(.author.login as $a | $T | index($a)) | .author.login))
-            +
-            ($comments | map(select(.author.login as $a | $T | index($a)) | .author.login))
-            | unique | join(",")
+            (($revs    | map(select(.author.login as $a | $T | index($a)) | .author.login))
+             +
+             ($comments | map(select(.author.login as $a | $T | index($a)) | .author.login))
+             | unique | join(","))
+            | if . == "" then "-" else . end
           ) as $touchers
         | {n: .number, title: .title, author: (.author.login // "?"), url: .url, updatedAt: .updatedAt, icon: $state.icon, label: $state.label, rank: $state.rank, touchers: $touchers}
       )
     | sort_by([.rank, ([(- (.updatedAt | fromdateiso8601 // 0))])])
     | .[]
-    | [.rank, .n, .title, .author, .url, .icon, .label, .touchers] | @tsv
-  ' "$TMP/open-prs.json" | while IFS=$'\t' read -r rank n title author url icon label touchers; do
+    | [.rank, .n, .title, .author, .url, .icon, .label, .touchers, .updatedAt] | @tsv
+  ' "$TMP/open-prs.json" > "$TMP/coverage-rows.tsv"
+
+  # Build the rendered markdown row first, prepend a numeric sort key, then
+  # `sort` the keys and strip them. This avoids the TSV-field-alignment
+  # pitfalls of writing/re-reading multi-field tab-separated state and keeps
+  # the rendering close to the data that produced it.
+  : > "$TMP/coverage-rows-rendered.tsv"
+  while IFS=$'\t' read -r rank n title author url icon label touchers updatedAt; do
+    if [[ -v LOCAL_STALE[$n] && -n "${LOCAL_STALE[$n]}" ]]; then
+      stale_rank=0
+    else
+      stale_rank=1
+    fi
+    upd_epoch=$(date -d "$updatedAt" +%s 2>/dev/null || echo 0)
+    upd_neg=$((0 - upd_epoch))
+    # Sort key: zero-padded so plain string sort matches numeric ordering
+    sort_key=$(printf '%01d|%01d|%015d' "$rank" "$stale_rank" "$upd_neg")
+
     safe_title=$(printf '%s' "$title" | sed 's/|/\\|/g')
+    # Decode jq's "-" sentinel back to empty.
+    [[ "$touchers" == "-" ]] && touchers=""
     if [[ -n "$touchers" ]]; then
       coverage="$icon $label ($touchers)"
     else
@@ -291,8 +317,12 @@ BODY="$TMP/body.md"
     else
       local_link="—"
     fi
-    echo "| [#$n]($url) | $safe_title | $author | $coverage | $local_link |"
-  done
+    rendered="| [#$n]($url) | $safe_title | $author | $coverage | $local_link |"
+    printf '%s\t%s\n' "$sort_key" "$rendered" >> "$TMP/coverage-rows-rendered.tsv"
+  done < "$TMP/coverage-rows.tsv"
+
+  # Stable string sort by the first (key) column; emit only the rendered row.
+  sort -t$'\t' -k1,1 "$TMP/coverage-rows-rendered.tsv" | cut -f2-
 
   echo
 
