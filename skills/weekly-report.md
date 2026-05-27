@@ -13,7 +13,7 @@ Generate the Samourai team weekly status report.
 ## Team & Repos
 
 - **Samourai:** `davd-gzl`, `omarsy`, `mvallenet`, `Villaquiranm`, `WaDadidou`, `zxxma`, `louis14448`, `AmozPay` (keep in sync with `scripts/weekly-report.sh`)
-- **Mergers** (only their approvals count for ✅): `thehowl`, `moul`, `jeronimoalbi`, `gfanton`, `ltzmaxwell`, `sw360cab`, `alexiscolin`, `aeddi`, `zivkovicmilos`, `jaekwon`, `nemanjantic`, `ajnavarro`, `Kouteki`, `NotJoon`
+- **Mergers** (only their approvals count for ✅): `thehowl`, `moul`, `jeronimoalbi`, `gfanton`, `ltzmaxwell`, `sw360cab`, `alexiscolin`, `aeddi`, `zivkovicmilos`, `jaekwon`, `nemanjantic`, `ajnavarro`, `Kouteki`, `NotJoon`, `tbruyelle`
 - **Repos:** `gnolang/gno`, `samouraiworld/gnomonitoring`
 
 ## Classification rules
@@ -62,6 +62,14 @@ Key open PR fields: `number`, `title`, `url`, `author`, `createdAt`, `isDraft`, 
   "approvers": ["user", ...], "changes_requesters": ["user", ...] }
 ```
 Uses last review per author as official status. Merged PRs: `number`, `title`, `url`, `author`, `mergedAt`, `labels`. Issues: `number`, `title`, `url`, `author`, `createdAt`, `state`, `labels`.
+
+### 1a. Verify mergers list
+
+```bash
+gh pr list --repo gnolang/gno --state merged --limit 200 --json mergedBy --jq '[.[].mergedBy.login] | unique | .[]'
+```
+
+For each login: if missing from **Mergers** above and not a **Samourai** member, add it to line 16. Surface the diff to the user.
 
 ### 2. Load last week's context
 
