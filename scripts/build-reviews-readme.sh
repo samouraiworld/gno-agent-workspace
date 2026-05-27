@@ -51,12 +51,31 @@ fi
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
+# Disk cache for terminal-state PRs (MERGED / CLOSED). Their state can't change,
+# so we avoid re-querying gh on every run. Cache lives under data/ which is
+# gitignored. Cached files are reused as-is when their `.state` is terminal;
+# OPEN / DRAFT / UNKNOWN are re-fetched live.
+CACHE_DIR="$(git rev-parse --show-toplevel)/data/.gh-pr-cache"
+mkdir -p "$CACHE_DIR"
+
 fetch_one() {
   local num="$1"
-  gh pr view "$num" -R "$REPO" \
-    --json number,state,title,mergedAt,closedAt,url,isDraft \
-    > "$TMP/$num.json" 2>/dev/null \
-    || echo "{\"number\":$num,\"state\":\"UNKNOWN\",\"title\":\"\",\"url\":\"https://github.com/$REPO/pull/$num\"}" > "$TMP/$num.json"
+  local cache="$CACHE_DIR/$num.json"
+  # Cache hit: terminal state — reuse. Use grep instead of jq to avoid forking
+  # a process per cached PR (matters at >200 PRs).
+  if [[ -s "$cache" ]] && grep -q '"state":"\(MERGED\|CLOSED\)"' "$cache" 2>/dev/null; then
+    cp "$cache" "$TMP/$num.json"
+    return 0
+  fi
+  # Cache miss or non-terminal state — fetch live.
+  if gh pr view "$num" -R "$REPO" \
+       --json number,state,title,mergedAt,closedAt,url,isDraft \
+       > "$TMP/$num.json" 2>/dev/null; then
+    # Save to cache so subsequent runs can hit it once the PR reaches a terminal state.
+    cp "$TMP/$num.json" "$cache" 2>/dev/null || true
+  else
+    echo "{\"number\":$num,\"state\":\"UNKNOWN\",\"title\":\"\",\"url\":\"https://github.com/$REPO/pull/$num\"}" > "$TMP/$num.json"
+  fi
 }
 
 PR_NUMS=()
@@ -79,13 +98,32 @@ for num in "${PR_NUMS[@]}"; do
 done
 wait
 
-# Fetch every open PR with its reviews + comments in one shot for the team
-# coverage section below. We do this here (parallel to per-review fetches above)
-# so we pay one round-trip even though it's a larger payload.
+# Fetch every open PR with its reviews + comments for the team coverage
+# section below. The GraphQL endpoint occasionally returns 502 / stream
+# cancellations on heavy payloads — retry with smaller limits if needed.
 echo "Fetching open PRs + reviews for team coverage section..." >&2
-gh pr list -R "$REPO" --state open --limit 300 \
-  --json number,title,url,isDraft,author,createdAt,updatedAt,reviews,comments \
-  > "$TMP/open-prs.json" 2>/dev/null || echo "[]" > "$TMP/open-prs.json"
+fetch_open_prs() {
+  local limit="$1"
+  gh pr list -R "$REPO" --state open --limit "$limit" \
+    --json number,title,url,isDraft,author,createdAt,updatedAt,reviews,comments \
+    2>/dev/null
+}
+OPEN_JSON=""
+for lim in 200 150 100; do
+  OPEN_JSON=$(fetch_open_prs "$lim") || OPEN_JSON=""
+  # Valid JSON array with at least one entry?
+  if [[ -n "$OPEN_JSON" ]] && echo "$OPEN_JSON" | jq -e 'type == "array" and length > 0' >/dev/null 2>&1; then
+    echo "  fetched $(echo "$OPEN_JSON" | jq 'length') PRs (limit=$lim)" >&2
+    break
+  fi
+  echo "  fetch failed at limit=$lim, retrying with smaller payload..." >&2
+  OPEN_JSON=""
+done
+if [[ -z "$OPEN_JSON" ]]; then
+  echo "  WARN: open-PR fetch failed at every limit; team-coverage section will be empty" >&2
+  OPEN_JSON="[]"
+fi
+printf '%s\n' "$OPEN_JSON" > "$TMP/open-prs.json"
 
 # Build markdown body to a temp file first so we can generate a TOC from its
 # real H2/H3 headings, then assemble header + TOC + body into the final file.

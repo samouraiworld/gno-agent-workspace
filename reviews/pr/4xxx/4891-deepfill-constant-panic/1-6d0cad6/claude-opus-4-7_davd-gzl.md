@@ -3,6 +3,7 @@
 URL: https://github.com/gnolang/gno/pull/4891
 Author: davd-gzl | Base: master | Files: 3 | +56 -12
 Reviewed by: davd-gzl | Model: claude-opus-4-7
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4891 6d0cad6` (then `gh -R gnolang/gno pr checkout 4891` inside it)
 
 Disclosure: PR author and reviewer share a GitHub account. Review run by an unattended agent on technical merits; conflict noted up front.
 
@@ -10,13 +11,13 @@ Disclosure: PR author and reviewer share a GitHub account. Review run by an unat
 
 ## Summary
 
-The auditor flagged that `StringValue`, `BigintValue`, `BigdecValue` are constants-only types (never persisted, GC-skipped per [`garbage_collector.go:403-413`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/garbage_collector.go#L403-L413)), so their `DeepFill` methods returning self were "indicators of incorrect handling" — issue [#4777](https://github.com/gnolang/gno/issues/4777) recommended either removing the methods or adding **debug-only** assertions. This PR makes the three methods unconditionally panic, then adds a runtime type-switch guard at the [`(*TypedValue).DeepFill`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values.go#L2327-L2336) wrapper that catches these three types before dispatch. Net effect: external callers (via the wrapper) never trigger the panic; direct interface dispatch (e.g. inside a future `MapValue.DeepFill`) would panic.
+The auditor flagged that `StringValue`, `BigintValue`, `BigdecValue` are constants-only types (never persisted, GC-skipped per [`garbage_collector.go:403-413`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/garbage_collector.go#L403-L413) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/garbage_collector.go#L403-L413)), so their `DeepFill` methods returning self were "indicators of incorrect handling" — issue [#4777](https://github.com/gnolang/gno/issues/4777) recommended either removing the methods or adding **debug-only** assertions. This PR makes the three methods unconditionally panic, then adds a runtime type-switch guard at the [`(*TypedValue).DeepFill`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values.go#L2327-L2336) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values.go#L2327-L2336) wrapper that catches these three types before dispatch. Net effect: external callers (via the wrapper) never trigger the panic; direct interface dispatch (e.g. inside a future `MapValue.DeepFill`) would panic.
 
 ## Glossary
 
-- `DeepFill` — synchronous recursive resolution of `RefValue` references to concrete values; used pre-`Gno2GoValue` in genstd-generated native bindings ([`values.go:25-29`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values.go#L25-L29)).
+- `DeepFill` — synchronous recursive resolution of `RefValue` references to concrete values; used pre-`Gno2GoValue` in genstd-generated native bindings ([`values.go:25-29`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values.go#L25-L29) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values.go#L25-L29)).
 - `StringValue` / `BigintValue` / `BigdecValue` — leaf value types used for constant expressions and untyped runtime values; never persisted as separate objects, no `ObjectInfo`.
-- `VisitAssociated` — GC visitor for child references; returns `false` for these three types ([`garbage_collector.go:403-413`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/garbage_collector.go#L403-L413)), confirming the no-children property.
+- `VisitAssociated` — GC visitor for child references; returns `false` for these three types ([`garbage_collector.go:403-413`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/garbage_collector.go#L403-L413) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/garbage_collector.go#L403-L413)), confirming the no-children property.
 
 ## Fix
 
@@ -24,20 +25,20 @@ Before: each of the three constant types' `DeepFill` returned the receiver; the 
 
 ## Warnings (should fix)
 
-- **[interface contract violation]** [@ltzmaxwell](https://github.com/gnolang/gno/pull/4891#issuecomment-2832168893) [`gnovm/pkg/gnolang/values_fill.go:7-17`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill.go#L7-L17) — panicking leaves break the documented `DeepFill` contract.
+- **[interface contract violation]** [@ltzmaxwell](https://github.com/gnolang/gno/pull/4891#issuecomment-2832168893) [`gnovm/pkg/gnolang/values_fill.go:7-17`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values_fill.go#L7-L17) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill.go#L7-L17) — panicking leaves break the documented `DeepFill` contract.
   <details><summary>details</summary>
 
-  The `Value.DeepFill` interface ([`values.go:23-33`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values.go#L23-L33)) says "DeepFill returns the same value, filled." For a leaf with no references, returning self IS the correct identity case — not an error condition. Panicking turns a valid base case into "shouldn't happen," which is inverted: the leaves are exactly where the recursion terminates.
+  The `Value.DeepFill` interface ([`values.go:23-33`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values.go#L23-L33) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values.go#L23-L33)) says "DeepFill returns the same value, filled." For a leaf with no references, returning self IS the correct identity case — not an error condition. Panicking turns a valid base case into "shouldn't happen," which is inverted: the leaves are exactly where the recursion terminates.
 
-  Concrete consequence: the wrapper-guard pattern becomes load-bearing for correctness, not just an ergonomic helper. `MapValue.DeepFill` is currently [`panic("not yet implemented")`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill.go#L65); when implemented, the author MUST route map element `TypedValue`s through `tv.DeepFill(store)`, not `tv.V.DeepFill(store)` directly. Nothing in the type system enforces this — same for any future implementer of `FuncValue.DeepFill`, `BoundMethodValue.DeepFill`, `PackageValue.DeepFill`, `Block.DeepFill`. The current refactor of `ArrayValue` / `StructValue` / `HeapItemValue` did remember; future implementers must too.
+  Concrete consequence: the wrapper-guard pattern becomes load-bearing for correctness, not just an ergonomic helper. `MapValue.DeepFill` is currently [`panic("not yet implemented")`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values_fill.go#L65) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill.go#L65); when implemented, the author MUST route map element `TypedValue`s through `tv.DeepFill(store)`, not `tv.V.DeepFill(store)` directly. Nothing in the type system enforces this — same for any future implementer of `FuncValue.DeepFill`, `BoundMethodValue.DeepFill`, `PackageValue.DeepFill`, `Block.DeepFill`. The current refactor of `ArrayValue` / `StructValue` / `HeapItemValue` did remember; future implementers must too.
 
   Fix: revert the panics to `return sv` / `return biv` / `return bdv` (or keep them gated behind `if debug { panic(...) }` per the auditor's original recommendation in [#4956](https://github.com/gnolang/gno/issues/4956), which says "Panics happen only in debug mode"). Then drop the type-switch in `(*TypedValue).DeepFill` — the wrapper goes back to its trivial form. Keep the in-package refactor (`tv.DeepFill(store)` instead of inlined nil-check + reassign), which is the genuine improvement in this PR.
   </details>
 
-- **[diverges from auditor recommendation]** [`gnovm/pkg/gnolang/values_fill.go:7-17`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill.go#L7-L17) — unconditional panic vs. debug-only panic.
+- **[diverges from auditor recommendation]** [`gnovm/pkg/gnolang/values_fill.go:7-17`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values_fill.go#L7-L17) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill.go#L7-L17) — unconditional panic vs. debug-only panic.
   <details><summary>details</summary>
 
-  Issue [#4956](https://github.com/gnolang/gno/issues/4956) cites the auditor's follow-up: "Panics happen only in debug mode. Those functions should never be reached even in non debug mode." The PR makes the panics unconditional and prevents them from triggering via a wrapper guard. The net runtime behavior matches the auditor's intent (the panic never fires in correct code), but the implementation differs from the literal suggestion — there's no `if debug { panic(...) }` form using the existing `debug debugging` build flag at [`debug_true.go:5`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/debug_true.go#L5).
+  Issue [#4956](https://github.com/gnolang/gno/issues/4956) cites the auditor's follow-up: "Panics happen only in debug mode. Those functions should never be reached even in non debug mode." The PR makes the panics unconditional and prevents them from triggering via a wrapper guard. The net runtime behavior matches the auditor's intent (the panic never fires in correct code), but the implementation differs from the literal suggestion — there's no `if debug { panic(...) }` form using the existing `debug debugging` build flag at [`debug_true.go:5`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/debug_true.go#L5) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/debug_true.go#L5).
 
   The package already has the `debug` constant pattern available. Using `if debug { panic(...) }` would let the leaves still return self in production (preserving interface contract semantics), eliminate the need for the wrapper type-switch, and match the auditor recommendation verbatim. Fix: gate the panics behind `debug`, drop the wrapper guard.
   </details>
@@ -50,13 +51,13 @@ Before: each of the three constant types' `DeepFill` returned the receiver; the 
 
 ## Nits
 
-- [`gnovm/pkg/gnolang/values.go:2331`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values.go#L2331) — comment "Do nothing - these are constant values" is correct but the surrounding code shape is the real "huh?" trigger. If the wrapper guard stays, prefer a single-line `// Skip leaf types that panic on DeepFill (see values_fill.go).` so the reader knows where to look for the invariant.
+- [`gnovm/pkg/gnolang/values.go:2331`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values.go#L2331) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values.go#L2331) — comment "Do nothing - these are constant values" is correct but the surrounding code shape is the real "huh?" trigger. If the wrapper guard stays, prefer a single-line `// Skip leaf types that panic on DeepFill (see values_fill.go).` so the reader knows where to look for the invariant.
 
-- [`gnovm/pkg/gnolang/values_fill_test.go:11`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill_test.go#L11) — test name is "verifies that TypedValue.DeepFill correctly handles constant value types ... by not calling their DeepFill methods (which panic)." The test asserts the no-panic behavior of the wrapper, but the wrapper's correctness depends on the leaves continuing to panic. If the panic is removed, the test still passes — it's not actually pinning the contract. A `defer recover()` assertion on direct calls (e.g. `StringValue("x").DeepFill(nil)` should panic) would lock the current shape.
+- [`gnovm/pkg/gnolang/values_fill_test.go:11`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values_fill_test.go#L11) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill_test.go#L11) — test name is "verifies that TypedValue.DeepFill correctly handles constant value types ... by not calling their DeepFill methods (which panic)." The test asserts the no-panic behavior of the wrapper, but the wrapper's correctness depends on the leaves continuing to panic. If the panic is removed, the test still passes — it's not actually pinning the contract. A `defer recover()` assertion on direct calls (e.g. `StringValue("x").DeepFill(nil)` should panic) would lock the current shape.
 
 ## Missing Tests
 
-- **[direct-call panic not asserted]** [`gnovm/pkg/gnolang/values_fill_test.go`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill_test.go) — the PR's added tests only cover the happy path through the wrapper. They never verify that calling `StringValue.DeepFill(nil)` directly panics, which is the load-bearing change introduced by this PR. Adding a `recover`-based assertion would make the PR self-documenting and catch a future contributor who reverts the panics without re-evaluating the wrapper guard.
+- **[direct-call panic not asserted]** [`gnovm/pkg/gnolang/values_fill_test.go`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values_fill_test.go) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill_test.go) — the PR's added tests only cover the happy path through the wrapper. They never verify that calling `StringValue.DeepFill(nil)` directly panics, which is the load-bearing change introduced by this PR. Adding a `recover`-based assertion would make the PR self-documenting and catch a future contributor who reverts the panics without re-evaluating the wrapper guard.
 
 ## Questions for Author
 
@@ -66,7 +67,7 @@ Before: each of the three constant types' `DeepFill` returned the receiver; the 
 
 ## Suggestions
 
-- [`gnovm/pkg/gnolang/values_fill.go:64-69`](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill.go#L64-L69) — the unimplemented `FuncValue`, `MapValue`, `BoundMethodValue`, `TypeValue`, `PackageValue`, `Block` `DeepFill` methods all panic with `"not yet implemented"`. The wrapper-guard approach in this PR doesn't generalize to them (they need real implementations, not skipping). Worth a tracking issue if not already covered, since the same auditor concern (interface implementations that "shouldn't be called") still applies here.
+- [`gnovm/pkg/gnolang/values_fill.go:64-69`](https://github.com/gnolang/gno/blob/6d0cad6/gnovm/pkg/gnolang/values_fill.go#L64-L69) · [↗](../../../../../.worktrees/gno-review-4891/gnovm/pkg/gnolang/values_fill.go#L64-L69) — the unimplemented `FuncValue`, `MapValue`, `BoundMethodValue`, `TypeValue`, `PackageValue`, `Block` `DeepFill` methods all panic with `"not yet implemented"`. The wrapper-guard approach in this PR doesn't generalize to them (they need real implementations, not skipping). Worth a tracking issue if not already covered, since the same auditor concern (interface implementations that "shouldn't be called") still applies here.
 
 ## Critical (must fix)
 
