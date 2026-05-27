@@ -3,6 +3,7 @@
 URL: https://github.com/gnolang/gno/pull/5707
 Author: ltzmaxwell | Base: master | Files: 2 | +66 -0
 Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5707 c7b8227f2` (then `gh -R gnolang/gno pr checkout 5707` inside it)
 
 **Verdict: REQUEST CHANGES** — fix is correct for the canonical `T.M` form but misses the pointer-receiver form `(*T).M`, which still produces incorrect init order.
 
@@ -15,20 +16,20 @@ Method expressions (unbound method values like `T.Method` or `(*T).Method`) take
 - Method expression — `T.M` or `(*T).M`, callable as `T.M(receiver, args...)`; distinct from a method value `t.M`.
 
 ## Fix
-Before: the `TRANS_LEAVE *SelectorExpr` switch in [`preprocess.go:5991-6019`](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L5991-L6019) handled only `VPValMethod`/`VPPtrMethod`/`VPDerefValMethod`/`VPDerefPtrMethod`. Method expressions, which compile to `VPField` via [`DeclaredType.GetUnboundPathForName`](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/types.go#L2146-L2153), were silently skipped — `addDep` never fired for `T.Method2` in `var dummy2 = T.Method2(0)`.
+Before: the `TRANS_LEAVE *SelectorExpr` switch in [`preprocess.go:5991-6019`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/pkg/gnolang/preprocess.go#L5991-L6019) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L5991-L6019) handled only `VPValMethod`/`VPPtrMethod`/`VPDerefValMethod`/`VPDerefPtrMethod`. Method expressions, which compile to `VPField` via [`DeclaredType.GetUnboundPathForName`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/pkg/gnolang/types.go#L2146-L2153) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/types.go#L2146-L2153), were silently skipped — `addDep` never fired for `T.Method2` in `var dummy2 = T.Method2(0)`.
 
-After: a new `case VPField` arm at [`preprocess.go:6020-6045`](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6020-L6045) gates on `n.X.GetAttribute(ATTR_TYPEOF_VALUE).(*TypeType)` to distinguish method-expression selectors from regular struct-field selectors, then extracts `*DeclaredType` from `n.X.(*ConstExpr).V.(TypeValue)` and registers `T.Method` as a dep — same shape as the existing `VPValMethod` arm.
+After: a new `case VPField` arm at [`preprocess.go:6020-6045`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/pkg/gnolang/preprocess.go#L6020-L6045) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6020-L6045) gates on `n.X.GetAttribute(ATTR_TYPEOF_VALUE).(*TypeType)` to distinguish method-expression selectors from regular struct-field selectors, then extracts `*DeclaredType` from `n.X.(*ConstExpr).V.(TypeValue)` and registers `T.Method` as a dep — same shape as the existing `VPValMethod` arm.
 
 The load-bearing constraint is the `n.X.(*ConstExpr)` cast: it only matches when the type ref `T` has been replaced by a `*ConstExpr` carrying a `TypeValue`. That happens for bare `T.M` (NameExpr `T` is replaced inline), but NOT for `(*T).M` where `n.X` remains a `*StarExpr`. See Critical finding below.
 
 ## Critical (must fix)
 
-- **[pointer-receiver method expressions still mis-order]** [`gnovm/pkg/gnolang/preprocess.go:6026-6029`](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6026-L6029) — `(*T).Method(&t)` does not register `T.Method` as a dep; same init-order bug remains.
+- **[pointer-receiver method expressions still mis-order]** [`gnovm/pkg/gnolang/preprocess.go:6026-6029`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/pkg/gnolang/preprocess.go#L6026-L6029) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6026-L6029) — `(*T).Method(&t)` does not register `T.Method` as a dep; same init-order bug remains.
   <details><summary>details</summary>
 
   **Shape:** `var dummy = (*T).Method(&x)` where `Method` reads package-level `c`. With this PR applied, `dummy` still initializes before `c`, so `dummy == 0` instead of the expected value.
 
-  **Mechanism:** For `(*T).Method`, the outer `SelectorExpr.X` is a `*StarExpr` wrapping the type-name node, not the `*ConstExpr(TypeValue)` form the new arm requires. The existing SelectorExr handler at [`preprocess.go:2610-2635`](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L2610-L2635) handles both forms correctly because it calls `evalStaticType(store, last, n.X)` and switches on the result — covering both `*DeclaredType` and `*PointerType` wrapping. The new arm in this PR re-implements that detection but stops at `n.X.(*ConstExpr)`, missing the StarExpr form. `ATTR_TYPEOF_VALUE` on `n.X` is set to `*TypeType` for `(*T)` too (verified — the `isType` gate at line 6023 passes), so only the `*ConstExpr` assertion is the discriminator.
+  **Mechanism:** For `(*T).Method`, the outer `SelectorExpr.X` is a `*StarExpr` wrapping the type-name node, not the `*ConstExpr(TypeValue)` form the new arm requires. The existing SelectorExr handler at [`preprocess.go:2610-2635`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/pkg/gnolang/preprocess.go#L2610-L2635) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L2610-L2635) handles both forms correctly because it calls `evalStaticType(store, last, n.X)` and switches on the result — covering both `*DeclaredType` and `*PointerType` wrapping. The new arm in this PR re-implements that detection but stops at `n.X.(*ConstExpr)`, missing the StarExpr form. `ATTR_TYPEOF_VALUE` on `n.X` is set to `*TypeType` for `(*T)` too (verified — the `isType` gate at line 6023 passes), so only the `*ConstExpr` assertion is the discriminator.
 
   **Repro:** fails on PR head with `panic: dummy != 7`.
 
@@ -82,7 +83,7 @@ The load-bearing constraint is the `n.X.(*ConstExpr)` cast: it only matches when
 
 ## Warnings (should fix)
 
-- **[missing regression test for closure / func-lit path]** [`gnovm/tests/files/var_initorder27.gno:18-20`](../../../../../.worktrees/gno-review-5707/gnovm/tests/files/var_initorder27.gno#L18-L20) — the bundled test only covers top-level direct method expressions; nested-in-closure is also affected by the fix but uncovered.
+- **[missing regression test for closure / func-lit path]** [`gnovm/tests/files/var_initorder27.gno:18-20`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/tests/files/var_initorder27.gno#L18-L20) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/tests/files/var_initorder27.gno#L18-L20) — the bundled test only covers top-level direct method expressions; nested-in-closure is also affected by the fix but uncovered.
   <details><summary>details</summary>
 
   `var dummy = func() int { return T.M(0) }()` exercises the new VPField arm transitively through the func-literal walk. I confirmed it both fails on master and passes with the fix (see [tests/var_initorder_methodexpr_closure.gno](tests/var_initorder_methodexpr_closure.gno)). Without an in-tree regression test, a future change to func-lit preprocessing skip flags could regress this silently.
@@ -92,18 +93,18 @@ The load-bearing constraint is the `n.X.(*ConstExpr)` cast: it only matches when
 
 ## Nits
 
-- [`gnovm/pkg/gnolang/preprocess.go:6022`](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6022) — comment says "n.X is a type reference" but the load-bearing condition is "n.X is a `*ConstExpr` carrying a `TypeValue`", which is narrower. Loose comment hid the pointer-receiver gap from the author. Tighten to: "n.X is a const type expression — does NOT cover `(*T).M` where n.X is a `*StarExpr`" (or fix the gap, then the comment can stay generic).
-- [`gnovm/pkg/gnolang/preprocess.go:6020`](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6020) — three early-`break`s in a row read as filler. Collapsing into a single conditional chain (or, ideally, a helper) would make the gate readable. Optional.
+- [`gnovm/pkg/gnolang/preprocess.go:6022`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/pkg/gnolang/preprocess.go#L6022) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6022) — comment says "n.X is a type reference" but the load-bearing condition is "n.X is a `*ConstExpr` carrying a `TypeValue`", which is narrower. Loose comment hid the pointer-receiver gap from the author. Tighten to: "n.X is a const type expression — does NOT cover `(*T).M` where n.X is a `*StarExpr`" (or fix the gap, then the comment can stay generic).
+- [`gnovm/pkg/gnolang/preprocess.go:6020`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/pkg/gnolang/preprocess.go#L6020) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6020) — three early-`break`s in a row read as filler. Collapsing into a single conditional chain (or, ideally, a helper) would make the gate readable. Optional.
 
 ## Missing Tests
 
-- **[pointer-receiver method expression]** [`gnovm/tests/files/`](../../../../../.worktrees/gno-review-5707/gnovm/tests/files/) — see Critical.
-- **[closure-wrapped method expression]** [`gnovm/tests/files/`](../../../../../.worktrees/gno-review-5707/gnovm/tests/files/) — see Warning.
-- **[cross-package method expression negative case]** [`gnovm/tests/files/`](../../../../../.worktrees/gno-review-5707/gnovm/tests/files/) — added [`tests/var_initorder_methodexpr_xpkg.gno`](tests/var_initorder_methodexpr_xpkg.gno) confirming `pkg.T.GetB(...)` does NOT panic the resolver. Currently passes (the `dt.PkgPath != pn.PkgPath` gate works), but the `var_initorder_xpkgmethod.gno` sibling only covers the VPValMethod path. Mirroring the test for VPField is cheap insurance.
+- **[pointer-receiver method expression]** [`gnovm/tests/files/`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/tests/files/) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/tests/files/) — see Critical.
+- **[closure-wrapped method expression]** [`gnovm/tests/files/`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/tests/files/) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/tests/files/) — see Warning.
+- **[cross-package method expression negative case]** [`gnovm/tests/files/`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/tests/files/) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/tests/files/) — added [`tests/var_initorder_methodexpr_xpkg.gno`](tests/var_initorder_methodexpr_xpkg.gno) confirming `pkg.T.GetB(...)` does NOT panic the resolver. Currently passes (the `dt.PkgPath != pn.PkgPath` gate works), but the `var_initorder_xpkgmethod.gno` sibling only covers the VPValMethod path. Mirroring the test for VPField is cheap insurance.
 
 ## Suggestions
 
-- [`gnovm/pkg/gnolang/preprocess.go:6020-6045`](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6020-L6045) — consider factoring the receiver-type extraction shared between the `VPValMethod` arm (lines 5992-6019) and this new arm into a helper `declaredTypeFromSelector(n) *DeclaredType`. Both arms duplicate the "unwrap pointer, assert DeclaredType, check PkgPath" sequence. A helper would also make it natural to add the missing StarExpr branch in one place.
+- [`gnovm/pkg/gnolang/preprocess.go:6020-6045`](https://github.com/gnolang/gno/blob/c7b8227f2/gnovm/pkg/gnolang/preprocess.go#L6020-L6045) · [↗](../../../../../.worktrees/gno-review-5707/gnovm/pkg/gnolang/preprocess.go#L6020-L6045) — consider factoring the receiver-type extraction shared between the `VPValMethod` arm (lines 5992-6019) and this new arm into a helper `declaredTypeFromSelector(n) *DeclaredType`. Both arms duplicate the "unwrap pointer, assert DeclaredType, check PkgPath" sequence. A helper would also make it natural to add the missing StarExpr branch in one place.
   <details><summary>details</summary>
 
   The two arms differ only in where the type comes from (ATTR_REF_ELEM_TYPE / ATTR_TYPEOF_VALUE for the value-method case; `n.X.(*ConstExpr).V.(TypeValue)` for the type-method case). After a helper extracts `dt`, the rest — `if dt == nil || dt.PkgPath != pn.PkgPath { break }; addDep(...)` — is identical and can collapse.

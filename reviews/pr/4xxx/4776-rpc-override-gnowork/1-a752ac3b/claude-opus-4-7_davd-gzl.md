@@ -3,6 +3,7 @@
 URL: https://github.com/gnolang/gno/pull/4776
 Author: n0izn0iz | Base: master | Files: 4 | +85 -3
 Reviewed by: davd-gzl | Model: claude-opus-4-7
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4776 a752ac3b` (then `gh -R gnolang/gno pr checkout 4776` inside it)
 
 **Verdict: NEEDS DISCUSSION** — design direction is still unresolved (moul wants strict domain identity; leohhhn pushed back on per-domain config; author defended it on multi-chain grounds), and the implementation lacks tests, has a missing newline in the warning, swallows a malformed-toml error opaquely, and silently overrides a CLI flag (`--remote-overrides`) that already does the same job.
 
@@ -31,7 +32,7 @@ gnowork.toml ─► Gnowork.Domains{rpc} ─► loaderCtx.Gnowork.rpcOverrides()
 
 ## Fix
 
-Before, `findLoaderContext` only located the workspace dir and returned `Root + IsWorkspace`. After, it reads `gnowork.toml` and attaches the parsed `*Gnowork` struct to the loader context; `Load` extracts non-empty per-domain RPC overrides and pushes them into the fetcher via the new `RPCPackageFetcher` interface. The interface segregation is so the noop/examples fetchers can stay unchanged — but it silently no-ops with a warning when the user picked a non-RPC fetcher ([`gnovm/pkg/packages/load.go:60-67`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L60-L67)).
+Before, `findLoaderContext` only located the workspace dir and returned `Root + IsWorkspace`. After, it reads `gnowork.toml` and attaches the parsed `*Gnowork` struct to the loader context; `Load` extracts non-empty per-domain RPC overrides and pushes them into the fetcher via the new `RPCPackageFetcher` interface. The interface segregation is so the noop/examples fetchers can stay unchanged — but it silently no-ops with a warning when the user picked a non-RPC fetcher ([`gnovm/pkg/packages/load.go:60-67`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/load.go#L60-L67) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L60-L67)).
 
 ## Critical (must fix)
 
@@ -50,18 +51,18 @@ None.
   Fix: don't merge until the three of them agree. The schema in `gnowork.toml` is a one-way door — once published, removing or renaming `[domains.<name>]` is a breaking change for every workspace that adopted it.
   </details>
 
-- **[silently overrides CLI flag without precedence rule]** [`gnovm/pkg/packages/load.go:62-63`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L62-L63) — `gno mod download --remote-overrides=gno.land=...` already exists ([`gnovm/cmd/gno/mod.go:151-163`](../../../../../.worktrees/gno-review-4776/gnovm/cmd/gno/mod.go#L151-L163)); `Load` always calls `OverrideDomainsRPCs` after the CLI map was injected at fetcher construction, so the workspace file silently wins.
+- **[silently overrides CLI flag without precedence rule]** [`gnovm/pkg/packages/load.go:62-63`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/load.go#L62-L63) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L62-L63) — `gno mod download --remote-overrides=gno.land=...` already exists ([`gnovm/cmd/gno/mod.go:151-163`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/cmd/gno/mod.go#L151-L163) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/cmd/gno/mod.go#L151-L163)); `Load` always calls `OverrideDomainsRPCs` after the CLI map was injected at fetcher construction, so the workspace file silently wins.
   <details><summary>details</summary>
 
   Sequence today:
-  1. `execModDownload` parses `--remote-overrides` and calls `rpcpkgfetcher.New(cliMap)` ([`gnovm/cmd/gno/mod.go:246`](../../../../../.worktrees/gno-review-4776/gnovm/cmd/gno/mod.go#L246)).
-  2. `Load` reads `gnowork.toml`, calls `cpf.OverrideDomainsRPCs(workspaceMap)` ([`load.go:63`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L63)).
-  3. `OverrideDomainsRPCs` writes each `workspaceMap[domain]` over the existing entry ([`rpcpkgfetcher.go:68-74`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go#L68-L74)).
+  1. `execModDownload` parses `--remote-overrides` and calls `rpcpkgfetcher.New(cliMap)` ([`gnovm/cmd/gno/mod.go:246`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/cmd/gno/mod.go#L246) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/cmd/gno/mod.go#L246)).
+  2. `Load` reads `gnowork.toml`, calls `cpf.OverrideDomainsRPCs(workspaceMap)` ([`load.go:63`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/load.go#L63) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L63)).
+  3. `OverrideDomainsRPCs` writes each `workspaceMap[domain]` over the existing entry ([`rpcpkgfetcher.go:68-74`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go#L68-L74) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go#L68-L74)).
 
   Result: workspace toml always beats the CLI flag. The opposite (CLI overrides file) is the conventional precedence for everything in this codebase. Either pick a direction explicitly, document it, and test it — or refuse to apply file overrides when a CLI flag is set. Fix: in `Load`, only apply file overrides for domains not already in the fetcher map, OR document the file > flag precedence in `--remote-overrides` help text and add a test that pins the behavior.
   </details>
 
-- **[shared fetcher state leaks across `Load` calls]** [`gnovm/pkg/packages/load.go:60-67`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L60-L67) — `OverrideDomainsRPCs` mutates the fetcher in place and never clears prior entries; callers that reuse one `LoadConfig` across multiple `Load` invocations (which already happens — see [`gnovm/cmd/gno/tool_deplist.go:54-89`](../../../../../.worktrees/gno-review-4776/gnovm/cmd/gno/tool_deplist.go#L54-L89)) accumulate overrides from every workspace they touch.
+- **[shared fetcher state leaks across `Load` calls]** [`gnovm/pkg/packages/load.go:60-67`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/load.go#L60-L67) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L60-L67) — `OverrideDomainsRPCs` mutates the fetcher in place and never clears prior entries; callers that reuse one `LoadConfig` across multiple `Load` invocations (which already happens — see [`gnovm/cmd/gno/tool_deplist.go:54-89`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/cmd/gno/tool_deplist.go#L54-L89) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/cmd/gno/tool_deplist.go#L54-L89)) accumulate overrides from every workspace they touch.
   <details><summary>details</summary>
 
   Inside `execDeplist`, the same `loadCfg` (same `Fetcher`) is passed to `packages.Load` once for the user args and then once per discovered dep in a loop. If `cwd` changes between calls (it can — `tool_deplist` is per-package), each call's `findLoaderContext` resolves to a different workspace, and `OverrideDomainsRPCs` keeps merging into the fetcher map. There's no clear/reset between calls. The current additive semantics (`map[domain] = rpc`, never delete unless the input has an empty string) mean override entries linger from a previous workspace even after switching workspaces.
@@ -71,7 +72,7 @@ None.
   Fix: replace the in-place mutation with a per-call wrapper — e.g. construct a fresh fetcher with the merged map for the duration of this `Load` call, or pass overrides explicitly to `FetchPackage` via `LoadConfig` rather than as fetcher state. The interface segregation (`RPCPackageFetcher`) is only there to support this mutation — if you remove the mutation, the interface goes too.
   </details>
 
-- **[malformed gnowork.toml gives an opaque error]** [`gnovm/pkg/packages/gnowork.go:33`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go#L33) — `toml.Unmarshal` errors are returned bare from `ParseGnowork` and propagate up through `Load`; the error message looks like `(1, 6): was expecting token =, but got "is" instead` with no mention of `gnowork.toml` or the file path. Before this PR, the workspace dir lookup never read the file, so a malformed file never produced a parse error at this stage.
+- **[malformed gnowork.toml gives an opaque error]** [`gnovm/pkg/packages/gnowork.go:33`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/gnowork.go#L33) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go#L33) — `toml.Unmarshal` errors are returned bare from `ParseGnowork` and propagate up through `Load`; the error message looks like `(1, 6): was expecting token =, but got "is" instead` with no mention of `gnowork.toml` or the file path. Before this PR, the workspace dir lookup never read the file, so a malformed file never produced a parse error at this stage.
   <details><summary>details</summary>
 
   Reproducer (manual): drop `this is not valid toml ===` into a workspace's `gnowork.toml` and run any `gno` command from inside. The user sees a cryptic position-prefixed message and no file path.
@@ -79,13 +80,13 @@ None.
   Fix: in `ReadGnowork`, wrap with `fmt.Errorf("parse %s: %w", file, err)`. Two lines, makes the error self-describing.
   </details>
 
-- **[missing newline in warning]** [@n0izn0iz](https://github.com/gnolang/gno/pull/4776#discussion_r2362787000) [`gnovm/pkg/packages/load.go:65`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L65) — `fmt.Fprintf(conf.Out, "gno: warning: ignored rpc overrides, fetcher has no support for it")` — no trailing `\n`. Author already self-flagged this in a review-suggestion thread but never pushed the change.
+- **[missing newline in warning]** [@n0izn0iz](https://github.com/gnolang/gno/pull/4776#discussion_r2362787000) [`gnovm/pkg/packages/load.go:65`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/load.go#L65) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L65) — `fmt.Fprintf(conf.Out, "gno: warning: ignored rpc overrides, fetcher has no support for it")` — no trailing `\n`. Author already self-flagged this in a review-suggestion thread but never pushed the change.
   <details><summary>details</summary>
 
   Fix: append `\n` per author's own suggestion in the PR thread.
   </details>
 
-- **[no tests for the new feature]** [`gnovm/pkg/packages/gnowork.go`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go) — leohhhn explicitly asked for a short test in [the review thread](https://github.com/gnolang/gno/pull/4776#issuecomment-3309448275); none was added. `ParseGnowork`, `ReadGnowork`, `rpcOverrides`, and the new `OverrideDomainsRPCs` path are entirely uncovered (codecov reports 35.9% patch coverage, 25 missing lines).
+- **[no tests for the new feature]** [`gnovm/pkg/packages/gnowork.go`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/gnowork.go) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go) — leohhhn explicitly asked for a short test in [the review thread](https://github.com/gnolang/gno/pull/4776#issuecomment-3309448275); none was added. `ParseGnowork`, `ReadGnowork`, `rpcOverrides`, and the new `OverrideDomainsRPCs` path are entirely uncovered (codecov reports 35.9% patch coverage, 25 missing lines).
   <details><summary>details</summary>
 
   Minimum useful tests:
@@ -99,19 +100,19 @@ None.
 
 ## Nits
 
-- [`gnovm/pkg/packages/pkgdownload/pkgfetcher.go:13-16`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/pkgdownload/pkgfetcher.go#L13-L16) — interface has no godoc. Every public interface in this package has a comment; this is the only one without.
-- [`gnovm/pkg/packages/gnowork.go:31`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go#L31) — `ParseGnowork(bz []byte)` and `ReadGnowork(file string)` are exported with no godoc. Sibling parsers (`gnomod.Parse...`) follow `// ParseX ... description` convention.
-- [`gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go:28`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go#L28) — unrelated change: doc comment markdown link `[pkgdownload.PackageFetcher]` collapsed to plain `pkgdownload.PackageFetcher`. This loses the godoc cross-reference. Revert or apply consistently.
-- [`gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go:68-74`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go#L68-L74) — the `if rpc == "" { delete(...) }` branch is dead given the only caller (`Load`) already filters empty values out in `rpcOverrides`. If you want the delete semantics, drop the filter in `rpcOverrides`; otherwise drop the delete branch.
+- [`gnovm/pkg/packages/pkgdownload/pkgfetcher.go:13-16`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/pkgdownload/pkgfetcher.go#L13-L16) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/pkgdownload/pkgfetcher.go#L13-L16) — interface has no godoc. Every public interface in this package has a comment; this is the only one without.
+- [`gnovm/pkg/packages/gnowork.go:31`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/gnowork.go#L31) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go#L31) — `ParseGnowork(bz []byte)` and `ReadGnowork(file string)` are exported with no godoc. Sibling parsers (`gnomod.Parse...`) follow `// ParseX ... description` convention.
+- [`gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go:28`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go#L28) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go#L28) — unrelated change: doc comment markdown link `[pkgdownload.PackageFetcher]` collapsed to plain `pkgdownload.PackageFetcher`. This loses the godoc cross-reference. Revert or apply consistently.
+- [`gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go:68-74`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go#L68-L74) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher/rpcpkgfetcher.go#L68-L74) — the `if rpc == "" { delete(...) }` branch is dead given the only caller (`Load`) already filters empty values out in `rpcOverrides`. If you want the delete semantics, drop the filter in `rpcOverrides`; otherwise drop the delete branch.
 
 ## Missing Tests
 
-- **[parse round-trip, nil receiver, empty file]** [`gnovm/pkg/packages/gnowork.go`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go) — see Warnings section. Self-flagged by leohhhn, never addressed.
-- **[CLI flag + workspace file interaction]** [`gnovm/pkg/packages/load.go:60-67`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L60-L67) — no test pins which one wins when both are set. Current behavior (file wins) should be locked in by a test once the precedence question is settled.
+- **[parse round-trip, nil receiver, empty file]** [`gnovm/pkg/packages/gnowork.go`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/gnowork.go) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go) — see Warnings section. Self-flagged by leohhhn, never addressed.
+- **[CLI flag + workspace file interaction]** [`gnovm/pkg/packages/load.go:60-67`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/load.go#L60-L67) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/load.go#L60-L67) — no test pins which one wins when both are set. Current behavior (file wins) should be locked in by a test once the precedence question is settled.
 
 ## Suggestions
 
-- [`gnovm/pkg/packages/gnowork.go:9-15`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go#L9-L15) — consider adding `toml` struct tags so the binding is explicit (currently relies on case-insensitive field name matching by pelletier/go-toml v1). Makes the on-disk schema independent of Go field naming refactors.
+- [`gnovm/pkg/packages/gnowork.go:9-15`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/gnowork.go#L9-L15) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go#L9-L15) — consider adding `toml` struct tags so the binding is explicit (currently relies on case-insensitive field name matching by pelletier/go-toml v1). Makes the on-disk schema independent of Go field naming refactors.
   <details><summary>details</summary>
 
   E.g.:
@@ -125,7 +126,7 @@ None.
   ```
   </details>
 
-- [`gnovm/pkg/packages/gnowork.go`](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go) — once the design lands, document the schema in `docs/` (the gnowork.toml docs added in #4666 per leohhhn's comment). Discoverability of new toml keys is otherwise zero.
+- [`gnovm/pkg/packages/gnowork.go`](https://github.com/gnolang/gno/blob/a752ac3b/gnovm/pkg/packages/gnowork.go) · [↗](../../../../../.worktrees/gno-review-4776/gnovm/pkg/packages/gnowork.go) — once the design lands, document the schema in `docs/` (the gnowork.toml docs added in #4666 per leohhhn's comment). Discoverability of new toml keys is otherwise zero.
 
 ## Questions for Author
 
