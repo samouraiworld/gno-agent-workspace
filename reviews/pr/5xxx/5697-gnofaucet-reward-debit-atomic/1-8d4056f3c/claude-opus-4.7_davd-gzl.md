@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5697
 Author: ajnavarro | Base: master | Files: 4 | +123 -8
-Reviewed by: davd-gzl | Model: claude-opus-4.7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5697 8d4056f3c` (then `gh -R gnolang/gno pr checkout 5697` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4.7 | Commit: `8d4056f3c` (stale)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5697 8d4056f3c`
 
 **Verdict: APPROVE** — two real bugs fixed (debit-before-drip destroys earned balance on any downstream rejection; non-atomic `Get`+`Set` loses concurrent debits — empirically ~85% lost under contention). Pre-existing cap-bypass TOCTOU between `GetReward` and `Apply` is out of scope.
 

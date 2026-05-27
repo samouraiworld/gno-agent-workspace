@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5553
 Author: davd-gzl | Base: master | Files: 8 | +70 -5
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5553 84e01b3` (then `gh -R gnolang/gno pr checkout 5553` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `84e01b3` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5553 84e01b3`
 
 **Verdict: APPROVE** — small, additive docs PR; new `docs/builders/editor-setup.md` defers to upstream `gnopls` README as the source of truth, hooks correctly into sidebar/README/getting-started/install/local-dev/power-users, and bumps the stale `Go 1.24+` references to `1.25+` (matches `go.mod`). Three reviewers already approved (`notJoon`, `alexiscolin`, `moul`); all inline threads resolved; docs lint clean.
 

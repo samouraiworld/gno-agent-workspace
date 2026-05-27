@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5112
 Author: jefft0 | Base: master | Files: 3 | +36 -5
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5112 af6f2da` (then `gh -R gnolang/gno pr checkout 5112` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `af6f2da` (stale)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5112 af6f2da`
 
 **Verdict: APPROVE** — Small, backwards-compatible flag; default `5` preserves the old hard-coded behaviour; covered by txtar including the parse-error paths. Already approved by `notJoon`, `Villaquiranm`, `moul`.
 

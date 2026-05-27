@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5656
 Author: davd-gzl | Base: master | Files: 32 | +816 -808
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5656 b00a4b2f7` (then `gh -R gnolang/gno pr checkout 5656` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `b00a4b2f7` (stale)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5656 b00a4b2f7`
 
 **Verdict: REQUEST CHANGES** — solid IA cleanup, but `devtest` is presented as the gnodev default key while the source still ships `test1`; the `gnokey ... devtest` example will fail for any reader.
 

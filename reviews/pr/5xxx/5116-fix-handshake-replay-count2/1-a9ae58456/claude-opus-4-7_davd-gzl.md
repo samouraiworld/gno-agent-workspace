@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5116
 Author: aeddi | Base: master | Files: 5 (consensus pkg, ignoring drift) | +12 -13
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5116 a9ae58456` (then `gh -R gnolang/gno pr checkout 5116` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `a9ae58456` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5116 a9ae58456`
 
 Verdict: APPROVE — the `_s` branch was mutating the package-global `config` via a shared pointer; the fix scopes `config` to the function. Author should still rebase (PR is CONFLICTING after months of drift) and address [@thehowl](https://github.com/gnolang/gno/pull/5116#discussion_r1962488800)'s naming nit on the shadow before merge.
 

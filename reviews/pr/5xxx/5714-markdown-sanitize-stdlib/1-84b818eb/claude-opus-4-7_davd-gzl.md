@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5714
 Author: jaekwon | Base: master | Files: 230 | +5572 -1684
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5714 84b818eb` (then `gh -R gnolang/gno pr checkout 5714` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `84b818eb` (stale — +13 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5714 84b818eb`
 
 **Verdict: REQUEST CHANGES** — split the PR (8 unrelated commits, including a consensus-breaking apphash change), fix CI (gofmt + broken doc link), close the multi-line LRD strip bypass.
 

@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5327
 Author: sw360cab | Base: master | Files: 4 | +41 -124
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5327 f78876a` (then `gh -R gnolang/gno pr checkout 5327` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `f78876a` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5327 f78876a`
 
 **Verdict: REQUEST CHANGES** — the `state.go` "fix" is a no-op (still truncates to `int64` ms, so sub-ms builds keep recording 0); dashboard cleanup and image pinning are sound but ship with a few mislabeled panels.
 

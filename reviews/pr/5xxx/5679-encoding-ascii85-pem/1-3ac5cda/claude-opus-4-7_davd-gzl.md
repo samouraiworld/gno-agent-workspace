@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5679
 Author: davd-gzl | Base: master | Files: 14 | +1895 -32
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5679 3ac5cda` (then `gh -R gnolang/gno pr checkout 5679` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `3ac5cda` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5679 3ac5cda`
 
 **Verdict: APPROVE** — Two upstream-faithful stdlib ports (ascii85, pem) plus the bytes prerequisites they need; both port divergences (inlined fallthrough in [`ascii85.gno:43-53`](https://github.com/gnolang/gno/blob/3ac5cda/gnovm/stdlibs/encoding/ascii85/ascii85.gno#L43-L53) · [↗](../../../../../.worktrees/gno-review-5679/gnovm/stdlibs/encoding/ascii85/ascii85.gno#L43-L53), `sort.Strings` for `slices.Sort` in [`pem.gno:292`](https://github.com/gnolang/gno/blob/3ac5cda/gnovm/stdlibs/encoding/pem/pem.gno#L292) · [↗](../../../../../.worktrees/gno-review-5679/gnovm/stdlibs/encoding/pem/pem.gno#L292)) are documented inline and behaviourally equivalent. CI green, all new and adjacent tests pass locally including the apphash regression. Self-review by author; concerns below are nits and one missing ADR.
 

@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5304
 Author: thehowl | Base: master | Files: 1 | +1 -1
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5304 c56007eb9` (then `gh -R gnolang/gno pr checkout 5304` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `c56007eb9` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5304 c56007eb9`
 
 Verdict: APPROVE — one-line default bump from 10s to 30s that fixes a real production cutoff on `/genesis` for mainnet-sized files; no callers regress and the existing `node.go` auto-bump path still works.
 

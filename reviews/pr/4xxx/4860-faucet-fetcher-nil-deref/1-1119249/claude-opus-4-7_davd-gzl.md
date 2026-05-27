@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4860
 Author: ajnavarro | Base: master | Files: 2 | +42 -1
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4860 1119249` (then `gh -R gnolang/gno pr checkout 4860` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `1119249` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4860 1119249`
 
 **Verdict: REQUEST CHANGES** — same nil-deref pattern the PR is fixing still exists one line below the fix at [`fetcher.go:314`](https://github.com/gnolang/gno/blob/1119249/contribs/gnofaucet/github/fetcher.go#L314) · [↗](../../../../../.worktrees/gno-review-4860/contribs/gnofaucet/github/fetcher.go#L314) (`*pe.Action` on `*github.PullRequestEvent`); finish the sweep, then ship.
 

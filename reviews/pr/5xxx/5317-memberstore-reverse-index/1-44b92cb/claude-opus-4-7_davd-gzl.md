@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5317
 Author: ltzmaxwell | Base: master | Files: 6 | +118 -74
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5317 44b92cb` (then `gh -R gnolang/gno pr checkout 5317` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `44b92cb` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5317 44b92cb`
 
 **Verdict: NEEDS DISCUSSION** — refactor is internally correct and tests pass, but the load-bearing question raised by [@ajnavarro](https://github.com/gnolang/gno/pull/5317#issuecomment-4192423955) ("is this even necessary for 3 tiers?") is unanswered; concurrently the value→pointer receiver change is a backwards-incompatible storage-shape break for the already-deployed `gnoland1` betanet.
 

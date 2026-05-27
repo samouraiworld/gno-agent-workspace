@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4886
 Author: davd-gzl | Base: master | Files: 5 | +61 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4886 447442db1` (then `gh -R gnolang/gno pr checkout 4886` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `447442db1` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4886 447442db1`
 
 Note: reviewer is the PR author. Review is unattended-sweep output; treat as self-review surfacing concerns for a human maintainer to arbitrate.
 

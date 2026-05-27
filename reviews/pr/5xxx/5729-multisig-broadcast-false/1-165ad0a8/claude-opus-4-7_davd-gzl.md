@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5729
 Author: jefft0 | Base: master | Files: 1 | +1 -1
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5729 165ad0a8` (then `gh -R gnolang/gno pr checkout 5729` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `165ad0a8` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5729 165ad0a8`
 
 **Verdict: APPROVE** — one-line doc fix completing the migration started in [#4965](https://github.com/gnolang/gno/pull/4965); without it the multisig walkthrough is unrunnable from step 2 onward.
 

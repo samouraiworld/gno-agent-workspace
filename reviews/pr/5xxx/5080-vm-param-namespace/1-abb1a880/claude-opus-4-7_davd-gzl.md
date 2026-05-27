@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5080
 Author: davd-gzl | Base: master | Files: 12 | +152 -121
-Reviewed by: davd-gzl (self-review by PR author) | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5080 abb1a880` (then `gh -R gnolang/gno pr checkout 5080` inside it)
+Reviewed by: davd-gzl (self-review by PR author) | Model: claude-opus-4-7 | Commit: `abb1a880` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5080 abb1a880`
 
 **Verdict: REQUEST CHANGES** — gnoland1 betanet genesis script ([`misc/deployments/gnoland1/govdao_prop1.gno:104`](https://github.com/gnolang/gno/blob/abb1a880/misc/deployments/gnoland1/govdao_prop1.gno#L104) · [↗](../../../../../.worktrees/gno-review-5080/misc/deployments/gnoland1/govdao_prop1.gno#L104)) still calls the deleted `names.Enable(cross)` and will fail typecheck at genesis; fix that, then revisit the unconditional cache clear in `checkNamespacePermission` and the integration test default-param overwrite.
 

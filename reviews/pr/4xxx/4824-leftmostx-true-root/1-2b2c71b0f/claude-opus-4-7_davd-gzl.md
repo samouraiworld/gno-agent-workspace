@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4824
 Author: audrenbdb | Base: master | Files: 3 | +120 -6
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4824 2b2c71b0f` (then `gh -R gnolang/gno pr checkout 4824` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `2b2c71b0f` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4824 2b2c71b0f`
 
 Verdict: APPROVE — correctness fix to a single-caller AST helper, broader and more accurate heap-escape marking, fully tested, CI green; bug is real but not runtime-observable today (per [@thehowl](https://github.com/gnolang/gno/pull/4824#issuecomment-2799912842) Claude analysis) so merge value is preventing regression rather than fixing a live failure.
 

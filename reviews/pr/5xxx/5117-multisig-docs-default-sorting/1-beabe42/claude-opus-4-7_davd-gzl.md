@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5117
 Author: D4ryl00 | Base: master | Files: 1 | +91 -68
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5117 beabe42` (then `gh -R gnolang/gno pr checkout 5117` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `beabe42` (stale — +107 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5117 beabe42`
 
 Verdict: APPROVE — docs-only rewrite of the multisig walkthrough; technical claims (default pubkey sort, pubkey-based signature matching) verified against `tm2/pkg/crypto/keys/client/`; the earlier dependency on the broken `--derivation-path` flag (issue #5122) was dropped from the final diff. Two prior approvals already on file ([@davd-gzl on 53b21e9a](https://github.com/gnolang/gno/pull/5117#pullrequestreview-2967773636), [@jeronimoalbi on beabe422](https://github.com/gnolang/gno/pull/5117#pullrequestreview-3055835653)).
 

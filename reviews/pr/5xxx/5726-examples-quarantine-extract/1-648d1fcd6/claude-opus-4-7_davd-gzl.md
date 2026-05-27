@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5726
 Author: gfanton | Base: master | Files: 761 | +207 -53
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5726 648d1fcd6` (then `gh -R gnolang/gno pr checkout 5726` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `648d1fcd6` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5726 648d1fcd6`
 
 **Verdict: APPROVE** — split is cleanly contained, CI is fully green, `TestExamplesLoad` passes locally; remaining concerns are doc drift and `ResolveExamplePath` UX, none blocking.
 

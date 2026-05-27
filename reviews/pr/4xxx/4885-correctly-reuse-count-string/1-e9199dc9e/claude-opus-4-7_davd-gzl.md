@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4885
 Author: ltzmaxwell | Base: master | Files: 13 | +559 -15
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4885 e9199dc9e` (then `gh -R gnolang/gno pr checkout 4885` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `e9199dc9e` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4885 e9199dc9e`
 
 **Verdict: NEEDS DISCUSSION** — design is sound and addresses thehowl's two review threads (Fork-clone and slice-undercount via containment lookup), but ships three latent gaps: untracked-StringValue undercount at three direct construction sites ([`uverse.go:171`](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/uverse.go#L171) · [↗](../../../../../.worktrees/gno-review-4885/gnovm/pkg/gnolang/uverse.go#L171), [`values.go:2194`](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/values.go#L2194) · [↗](../../../../../.worktrees/gno-review-4885/gnovm/pkg/gnolang/values.go#L2194) edge case, [`values.go:2720`](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/values.go#L2720) · [↗](../../../../../.worktrees/gno-review-4885/gnovm/pkg/gnolang/values.go#L2720)), an O(N²) `slices.Insert` worst case in `TrackString`, and a header double-count on every store-loaded string.
 

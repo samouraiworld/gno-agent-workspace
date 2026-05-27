@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5134
 Author: D4ryl00 | Base: master | Files: 3 | +154 -13
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5134 250e46eeb` (then `gh -R gnolang/gno pr checkout 5134` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `250e46eeb` (stale — +26 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5134 250e46eeb`
 
 **Verdict: APPROVE** — small, focused UX fix; one minor inconsistency between `gnokey list` and `gnokey add` output formats worth fixing in the same PR, and a flag-naming nit.
 

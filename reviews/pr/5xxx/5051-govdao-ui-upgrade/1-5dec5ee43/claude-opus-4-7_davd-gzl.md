@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5051
 Author: davd-gzl | Base: master | Files: 22 | +310 -160
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5051 5dec5ee43` (then `gh -R gnolang/gno pr checkout 5051` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5dec5ee43` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5051 5dec5ee43`
 
 **Verdict: REQUEST CHANGES** — purely cosmetic PR but ships two real regressions: the new "Votes" column shows tier-bucket count (always 3) instead of actual votes, and `md.EscapeText` was dropped from title rendering. Executor metadata for treasury/token-update proposals is also silently degraded.
 

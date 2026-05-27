@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5230
 Author: davd-gzl | Base: master | Files: 99 | +585 -279
-Reviewed by: davd-gzl (self-review, [bot] AI agent) | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5230 998bd9a16` (then `gh -R gnolang/gno pr checkout 5230` inside it)
+Reviewed by: davd-gzl (self-review, [bot] AI agent) | Model: claude-opus-4-7 | Commit: `998bd9a16` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5230 998bd9a16`
 
 **Verdict: APPROVE WITH NITS** — Implementation is correct, well-tested, and overflow-safe; CI is green; the supply index is correctly seeded for new chains via the genesis-balance `SetCoins` path. Worth flagging before merge: per-tx gas overhead is non-trivial (+30% on a minimal `Hello()` call), the test mock at [`testing_runtime.go:209`](https://github.com/gnolang/gno/blob/998bd9a16/gnovm/tests/stdlibs/chain/runtime/testing_runtime.go#L207-L213) · [↗](../../../../../.worktrees/gno-review-5230/gnovm/tests/stdlibs/chain/runtime/testing_runtime.go#L207-L213) silently wraps where the real keeper panics, and there is no ADR documenting the consensus-breaking decision.
 

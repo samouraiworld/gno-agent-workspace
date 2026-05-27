@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5699
 Author: notJoon | Base: master | Files: 9 | +206 -4
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5699 5176f0c` (then `gh -R gnolang/gno pr checkout 5699` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5176f0c` (stale — +15 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5699 5176f0c`
 
 **Verdict: REQUEST CHANGES** — CI is red on the apphash forward-guard; the new keyspace silently aliases the existing string-keyed `SetBytes` (collision risk); and the new `SetBytesKey`/`GetBytesKey` gas costs are copied wholesale from their string-keyed siblings rather than calibrated from the new benchmarks.
 

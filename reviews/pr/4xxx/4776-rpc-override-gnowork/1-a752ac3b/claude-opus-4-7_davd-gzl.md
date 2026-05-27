@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4776
 Author: n0izn0iz | Base: master | Files: 4 | +85 -3
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4776 a752ac3b` (then `gh -R gnolang/gno pr checkout 4776` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `a752ac3b` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4776 a752ac3b`
 
 **Verdict: NEEDS DISCUSSION** — design direction is still unresolved (moul wants strict domain identity; leohhhn pushed back on per-domain config; author defended it on multi-chain grounds), and the implementation lacks tests, has a missing newline in the warning, swallows a malformed-toml error opaquely, and silently overrides a CLI flag (`--remote-overrides`) that already does the same job.
 

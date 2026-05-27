@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5500
 Author: notJoon | Base: master | Files: 6 | +226 -4
-Reviewed by: davd-gzl | Model: claude-opus-4.7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5500 a938f46` (then `gh -R gnolang/gno pr checkout 5500` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4.7 | Commit: `a938f46` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5500 a938f46`
 
 **Verdict: APPROVE** — Fix is correct and consensus-safe. Two open concerns: the `readpkglist.go` change has no regression test (the txtar passes with it reverted), and the sibling wide-merge in `pkgloader.go` still carries the same bug for `loadpkg <single-arg>`.
 

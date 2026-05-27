@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5416
 Author: aronpark1007 | Base: master | Files: 10 | +213 -191
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5416 3c904b4` (then `gh -R gnolang/gno pr checkout 5416` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `3c904b4` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5416 3c904b4`
 
 **Verdict: REQUEST CHANGES** — correct semantics and clean unification, but ships with a gofmt lint failure (already red on CI), two test files missing trailing newlines, and a gas re-calibration that overcharges small slice literals ~2.5x and undercharges large ones.
 

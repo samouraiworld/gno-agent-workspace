@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5366
 Author: mvallenet | Base: master | Files: 3 | +86 -6
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5366 8f7fbb0` (then `gh -R gnolang/gno pr checkout 5366` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `8f7fbb0` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5366 8f7fbb0`
 
 **Verdict: APPROVE** — additive event-attribute change with passing txtar; only a small testing gap on the remove path and minor stringification nits.
 

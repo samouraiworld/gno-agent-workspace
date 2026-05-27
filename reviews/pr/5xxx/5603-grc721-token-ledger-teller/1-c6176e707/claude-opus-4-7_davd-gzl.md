@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5603
 Author: notJoon | Base: master | Files: 33 | +2027 -1349
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5603 c6176e707` (then `gh -R gnolang/gno pr checkout 5603` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `c6176e707` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5603 c6176e707`
 
 **Verdict: REQUEST CHANGES** — `Burn` leaks stale `tokenURIs` and royalty entries so reads on burned tokens silently return previous values (correctness, not just storage). Otherwise the Token/Ledger/Teller split is sound, all existing tests pass, security boundaries hold.
 

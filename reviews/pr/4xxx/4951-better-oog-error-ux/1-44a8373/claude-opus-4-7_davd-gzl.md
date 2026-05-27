@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4951
 Author: D4ryl00 | Base: master | Files: 14 | +501 -46
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4951 44a8373` (then `gh -R gnolang/gno pr checkout 4951` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `44a8373` (stale — +36 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4951 44a8373`
 
 **Verdict: REQUEST CHANGES** — fix the misleading `suggested gas-wanted` value emitted on server-side OOG (computed on partial pre-panic gas) and the unconditional `simulate with consensus maximum` hint on DeliverTx panics; rest of the PR is a solid UX rework.
 

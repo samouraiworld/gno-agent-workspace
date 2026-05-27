@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5326
 Author: thehowl | Base: master | Files: 4 | +337 -125
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5326 6c867397a` (then `gh -R gnolang/gno pr checkout 5326` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `6c867397a` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5326 6c867397a`
 
 **Verdict: REQUEST CHANGES** — fix is sound but ships with a broken txtar test (Part 1 OOGs at the configured `-gas-wanted` because allocator gas now lives in master post-#5127), branch needs a rebase that resolves conflicts with the already-merged #5127, and isEql's pair-stack growth is uncharged Go-heap memory.
 

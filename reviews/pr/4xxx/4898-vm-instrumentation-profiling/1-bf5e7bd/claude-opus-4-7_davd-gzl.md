@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4898
 Author: notJoon | Base: master | Files: 22 | +4392 -12
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4898 bf5e7bd` (then `gh -R gnolang/gno pr checkout 4898` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `bf5e7bd` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4898 bf5e7bd`
 
 **Verdict: REQUEST CHANGES** — line-level cycle attribution is off-by-one (last op of every line credited to the next line), the inner-loop sample hook does an interface type-assertion + virtual call on every VM op when profiling is enabled regardless of mode, `lineStats.mu` is dead synchronization, `AllocationEvent.Kind` is in the schema but never populated, and the new 8 CLI flags ship without any doc/help-text in `docs/resources/gno-testing.md`.
 

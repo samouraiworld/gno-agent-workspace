@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5020
 Author: D4ryl00 | Base: master | Files: 2 | +127 -3
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5020 4841ea7c4` (then `gh -R gnolang/gno pr checkout 5020` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `4841ea7c4` (stale — +44 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5020 4841ea7c4`
 
 Verdict: NEEDS DISCUSSION — fix works for the headline scenario, but the "fall back to last-known IP" rationale the author gave on the thread is not what the code does, and three smaller items (no Validate after re-resolve, no IPv4 preference / shuffle when picking `addrs[0]`, hostname re-resolution loses the original `Hostname` only on the dial-time value copy) deserve a confirmation before merge.
 

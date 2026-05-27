@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5354
 Author: davd-gzl | Base: master | Files: 4 | +732 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5354 2c2e86c4f` (then `gh -R gnolang/gno pr checkout 5354` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `2c2e86c4f` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5354 2c2e86c4f`
 
 Verdict: NEEDS DISCUSSION — design holds for the pre-seeded set, but the user-extensible Add proposal path depends on persisting closures created in an ephemeral MsgRun package; that hasn't been verified end-to-end, and an Add/Add race silently upserts. Self-review by the PR author; second reviewer should validate the closure-persistence claim before merge.
 

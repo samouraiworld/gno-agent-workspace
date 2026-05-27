@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5551
 Author: davd-gzl | Base: master | Files: 6 | +864 -1
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5551 db0244028` (then `gh -R gnolang/gno pr checkout 5551` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `db0244028` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5551 db0244028`
 
 **Verdict: REQUEST CHANGES** — `docs` CI is red on JSX/URL linter triggers introduced by this PR, the branch is stale against master so `getting-started.md` + `quickstart.md` are duplicated (already landed via #5592), and the curl-vs-inline counter in `quickstart.md` ships an `Increment` whose signature won't accept the call example.
 

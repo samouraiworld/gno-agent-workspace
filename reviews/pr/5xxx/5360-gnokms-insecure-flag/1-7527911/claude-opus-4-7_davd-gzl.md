@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5360
 Author: mvallenet | Base: master | Files: 5 | +86 -6
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5360 7527911` (then `gh -R gnolang/gno pr checkout 5360` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `7527911` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5360 7527911`
 
 Verdict: REQUEST CHANGES — the PR closes the "no auth file" hole but leaves the "auth file with empty whitelist" hole wide open, so a TCP server started after `gnokms auth generate` (the README-recommended flow) still accepts any client. Also unresolved: `--insecure` flag name collides with `--insecure-password-stdin`, and the README step ordering is now broken (step 2 redirects elsewhere; the old step 2 is referenced from the Genesis section).
 

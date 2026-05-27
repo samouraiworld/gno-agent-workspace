@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5049
 Author: davd-gzl | Base: master | Files: 11 | +69 -76
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5049 2f68c13` (then `gh -R gnolang/gno pr checkout 5049` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `2f68c13` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5049 2f68c13`
 
 **Verdict: REQUEST CHANGES** — fix is correct in shape but ships three real problems: error responses still leak `height: 0`, the `gnokey_qpaths.txtar` golden→regex conversion silently loses ordering/completeness checks, and the branch is now `mergeable: CONFLICTING` against master (Jan 2026 base vs current master with store-API + `haltTime` churn).
 

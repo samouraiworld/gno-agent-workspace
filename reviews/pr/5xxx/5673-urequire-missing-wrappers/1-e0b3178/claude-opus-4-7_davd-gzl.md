@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5673
 Author: davd-gzl | Base: master | Files: 1 | +68 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5673 e0b3178` (then `gh -R gnolang/gno pr checkout 5673` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `e0b3178` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5673 e0b3178`
 
 **Verdict: APPROVE** — purely additive parity work; six new `urequire` wrappers (`AbortsContains`, `PanicsContains`, `Nil`, `NotNil`, `TypedNil`, `NotTypedNil`) mirror their `uassert` counterparts byte-for-byte in shape, plus doc comments backfilled on pre-existing wrappers; only nit is a self-referential "Related: #5673" line in the PR body.
 

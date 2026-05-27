@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4884
 Author: davd-gzl | Base: master | Files: 65 | +3592 -699
-Reviewed by: davd-gzl (AI-assisted, see disclosure) | Model: claude-opus-4-7[1m]
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4884 51c2d96b6` (then `gh -R gnolang/gno pr checkout 4884` inside it)
+Reviewed by: davd-gzl (AI-assisted, see disclosure) | Model: claude-opus-4-7[1m] | Commit: `51c2d96b6` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4884 51c2d96b6`
 
 Note: PR author and reviewer share a GitHub account (`davd-gzl`). This review is run as an unattended adversarial pass and is **not** a substitute for human maintainer review. Land the merge decision elsewhere.
 

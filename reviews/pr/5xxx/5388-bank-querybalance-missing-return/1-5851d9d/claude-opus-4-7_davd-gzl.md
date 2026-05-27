@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5388
 Author: notJoon | Base: master | Files: 2 | +25 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5388 5851d9d` (then `gh -R gnolang/gno pr checkout 5388` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5851d9d` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5388 5851d9d`
 
 Verdict: APPROVE — minimal one-line fix restoring the missing `return` plus a regression test that empirically fails pre-fix and passes post-fix; no callers depend on the broken fall-through behavior.
 

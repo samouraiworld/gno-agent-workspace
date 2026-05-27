@@ -118,8 +118,10 @@ Reviews are read by humans. Optimize for top-to-bottom skim: verdict first, then
 
 URL: https://github.com/gnolang/gno/pull/<number>
 Author: <author> | Base: <base> | Files: <count> | +<add> -<del>
-Reviewed by: <GitHub username> | Model: <model used>
-Local worktree: `git -C gno worktree add .worktrees/gno-review-<number> <short-sha>` (then `gh -R gnolang/gno pr checkout <number>` inside it)
+Reviewed by: <GitHub username> | Model: <model used> | Commit: <short-sha> (<status>)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-<number> <short-sha>`
+
+`<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since` when the PR has advanced. Recomputed by `scripts/build-reviews-readme.sh` on every run.
 
 **Verdict: APPROVE / REQUEST CHANGES / NEEDS DISCUSSION / CLOSE** — <one terse sentence stating decision and the open concerns by name>. Use `CLOSE` only when the PR should not be merged at all — superseded by a merged PR, abandoned for months with no path forward, premise invalidated by a later design decision, or fundamentally wrong direction. Cite the load-bearing reason in the same sentence.
 
@@ -191,6 +193,7 @@ Efficiency rules:
 - **Drop GitHub checkboxes (`- [ ]`)** unless reviewer wants the author to tick items — the reviewer chooses, not the template.
 - **Never frame findings as "the ADR says X is fine, but actually..."** — refer to the file by path (e.g. `pr5648_spanfromgo_quadratic.md:195`) and critique the argument directly. No "the ADR" / "the audit table" editorializing.
 - **Ship a copy-pasteable reproducer for every empirical claim** ("I ran X and saw Y"). Fenced `bash` block, self-contained (restore any reverted files at the end), one clear pass/fail signal. Only pin env vars (`GNOROOT=$PWD`, etc.) when the test actually depends on them — defensive padding adds noise.
+- **Every repro `bash` block MUST be followed by the actual output you observed**, in a second fenced block (no language tag — it's terminal output). The pair tells the reader two things at once: how to reproduce, and what success/failure looks like before they paste anything. Without the output, the claim is unverifiable from the review alone. Trim output to the signal-bearing lines (5–20 typically); use `# …` to mark omitted noise.
 - **Every bash block in the review MUST start with `gh pr checkout <N> -R gnolang/gno` and contain ZERO references to local paths.** No `/home/...`, no `$HOME`, no `cd .worktrees/...`, no `cd reviews/...`, no `$WT`/`$REVIEW` variables pointing at this workspace. No trailing `git checkout <hash>` pin either — `gh pr checkout` lands on the PR head, that's the contract. Reviews are pasted into public GitHub PR comments — external readers run them from a fresh gno checkout, not from our workspace. If the repro needs a test file, inline it with a heredoc (`cat > path/to/file.gno <<'EOF' ... EOF`) rather than referencing it under `reviews/...` or `.worktrees/...`. Clean up at the end (`rm path/to/file.gno`, `git checkout HEAD -- ...`). Prepend a one-line prelude comment naming the prerequisite — `# from a local clone of gnolang/gno:` — above the `gh pr checkout` line so the reader knows where to be before pasting (spell out "local clone of gnolang/gno" rather than shorthand like "gno checkout", which is ambiguous to readers outside this workspace).
 
 Calibration — finding count and severity:

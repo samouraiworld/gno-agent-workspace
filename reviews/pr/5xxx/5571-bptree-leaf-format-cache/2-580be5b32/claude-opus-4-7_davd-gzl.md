@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5571
 Author: clockworkgr | Base: feat/alex/bp32tree-second-pass | Files: 45 | +4544 -530
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5571 580be5b32` (then `gh -R gnolang/gno pr checkout 5571` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `580be5b32` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5571 580be5b32`
 
 **Verdict: APPROVE** — round-2 sweep at HEAD `580be5b32` confirms every blocking item from round 1 and from [@ajnavarro](https://github.com/gnolang/gno/pull/5571#pullrequestreview-4155092448) is resolved; only the pre-existing `proof.go` mini-merkle-tearing hazard remains explicitly deferred (Finding #9), and a memdb-only `ScalingSet 1K` +98% self-acknowledged regression deserves a follow-up issue, not a block.
 

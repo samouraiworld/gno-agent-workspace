@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5719
 Author: clockworkgr | Base: master | Files: 8 | +668 -43
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5719 5f24e28` (then `gh -R gnolang/gno pr checkout 5719` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5f24e28` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5719 5f24e28`
 
 **Verdict: REQUEST CHANGES** — HRS gate is correct and well-tested; the "un-flap `TestBadBlockStopsPeer`" claim is empirically false (test still fails ~10% locally and once in CI on the same `len(peers)==3` assertion at [`reactor_test.go:249`](https://github.com/gnolang/gno/blob/5f24e28/tm2/pkg/bft/blockchain/reactor_test.go#L249) · [↗](../../../../../.worktrees/gno-review-5719/tm2/pkg/bft/blockchain/reactor_test.go#L249)).
 

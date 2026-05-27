@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5283
 Author: jaekwon | Base: master | Files: 63 | +7425 -247
-Reviewed by: davd-gzl | Model: claude-opus-4-7 (1m)
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5283 7c3677c4` (then `gh -R gnolang/gno pr checkout 5283` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 (1m) | Commit: `7c3677c4` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5283 7c3677c4`
 
 **Verdict: REQUEST CHANGES** — feature is well-scoped and tests pass, but `vm/qobject_json` and `vm/qobject_binary` panic on any oversized hex prefix (a public unauthenticated DoS / log-spam vector on every node, reachable from `$state&oid=...` in gnoweb).
 

@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5698
 Author: notJoon | Base: master | Files: 7 | +453 -5
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5698 0b5487b` (then `gh -R gnolang/gno pr checkout 5698` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `0b5487b` (stale — +16 commits since)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5698 0b5487b`
 
 **Verdict: REQUEST CHANGES** — CI is red on the apphash forward-guard (`TestAppHashCrossrealm38`) and the new Get* gas-table entries copy Set* base costs instead of being calibrated from the new benchmarks; both are blocking until addressed.
 

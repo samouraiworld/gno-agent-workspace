@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5618
 Author: AmozPay | Base: master | Files: 4 | +94 -3
-Reviewed by: davd-gzl | Model: claude-opus-4-7 (1M context)
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5618 1d734600` (then `gh -R gnolang/gno pr checkout 5618` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 (1M context) | Commit: `1d734600` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5618 1d734600`
 
 **Verdict: APPROVE** — small, focused, well-tested; only open concerns are a duplicated realm-prefix check and two parallel realm/package conventions inside the same template.
 

@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5301
 Author: thehowl | Base: master | Files: 15 | +818 -63
-Reviewed by: davd-gzl | Model: claude-opus-4-7 (1M context)
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5301 8ef338b94` (then `gh -R gnolang/gno pr checkout 5301` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 (1M context) | Commit: `8ef338b94` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5301 8ef338b94`
 
 Verdict: REQUEST CHANGES — sound design and good test coverage for the middle-reserved case, but the reflection decode path ([`tm2/pkg/amino/binary_decode.go:1058-1068`](https://github.com/gnolang/gno/blob/8ef338b94/tm2/pkg/amino/binary_decode.go#L1058-L1068) · [↗](../../../../../.worktrees/gno-review-5301/tm2/pkg/amino/binary_decode.go#L1058-L1068)) still rejects old wire bytes when the reserved slot is the LAST field of the struct, silently defeating the backward-compat guarantee for any future user who reserves a trailing field. Genproto2-registered types (incl. `StaticBlock`) dispatch to generated code and are unaffected; unregistered types use reflection and break.
 

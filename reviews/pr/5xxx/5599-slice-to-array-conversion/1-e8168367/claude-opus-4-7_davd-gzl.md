@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5599
 Author: notJoon | Base: master | Files: 32 | +644 -8
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5599 e8168367` (then `gh -R gnolang/gno pr checkout 5599` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `e8168367` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5599 e8168367`
 
 **Verdict: REQUEST CHANGES** — `(*[N]T)(s)[:]` silently loses slice/array aliasing across persistence; the transient `ArrayValue` view leaks through `SliceValue.Base` into the realm storage walk and gets promoted to an unrelated real object.
 

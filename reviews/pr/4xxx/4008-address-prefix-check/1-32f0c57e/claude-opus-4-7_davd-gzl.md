@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4008
 Author: notJoon | Base: master | Files: 2 | +6 -2
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4008 32f0c57e` (then `gh -R gnolang/gno pr checkout 4008` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `32f0c57e` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4008 32f0c57e`
 
 **Verdict: NEEDS DISCUSSION** — fix is already on master via the native `IsValid` impl + `GetFromBech32`; PR diff doesn't apply (files removed by the std-split refactor); only the test case for non-`g` prefix is still worth salvaging.
 

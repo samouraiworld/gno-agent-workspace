@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5178
 Author: alexiscolin | Base: master | Files: 42 | +11833 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5178 be81eec` (then `gh -R gnolang/gno pr checkout 5178` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `be81eec` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5178 be81eec`
 
 **Verdict: NEEDS DISCUSSION** — author explicitly marks the PR WIP/PoC and lists "boards2 integration, threshold tuning, weight feedback" as blockers; CI is red and the branch has been idle for ~2 months. Beyond that, several real defects remain: `AdminLoadDefaults` swallows the regex compile error, `Score` silently overwrites three caller-supplied `ReputationData` fields, content is truncated inside the package (unresolved [@jeronimoalbi](https://github.com/gnolang/gno/pull/5178#discussion_r1972437183) thread), and the homoglyph / leet pipelines have non-obvious blind spots.
 

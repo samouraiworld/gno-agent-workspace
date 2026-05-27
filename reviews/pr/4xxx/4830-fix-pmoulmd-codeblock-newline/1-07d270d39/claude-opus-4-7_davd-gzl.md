@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4830
 Author: vikbez | Base: master | Files: 3 | +8 -6
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4830 07d270d39` (then `gh -R gnolang/gno pr checkout 4830` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `07d270d39` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4830 07d270d39`
 
 **Verdict: APPROVE** — small correctness fix to a markdown helper; appends a trailing `\n` to `CodeBlock` / `LanguageCodeBlock` so concatenated content lands outside the fenced block. Already approved by [@jefft0](https://github.com/gnolang/gno/pull/4830#pullrequestreview-3338841029). Two non-blocking caveats: PR is in `CONFLICTING` state against master (rebase needed after #5418 added `EscapeURL` and #5104 moved filetests into `filetests/`), and the `/r/docs/moul_md` examples flagged in the existing reviewer comment still warrant an update.
 

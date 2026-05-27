@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/4891
 Author: davd-gzl | Base: master | Files: 3 | +56 -12
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-4891 6d0cad6` (then `gh -R gnolang/gno pr checkout 4891` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `6d0cad6` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-4891 6d0cad6`
 
 Disclosure: PR author and reviewer share a GitHub account. Review run by an unattended agent on technical merits; conflict noted up front.
 

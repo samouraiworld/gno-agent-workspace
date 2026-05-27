@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5231
 Author: davd-gzl | Base: master | Files: 2 | +92 -10
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5231 d6f7e93d3` (then `gh -R gnolang/gno pr checkout 5231` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `d6f7e93d3` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5231 d6f7e93d3`
 
 Verdict: REQUEST CHANGES — `peer.Set(types.PeerStateKey, nil)` turns into a panic on any in-flight `Receive`/stats path that grabs the same peer between [`reactor.RemovePeer`](https://github.com/gnolang/gno/blob/d6f7e93d3/tm2/pkg/bft/consensus/reactor.go#L190) · [↗](../../../../../.worktrees/gno-review-5231/tm2/pkg/bft/consensus/reactor.go#L190) and [`sw.peers.Remove`](https://github.com/gnolang/gno/blob/d6f7e93d3/tm2/pkg/p2p/switch.go#L252) · [↗](../../../../../.worktrees/gno-review-5231/tm2/pkg/p2p/switch.go#L252); the PR author already agreed to postpone (tbruyelle, cometbft parity), but if it ever lands the nil-store needs replacing with a Delete or with nil-guarded readers.
 

@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5494
 Author: clockworkgr | Base: master | Files: 15 | +232 -11
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5494 b6bb8efff` (then `gh -R gnolang/gno pr checkout 5494` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `b6bb8efff` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5494 b6bb8efff`
 
 **Verdict: APPROVE** — replaces the CGO `zondax/hid` dep with a pure-Go shim (`misc/puregohid`) over `rafaelmartins/usbhid`, keeping the `zondax/hid` import path stable via `replace`; the binaries that ship ledger features (`gnokey`, `gnoland`, `gnoweb`, `gno`, `gnodev`, `gnokeykc`) now build with `CGO_ENABLED=0`; unsupported-platform stubs preserve the previous "no ledger" build-success behavior. Main caveat is the `replace` directive being applied to only 3 modules out of the ~10 sub-modules that transitively reference `github.com/zondax/hid`, leaving the rest on the CGO-disabled `zondax/hid` stub when built standalone — that is a downgrade vs upgrade gap, not a regression. The unrelated `TestNodeBootWithInitialHeight` CI failure passes locally and was introduced in master by an unrelated PR.
 

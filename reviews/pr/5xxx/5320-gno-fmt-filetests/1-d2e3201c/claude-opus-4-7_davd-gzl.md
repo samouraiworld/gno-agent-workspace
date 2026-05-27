@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5320
 Author: ltzmaxwell | Base: master | Files: 98 | +431 -245
-Reviewed by: davd-gzl | Model: claude-opus-4-7-1m
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5320 d2e3201c` (then `gh -R gnolang/gno pr checkout 5320` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7-1m | Commit: `d2e3201c` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5320 d2e3201c`
 
 **Verdict: REQUEST CHANGES** — fast-path + auto-update across all filetests silently strips test-only unused imports from `recover1b.gno`, `assign37b.gno`, and `const49.gno`, losing the very `TypeCheckError` assertions those files were written to verify; resolve thehowl's open thread on `OnPackageConflict` before merge.
 

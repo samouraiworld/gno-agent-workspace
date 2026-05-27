@@ -16,12 +16,70 @@ Usage:
 """
 
 import argparse
+import json
 import re
+import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 WORKSPACE = Path(__file__).resolve().parent.parent
 REVIEWS = WORKSPACE / "reviews" / "pr"
+
+# (pr_num -> headRefOid) populated lazily by fetch_pr_heads().
+PR_HEADS: dict[str, str] = {}
+# (pr_num -> N commits ahead of reviewed sha) populated lazily.
+PR_AHEAD_COUNT: dict[tuple[str, str], int] = {}
+
+
+def fetch_pr_head(pr_num: str) -> tuple[str, str | None]:
+    """Returns (pr_num, headRefOid or None on failure)."""
+    try:
+        r = subprocess.run(
+            ["gh", "pr", "view", pr_num, "-R", "gnolang/gno", "--json", "headRefOid"],
+            capture_output=True, text=True, timeout=20,
+        )
+        if r.returncode == 0:
+            data = json.loads(r.stdout)
+            return (pr_num, data.get("headRefOid"))
+    except Exception:
+        pass
+    return (pr_num, None)
+
+
+def fetch_pr_heads(pr_nums: list[str]) -> None:
+    """Populate PR_HEADS in parallel."""
+    if not pr_nums:
+        return
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futures = {ex.submit(fetch_pr_head, n): n for n in pr_nums}
+        for f in as_completed(futures):
+            n, head = f.result()
+            if head:
+                PR_HEADS[n] = head
+
+
+def ahead_count(reviewed_sha: str, pr_num: str) -> int | None:
+    """Returns count of commits between reviewed_sha and PR head, or None on failure."""
+    head = PR_HEADS.get(pr_num)
+    if not head or head.startswith(reviewed_sha):
+        return 0
+    key = (pr_num, reviewed_sha)
+    if key in PR_AHEAD_COUNT:
+        return PR_AHEAD_COUNT[key]
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(WORKSPACE / "gno"), "rev-list", "--count",
+             f"{reviewed_sha}..{head}"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if r.returncode == 0:
+            n = int(r.stdout.strip())
+            PR_AHEAD_COUNT[key] = n
+            return n
+    except Exception:
+        pass
+    return None
 
 # Matches `[label](<dots>/.worktrees/gno-review-<N>/<path>(#L<lines>)?)`
 # <dots> is one or more "../" segments; some reviews have varying depths.
@@ -76,22 +134,43 @@ def convert_file(md: Path, dry_run: bool) -> tuple[int, int]:
 
     new_text = LINK_RE.sub(repl, new_text)
 
-    # Inject "Local worktree" line right under the "Reviewed by:" line, if absent.
-    header_added = 0
-    if "Local worktree:" not in new_text:
-        # Worktree command, runnable from workspace root.
-        wt_cmd = f"`git -C gno worktree add .worktrees/gno-review-{pr_num} {sha} && gh -R gnolang/gno pr checkout {pr_num} && (cd .worktrees/gno-review-{pr_num} && gh pr checkout {pr_num} -R gnolang/gno)`"
-        # Simpler one-liner: just the worktree creation; user runs `gh pr checkout` inside.
-        wt_cmd = (
-            f"`git -C gno worktree add .worktrees/gno-review-{pr_num} {sha}` "
-            f"(then `gh -R gnolang/gno pr checkout {pr_num}` inside it)"
+    # Inject/update "| Commit: <sha> (<status>)" on the "Reviewed by:" line.
+    # Strip any existing " | Commit: ..." suffix first so re-runs refresh it.
+    head = PR_HEADS.get(pr_num)
+    if head:
+        if head.startswith(sha):
+            status = "latest"
+        else:
+            n = ahead_count(sha, pr_num)
+            status = f"stale — +{n} commits since" if n else "stale"
+        commit_suffix = f" | Commit: `{sha}` ({status})"
+        # Match "Reviewed by: ..." line, drop any prior Commit: clause, append fresh one.
+        new_text = re.sub(
+            r"^(Reviewed by:[^\n]*?)(?:\s*\|\s*Commit:[^\n]*)?$",
+            lambda m: m.group(1) + commit_suffix,
+            new_text,
+            count=1,
+            flags=re.MULTILINE,
         )
-        # Insert after the "Reviewed by:" line if present, else after "Author:" line.
+
+    # Normalize the "Local worktree:" line to the single-command form.
+    # Old form: `... <sha>` (then `gh -R gnolang/gno pr checkout <n>` inside it)
+    # New form: `git -C gno worktree add .worktrees/gno-review-<n> <sha>`
+    wt_new = f"Local worktree: `git -C gno worktree add .worktrees/gno-review-{pr_num} {sha}`"
+    old_wt_re = re.compile(
+        r"^Local worktree: `git -C gno worktree add \.worktrees/gno-review-\d+ [a-f0-9]+`"
+        r"(?: \(then `gh[^`]+` inside it\))?$",
+        flags=re.MULTILINE,
+    )
+    header_added = 0
+    if old_wt_re.search(new_text):
+        new_text = old_wt_re.sub(wt_new, new_text)
+    elif "Local worktree:" not in new_text:
+        # Insert after the "Reviewed by:" line if present, else after "Author:".
         for anchor_pattern in (r"^(Reviewed by:.*?)$", r"^(Author:.*?)$"):
             m = re.search(anchor_pattern, new_text, flags=re.MULTILINE)
             if m:
-                insertion = f"{m.group(1)}\nLocal worktree: {wt_cmd}"
-                new_text = new_text[: m.start()] + insertion + new_text[m.end() :]
+                new_text = new_text[: m.end()] + f"\n{wt_new}" + new_text[m.end() :]
                 header_added = 1
                 break
 
@@ -113,6 +192,8 @@ def main() -> int:
                         help="Don't write; print what would change.")
     parser.add_argument("--only", default="**/*.md",
                         help="Glob under reviews/pr (default: **/*.md).")
+    parser.add_argument("--no-commit-status", action="store_true",
+                        help="Skip the (slow) PR-head fetch + 'Commit:' staleness annotation.")
     args = parser.parse_args()
 
     if not REVIEWS.is_dir():
@@ -124,13 +205,25 @@ def main() -> int:
         print(f"no markdown files matched {args.only}")
         return 0
 
+    # Only top-level review files (not tests/ or other subdirs).
+    md_files = [md for md in md_files
+                if len(md.relative_to(REVIEWS).parts) == 4]
+
+    # Bulk-fetch PR heads up front (parallel) — needed for the Commit: status line.
+    if not args.no_commit_status:
+        pr_nums: set[str] = set()
+        for md in md_files:
+            pr_num_dir = md.parent.parent.name
+            m = re.match(r"^(\d+)-", pr_num_dir)
+            if m:
+                pr_nums.add(m.group(1))
+        print(f"Fetching head SHAs for {len(pr_nums)} PRs (parallel)...", file=sys.stderr)
+        fetch_pr_heads(sorted(pr_nums))
+        print(f"  got {len(PR_HEADS)} / {len(pr_nums)} heads", file=sys.stderr)
+
     total_links = 0
     total_headers = 0
     for md in md_files:
-        # Only top-level review files (not tests/ or subdirs we want to leave alone).
-        # Pattern: reviews/pr/<bucket>/<num>-*/<round>-<sha>/<file>.md
-        if len(md.relative_to(REVIEWS).parts) != 4:
-            continue
         links, headers = convert_file(md, args.dry_run)
         total_links += links
         total_headers += headers

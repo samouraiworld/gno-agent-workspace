@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5709
 Author: tbruyelle | Base: master | Files: 2 | +57 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5709 37db202e` (then `gh -R gnolang/gno pr checkout 5709` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `37db202e` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5709 37db202e`
 
 **Verdict: APPROVE** — small, targeted security fix mirroring the cosmos-sdk `SignWithLedger` guard; test exercises the swap scenario; second-line signature self-check is defensive but harmless. Only nits.
 

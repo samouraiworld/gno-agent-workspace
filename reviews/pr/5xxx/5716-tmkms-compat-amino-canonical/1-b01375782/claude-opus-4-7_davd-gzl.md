@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5716
 Author: @clockworkgr | Base: master | Files: 35 | +5608 -30
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5716 b01375782` (then `gh -R gnolang/gno pr checkout 5716` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `b01375782` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5716 b01375782`
 
 **Verdict: APPROVE** — clean split of the upstream-Tendermint v0.34 wire-format foundation from #5625; additive (new amino tag, new package, new tests) with one consensus-sensitive retag (`CanonicalProposal.POLRound` fixed64→varint, `CanonicalPartSetHeader` Total int→uint32) that is correct, well-tested, and explicitly framed as pre-mainnet. PR is already merged (jaekwon).
 

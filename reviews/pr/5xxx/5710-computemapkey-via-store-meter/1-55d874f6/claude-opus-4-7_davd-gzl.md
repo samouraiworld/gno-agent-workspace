@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5710
 Author: ltzmaxwell | Base: master | Files: 10 | +179 -53
-Reviewed by: davd-gzl | Model: claude-opus-4-7
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5710 55d874f6` (then `gh -R gnolang/gno pr checkout 5710` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `55d874f6` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5710 55d874f6`
 
 **Verdict: REQUEST CHANGES** — design is correct and closes the write/restore gas asymmetry the description claims, but the defensive `*defaultStore` type-assert in `NewMachineWithOptions` silently no-ops on the `transactionStore` wrapper, leaving `gno test` and any sub-tx Machine with `m.GasMeter` set but `m.Store.GetMeter() == nil` — `ComputeMapKey` then charges zero.
 

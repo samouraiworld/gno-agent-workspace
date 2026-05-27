@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5221
 Author: ltzmaxwell | Base: master | Files: 3 | +129 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7 (1M context)
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5221 28383f0` (then `gh -R gnolang/gno pr checkout 5221` inside it)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 (1M context) | Commit: `28383f0` (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5221 28383f0`
 
 Verdict: NEEDS DISCUSSION — fix is narrow, correct, and well-tested for the MsgCall string-arg boundary, but [@thehowl](https://github.com/gnolang/gno/pull/5221#issuecomment-3990173584) raised an unanswered design question about whether NaN/Inf should be rejected at all; resolve that thread before merge.
 
