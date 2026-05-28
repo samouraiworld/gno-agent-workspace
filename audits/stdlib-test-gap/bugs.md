@@ -1,10 +1,25 @@
 # Stdlib Test Gap — Aggregated Findings
 
-Bugs and divergences found by porting upstream Go 1.25.9 stdlib tests
-into Gno's `gnovm/stdlibs/*` packages and running them under
-`TestStdlibs`.
+Bugs and divergences found by porting upstream Go stdlib tests into
+Gno's `gnovm/stdlibs/*` packages and running them under `TestStdlibs`.
 
-**Baseline**: `gnolang/gno@master` with PR
+> **Caveat on baseline version.** This audit initially used Go 1.25.9
+> as the upstream baseline. Per [`gno/docs/resources/go-gno-compatibility.md`](../../gno/docs/resources/go-gno-compatibility.md),
+> **Gno is modeled after Go 1.17**, with selective cherry-picks of
+> later additions (e.g. `strings.Cut` from Go 1.18 is present;
+> `strings.Clone` from Go 1.18 is not; `errors.Join` from Go 1.20 is
+> being added in [PR #5385](https://github.com/gnolang/gno/pull/5385)).
+>
+> This re-framing matters: a test that fails when ported from Go 1.25
+> may simply be hitting a behavior that upstream changed *after* Gno's
+> 1.17 snapshot. Where that's the case, the finding is **snapshot lag,
+> not a bug in Gno's port**. The sections below distinguish:
+>
+> - **Tier 1 — real bugs in Gno-specific code** (independent of any Go version).
+> - **Tier 2 — upstream-later-fixed behavior Gno still carries** (matches Go 1.17, upstream fixed in 1.20+, Gno hasn't pulled forward).
+> - **Tier 3+ — missing/post-1.17 APIs** (mostly intentional snapshot lag).
+
+**Test-run baseline**: `gnolang/gno@master` with PR
 [#5723](https://github.com/gnolang/gno/pull/5723) cherry-picked.
 Without it, allocator-overflow class bugs surface as unrecoverable host
 panics that mask everything downstream.
@@ -54,20 +69,43 @@ go test -count=1 -v -run 'TestStdlibs/<pkg>$' ./gnovm/pkg/gnolang/
 
 ---
 
-# Tier 1 — Novel correctness bugs (no open PR addresses)
+# Tier 1 — Real bugs in Gno-specific code
 
-## #1 — `strings.SplitN(s, "", n)` mangles invalid UTF-8 bytes (asymmetric)
+These are bugs in code that exists only in Gno (not derived from any
+upstream Go version). Affected regardless of which Go release Gno
+claims to track.
+
+## #1 (was #3) — Allocator-overflow paths NOT covered by PR #5723 still produce unrecoverable host panics
+
+(See section below — promoted from Tier 2.)
+
+---
+
+# Tier 2 — Upstream-later-fixed behavior Gno still carries (snapshot lag)
+
+Gno's port faithfully matches Go 1.17. Upstream Go fixed the behavior in
+a later release, but Gno hasn't pulled the fix forward. Verified by
+diffing Gno's source against `release-branch.go1.17` for each.
+
+These are still worth porting forward (modern Go users expect the
+fixed behavior), but they are *not* bugs in Gno's port relative to its
+own snapshot version.
+
+## #2 (was #1) — `strings.SplitN(s, "", n)` mangles invalid UTF-8 bytes (asymmetric)
 
 **Package**: `gnovm/stdlibs/strings`
-**Severity**: correctness divergence + data corruption
+**Severity**: snapshot lag (matches Go 1.17; upstream fixed between 1.18 and 1.20)
 **Existing PR**: none
+**Upstream**: Go 1.17 has the same buggy `explode`; Go 1.20+ removed the
+`if ch == utf8.RuneError { ... }` branch.
 
 When the separator is the empty string, `strings.SplitN` splits by
 Unicode code point. For inputs containing invalid UTF-8 bytes, Gno
 replaces each *non-last* invalid byte with the 3-byte U+FFFD
 replacement encoding (`\xef\xbf\xbd`), but leaves the *last* invalid
-byte unchanged. Upstream Go preserves the original bytes for every
-element. `Join(Split(s, ""), "")` is no longer guaranteed to recover `s`.
+byte unchanged. Modern upstream Go preserves the original bytes for
+every element. `Join(Split(s, ""), "")` is no longer guaranteed to
+recover `s`.
 
 ### Repro
 
@@ -121,11 +159,13 @@ silently transformed.
 
 ---
 
-## #2 — `regexp/syntax.(*Regexp).String()` does not merge adjacent same-flag subexpressions
+## #3 (was #2) — `regexp/syntax.(*Regexp).String()` does not merge adjacent same-flag subexpressions
 
 **Package**: `gnovm/stdlibs/regexp/syntax`
-**Severity**: correctness divergence (`Parse` → `String` round-trip ≠ upstream Go)
+**Severity**: snapshot lag (matches Go 1.17; upstream rewrote in Go 1.20+, CL 444817)
 **Existing PR**: none
+**Upstream**: Go 1.17 emits the same un-merged output; the `printFlags`
+pre-pass was added to upstream in 2022.
 
 When a parsed regexp contains adjacent subexpressions that share the
 same `FoldCase` flag — or when a single `(?i:...)` group expands into
@@ -199,13 +239,15 @@ children up to their parent. Gno's copy predates that refactor.
 
 ---
 
-# Tier 2 — Incomplete fixes / partial PRs
+# Tier 1 details — Allocator-overflow paths NOT covered by PR #5723
 
-## #3 — Allocator-overflow paths NOT covered by PR #5723 still produce unrecoverable host panics
+## #1 — Allocator-overflow paths NOT covered by PR #5723 still produce unrecoverable host panics
 
 **Package**: `gnovm/pkg/gnolang/alloc.go`
 **Severity**: DOS — host panic not catchable from `.gno` code
 **Existing PR**: [#5723](https://github.com/gnolang/gno/pull/5723) (OPEN) — *partial fix only*
+**Why this is Tier 1 (vs Tier 2)**: `alloc.go` is Gno-specific code,
+not derived from any upstream Go release — version-independent.
 
 [PR #5723](https://github.com/gnolang/gno/pull/5723) converts
 `overflow.Addp`/`Mulp` host panics into recoverable `*Exception` panics

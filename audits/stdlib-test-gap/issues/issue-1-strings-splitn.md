@@ -1,17 +1,26 @@
-# [TITLE] strings.SplitN(s, "") asymmetrically mangles invalid UTF-8 bytes
+# [TITLE] strings.SplitN(s, "") asymmetrically mangles invalid UTF-8 bytes (port forward from Go 1.20+)
 
 ## Description
 
+> **Snapshot context**: Gno is modeled after Go 1.17. The behavior
+> described below matches Go 1.17 exactly — the `if ch == utf8.RuneError`
+> branch is present in `release-branch.go1.17/src/strings/strings.go`.
+> Upstream Go removed it between 1.18 and 1.20. This is therefore a
+> port-forward request to bring Gno in line with modern Go, **not a
+> bug introduced by Gno's port**.
+
 When the separator is the empty string, `strings.SplitN` splits by Unicode
 code point. For inputs containing invalid UTF-8 bytes, Gno's implementation
-silently replaces each *non-last* invalid byte with the 3-byte U+FFFD
-replacement encoding (`\xef\xbf\xbd`), but leaves the *last* invalid byte
-unchanged. Upstream Go preserves the original bytes for every element.
+(matching Go 1.17) silently replaces each *non-last* invalid byte with the
+3-byte U+FFFD replacement encoding (`\xef\xbf\xbd`), but leaves the *last*
+invalid byte unchanged. Modern upstream Go preserves the original bytes
+for every element.
 
-Two problems with the current behavior:
+Two problems with carrying the Go 1.17 behavior forward:
 
-1. **Divergence from upstream Go.** `strings.Split("\xff-\xff", "")` should
-   return three 1-byte strings, not one 3-byte + one 1-byte + one 1-byte.
+1. **Divergence from modern Go.** Realm code shared between Go and Gno
+   gets different results: `strings.Split("\xff-\xff", "")` returns three
+   1-byte strings on modern Go but `["\xef\xbf\xbd", "-", "\xff"]` on Gno.
 2. **Internal inconsistency.** The first and last invalid bytes are treated
    differently within the same call.
 
