@@ -5,7 +5,7 @@ Author: thehowl | Base: master | Files: 6 | +134 -44
 Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `050597de7` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5704 050597de7`
 
-**Verdict: APPROVE** — second-pass review of follow-ups since `4ff865d10`. The previous review's `// TypeCheckError:` repro, the duplicate-parsing nit, the DEBUG_PANIC carve-out, and the missing-tests gap (for the lint changes) are addressed. One new asymmetry: `excludeExpectedTypeCheckErrors` was added to lint only, so `gno test` of a user package with `// TypeCheckError:` still fails on the same typecheck; the directive isn't actually deferred end-to-end. Non-blocking — no user file uses `// TypeCheckError:` today — but the PR body's invariant overstates what's true.
+**Verdict: APPROVE** — second-pass review of follow-ups since `4ff865d10`. The duplicate-parsing nit, the DEBUG_PANIC carve-out, and the lint-side missing-tests gap are addressed. One cleanup ask: `cb1abaedb` (`excludeExpectedTypeCheckErrors`) is dead code in practice — `// TypeCheckError:` is gnovm-internal-only ([`filetest.go:51-53`](https://github.com/gnolang/gno/blob/050597de7/gnovm/pkg/test/filetest.go#L51-L53) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/pkg/test/filetest.go#L51-L53), [`test.go:90-91`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/test.go#L90-L91) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/test.go#L90-L91)) and no user file uses it. The previous review's "unreachable" finding meant "drop the dead code," not "make it reachable." Worth reverting, but not a blocker.
 
 ## Summary
 
@@ -27,20 +27,16 @@ None.
 
 ## Warnings (should fix)
 
-- **[lint defers `// TypeCheckError:` but `gno test` still rejects it for user packages]** [`lint.go:410-434`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/lint.go#L410-L434) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/lint.go#L410-L434) — the PR body / `excludeExpectedTypeCheckErrors` doc-comment / `filetest_typecheck_error.txtar` header all claim "gno test validates the directive against the actual error." Not true for user packages: `gno test` runs the same `lintTypeCheck` over the whole mpkg, hits the type error, fails. And `runFiletest` panics on the directive if `tcheck=false`. Lint silently bypasses the file; the directive is never validated end-to-end.
+- **[`excludeExpectedTypeCheckErrors` is dead code; revert `cb1abaedb`]** [`lint.go:410-434`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/lint.go#L410-L434) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/lint.go#L410-L434) — `// TypeCheckError:` is documented as "only available for gnovm internal test files" ([`test.go:90-91`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/test.go#L90-L91) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/test.go#L90-L91)) and `runFiletest` panics on it when `tcheck=false` ([`filetest.go:51-53`](https://github.com/gnolang/gno/blob/050597de7/gnovm/pkg/test/filetest.go#L51-L53) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/pkg/test/filetest.go#L51-L53), the path `gno test` always takes for user packages at [`test.go:428`](https://github.com/gnolang/gno/blob/050597de7/gnovm/pkg/test/test.go#L428) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/pkg/test/test.go#L428)). Users can't legitimately put the directive in a `_filetest.gno`. `grep -rln "// TypeCheckError:" examples/` returns nothing.
   <details><summary>details</summary>
 
-  Two pre-existing guards make `// TypeCheckError:` a gnovm-internal-only directive:
+  The filter currently fires on zero files in the repo. Its only effect is to make lint accept input that `gno test` rejects — which the docstring frames as "gno test matches the actual error against the directive," but `gno test` does the opposite: it runs the same `lintTypeCheck` over the full mpkg at [`test.go:312`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/test.go#L312) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/test.go#L312) and FAILs the package with `gnoTypeCheckError`.
 
-  - [`test.go:312`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/test.go#L312) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/test.go#L312) — `gno test` calls `lintTypeCheck(io, pkg.Dir, mpkg, …)` over the full mpkg without the new filter. A filetest with `// TypeCheckError:` triggers `gnoTypeCheckError`, sets `didError`, the package FAILs.
-  - [`filetest.go:51-53`](https://github.com/gnolang/gno/blob/050597de7/gnovm/pkg/test/filetest.go#L51-L53) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/pkg/test/filetest.go#L51-L53) — `runFiletest` panics with `"type-check error directive is only available for gnovm internal test files"` when called with `tcheck=false` and the directive present (`tcheck=false` is what `pkg/test.Test` uses at [`test.go:428`](https://github.com/gnolang/gno/blob/050597de7/gnovm/pkg/test/test.go#L428) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/pkg/test/test.go#L428)). In practice the typecheck above blocks first, so the panic doesn't surface — but it's a second gate confirming the intent.
-  - [`test.go:90-91`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/test.go#L90-L91) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/test.go#L90-L91) — `gno test`'s own help text says: `"TypeCheckError:" type-check errors (only available for gnovm internal test files)`.
+  The previous review at [`1-4ff865d10/claude-opus-4-7_davd-gzl.md`](../1-4ff865d10/claude-opus-4-7_davd-gzl.md) flagged the original STEP 5 predicate's `DirectiveTypeCheckError` half as unreachable. The intended fix was "drop the dead `|| DirectiveTypeCheckError` half" — making the unreachability explicit. `cb1abaedb` instead added `excludeExpectedTypeCheckErrors` to make it reachable for user packages, which the directive's design doesn't support.
 
-  The PR's filter is one-sided. End-to-end, the user sees `gno lint` exit 0 and `gno test` exit 1 with the typecheck error — the directive is silently bypassed by lint but not validated anywhere. No real-world file is affected today (`grep -rln "// TypeCheckError:" examples/` returns nothing), so the harm is bounded to the PR body's invariant and the developer who reads `excludeExpectedTypeCheckErrors`'s docstring and writes `// TypeCheckError:` in a user filetest.
+  **Fix:** revert `cb1abaedb` (the `excludeExpectedTypeCheckErrors` function, its call site at [`lint.go:268`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/lint.go#L268) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/lint.go#L268), the `|| DirectiveTypeCheckError` term in STEP 5's `expectsErr` at [`lint.go:342-343`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/lint.go#L342-L343) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/lint.go#L342-L343), and the `filetest_typecheck_error.txtar`+`filetest_unannotated_typecheck_error.txtar` pair). Keep `4ff865d10`'s STEP 5 isolation (the `// Error:` half, which is the only legitimately-user-facing directive) and `050597de7`'s DEBUG_PANIC carve-out.
 
-  **Fix:** either (a) apply the same filter to `gno test`'s `lintTypeCheck` call so the directive at least pre-empts the typecheck symmetrically (still doesn't validate the actual message, but at least matches lint), or (b) restrict `excludeExpectedTypeCheckErrors` to gnovm-internal mempackage types (`MPFiletests`), since those are the only places where `gno test` can actually consume the directive. Option (b) aligns with the existing guards; option (a) requires also routing the per-filetest panic isolation up into `gno test`'s STAGE 1, otherwise the panic at [`filetest.go:51-53`](https://github.com/gnolang/gno/blob/050597de7/gnovm/pkg/test/filetest.go#L51-L53) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/pkg/test/filetest.go#L51-L53) eventually fires when the filetest reaches `runFiletest`.
-
-  **Repro:**
+  **Repro (showing the divergence today; gone after the revert):**
 
   ```bash
   # from a local clone of gnolang/gno:
@@ -84,7 +80,7 @@ None.
   test exit: 1
   ```
 
-  `lint exit: 0` + `test exit: 1` on the same input is the bug surface.
+  `lint exit: 0` + `test exit: 1` on the same synthetic input. Post-revert: both exit 1, the directive is rejected uniformly.
   </details>
 
 - **[stale filetest at package root collides on next read]** [`memfile.go:241-257`](https://github.com/gnolang/gno/blob/050597de7/tm2/pkg/std/memfile.go#L241-L257) · [↗](../../../../../.worktrees/gno-review-5704/tm2/pkg/std/memfile.go#L241-L257) — `WriteTo` always creates the file under `filetests/` but never deletes a stale copy at the package root. If a user runs `gno lint` on a package containing a leftover `z_old_filetest.gno` at root (older than #5104), the next `ReadMemPackage` returns `"cannot add %q in filetests: same filename in package dir"` from [`mempackage.go:745-746`](https://github.com/gnolang/gno/blob/050597de7/gnovm/pkg/gnolang/mempackage.go#L745-L746) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/pkg/gnolang/mempackage.go#L745-L746).
@@ -111,9 +107,8 @@ None.
 
 ## Suggestions
 
-- [`lint.go:268`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/lint.go#L268) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/lint.go#L268) — apply the same `excludeExpectedTypeCheckErrors` filter at [`test.go:312`](https://github.com/gnolang/gno/blob/050597de7/gnovm/cmd/gno/test.go#L312) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/cmd/gno/test.go#L312) so `gno lint` and `gno test` agree on user filetests with `// TypeCheckError:`. Even if the directive can't be validated end-to-end (per [`filetest.go:51-53`](https://github.com/gnolang/gno/blob/050597de7/gnovm/pkg/test/filetest.go#L51-L53) · [↗](../../../../../.worktrees/gno-review-5704/gnovm/pkg/test/filetest.go#L51-L53)'s panic), at least the two commands produce the same exit code.
+None beyond the warnings.
 
 ## Questions for Author
 
-- Is `// TypeCheckError:` intentionally a gnovm-internal-only directive, or do you want to extend the support to user packages in a follow-up? If internal-only, gating `excludeExpectedTypeCheckErrors` on `mpkg.Type == MPFiletests` would make the constraint explicit at the lint level too.
 - For the stale-filetest collision: would you rather have `WriteTo` aggressively clean up root-level `_filetest.gno` files (risky — silent file deletion), or surface a warning at `ReadMemPackage` time pointing to the new layout? The current behavior — silent success on the first lint, dup-filename error on the second — is the worst of both worlds for unmigrated repos.
