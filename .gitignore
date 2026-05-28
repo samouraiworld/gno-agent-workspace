@@ -11,5 +11,8 @@ issue-history.jsonl
 # Worktrees
 .worktrees/
 
+# Audit caches (upstream fixture files fetched on demand)
+audits/**/.cache/
+
 # Personal Claude Code settings
 .claude/settings.local.json
