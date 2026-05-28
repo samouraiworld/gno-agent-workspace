@@ -1,5 +1,12 @@
 # Stdlib Test Gap — `net/url`
 
+> **Version baseline caveat**: this audit used Go 1.25.9 as the
+> upstream baseline. Per `gno/docs/resources/go-gno-compatibility.md`,
+> **Gno is modeled after Go 1.17** with selective forward cherry-picks.
+> The `defaultMaxParams` DOS guard noted below was added in Go 1.25,
+> so "missing" is a snapshot lag, not a regression.
+> See [`../bugs.md`](../bugs.md) for reclassification.
+
 Findings from porting upstream Go 1.25.9 `net/url` tests into Gno's
 `gnovm/stdlibs/net/url/` and running them under `TestStdlibs/net-url`.
 

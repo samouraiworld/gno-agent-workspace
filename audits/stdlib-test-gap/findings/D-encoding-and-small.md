@@ -1,5 +1,13 @@
 # Stdlib Test Gap — Findings (Wave D: encoding + small packages)
 
+> **Version baseline caveat**: this audit used Go 1.25.9 as the
+> upstream baseline. Per `gno/docs/resources/go-gno-compatibility.md`,
+> **Gno is modeled after Go 1.17** with selective forward cherry-picks.
+> The `regexp/syntax.String()` finding below matches Go 1.17 exactly —
+> upstream rewrote `writeRegexp` in Go 1.20+ (CL 444817). It's a
+> port-forward request, not a bug in Gno's port.
+> See [`../bugs.md`](../bugs.md) for reclassification.
+
 Bugs and divergences uncovered by porting Go 1.25.9 stdlib tests into the
 matching Gno packages and running them via `TestStdlibs`.
 

@@ -1,17 +1,24 @@
-# [TITLE] regexp/syntax: (*Regexp).String() does not merge adjacent same-flag subexpressions
+# [TITLE] regexp/syntax: (*Regexp).String() does not merge adjacent same-flag subexpressions (port forward from Go 1.20+)
 
 ## Description
 
+> **Snapshot context**: Gno is modeled after Go 1.17. The behavior
+> described below matches Go 1.17's `writeRegexp` exactly. Upstream
+> Go rewrote it in 2022 (CL 444817, Go 1.20+) to add a `printFlags`
+> pre-pass that factors shared flags. This is therefore a port-forward
+> request to bring Gno in line with modern Go, **not a bug introduced
+> by Gno's port**.
+
 When a parsed regexp contains adjacent subexpressions that share the same
 `FoldCase` flag — or when a single `(?i:…)` group expands into multiple
-`OpLiteral` children that all carry `FoldCase` — upstream Go's
+`OpLiteral` children that all carry `FoldCase` — modern upstream Go's
 `(*Regexp).String()` factors the common flag out into a single `(?i:…)`
-wrapper around the merged run. Gno's `String()` re-emits the flag on every
-literal / concat element.
+wrapper around the merged run. Gno's `String()` (matching Go 1.17)
+re-emits the flag on every literal / concat element.
 
 The two strings are functionally equivalent (same matching behavior at
 runtime), but they diverge lexically. Any tool, test, or downstream that
-compares a serialized regexp to a golden upstream string will fail.
+compares a serialized regexp to a modern Go golden string will fail.
 
 ## Reproducer
 

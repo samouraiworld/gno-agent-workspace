@@ -1,8 +1,30 @@
 # Stdlib Test Gap Hunt
 
-Find bugs in Gno's stdlib by running Go 1.25.9 tests that haven't been ported.
+Find bugs in Gno's stdlib by running upstream Go tests that haven't been ported.
 
-Gno tracks Go 1.25.9. Many `gno/gnovm/stdlibs/*` packages are direct ports of Go's stdlib with `_test.gno` files derived from upstream `_test.go`. Tests present upstream but missing in Gno are an unaudited surface — if a missing test fails when ported, it points at a real divergence in Gno's port.
+> **Caveat on baseline version.** This audit's Phase 1 fetch used Go 1.25.9
+> as the upstream baseline. **That was wrong.** Per
+> [`gno/docs/resources/go-gno-compatibility.md`](../../gno/docs/resources/go-gno-compatibility.md),
+> **Gno is modeled after Go 1.17**, with selective forward cherry-picks
+> (e.g. `strings.Cut` from 1.18 is in, `strings.Clone` from 1.18 is out).
+>
+> Consequence: many "missing tests" in `report.md` are simply tests for
+> APIs Go added after 1.17, not gaps in Gno's port. Behavioral test
+> failures need to be diffed against `release-branch.go1.17` to decide
+> if they're real bugs or "upstream fixed it after our snapshot".
+> [`bugs.md`](bugs.md) reflects this reclassification:
+> Tier 1 = Gno-specific code bugs (version-independent); Tier 2 =
+> snapshot lag (matches 1.17, upstream fixed later); Tier 3+ = missing
+> post-1.17 APIs.
+>
+> Re-running Phase 1 against `golang/go@release-branch.go1.17` would
+> give a cleaner "real gap" list. Left as follow-up.
+
+Many `gno/gnovm/stdlibs/*` packages are direct ports of Go's stdlib
+with `_test.gno` files derived from upstream `_test.go`. Tests present
+upstream-1.17 but missing in Gno are an unaudited surface — if a
+missing test fails when ported, it points at a real divergence in
+Gno's port.
 
 ## Layout
 

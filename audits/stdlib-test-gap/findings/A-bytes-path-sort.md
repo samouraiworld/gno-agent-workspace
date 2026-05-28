@@ -1,5 +1,12 @@
 # Stdlib Test Gap — Batch A: bytes / path / sort
 
+> **Version baseline caveat**: this audit used Go 1.25.9 as the
+> upstream baseline. Per `gno/docs/resources/go-gno-compatibility.md`,
+> **Gno is modeled after Go 1.17** with selective forward cherry-picks.
+> Many "missing API" entries below are simply post-1.17 APIs (e.g.
+> `bytes.Clone` Go 1.20, `bytes.Lines` Go 1.24, `sort.Find` Go 1.21).
+> See [`../bugs.md`](../bugs.md) for reclassification.
+
 Findings from porting upstream Go 1.25.9 tests for the `bytes`, `path`, and
 `sort` packages into Gno's `gnovm/stdlibs/*` and running them under
 `TestStdlibs`.

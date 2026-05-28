@@ -1,5 +1,10 @@
 # Stdlib Test Gap — Findings (math, math/bits, strconv)
 
+> **Version baseline caveat**: this audit used Go 1.25.9 as the
+> upstream baseline. Per `gno/docs/resources/go-gno-compatibility.md`,
+> **Gno is modeled after Go 1.17** with selective forward cherry-picks.
+> See [`../bugs.md`](../bugs.md) for reclassification.
+
 Bugs found by porting upstream Go 1.25.9 tests into Gno's
 `gnovm/stdlibs/math`, `gnovm/stdlibs/math/bits`, and
 `gnovm/stdlibs/strconv` and running them under `TestStdlibs`.
