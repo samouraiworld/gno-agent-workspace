@@ -98,32 +98,65 @@ for num in "${PR_NUMS[@]}"; do
 done
 wait
 
-# Fetch every open PR with its reviews + comments for the team coverage
-# section below. The GraphQL endpoint occasionally returns 502 / stream
-# cancellations on heavy payloads — retry with smaller limits if needed.
+# Assemble per-PR data (reviews + comments) for the team-coverage section.
+#
+# We do NOT fetch reviews+comments for every PR in one `gh pr list` call: that
+# payload is heavy enough that the GraphQL endpoint 502s once the repo has a few
+# hundred open PRs, and gh then silently returns only the most-recently-updated
+# slice — older-but-open PRs vanish from the triage. Instead:
+#   1. Fetch the LIGHT open-PR list (no reviews/comments) — small payload, returns
+#      all open PRs reliably at a high limit.
+#   2. Fetch reviews+comments PER PR in parallel and merge them in.
+# This scales with open-PR count instead of falling off a payload cliff.
 echo "Fetching open PRs + reviews for team coverage section..." >&2
-fetch_open_prs() {
-  local limit="$1"
-  gh pr list -R "$REPO" --state open --limit "$limit" \
-    --json number,title,url,isDraft,author,createdAt,updatedAt,reviews,comments \
-    2>/dev/null
-}
-OPEN_JSON=""
-for lim in 200 150 100; do
-  OPEN_JSON=$(fetch_open_prs "$lim") || OPEN_JSON=""
-  # Valid JSON array with at least one entry?
-  if [[ -n "$OPEN_JSON" ]] && echo "$OPEN_JSON" | jq -e 'type == "array" and length > 0' >/dev/null 2>&1; then
-    echo "  fetched $(echo "$OPEN_JSON" | jq 'length') PRs (limit=$lim)" >&2
-    break
-  fi
-  echo "  fetch failed at limit=$lim, retrying with smaller payload..." >&2
-  OPEN_JSON=""
-done
-if [[ -z "$OPEN_JSON" ]]; then
-  echo "  WARN: open-PR fetch failed at every limit; team-coverage section will be empty" >&2
-  OPEN_JSON="[]"
+
+# Step 1: light list of every open PR.
+LIGHT_OPEN=$(gh pr list -R "$REPO" --state open --limit 1000 \
+  --json number,title,url,isDraft,author,createdAt,updatedAt 2>/dev/null || echo "")
+if [[ -z "$LIGHT_OPEN" ]] || ! echo "$LIGHT_OPEN" | jq -e 'type == "array"' >/dev/null 2>&1; then
+  echo "  WARN: open-PR list fetch failed; team-coverage section will be empty" >&2
+  LIGHT_OPEN="[]"
 fi
-printf '%s\n' "$OPEN_JSON" > "$TMP/open-prs.json"
+OPEN_TOTAL=$(echo "$LIGHT_OPEN" | jq 'length')
+echo "  repo has $OPEN_TOTAL open PRs" >&2
+
+# Step 2: reviews+comments per PR, fetched in parallel.
+OPEN_REV_DIR="$TMP/open-reviews"
+mkdir -p "$OPEN_REV_DIR"
+fetch_pr_reviews() {
+  local num="$1"
+  gh pr view "$num" -R "$REPO" --json number,reviews,comments \
+    > "$OPEN_REV_DIR/$num.json" 2>/dev/null \
+    || echo "{\"number\":$num,\"reviews\":[],\"comments\":[]}" > "$OPEN_REV_DIR/$num.json"
+}
+mapfile -t OPEN_NUMS < <(echo "$LIGHT_OPEN" | jq -r '.[].number')
+i=0
+for num in "${OPEN_NUMS[@]}"; do
+  fetch_pr_reviews "$num" &
+  i=$((i+1))
+  if (( i % JOBS == 0 )); then wait; fi
+done
+wait
+echo "  fetched reviews+comments for ${#OPEN_NUMS[@]} PRs" >&2
+
+# Merge: attach each PR's reviews+comments onto its light record. PRs whose
+# per-PR fetch failed get empty reviews/comments (→ they show ⏳, never dropped).
+REVS_COMBINED="$TMP/open-reviews-combined.json"
+if compgen -G "$OPEN_REV_DIR/*.json" >/dev/null; then
+  jq -s 'map({(.number|tostring): {reviews: (.reviews // []), comments: (.comments // [])}}) | add' \
+    "$OPEN_REV_DIR"/*.json > "$REVS_COMBINED"
+else
+  echo '{}' > "$REVS_COMBINED"
+fi
+jq --slurpfile rc "$REVS_COMBINED" '
+  ($rc[0] // {}) as $R
+  | map(. + ($R[(.number|tostring)] // {reviews: [], comments: []}))
+' <<<"$LIGHT_OPEN" > "$TMP/open-prs.json"
+
+OPEN_FETCHED=$(jq 'length' "$TMP/open-prs.json")
+if (( OPEN_TOTAL > OPEN_FETCHED )); then
+  echo "  WARN: coverage table is INCOMPLETE — assembled $OPEN_FETCHED of $OPEN_TOTAL open PRs." >&2
+fi
 
 # Build markdown body to a temp file first so we can generate a TOC from its
 # real H2/H3 headings, then assemble header + TOC + body into the final file.
