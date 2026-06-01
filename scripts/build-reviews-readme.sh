@@ -67,15 +67,19 @@ fetch_one() {
     cp "$cache" "$TMP/$num.json"
     return 0
   fi
-  # Cache miss or non-terminal state — fetch live.
-  if gh pr view "$num" -R "$REPO" \
-       --json number,state,title,mergedAt,closedAt,url,isDraft \
-       > "$TMP/$num.json" 2>/dev/null; then
-    # Save to cache so subsequent runs can hit it once the PR reaches a terminal state.
-    cp "$TMP/$num.json" "$cache" 2>/dev/null || true
-  else
-    echo "{\"number\":$num,\"state\":\"UNKNOWN\",\"title\":\"\",\"url\":\"https://github.com/$REPO/pull/$num\"}" > "$TMP/$num.json"
-  fi
+  # Cache miss or non-terminal state — fetch live with retry.
+  local retries=3 delay=1 i
+  for (( i=0; i<retries; i++ )); do
+    if gh pr view "$num" -R "$REPO" \
+         --json number,state,title,mergedAt,closedAt,url,isDraft \
+         > "$TMP/$num.json" 2>/dev/null; then
+      cp "$TMP/$num.json" "$cache" 2>/dev/null || true
+      return 0
+    fi
+    [[ $i -lt $((retries-1)) ]] && sleep "$delay"
+  done
+  echo "  WARN: PR #$num metadata fetch failed after $retries attempts" >&2
+  echo "{\"number\":$num,\"state\":\"UNKNOWN\",\"title\":\"\",\"url\":\"https://github.com/$REPO/pull/$num\"}" > "$TMP/$num.json"
 }
 
 PR_NUMS=()
@@ -125,9 +129,16 @@ OPEN_REV_DIR="$TMP/open-reviews"
 mkdir -p "$OPEN_REV_DIR"
 fetch_pr_reviews() {
   local num="$1"
-  gh pr view "$num" -R "$REPO" --json number,reviews,comments \
-    > "$OPEN_REV_DIR/$num.json" 2>/dev/null \
-    || echo "{\"number\":$num,\"reviews\":[],\"comments\":[]}" > "$OPEN_REV_DIR/$num.json"
+  local retries=3 delay=1 i
+  for (( i=0; i<retries; i++ )); do
+    if gh pr view "$num" -R "$REPO" --json number,reviews,comments \
+         > "$OPEN_REV_DIR/$num.json" 2>/dev/null; then
+      return 0
+    fi
+    [[ $i -lt $((retries-1)) ]] && sleep "$delay"
+  done
+  echo "  WARN: PR #$num reviews/comments fetch failed after $retries attempts" >&2
+  echo "{\"number\":$num,\"reviews\":[],\"comments\":[]}" > "$OPEN_REV_DIR/$num.json"
 }
 mapfile -t OPEN_NUMS < <(echo "$LIGHT_OPEN" | jq -r '.[].number')
 i=0
