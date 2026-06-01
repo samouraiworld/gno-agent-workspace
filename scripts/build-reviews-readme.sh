@@ -355,11 +355,15 @@ BODY="$TMP/body.md"
     safe_title=$(printf '%s' "$title" | sed 's/|/\\|/g')
     # Decode jq's "-" sentinel back to empty.
     [[ "$touchers" == "-" ]] && touchers=""
-    if [[ -n "$touchers" ]]; then
-      coverage="$icons ($touchers)"
-    else
-      coverage="$icons"
-    fi
+    case "$icons" in
+      ⏳) label="no review" ;;
+      💬) label="commented" ;;
+      🟢) label="approved" ;;
+      🔴) label="changes requested" ;;
+      *)   label="" ;;
+    esac
+    coverage="${icons}${label:+ $label}"
+    [[ -n "$touchers" ]] && coverage="$coverage ($touchers)"
     local_rev="${LOCAL_REVIEW[$n]:-}"
     if [[ -n "$local_rev" ]]; then
       local_verdict="${LOCAL_VERDICT[$n]:-⚪ no verdict}"
