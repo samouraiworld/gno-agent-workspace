@@ -286,7 +286,7 @@ BODY="$TMP/body.md"
         . as $pr
         | ($pr.reviews // []) as $revs
         | ($pr.comments // []) as $comments
-        # latest formal review state per team member (APPROVED / CHANGES_REQUESTED / COMMENTED)
+# latest formal review state per team member (APPROVED / CHANGES_REQUESTED / COMMENTED)
         | (
             $T | map(
               . as $m
@@ -296,13 +296,28 @@ BODY="$TMP/body.md"
             )
           ) as $member_states
         | (any($comments[]; .author.login as $a | $T | index($a))) as $any_comment
+        # Collect per-member review state icons (most-urgent first: 🔴💬🟢).
         | (
-            if   ($member_states | index("CHANGES_REQUESTED")) then {icon: "🔴", label: "changes requested", rank: 2}
-            elif ($member_states | index("APPROVED"))          then {icon: "🟢", label: "approved",          rank: 3}
-            elif ($member_states | index("COMMENTED")) or $any_comment then {icon: "💬", label: "commented",  rank: 1}
-            else                                                    {icon: "⏳", label: "no team review",   rank: 0}
+            ($member_states | map(
+              if . == "CHANGES_REQUESTED" then {icon: "🔴", rank: 2}
+              elif . == "COMMENTED"        then {icon: "💬", rank: 1}
+              elif . == "APPROVED"         then {icon: "🟢", rank: 3}
+              else null end
+            ) | map(select(. != null)))
+          ) as $state_entries
+        | (["🔴", "💬", "🟢"] | map(select(. as $i | ($state_entries | map(.icon) | index($i))))) as $review_icons
+        | (
+            if   ($review_icons | length) > 0 then ($review_icons | join(""))
+            elif $any_comment                  then "💬"
+            else                                    "⏳"
             end
-          ) as $state
+          ) as $icons
+        | (
+            if   ($state_entries | length) > 0 then ($state_entries | map(.rank) | min)
+            elif $any_comment                   then 1
+            else                                     0
+            end
+          ) as $rank
         # which team members touched it (review or comment), de-duped.
         # NOTE: emit "-" as sentinel for empty so bash `read -r` (which collapses
         # consecutive tab-separators because tab is whitespace IFS) keeps fields
@@ -311,14 +326,14 @@ BODY="$TMP/body.md"
             (($revs    | map(select(.author.login as $a | $T | index($a)) | .author.login))
              +
              ($comments | map(select(.author.login as $a | $T | index($a)) | .author.login))
-             | unique | join(","))
+            | unique | join(","))
             | if . == "" then "-" else . end
           ) as $touchers
-        | {n: .number, title: .title, author: (.author.login // "?"), url: .url, updatedAt: .updatedAt, icon: $state.icon, label: $state.label, rank: $state.rank, touchers: $touchers}
+        | {n: .number, title: .title, author: (.author.login // "?"), url: .url, updatedAt: .updatedAt, icons: $icons, rank: $rank, touchers: $touchers}
       )
     | sort_by([.rank, ([(- (.updatedAt | fromdateiso8601 // 0))])])
     | .[]
-    | [.rank, .n, .title, .author, .url, .icon, .label, .touchers, .updatedAt] | @tsv
+    | [.rank, .n, .title, .author, .url, .icons, .touchers, .updatedAt] | @tsv
   ' "$TMP/open-prs.json" > "$TMP/coverage-rows.tsv"
 
   # Build the rendered markdown row first, prepend a numeric sort key, then
@@ -326,7 +341,7 @@ BODY="$TMP/body.md"
   # pitfalls of writing/re-reading multi-field tab-separated state and keeps
   # the rendering close to the data that produced it.
   : > "$TMP/coverage-rows-rendered.tsv"
-  while IFS=$'\t' read -r rank n title author url icon label touchers updatedAt; do
+  while IFS=$'\t' read -r rank n title author url icons touchers updatedAt; do
     if [[ -v LOCAL_STALE[$n] && -n "${LOCAL_STALE[$n]}" ]]; then
       stale_rank=0
     else
@@ -341,9 +356,9 @@ BODY="$TMP/body.md"
     # Decode jq's "-" sentinel back to empty.
     [[ "$touchers" == "-" ]] && touchers=""
     if [[ -n "$touchers" ]]; then
-      coverage="$icon $label ($touchers)"
+      coverage="$icons ($touchers)"
     else
-      coverage="$icon $label"
+      coverage="$icons"
     fi
     local_rev="${LOCAL_REVIEW[$n]:-}"
     if [[ -n "$local_rev" ]]; then
@@ -505,7 +520,7 @@ BODY="$TMP/body.md"
   echo
   echo "Status legend: 🟢 open · 🟡 draft · 🟣 merged · 🔴 closed · ⚪ unknown"
   echo
-  echo "Team coverage legend: 🟢 approved · 🔴 changes requested · 💬 commented only · ⏳ no team review"
+  echo "Team coverage: 🟢 approved · 🔴 changes requested · 💬 commented · ⏳ no review. Combined icons show differing per-member states (e.g. 🟢🔴)."
   echo
   echo "AI review verdict (parsed from our AI-generated review files): 🟢 APPROVE · 🔴 REQUEST CHANGES · 🟡 NEEDS DISCUSSION · 🚫 CLOSE (PR should not be merged at all — superseded, abandoned, or wrong direction) · ⚪ no verdict (file exists but verdict line was not parseable). Model used follows after \`·\` (e.g. \`opus-4-7\`; \`claude-\` prefix stripped). A 🕒 \`+N\` suffix means the review is stale — the PR has +N commits since the reviewed sha."
   echo
