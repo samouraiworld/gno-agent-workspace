@@ -1,0 +1,67 @@
+# NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 5737 -R gnolang/gno && git checkout 4c57c37e4
+# curl -fsSL -o gno.land/pkg/integration/testdata/nilmethod_persist_nondeterminism.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5737-defer-nil-receiver-panic/1-4c57c37e4/tests/nilmethod_persist_nondeterminism.txtar
+# go test -run 'TestTestdata/nilmethod_persist_nondeterminism$' ./gno.land/pkg/integration/ -v
+# rm gno.land/pkg/integration/testdata/nilmethod_persist_nondeterminism.txtar
+#
+# PR #5737's nilReceiverPanic flag is UNEXPORTED, so amino drops it when a
+# BoundMethodValue is persisted (realm.go:1182 persists bound methods). A value
+# method bound to a nil pointer via an interface (G = i.M) therefore behaves
+# differently depending on the persistence boundary:
+#   - called in the SAME tx as the bind  -> panics (flag intact, matches Go)
+#   - called in a LATER tx (after reload) -> runs on a zero receiver, no panic
+# This is consensus-relevant nondeterminism AND a divergence from Go (which
+# always panics). The test PASSES on the PR, documenting the broken behavior;
+# under correct semantics CallLater would also panic and this script would fail.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/myrealm -pkgpath gno.land/r/test/myrealm -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# Same tx as the bind: in-memory flag intact -> nil deref panic (matches Go).
+! gnokey maketx call -pkgpath gno.land/r/test/myrealm -func BindAndCall -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stderr 'nil pointer dereference'
+
+# Persist G = i.M (commit; amino drops the unexported flag).
+gnokey maketx call -pkgpath gno.land/r/test/myrealm -func Bind -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# Later tx: G reloaded from store, flag gone -> method runs on zero receiver.
+gnokey maketx call -pkgpath gno.land/r/test/myrealm -func CallLater -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout ZERO-RECEIVER   # IS:     bug — same G, no panic after persistence
+# !  ... CallLater ...; stderr 'nil pointer dereference'  # SHOULD: panic like the same-tx call
+stdout OK!
+
+-- myrealm/gnomod.toml --
+module = "gno.land/r/test/myrealm"
+gno = "0.9"
+
+-- myrealm/myrealm.gno --
+package myrealm
+
+type I interface{ M() string }
+
+type T struct{ x int }
+
+func (T) M() string { return "ZERO-RECEIVER" }
+
+var pt *T
+var G func() string
+
+func BindAndCall(cur realm) string {
+	var i I = pt
+	G = i.M
+	return G() // same tx: flag intact -> panics, matches Go
+}
+
+func Bind(cur realm) {
+	var i I = pt
+	G = i.M
+}
+
+func CallLater(cur realm) string {
+	return G() // later tx: G reloaded, flag dropped -> no panic
+}
