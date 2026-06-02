@@ -185,7 +185,7 @@ BODY="$TMP/body.md"
 
   echo "## Team coverage on open PRs ($team_count)"
   echo
-  echo "Triage view. Samourai handles: $(echo "$TEAM_MEMBERS" | sed 's/ /, /g'). Sorted with ⏳ first, then 💬, then 🔴, then 🟢; ties broken by most-recently-updated."
+  echo "Triage view. Samourai handles: $(echo "$TEAM_MEMBERS" | sed 's/ /, /g'). Sorted with ⏳ first, then 💬, then 🔴, then 🟢; ties broken by PR number (highest first)."
   echo
   echo "| PR | Title | Author | Team coverage | AI review |"
   echo "|---:|:------|:-------|:--------------|:-------------|"
@@ -275,10 +275,8 @@ BODY="$TMP/body.md"
     [[ -n "$models" ]] && LOCAL_MODELS[$n]="$models"
   done < <(find reviews/pr -mindepth 2 -maxdepth 2 -type d | sort)
 
-  # jq computes one TSV row per non-draft open PR. The bash side then prepends
-  # a "stale rank" column from the LOCAL_STALE map (stale → 0, fresh → 1), so
-  # within each tier the stale reviews bubble up. Final sort key: tier rank,
-  # stale rank, then most-recently-updated.
+  # jq computes one TSV row per non-draft open PR. The bash side then builds a
+  # sort key from it. Final sort key: tier rank, then PR number (highest first).
   jq -r --arg team "$TEAM_MEMBERS" '
     ($team | split(" ")) as $T
     | map(select(.isDraft | not))
@@ -331,7 +329,7 @@ BODY="$TMP/body.md"
           ) as $touchers
         | {n: .number, title: .title, author: (.author.login // "?"), url: .url, updatedAt: .updatedAt, icons: $icons, rank: $rank, touchers: $touchers}
       )
-    | sort_by([.rank, ([(- (.updatedAt | fromdateiso8601 // 0))])])
+    | sort_by([.rank, (- .n)])
     | .[]
     | [.rank, .n, .title, .author, .url, .icons, .touchers, .updatedAt] | @tsv
   ' "$TMP/open-prs.json" > "$TMP/coverage-rows.tsv"
@@ -342,15 +340,12 @@ BODY="$TMP/body.md"
   # the rendering close to the data that produced it.
   : > "$TMP/coverage-rows-rendered.tsv"
   while IFS=$'\t' read -r rank n title author url icons touchers updatedAt; do
-    if [[ -v LOCAL_STALE[$n] && -n "${LOCAL_STALE[$n]}" ]]; then
-      stale_rank=0
-    else
-      stale_rank=1
-    fi
-    upd_epoch=$(date -d "$updatedAt" +%s 2>/dev/null || echo 0)
-    upd_neg=$((0 - upd_epoch))
-    # Sort key: zero-padded so plain string sort matches numeric ordering
-    sort_key=$(printf '%01d|%01d|%015d' "$rank" "$stale_rank" "$upd_neg")
+    # PR number, descending: subtract from a fixed ceiling so the higher number
+    # sorts first under a plain ascending string sort. Zero-padded so string
+    # ordering matches numeric ordering.
+    num_desc=$((9999999 - n))
+    # Sort key: tier rank, then PR number (highest first).
+    sort_key=$(printf '%01d|%07d' "$rank" "$num_desc")
 
     safe_title=$(printf '%s' "$title" | sed 's/|/\\|/g')
     # Decode jq's "-" sentinel back to empty.
