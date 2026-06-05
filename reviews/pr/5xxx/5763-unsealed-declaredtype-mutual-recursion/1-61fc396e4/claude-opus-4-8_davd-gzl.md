@@ -41,7 +41,9 @@ Before: the `*NameExpr` branch of `tryPredefine` looked up the RHS name's slot, 
 
   **Shape:** `type T1 struct{ Next *T2; Val int }` declared first, then `type T2 T1`. Master panics `"should not happen"` at predefine. PR removes that panic; the program now reaches TRANS_LEAVE for `T2`, where `tmp := evalStaticType(store, last, n.Type)` evaluates the `T1` name while `T1`'s own struct body has not yet been copied back into its predefined `*DeclaredType` pointer. `declareWith(..., tmp)` then captures `Base: baseOf(tmp)` = the empty struct, seals it, and writes the empty `T2` back.
 
-  **What you see:** `go test -run 'TestFiles/decltype_derived_empty_base.gno$' ...` panics `main/decltype_derived_empty_base.gno:43:15-18: struct type struct{} has no field Val`. The whole underlying struct is empty, not just one field (a second probe with `Val int; Tag string` reports `missing field Val in main.T2`).
+  **What you see:** constructing `&T2{Val: 9}` and reading the field panics `struct type struct{} has no field Val`; the whole underlying struct is empty, not just one field. The filetest below asserts the correct output (`9`, `ok`), so it *fails* on `61fc396e4` with that panic and will pass once `T2`'s base resolves to `T1`'s struct. The error string is byte-stable across runs (verified 3×). Copy-paste reproducer in the **Repro** block below.
+
+  The corruption is in `T2` itself, not in the extra `Val` field: even the PR's own `decltype_mutual.gno` shape (`type T1 struct{ Next *T2 }; type T2 T1`, no data field) panics `missing field Next in main.T2` the moment a field is read through a `T2` value rather than a `T1`. The PR's test escapes this only because it declares `var t T1` (reads `.Next` through `T1`) and never sets a field on the `&T2{}` literal.
 
   **Why it matters:** the PR's stated goal is to make mutual type-decl recursion work. For this shape it does not work — it produces a structurally wrong named type that the user can construct (`&T2{}`) and store, but cannot use. The corruption is silent at compile time and only surfaces as a confusing runtime panic far from the declaration. This is a worse failure mode than the original loud panic. The PR's own filetest `decltype_mutual.gno` does not catch it because `&T2{}` carries no field and `main` never reads a field on `T2`.
 
@@ -49,6 +51,44 @@ Before: the `*NameExpr` branch of `tryPredefine` looked up the RHS name's slot, 
 
   **Fix:** make `type T2 T1` (T1-first, mutual) finalize `T2`'s base from `T1`'s *completed* struct — e.g. defer `T2`'s base resolution until `T1`'s TRANS_LEAVE has copied its body back, or resolve through the predefined `T1` pointer rather than snapshotting `baseOf(tmp)` while `T1` is empty. If correct resolution is out of scope for this PR, the case must still error cleanly (keep a guard that rejects *empty-base* finalization) rather than silently producing `struct{}`. Repro: [`tests/decltype_derived_empty_base.gno`](tests/decltype_derived_empty_base.gno).
   </details>
+
+### Repro
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 5763 -R gnolang/gno
+cat > gnovm/tests/files/decltype_derived_empty_base.gno <<'EOF'
+package main
+
+type T1 struct {
+	Next *T2
+	Val  int
+}
+
+type T2 T1
+
+func main() {
+	var a T1
+	a.Next = &T2{Val: 9}
+	println(a.Next.Val)
+	println("ok")
+}
+
+// Output:
+// 9
+// ok
+EOF
+go test -v -run 'TestFiles/decltype_derived_empty_base.gno$' ./gnovm/pkg/gnolang/
+rm gnovm/tests/files/decltype_derived_empty_base.gno
+```
+
+```
+--- FAIL: TestFiles/decltype_derived_empty_base.gno (0.00s)
+    files_test.go:111: unexpected panic: main/decltype_derived_empty_base.gno:12:15-18: struct type struct{} has no field Val
+FAIL
+```
+
+The test asserts the correct output (`9`, `ok`), so it FAILS on `61fc396e4` with the panic above — `T2`'s underlying struct is `struct{}`, not `T1`'s — and goes green only once `T2`'s base resolves to `T1`'s struct. Saved with a standalone `/* Run: */` header as [`tests/decltype_derived_empty_base.gno`](tests/decltype_derived_empty_base.gno).
 
 ## Warnings (should fix)
 
@@ -69,7 +109,7 @@ Before: the `*NameExpr` branch of `tryPredefine` looked up the RHS name's slot, 
 - **[empty-base regression has no guard]** [`gnovm/tests/files/`](https://github.com/gnolang/gno/blob/61fc396e4/gnovm/tests/files/) · [↗](../../../../../.worktrees/gno-review-5763/gnovm/tests/files/) — no filetest pins the `type T2 T1` field-access behavior.
   <details><summary>details</summary>
 
-  Until the Critical is resolved, there is no test asserting either the correct output or a clean error for the empty-base shape. Once fixed, add `tests/decltype_derived_empty_base.gno` (currently asserts the bug via `// Error:`) flipped to `// Output:` so the corrected resolution is locked in. Also worth adding: the declaration-order-swapped variant (T2 before T1, which already works) to pin that both orders agree.
+  No filetest in the PR pins the empty-base shape. [`tests/decltype_derived_empty_base.gno`](tests/decltype_derived_empty_base.gno) asserts the correct output (`9`, `ok`); it fails on `61fc396e4` today and locks in the resolution once the Critical is fixed. Also worth adding: the declaration-order-swapped variant (T2 before T1, which already works) to pin that both orders agree.
   </details>
 
 ## Suggestions
