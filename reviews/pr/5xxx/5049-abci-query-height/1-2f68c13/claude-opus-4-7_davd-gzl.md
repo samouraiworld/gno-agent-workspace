@@ -7,6 +7,11 @@ Local worktree: `git -C gno worktree add .worktrees/gno-review-5049 2f68c13`
 
 **Verdict: REQUEST CHANGES** — fix is correct in shape but ships three real problems: error responses still leak `height: 0`, the `gnokey_qpaths.txtar` golden→regex conversion silently loses ordering/completeness checks, and the branch is now `mergeable: CONFLICTING` against master (Jan 2026 base vs current master with store-API + `haltTime` churn).
 
+> **Status update (2026-06-06, post-discussion):** Re-reviewers, read this before re-flagging.
+> - **error path `height: 0` (Critical below): RESOLVED BY DESIGN, will not fix.** Maintainer @mvallenet decided in the PR thread that handlers own their response and baseapp must not modify it ("if the handler wants to answer with height 0 or 42 it should be able to"). Centralizing the height echo (the fix this report recommended) was explicitly rejected; the author reverted to per-handler assignment in `ffa98755` and mvallenet approved on that basis. Height is therefore set per handler on success only; error responses go through `ABCIResponseQueryFromError` and intentionally do not carry it. Do not re-raise as a blocker.
+> - **golden→regex weakens qpaths (Warning below): ACCEPTED, will not fix.** The multi-line per-line `stdout` regex form was kept on author preference (readability) over restoring byte-exact strength. Treat as a Nit at most.
+> - **mergeable CONFLICTING (Warning below): still open.** Master integration outstanding (store-API `Set(gctx, …)`, `app.Simulate` signature, `haltTime`, stdlib `chain/markdown`). The one added artifact since this report is `TestBaseAppQueryInjectsHeight` in `baseapp_test.go`, which closes the "no unit test" gap.
+
 ## Summary
 
 ABCI queries returned `height: 0` because `handleQueryApp` and several handlers (`auth`, `bank`, `params`, `vm`) never propagated the request height into the response. Fix injects `app.LastBlockHeight()` into `req.Height` in `handleQueryApp` when zero (mirroring existing logic in `handleQueryStore` and `handleQueryCustom`), and adds `res.Height = req.Height` in every successful handler return path. Integration test goldens were swapped for per-line regex stdout assertions to side-step a startup race: the genesis txs trigger an immediate "proof block" (height 2), so queries may observe height 1 or 2 depending on timing.
@@ -36,7 +41,7 @@ client -> RequestQuery{H:0}      client -> RequestQuery{H:0}
 
 ## Critical (must fix)
 
-- **[error path still returns height 0]** [`tm2/pkg/sdk/auth/handler.go:62`](https://github.com/gnolang/gno/blob/2f68c13/tm2/pkg/sdk/auth/handler.go#L62) · [↗](../../../../../.worktrees/gno-review-5049/tm2/pkg/sdk/auth/handler.go#L62) — every handler error branch goes through `sdk.ABCIResponseQueryFromError`, which does not set `Height`, so failures still print `height: 0` and the fix is half-applied.
+- **[error path still returns height 0]** — **RESOLVED BY DESIGN (per-handler, mvallenet); see status update above. Do not re-raise.** [`tm2/pkg/sdk/auth/handler.go:62`](https://github.com/gnolang/gno/blob/2f68c13/tm2/pkg/sdk/auth/handler.go#L62) · [↗](../../../../../.worktrees/gno-review-5049/tm2/pkg/sdk/auth/handler.go#L62) — every handler error branch goes through `sdk.ABCIResponseQueryFromError`, which does not set `Height`, so failures still print `height: 0` and the fix is half-applied.
   <details><summary>details</summary>
 
   Look at the helper at [`tm2/pkg/sdk/helpers.go:65-69`](https://github.com/gnolang/gno/blob/2f68c13/tm2/pkg/sdk/helpers.go#L65-L69) · [↗](../../../../../.worktrees/gno-review-5049/tm2/pkg/sdk/helpers.go#L65-L69): `ABCIResponseQueryFromError` sets `res.Error` and `res.Log` and returns — `res.Height` stays zero-valued. Every `res = sdk.ABCIResponseQueryFromError(err)` in `auth`, `bank`, `vm`, `params` (and the `return sdk.ABCIResponseQueryFromError(err)` shortcuts) therefore reverts to the bug the PR is fixing the moment a query errors. From the user's perspective: `gnokey query auth/accounts/g1invalid...` still reports `height: 0` while `gnokey query auth/accounts/g1valid...` reports the real height. That's a worse UX than uniform `height: 0` — debuggers can't tell from the header alone whether they're seeing a stale-state response or an error.
@@ -54,7 +59,7 @@ client -> RequestQuery{H:0}      client -> RequestQuery{H:0}
   Fix: rebase onto current `origin/master`, re-run the integration suite, force-push.
   </details>
 
-- **[golden->regex weakens qpaths assertions]** [`gno.land/pkg/integration/testdata/gnokey_qpaths.txtar:15-85`](https://github.com/gnolang/gno/blob/2f68c13/gno.land/pkg/integration/testdata/gnokey_qpaths.txtar#L15-L85) · [↗](../../../../../.worktrees/gno-review-5049/gno.land/pkg/integration/testdata/gnokey_qpaths.txtar#L15-L85) — converting 8 `cmp stdout *.golden` to per-line `stdout 'regex'` drops ordering and completeness checks.
+- **[golden->regex weakens qpaths assertions]** — **ACCEPTED (author preference for readable multi-line form); Nit at most. See status update above.** [`gno.land/pkg/integration/testdata/gnokey_qpaths.txtar:15-85`](https://github.com/gnolang/gno/blob/2f68c13/gno.land/pkg/integration/testdata/gnokey_qpaths.txtar#L15-L85) · [↗](../../../../../.worktrees/gno-review-5049/gno.land/pkg/integration/testdata/gnokey_qpaths.txtar#L15-L85) — converting 8 `cmp stdout *.golden` to per-line `stdout 'regex'` drops ordering and completeness checks.
   <details><summary>details</summary>
 
   `cmp stdout aaa-qpaths.stdout.golden` asserted byte-for-byte equality: exactly these three paths, in this order, with no extras. The replacement is three independent `stdout 'path'` regexes, each of which matches if the substring appears anywhere — extra paths silently pass, missing paths between asserted ones silently pass, and reordering passes. For a `qpaths` endpoint whose contract is "return paths matching prefix X, sorted, deduplicated" this is meaningful regression in test strength.
@@ -72,7 +77,7 @@ client -> RequestQuery{H:0}      client -> RequestQuery{H:0}
   Fix: add a one-line `// Height == 0 is the documented "latest block" sentinel; see ABCI Query convention.` above each of the three `if req.Height == 0` sites. Or open a follow-up to formalize the sentinel.
   </details>
 
-- **[no unit test for height injection]** [`tm2/pkg/sdk/baseapp_test.go`](https://github.com/gnolang/gno/blob/2f68c13/tm2/pkg/sdk/baseapp_test.go) · [↗](../../../../../.worktrees/gno-review-5049/tm2/pkg/sdk/baseapp_test.go) — `grep -n Height tm2/pkg/sdk/baseapp_test.go` returns zero hits for the new injection logic.
+- **[no unit test for height injection]** — **DONE: `TestBaseAppQueryInjectsHeight` added (covers .app/.store/custom, latest + explicit height).** [`tm2/pkg/sdk/baseapp_test.go`](https://github.com/gnolang/gno/blob/2f68c13/tm2/pkg/sdk/baseapp_test.go) · [↗](../../../../../.worktrees/gno-review-5049/tm2/pkg/sdk/baseapp_test.go) — `grep -n Height tm2/pkg/sdk/baseapp_test.go` returns zero hits for the new injection logic.
   <details><summary>details</summary>
 
   The fix is verified only through the txtar integration suite, which is slow and tests user-visible CLI output rather than the SDK contract. A direct Go test on `BaseApp.Query(abci.RequestQuery{Path: "auth/accounts/...", Height: 0})` asserting `res.Height > 0` would (a) run in milliseconds, (b) protect the contract independent of CLI formatting drift, and (c) cover all three branches (`handleQueryApp` / `handleQueryStore` / `handleQueryCustom`) and the four module handlers. There's an existing test scaffold at [`baseapp_test.go:464`](https://github.com/gnolang/gno/blob/2f68c13/tm2/pkg/sdk/baseapp_test.go#L464) · [↗](../../../../../.worktrees/gno-review-5049/tm2/pkg/sdk/baseapp_test.go#L464) (`testHandler`) you can reuse.
