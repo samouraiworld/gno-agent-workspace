@@ -1,0 +1,54 @@
+# NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 4241 -R gnolang/gno && git checkout ae7f297b4
+# curl -fsSL -o gnovm/cmd/gno/testdata/coverage/cover_excludes_testfiles.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/4xxx/4241-vm-level-coverage/2-ae7f297b4/tests/cover_excludes_testfiles.txtar
+# go test -run 'Test_Scripts/coverage' ./gnovm/cmd/gno/
+# rm gnovm/cmd/gno/testdata/coverage/cover_excludes_testfiles.txtar
+#
+# Analyzer.AnalyzePackage walks pn.Files of the loaded package node, which after
+# RunMemPackageWithOverrides contains BOTH main.gno and main_test.gno (MPFTest
+# keeps regular _test.gno). So the coverage report emits a main_test.gno row and
+# the headline total counts test-file lines in the denominator.
+#
+# Observed at ae7f297b4: report prints a "main_test.gno:" row; the total is
+# 33.3% (2/6) — the denominator includes the one executed test-file line.
+# After a fix that filters _test.gno before AnalyzePackage: no test row, total
+# 20.0% (1/5).
+#
+# Flip: swap the two stderr assertions below to assert the fixed state.
+
+gno test -cover .
+
+stderr 'main_test\.gno'                 # IS:     bug — test file reported as production coverage
+# ! stderr 'main_test\.gno'             # SHOULD: test files excluded from the report
+
+-- main.gno --
+package testcoverage
+
+func Add(a, b int) int { return a + b }
+
+func Subtract(a, b int) int { return a - b }
+
+func Multiply(a, b int) int {
+	result := 0
+	for i := 0; i < b; i++ {
+		result += a
+	}
+	return result
+}
+
+-- main_test.gno --
+package testcoverage
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	if Add(2, 3) != 5 {
+		t.Error("bad")
+	}
+}
+
+-- gnomod.toml --
+module = "gno.land/r/test"
+gno = "0.9"
