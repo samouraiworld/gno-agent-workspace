@@ -420,9 +420,9 @@ BODY="$TMP/body.md"
   nd_count=$(printf '%s' "$nd_lines" | grep -c '^|' || true)
   iter_total=$((rc_count + nd_count))
 
-  echo "## Team-authored open PRs needing iteration ($iter_total)"
+  echo "## Team-authored open PRs needing iteration"
   echo
-  echo "Open non-draft PRs authored by Samourai team members where our AI review flagged 🔴 REQUEST CHANGES or 🟡 NEEDS DISCUSSION. Sorted: 🔴 first ($rc_count), then 🟡 ($nd_count); within each, most-recently-updated first."
+  echo "$iter_total open non-draft PRs authored by Samourai team members where our AI review flagged 🔴 REQUEST CHANGES or 🟡 NEEDS DISCUSSION. Sorted: 🔴 first ($rc_count), then 🟡 ($nd_count); within each, most-recently-updated first."
   echo
   if (( iter_total == 0 )); then
     echo "_None — all team-authored open PRs are clear of AI-flagged issues._"

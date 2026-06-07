@@ -13,7 +13,7 @@ AI review verdict (parsed from our AI-generated review files): 🟢 APPROVE · �
 ## Contents
 
 - [Team coverage on open PRs (164)](#team-coverage-on-open-prs-164)
-- [Team-authored open PRs needing iteration (16)](#team-authored-open-prs-needing-iteration-16)
+- [Team-authored open PRs needing iteration](#team-authored-open-prs-needing-iteration)
 - [PR reviews](#pr-reviews)
   - [`5xxx/` (218)](#5xxx-218)
   - [`4xxx/` (26)](#4xxx-26)
@@ -190,9 +190,9 @@ Triage view. Samourai handles: davd-gzl, omarsy, mvallenet, Villaquiranm, WaDadi
 | [#4951](https://github.com/gnolang/gno/pull/4951) | chore: provide a better out-of-gas error UX | D4ryl00 | 🟢 approved (davd-gzl,mvallenet) | [🟢 APPROVE · opus-4-8](pr/4xxx/4951-better-oog-error-ux/2-75153e206/) |
 | [#4949](https://github.com/gnolang/gno/pull/4949) | WIP fix(gnovm): clean object/mempackage  from overridden private package  | ltzmaxwell | 🟢 approved (mvallenet) | — |
 
-## Team-authored open PRs needing iteration (16)
+## Team-authored open PRs needing iteration
 
-Open non-draft PRs authored by Samourai team members where our AI review flagged 🔴 REQUEST CHANGES or 🟡 NEEDS DISCUSSION. Sorted: 🔴 first (12), then 🟡 (4); within each, most-recently-updated first.
+16 open non-draft PRs authored by Samourai team members where our AI review flagged 🔴 REQUEST CHANGES or 🟡 NEEDS DISCUSSION. Sorted: 🔴 first (12), then 🟡 (4); within each, most-recently-updated first.
 
 | PR | Title | Author | AI review |
 |---:|:------|:-------|:----------|
