@@ -12,6 +12,21 @@ Review one or more PRs from the `gnolang/gno` repository.
 
 **Input:** `$ARGUMENTS` — space-separated PR numbers or GitHub URLs. Process each PR independently.
 
+## Review all
+
+When invoked with "review all" (no explicit PR numbers), build the target set:
+
+```bash
+ls reviews/pr/2xxx reviews/pr/4xxx reviews/pr/5xxx 2>/dev/null | grep -oE '^[0-9]+' | sort -un > /tmp/reviewed.txt
+gh pr list -R gnolang/gno --state open --limit 200 --json number,title,isDraft \
+  --jq '.[] | select(.isDraft==false) | "\(.number)\t\(.title)"' > /tmp/open_nondraft.txt
+while IFS=$'\t' read -r num title; do
+  grep -qx "$num" /tmp/reviewed.txt || printf '%s\t%s\n' "$num" "$title"
+done < /tmp/open_nondraft.txt
+```
+
+From the result, exclude PRs whose title starts with `WIP` and dependabot PRs (`app/dependabot`) unless the user explicitly asks to include them. Confirm the final list with the user before reviewing more than one PR, then process each via the parallel dispatch below.
+
 ## Parallel dispatch (multi-PR runs)
 
 When `$ARGUMENTS` contains more than one PR, dispatch **one Agent per PR** in a single message (multiple `Agent` tool calls in the same response so they run concurrently). Use `subagent_type: general-purpose` and pass each subagent a self-contained prompt of the form:
