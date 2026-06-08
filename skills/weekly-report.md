@@ -43,6 +43,19 @@ A PR can have multiple prefixes, ordered: `⚠️ 🆕 ✅ 📥 🚫 💥`. `�
 | 🚫 | Don't merge | `don't merge` label |
 | 💥 | Merge conflict | `mergeable: "CONFLICTING"` |
 
+## AI review status (report.md only)
+
+Trailing per-PR marker for our own AI review, appended after the author. Namespaced with 🤖 so it never clashes with the core-team ✅.
+
+| Marker | Verdict |
+|--------|---------|
+| 🤖✅ | `APPROVE` (incl. `APPROVE with nits`, `APPROVE with caveats`, etc.) |
+| 🤖❌ | `REQUEST CHANGES` |
+| 🤖💬 | `NEEDS DISCUSSION` |
+| (none) | no review under `reviews/pr/` for that PR |
+
+Derivation per open PR `<n>`: find `reviews/pr/<bucket>/<n>-<slug>/`, take the highest-numbered round dir `<round>-<commit>/`, read the `**Verdict: ...**` line (older reviews omit the `**`) from the `*.md` inside, normalise to the buckets above. Login matching for approvers is case-insensitive (`notJoon` == `NotJoon`).
+
 ## Steps
 
 ### 1. Gather data
@@ -125,6 +138,7 @@ Verified by:
 From DD/MM to DD/MM  **: Samourai crew**
 
 > ⚠️ High priority · 🆕 New this week · ✅ Approved by core team · 📥 Waiting for first review · 🚫 Don't merge · 💥 Merge conflict
+> 🤖 Our AI review: ✅ approve · ❌ request changes · 💬 needs discussion
 
 ## Gno Core (/gnolang/gno)
 
@@ -182,8 +196,9 @@ From DD/MM to DD/MM  **: Samourai crew**
 #### Formatting rules
 
 - Sections separated by `---`. Headers **bold** (not `##`), except `## Gno Core (/gnolang/gno)`.
-- PR lines: `- <emoji prefixes> <title> - <url> - <author> <(context note)>`
+- PR lines: `- <emoji prefixes> <title> - <url> - <author> <(context note)> <🤖 AI marker>`
 - Context notes in parentheses after author. Don't duplicate emoji-derived status.
+- Append the AI review marker (see "AI review status") at the end of the line; omit if no review exists.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - Highlight entries may use free-text formatting.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
