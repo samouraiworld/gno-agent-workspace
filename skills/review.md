@@ -67,6 +67,7 @@ For a single-PR run, skip the dispatch and execute the steps below directly.
 - `.gno` packages: `gno test -v ./path/to/package`
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
 - Record pass/fail per affected package.
+- For PRs touching dev tooling or package loading (`contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`), it may be pertinent to build the tool and boot it against a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`.
 
 ### Review the diff
 
