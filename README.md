@@ -22,7 +22,7 @@ git submodule update --init --recursive
 
 - `gno/` — gnolang/gno submodule
 - `skills/` — AI skill definitions
-- `reviews/pr/` — PR review reports (one directory per PR). See [`reviews/README.md`](reviews/README.md) for a team-coverage triage view of every open upstream PR (approved / changes requested / commented / no team review).
+- `reviews/pr/` — PR review reports (one directory per PR). See [`reviews/README.md`](reviews/README.md) for a team-coverage triage view of every open upstream PR (approved / changes requested / commented / no team review), including a [PRs awaiting team review](reviews/README.md#prs-awaiting-team-review) worklist of everything no team member has reviewed yet.
 - `reports/weekly/` — weekly team status reports
 - `reports/weekly-ux/` — weekly UX status reports
 - `scripts/` — data-gathering and helper scripts
