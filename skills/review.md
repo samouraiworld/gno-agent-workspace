@@ -282,5 +282,6 @@ Rules:
 - End every comment (Body and each inline) with `*(AI Agent)*`.
 - Link to the full review inside an inline comment only when the details block is not enough.
 - **Never post without explicit user approval in the current turn** ("post it", "upload"). The push pre-authorization does NOT cover posting the review.
+- **APPROVE is a human decision.** Before posting `Event: APPROVE`, state the verdict and wait for the user to confirm the approval itself — a generic "post it" covers REQUEST_CHANGES/COMMENT only. Only then run the script with `--approve` (it refuses APPROVE without the flag).
 - Post with `./scripts/post-pr-review.py <number> <path-to-comment.md>`. The script pre-validates anchors against the PR diff (GitHub rejects inline comments on lines outside the diff) and reports invalid ones — move those into Body, or re-run with `--skip-invalid` to post the rest. Use `--dry-run` to print the payload without posting.
 - After a successful post, the script writes the GitHub URLs back into comment.md: a `Posted: <review-url>` line under the title and a `[posted](<comment-url>)` link on each anchor header. Commit and push the updated comment.md.

@@ -175,6 +175,8 @@ def main():
                     help="print the JSON payload without posting")
     ap.add_argument("--skip-invalid", action="store_true",
                     help="drop comments with anchors outside the diff instead of aborting")
+    ap.add_argument("--approve", action="store_true",
+                    help="required to post an APPROVE review (human-confirmed)")
     args = ap.parse_args()
 
     with open(args.comment_md) as f:
@@ -207,6 +209,11 @@ def main():
     if args.dry_run:
         print(json.dumps(payload, indent=2))
         return
+
+    # Approving a PR is a human decision, not an AI one.
+    if event == "APPROVE" and not args.approve:
+        sys.exit("Event APPROVE requires explicit human confirmation: "
+                 "re-run with --approve once the user has approved.")
 
     res = subprocess.run(
         ["gh", "api", f"repos/{args.repo}/pulls/{args.pr}/reviews",
