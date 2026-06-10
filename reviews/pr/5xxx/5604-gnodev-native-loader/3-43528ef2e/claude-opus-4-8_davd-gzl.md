@@ -5,6 +5,8 @@ Author: gfanton | Base: master | Files: 56 | +2595 -1805
 Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `43528ef2e` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5604 43528ef2e`
 
+**TL;DR:** Reworks `gnodev`'s package loading. A new eager "native loader" discovers packages across the workspace plus any extra roots, merges them, and runs one cross-root topological sort so a realm that imports a sibling package in another root deploys in dependency order instead of failing to compile. Also adds package-path sanitization for dirs without a `gnomod.toml`, a `-without-quarantined-examples` flag, and a non-zero exit code on fatal config refusal.
+
 Round 3 re-review. Prior rounds: [round 1](../1-ed10e81f3/claude-sonnet-4-6_davd-gzl.md) (`ed10e81f3`, APPROVE), [round 2](../2-7eb33db9e/claude-opus-4-7_davd-gzl.md) (`7eb33db9e`, REQUEST CHANGES). This round focuses on what changed since `7eb33db9e`: six gnodev commits (`9096ad7d9`, `dffc83111`, `19dc60b29`, `5a4043188`, `36f069443`, `43528ef2e`) plus a master merge.
 
 **Verdict: APPROVE** — Both round-2 Criticals are fixed: `sanitizePathSegment` now emits valid `Re_name` segments and the test table + `TestGuessPath_NoGnoModProducesValidPath` assert the `IsUserlib` round-trip; the previously-red `gnodev / test` CI job is green. The new eager-extra-root Reload (`43528ef2e`) is a real correctness fix with a dedicated test. Remaining open items are the same round-2 Warnings (env-vs-flag GnoRoot, banner to `os.Stderr`, positional-dir stat gap, `stripStdlibs`/`dropMissingDepImports` slice aliasing), all non-blocking for a dev tool. The two red CI checks (`docs`, `scenario-08-five-validators`) are unrelated to this PR.

@@ -138,6 +138,8 @@ Local worktree: `git -C gno worktree add .worktrees/gno-review-<number> <short-s
 
 `<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since` when the PR has advanced. Recomputed by `scripts/build-reviews-readme.sh` on every run.
 
+**TL;DR:** <1-2 plain-language sentences: what this PR is about and what it does, for a reader with zero context. Goal is the reviewer recalling the PR at a glance — no jargon, no findings, no decision. Always include it, even on re-reviews. Distinct from the Summary below, which is denser and carries the bug/feature shape with anchored numbers.>
+
 **Verdict: APPROVE / REQUEST CHANGES / NEEDS DISCUSSION / CLOSE** — <one terse sentence stating decision and the open concerns by name>. Use `CLOSE` only when the PR should not be merged at all — superseded by a merged PR, abandoned for months with no path forward, premise invalidated by a later design decision, or fundamentally wrong direction. Cite the load-bearing reason in the same sentence.
 
 ## Summary
