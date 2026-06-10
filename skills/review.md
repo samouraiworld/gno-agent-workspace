@@ -1,6 +1,6 @@
 ---
 name: gno-review
-description: Quick adversarial review of one or more Gno PRs. Takes space-separated PR numbers, outputs severity-grouped findings per PR.
+description: Quick adversarial review of one or more Gno PRs. Takes space-separated PR numbers, outputs severity-grouped findings per PR plus a comment.md GitHub review draft, posted after user approval.
 argument-hint: <pr-number> [pr-number...]
 ---
 
@@ -31,7 +31,7 @@ From the result, exclude PRs whose title starts with `WIP` and dependabot PRs (`
 
 When `$ARGUMENTS` contains more than one PR, dispatch **one Agent per PR** in a single message (multiple `Agent` tool calls in the same response so they run concurrently). Use `subagent_type: general-purpose` and pass each subagent a self-contained prompt of the form:
 
-> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, regenerate the index. Do not commit or push; the parent will commit and push all reviews at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
+> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, draft `comment.md`. Do not commit, push, regenerate the index, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
 Do **not** sequence the agents (no waiting for one before launching the next). After all subagents return, the parent runs `./scripts/build-reviews-readme.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
 
@@ -94,7 +94,7 @@ Each adversarial test file MUST start with this two-part header, in this order, 
 1. A single-line audit disclaimer: `// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.`
 2. A `/* Run: ... */` multiline block giving the exact commands to reproduce. Use `/* */` (not `//` per line) so the commands paste cleanly into a shell.
 
-**The header MUST be runnable from a gnolang/gno clone alone** — no `.worktrees/`, `$GNO`, or home paths. The `git checkout <hash>` pin is what makes the repro survive a force-push.
+**The header MUST be runnable from a gnolang/gno clone alone** — no `.worktrees/`, `$GNO`, or home paths. The `git checkout <hash>` pin is what makes the repro survive a force-push. (Pin test-file headers only; review and comment.md repro blocks never pin — they target the PR head.)
 
 ```
 /* Run: from a gno checkout:
@@ -234,3 +234,53 @@ Rules:
 - Never push to the gnolang/gno repository.
 - This skill must be run from the workspace root.
 - Once the review is finished (file written, index regenerated, commit done), ask the user before opening the review worktree in VSCode. If they confirm, open it as a new window: `code <workspace-root>/.worktrees/gno-review-<number>`.
+
+## GitHub review draft (`comment.md`)
+
+After the review file is committed and pushed, draft the GitHub review into `comment.md` in the same directory as the review file. The user prunes it by hand before upload: to drop a comment, prefix its header with `SKIP ` (`## SKIP <path>:<line>`) rather than deleting it — the script never posts SKIP sections, and the marker survives regeneration.
+
+Format:
+
+```markdown
+# Review: PR #<number>
+Event: APPROVE | REQUEST_CHANGES | COMMENT
+
+## Body
+<TL;DR + verdict sentence, 3-5 lines max>
+
+Repros run at <short-sha>.
+Full review: <GitHub URL of the pushed review file in gno-agent-workspace>
+
+*(AI Agent)*
+
+## <path>:<line>
+<1-3 sentences: the problem and why it matters>
+
+<details><summary>repro</summary>
+
+<fenced bash repro block + fenced observed-output block>
+</details>
+
+*(AI Agent)*
+```
+
+Rules:
+- `Event:` maps from the verdict: APPROVE → APPROVE, REQUEST CHANGES → REQUEST_CHANGES, NEEDS DISCUSSION and CLOSE → COMMENT.
+- One `## <path>:<line>` section per finding that has a file:line, all severities. Range form: `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Questions for author and findings without a file:line go at the end of Body.
+- Verify every anchor by reading the code at those lines in the worktree before drafting. Review-file line refs may be stale or approximate; the anchor must cover exactly the lines the sentence talks about ("this guard" must point at the guard).
+- Append a local IDE link to each anchor header for one-click navigation while pruning: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space, so the link never reaches GitHub.
+- Inline comments are read by a human in the PR: 1-3 SHORT visible sentences, hard cap — no parenthetical mechanism chains. State what's broken and where; mechanism detail goes in the full review, linked. No headers, no priority tags, no bold. The repro command and its observed output go in a collapsed `<details><summary>repro</summary>` block.
+- State findings as facts: "X hangs forever", not "Did you run X?". No rhetorical questions, no filler openers. A genuine question is one terse line.
+- Repro blocks follow the same rules as review repros: start with `gh pr checkout`, runnable from a fresh gnolang/gno clone, zero local paths, actually run, output included.
+- Repro placement: line-specific repros stay with their inline comment; suite/PR-wide repros (not tied to the anchored lines) go in a `<details>` block in the Body, and the inline comment points to it.
+- Zero duplication between Body and inline comments. The Body is the complete fast resume: every finding in one line, with "inline comment" pointers where detail exists. Inline comments carry only what the Body doesn't: the line-specific mechanism, fix, and repro. A suite/PR-wide finding lives in the Body alone, no inline echo.
+- Update comment.md every time the review or its findings change: new PR commits, a new review round, re-run repros, or format/style rule changes. comment.md must always reflect the current state, never lag behind the review file.
+- When the PR head has advanced past the reviewed commit: diff `<reviewed-sha>..<head>`, drop findings the new commits fix, re-run the remaining repros on the new head, and re-verify every anchor against the current diff before posting.
+- Before regenerating comment.md, read the existing file and preserve every `SKIP` marker whose finding still exists. A user's prune decision is never undone by an update.
+- Pin the repro commit with a "Repros run at <short-sha>." line at the end of the Body by default — the PR may advance after the repros ran. Only when the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on the current head (<short-sha>)").
+- Before drafting, attempt a repro for every Critical and Warning. Word findings without a run proof as observations, never "I ran X".
+- End every comment (Body and each inline) with `*(AI Agent)*`.
+- Link to the full review inside an inline comment only when the details block is not enough.
+- **Never post without explicit user approval in the current turn** ("post it", "upload"). The push pre-authorization does NOT cover posting the review.
+- Post with `./scripts/post-pr-review.py <number> <path-to-comment.md>`. The script pre-validates anchors against the PR diff (GitHub rejects inline comments on lines outside the diff) and reports invalid ones — move those into Body, or re-run with `--skip-invalid` to post the rest. Use `--dry-run` to print the payload without posting.
+- After a successful post, the script writes the GitHub URLs back into comment.md: a `Posted: <review-url>` line under the title and a `[posted](<comment-url>)` link on each anchor header. Commit and push the updated comment.md.
