@@ -384,6 +384,50 @@ BODY="$TMP/body.md"
 
   echo
 
+  # ── PRs awaiting team review ─────────────────────────────────────────────────
+  # Focused worklist: open non-draft PRs no Samourai team member has reviewed yet
+  # (⏳ in the coverage table above). Newest first — coverage-rows.tsv is already
+  # sorted by rank then PR number desc, and every ⏳ row shares rank 0. The AI
+  # review column shows whether an AI pass exists and its verdict, so you can pick
+  # what to pick up first. Reuses the LOCAL_* maps built for the table above.
+  awaiting_rows=""
+  while IFS=$'\t' read -r rank n title author url icons touchers updatedAt; do
+    [[ "$icons" == "⏳" ]] || continue
+    safe_title=$(printf '%s' "$title" | sed 's/|/\\|/g')
+    local_rev="${LOCAL_REVIEW[$n]:-}"
+    if [[ -n "$local_rev" ]]; then
+      local_verdict="${LOCAL_VERDICT[$n]:-⚪ no verdict}"
+      local_models="${LOCAL_MODELS[$n]:-}"
+      stale_tag=""
+      if [[ -v LOCAL_STALE[$n] && -n "${LOCAL_STALE[$n]}" ]]; then
+        stale_tag=" · 🕒 ${LOCAL_STALE[$n]}"
+      fi
+      if [[ -n "$local_models" ]]; then
+        link="[$local_verdict · $local_models${stale_tag}]($local_rev/)"
+      else
+        link="[$local_verdict${stale_tag}]($local_rev/)"
+      fi
+    else
+      link="—"
+    fi
+    awaiting_rows+="| [#$n]($url) | $safe_title | $author | $link |"$'\n'
+  done < "$TMP/coverage-rows.tsv"
+
+  awaiting_count=$(printf '%s' "$awaiting_rows" | grep -c '^|' || true)
+
+  echo "## PRs awaiting team review ($awaiting_count)"
+  echo
+  echo "Open non-draft PRs no Samourai team member has reviewed yet (⏳ in the table above), newest first. This is the worklist to pick from. The AI review column shows whether an AI pass already exists and its verdict."
+  echo
+  if (( awaiting_count == 0 )); then
+    echo "_None — every open PR has at least one team review._"
+  else
+    echo "| PR | Title | Author | AI review |"
+    echo "|---:|:------|:-------|:----------|"
+    printf '%s' "$awaiting_rows"
+  fi
+  echo
+
   # ── Team-authored open PRs needing iteration ────────────────────────────────
   # Focused view: open non-draft PRs authored by a Samourai team member where
   # our AI review verdict is 🔴 REQUEST CHANGES or 🟡 NEEDS DISCUSSION.
