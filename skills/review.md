@@ -31,7 +31,7 @@ Exclude PRs titled `WIP*` and dependabot PRs (`app/dependabot`) unless the user 
 
 When `$ARGUMENTS` contains more than one PR, dispatch one Agent per PR in a single message (multiple `Agent` calls in one response). Use `subagent_type: general-purpose` with this prompt per subagent:
 
-> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, write `overview.html`, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
+> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
 Do not sequence the agents. After all return, the parent runs `./scripts/build-indexes.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
 
@@ -150,7 +150,7 @@ URL: https://github.com/gnolang/gno/pull/<number>
 Author: <author> | Base: <base> | Files: <count> | +<add> -<del>
 Reviewed by: <GitHub username> | Model: <model used> | Commit: <short-sha> (<status>)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-<number> <short-sha>`
-Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/<thousand>xxx/<number>-<short-slug>/overview.html) · [↗](../overview.html)
+Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/<thousand>xxx/<number>-<short-slug>/overview.html) · [↗](../overview.html) <— include this line only when the PR directory has an overview.html>
 
 `<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since`. Recomputed by `scripts/convert-review-links.py` on every run.
 
@@ -250,7 +250,9 @@ Rules:
 
 ## PR overview (`overview.html`)
 
-After the review file, write `overview.html` at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.html`, NOT inside the round directory (it explains the PR, not one commit). Single self-contained HTML file: inline CSS/JS, zero external requests. Light theme only: white/light background, dark text. Generating model in the page title — both the `<title>` tag and the visible subtitle.
+Opt-in only: write or update `overview.html` ONLY when the user explicitly asks for it in the current turn (e.g. "with overview", "create the overview"). Never create it as part of the default review flow.
+
+When requested, write `overview.html` at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.html`, NOT inside the round directory (it explains the PR, not one commit). Single self-contained HTML file: inline CSS/JS, zero external requests. Light theme only: white/light background, dark text. Generating model in the page title — both the `<title>` tag and the visible subtitle.
 
 Scope: explainer only — zero review state. No verdict, no findings, no reviewed sha, no round references. Exactly one pointer to the review: a `Review files` link to the PR directory tree on GitHub (`https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/pr/<thousand>xxx/<number>-<slug>/`).
 
