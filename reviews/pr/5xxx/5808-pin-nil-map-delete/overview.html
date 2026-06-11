@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PR #5808 — nil-map delete semantics</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--ink:#e6e8ec;--mut:#9aa3b2;--acc:#6ea8fe;--ok:#4ec98a;--warn:#e0a458;--bad:#e26d6d;--line:#2a2f3a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:32px 20px 64px}
+  h1{font-size:24px;margin:0 0 4px}
+  h2{font-size:17px;margin:32px 0 10px;color:var(--acc)}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:8px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+  code{background:#0c0e12;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font:13px/1.4 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+  pre{background:#0c0e12;border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;font:13px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+  table{border-collapse:collapse;width:100%;margin:6px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#1d212b;color:var(--mut);font-weight:600}
+  .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)} .mut{color:var(--mut)}
+  .flow{display:flex;flex-direction:column;gap:0;margin:8px 0}
+  .step{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#0c0e12;margin:4px 0}
+  .step .lbl{font:13px "SF Mono",ui-monospace,monospace;color:var(--ink)}
+  .step .note{color:var(--mut);font-size:12.5px;margin-left:auto}
+  .arrow{color:var(--mut);text-align:center;font-size:12px;margin:-1px 0}
+  .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;border:1px solid var(--line);color:var(--mut)}
+  a{color:var(--acc)}
+  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--mut);font-size:12px}
+  .topnav{margin:0 0 18px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="topnav"><a href="../../../../index.html">← All PR reviews</a></nav>
+
+  <h1>delete on a nil map is a no-op</h1>
+  <div class="sub">PR #5808 · gnovm · follow-up to #5196 · tests + ADR only, no runtime change</div>
+
+  <div class="card">
+    The Go spec says: <em>"If the map m is nil or does not contain such an element, <code>delete</code> is a no-op."</em>
+    GnoVM used to crash on the nil case: the <code>delete</code> builtin type-asserted the map value to
+    <code>*MapValue</code> without checking for nil first, so a nil map produced an unrecoverable VM abort
+    (<code>interface conversion: Value is nil, not *MapValue</code>). The one-line guard that fixes it already
+    merged in <strong>#5196</strong>. This PR adds no code: it pins the guard's full behavior with three filetests
+    and records two design decisions in an ADR.
+  </div>
+
+  <h2>The guarded path</h2>
+  <p class="mut" style="font-size:13.5px;margin:0 0 6px">Inside the <code>delete</code> builtin, for a value typed as a map:</p>
+  <div class="flow">
+    <div class="step"><span class="lbl">key := arg1.Deref()</span><span class="note">evaluated once, before the type switch</span></div>
+    <div class="arrow">▼</div>
+    <div class="step"><span class="lbl">if mapValue == nil → return</span><span class="note ok">the guard — no-op, nothing hashed</span></div>
+    <div class="arrow">▼</div>
+    <div class="step"><span class="lbl">mv := value.(*MapValue)</span><span class="note">used to panic here on nil</span></div>
+    <div class="arrow">▼</div>
+    <div class="step"><span class="lbl">if isReadonly(map) → panic</span><span class="note">cross-realm write guard</span></div>
+    <div class="arrow">▼</div>
+    <div class="step"><span class="lbl">hash key, find entry, delete, mark updated</span><span class="note">normal path</span></div>
+  </div>
+  <p class="mut" style="font-size:13px">The guard sits <em>above</em> the readonly check, but the ordering is invisible: a nil value can never
+  be readonly-tainted (taint is computed from a value's object identity, and nil has none), so a nil map would
+  return <code>false</code> from the readonly check anyway.</p>
+
+  <h2>Decision 1 — readonly ordering is unobservable</h2>
+  <table>
+    <tr><th>map</th><th>readonly-tainted?</th><th>delete result</th></tr>
+    <tr><td>nil</td><td class="mut">impossible (nil has no object identity)</td><td class="ok">no-op</td></tr>
+    <tr><td>non-nil, own realm</td><td>no</td><td class="ok">deletes</td></tr>
+    <tr><td>non-nil, external realm</td><td class="warn">yes</td><td class="bad">panics — "cannot delete from readonly tainted map"</td></tr>
+  </table>
+  <p class="mut" style="font-size:13px">Only the non-nil readonly row panics, and it is already covered by <code>zrealm_map1.gno</code> /
+  <code>zrealm_map3.gno</code>. The new <code>zrealm_mapnil.gno</code> pins the nil cross-realm no-op (the top row, via an external realm).</p>
+
+  <h2>Decision 2 — unhashable key on a nil map: gno no-ops, gc panics</h2>
+  <p style="font-size:13.5px;margin:0 0 6px">The one deliberate divergence from the standard Go compiler. With <code>k</code> unhashable
+  (e.g. a slice) and <code>m</code> a nil map:</p>
+  <table>
+    <tr><th>operation</th><th>gc (Go compiler)</th><th>gno</th></tr>
+    <tr><td><code>delete(m, k)</code>, m nil, k unhashable</td><td class="bad">panic: hash of unhashable type</td><td class="ok">no-op</td></tr>
+    <tr><td><code>_ = m[k]</code> (read), m nil, k unhashable</td><td class="bad">panic: hash of unhashable type</td><td class="ok">no-op <span class="pill">pre-existing</span></td></tr>
+    <tr><td><code>delete(m, k)</code>, m nil, k hashable</td><td class="ok">no-op</td><td class="ok">no-op</td></tr>
+  </table>
+  <p class="mut" style="font-size:13px">gno reads the spec literally: nil map ⇒ no-op, full stop, before any key hashing. This also matches
+  what gno already did for nil-map <em>reads</em> with unhashable keys (middle row), so <code>delete</code> is now
+  consistent with reads rather than carving out a new special case. Hashing the key before the nil return would
+  today turn this into an unrecoverable VM abort, since gno's "hash of unhashable type" panic does not go through
+  the recoverable exception path. The ADR notes the revisit condition: if that panic ever becomes recoverable,
+  gc parity here can be reconsidered.</p>
+
+  <h2>What the tests cover</h2>
+  <table>
+    <tr><th>file</th><th>pins</th></tr>
+    <tr><td><code>delete1.gno</code></td><td>nil maps via local var, package var, struct field, function return, conversion literal; plus the unhashable-key no-op</td></tr>
+    <tr><td><code>zrealm_mapnil.gno</code></td><td>nil map obtained from an external realm deletes as a no-op</td></tr>
+    <tr><td><code>map48.gno</code> <span class="mut">(from #5196)</span></td><td>basic nil-map delete; still passing</td></tr>
+  </table>
+
+  <h2>Concepts</h2>
+  <div class="card" style="font-size:13.5px">
+    <p style="margin:0 0 8px"><strong>filetest</strong> — a <code>.gno</code> file under <code>gnovm/tests/files/</code> with an
+    <code>// Output:</code> block. The VM runs it and the printed output must match exactly.</p>
+    <p style="margin:0 0 8px"><strong>readonly taint</strong> — gno's cross-realm write protection. A value owned by another
+    realm is read-only to the currently executing one; mutating it (including <code>delete</code>) panics. Computed from
+    the value's on-chain object identity, so values with no identity (like a nil map) are never tainted.</p>
+    <p style="margin:0"><strong>ADR</strong> — architecture decision record. A short doc capturing what an AI-assisted change
+    decided and why, so the reasoning isn't re-litigated later.</p>
+  </div>
+
+  <footer>
+    AI-generated artifact. Source: <a href="https://github.com/gnolang/gno/pull/5808">gnolang/gno#5808</a> ·
+    Review files: <a href="https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/pr/5xxx/5808-pin-nil-map-delete/">gno-agent-workspace</a>
+    <br><a href="../../../../index.html">← Back to all PR reviews</a>
+  </footer>
+
+</div>
+</body>
+</html>
