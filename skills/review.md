@@ -262,6 +262,8 @@ After writing the review file, write `overview.html` at the PR directory root �
 
 **Scope: explainer only — zero review state.** No verdict, no findings, no reviewed sha, no round references. Review state lives in the review file and comment.md; duplicating it here is forbidden. Include exactly one pointer to it: a `Review files` link to the PR directory on GitHub (`https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/pr/<thousand>xxx/<number>-<slug>/` — a tree URL, so it never goes stale).
 
+Include a back-to-index link to the root `index.html` at both the top and in the footer, using the relative path `../../../../index.html` (resolves from `reviews/pr/<thousand>xxx/<slug>/` to the repo root; works locally and on GitHub Pages).
+
 Content — pick what fits the PR: plain-language explanation of what the PR does and why, request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. When the PR hinges on domain concepts the reader may not have at hand (header semantics, cache rules, consensus internals), add a short Concepts section defining each in one or two plain sentences. If the page mirrors PR logic in JS, verify the mirror against the PR's own test table before committing and state the result on the page. No emoji. End with an "AI-generated artifact" footer linking the PR and the review directory.
 
 Update `overview.html` only when new commits change the PR's own files (behavior, scope, shape). Head bumps where only the base moved, new findings, verdict changes, and new review rounds never touch it.
