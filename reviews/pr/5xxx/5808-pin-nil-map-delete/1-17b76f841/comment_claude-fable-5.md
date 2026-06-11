@@ -118,82 +118,66 @@ gc panics on the same deletes and on the nil-map read (oracle block in the revie
 
 *(AI Agent)*
 
-## gnovm/tests/files/delete1.gno:13-19 [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/delete1.gno#L13)
-No case exercises a key expression with side effects, so "key evaluated exactly once before the nil no-op" is claimed by this PR's verification but pinned nowhere. Fix: add a case `delete(m, key())` where `key()` prints, with a single "key evaluated" line in the Output block.
+## gnovm/tests/files/delete1.gno:13-19 [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/delete1.gno#L13) [posted](https://github.com/gnolang/gno/pull/5808#discussion_r3397412866)
+Two behaviors this PR's verification relies on are pinned nowhere in the suite: the key expression being evaluated exactly once before the nil no-op, and the nil-map read with an unhashable key that the comment below leans on. Fix: extend this file to cover both — paste-ready version below keeps every existing case and adds the two pins.
 
-<details><summary>repro</summary>
+<details><summary>extended delete1.gno (verified passing on 17b76f841)</summary>
 
 ```bash
 # from a local clone of gnolang/gno:
 gh pr checkout 5808 -R gnolang/gno
-cat > gnovm/tests/files/zz5808_key_once.gno <<'EOF'
+cat > gnovm/tests/files/delete1.gno <<'EOF'
 package main
 
-var m map[string]int
+type S struct {
+	M map[string]int
+}
+
+var pkgM map[string]int
+
+func ret() map[string]int { return nil }
 
 func key() string {
 	println("key evaluated")
 	return "k"
 }
 
+// Per the Go spec, delete on a nil map is a no-op.
 func main() {
+	var m map[string]int
+	delete(m, "k")
+	delete(pkgM, "k")
+	var s S
+	delete(s.M, "k")
+	delete(ret(), "k")
+	delete(map[string]int(nil), "k")
+	// The key expression is still evaluated, exactly once, before the no-op.
 	delete(m, key())
-	println("done")
+	// An unhashable interface key on a nil map also no-ops: the Go spec
+	// says delete on a nil map is a no-op (the gc runtime panics here;
+	// gno follows the spec text and its own nil-map read behavior).
+	var mi map[interface{}]int
+	delete(mi, []int{1})
+	// The matching nil-map read with an unhashable key no-ops the same way.
+	v, ok := mi[[]int{2}]
+	println("ok", len(m), len(pkgM), len(s.M), len(mi), v, ok)
 }
 
 // Output:
 // key evaluated
-// done
+// ok 0 0 0 0 0 false
 EOF
-go test ./gnovm/pkg/gnolang/ -run 'TestFiles/^zz5808_key_once\.gno$' -v
-rm gnovm/tests/files/zz5808_key_once.gno
+go test ./gnovm/pkg/gnolang/ -run 'TestFiles/^delete1\.gno$' -v
+git checkout HEAD -- gnovm/tests/files/delete1.gno
 ```
 
 ```
-=== RUN   TestFiles/zz5808_key_once.gno
---- PASS: TestFiles (0.04s)
-    --- PASS: TestFiles/zz5808_key_once.gno (0.00s)
+=== RUN   TestFiles/delete1.gno
+--- PASS: TestFiles (0.14s)
+    --- PASS: TestFiles/delete1.gno (0.00s)
 PASS
-ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	0.057s
+ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	0.155s
 ```
-</details>
-
-*(AI Agent)*
-
-## gnovm/tests/files/delete1.gno:22 [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/delete1.gno#L22)
-The no-op is justified by "gno's own nil-map read behavior" with unhashable keys, and no filetest pins that read behavior either. Fix: pin the read in the same file, e.g. `v := mi[[]int{1}]` on the nil map printing zero values.
-
-<details><summary>repro</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 5808 -R gnolang/gno
-cat > gnovm/tests/files/zz5808_read_unhashable.gno <<'EOF'
-package main
-
-func main() {
-	var mi map[interface{}]int
-	v := mi[[]int{1}]
-	v2, ok := mi[[]int{2}]
-	println("read:", v, v2, ok)
-}
-
-// Output:
-// read: 0 0 false
-EOF
-go test ./gnovm/pkg/gnolang/ -run 'TestFiles/^zz5808_read_unhashable\.gno$' -v
-rm gnovm/tests/files/zz5808_read_unhashable.gno
-```
-
-```
-=== RUN   TestFiles/zz5808_read_unhashable.gno
---- PASS: TestFiles (0.04s)
-    --- PASS: TestFiles/zz5808_read_unhashable.gno (0.00s)
-PASS
-ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	0.047s
-```
-
-gc panics `hash of unhashable type: []int` on the same read (oracle block in the review body).
 </details>
 
 *(AI Agent)*
