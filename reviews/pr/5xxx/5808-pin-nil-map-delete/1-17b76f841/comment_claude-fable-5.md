@@ -3,82 +3,18 @@ Posted: https://github.com/gnolang/gno/pull/5808#pullrequestreview-4478507686
 Event: REQUEST_CHANGES
 
 ## Body
-All five related filetests pass on the current head (17b76f841) and the pinned gc divergence reproduces on go1.26.4; the master merge inside this PR ([bf1467158](https://github.com/gnolang/gno/commit/bf1467158)) staled two of the pinned rationales.
+All five related filetests pass on the current head (17b76f841), but the master merge inside this PR ([bf1467158](https://github.com/gnolang/gno/commit/bf1467158)) staled two of the rationales being pinned (inline comments).
 
-- `cannot delete from readonly tainted map` ([`uverse.go:983-985`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/uverse.go#L983-L985) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/uverse.go#L983-L985)) is asserted by no test on this branch; the string greps only in `uverse.go` itself, since [`zrealm_map1.gno:32-33`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/tests/files/zrealm_map1.gno#L32-L33) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/zrealm_map1.gno#L32-L33) and [`zrealm_map3.gno:46-49`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/tests/files/zrealm_map3.gno#L46-L49) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/zrealm_map3.gno#L46-L49) now pin successful same-realm deletes. Fix: add a pinning test for the readonly-delete panic (fixture map global in [`crossrealm_b`](https://github.com/gnolang/gno/blob/17b76f841/examples/gno.land/r/tests/vm/crossrealm_b/crossrealm.gno#L37) · [↗](../../../../../.worktrees/gno-review-5808/examples/gno.land/r/tests/vm/crossrealm_b/crossrealm.gno#L37) plus a filetest, or a txtar), or state explicitly that the branch is intentionally unpinned.
-
-<details><summary>filetest suite repro</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 5808 -R gnolang/gno
-go test ./gnovm/pkg/gnolang/ -run 'TestFiles/^(delete1|zrealm_mapnil|map48|zrealm_map1|zrealm_map3)\.gno$' -v
-```
-
-```
---- PASS: TestFiles (1.42s)
-    --- PASS: TestFiles/delete1.gno (0.00s)
-    --- PASS: TestFiles/map48.gno (0.00s)
-    --- PASS: TestFiles/zrealm_map1.gno (0.48s)
-    --- PASS: TestFiles/zrealm_map3.gno (0.44s)
-    --- PASS: TestFiles/zrealm_mapnil.gno (0.47s)
-PASS
-ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	1.441s
-```
-</details>
-
-<details><summary>gc oracle (go1.26.4)</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 5808 -R gnolang/gno
-cat > /tmp/gno5808_oracle.go <<'EOF'
-package main
-
-import "fmt"
-
-func try(label string, f func()) {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Printf("%s: panic: %v\n", label, r)
-			return
-		}
-		fmt.Printf("%s: ok\n", label)
-	}()
-	f()
-}
-
-func main() {
-	var m map[string]int
-	var mi map[interface{}]int
-	try("delete nil hashable", func() { delete(m, "k") })
-	try("delete nil unhashable", func() { delete(mi, []int{1}) })
-	try("delete nonnil unhashable", func() { delete(map[interface{}]int{"a": 1}, []int{1}) })
-	try("read nil unhashable", func() { _ = mi[[]int{1}] })
-}
-EOF
-go run /tmp/gno5808_oracle.go
-rm /tmp/gno5808_oracle.go
-```
-
-```
-delete nil hashable: ok
-delete nil unhashable: panic: hash of unhashable type: []int
-delete nonnil unhashable: panic: runtime error: hash of unhashable type []int
-read nil unhashable: panic: hash of unhashable type: []int
-```
-</details>
+- `cannot delete from readonly tainted map` ([`uverse.go:983-985`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/uverse.go#L983-L985) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/uverse.go#L983-L985)) is asserted by no test on this branch: since [#5747](https://github.com/gnolang/gno/commit/310dc2a04), [`zrealm_map1.gno`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/tests/files/zrealm_map1.gno#L32-L33) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/zrealm_map1.gno#L32-L33) and [`zrealm_map3.gno`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/tests/files/zrealm_map3.gno#L46-L49) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/zrealm_map3.gno#L46-L49) pin successful same-realm deletes. Fix: add a test pinning the readonly-delete panic (external-realm map fixture plus a filetest or txtar), or state explicitly that it is intentionally unpinned.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5808-pin-nil-map-delete/1-17b76f841/review_claude-fable-5_davd-gzl.md · [↗](./review_claude-fable-5_davd-gzl.md)
 
 *(AI Agent)*
 
 ## gnovm/tests/files/delete1.gno:20-24 [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/delete1.gno#L20)
-The no-op pinned here for unhashable keys was justified by hashing being an unrecoverable VM abort, but on this head `delete` with a slice key on a non-nil map panics recoverably, so that constraint is gone for the exact case pinned. Fix: re-confirm no-op vs gc parity against the head's machinery (slice keys recoverable since [#5501](https://github.com/gnolang/gno/commit/326832e56); func and map keys still abort via the plain-panic default at [`values.go:1683-1686`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/values.go#L1683-L1686) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/values.go#L1683-L1686)) and extend this comment so the pin reads as a current choice, not a hard constraint.
+The "unrecoverable VM abort" justification for this pin is stale on this head: since [#5501](https://github.com/gnolang/gno/commit/326832e56) (merged in via [bf1467158](https://github.com/gnolang/gno/commit/bf1467158)) a slice-key delete panics recoverably, so gc parity for the exact pinned case is now implementable. Fix: extend this comment so the no-op reads as a current choice, not a hard constraint — it stays defensible, since func and map keys still abort via the plain-panic default at [`values.go:1683-1686`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/values.go#L1683-L1686) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/values.go#L1683-L1686) and nil-map reads no-op the same way.
 
 <details><summary>repro</summary>
-
-At this branch's pre-merge base the same operation was a plain Go panic ([`values.go:1647` at 59df7d868](https://github.com/gnolang/gno/blob/59df7d868/gnovm/pkg/gnolang/values.go#L1647)); on the head it is `panic(&Exception{...})` ([`values.go:1662`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/values.go#L1662) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/values.go#L1662)), which [`runOnce`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/machine.go#L1655-L1663) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/machine.go#L1655-L1663) converts into a panic `recover()` catches:
 
 ```bash
 # from a local clone of gnolang/gno:
@@ -106,22 +42,16 @@ rm gnovm/tests/files/zz5808_recover.gno
 ```
 
 ```
-=== RUN   TestFiles/zz5808_recover.gno
---- PASS: TestFiles (0.05s)
-    --- PASS: TestFiles/zz5808_recover.gno (0.00s)
-PASS
-ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	0.067s
+--- PASS: TestFiles/zz5808_recover.gno (0.00s)
 ```
-
-gc panics on the same deletes and on the nil-map read (oracle block in the review body). The nil-first no-op stays internally consistent with gno's nil-map reads, so keeping it is defensible; only the recorded constraint is gone.
 </details>
 
 *(AI Agent)*
 
 ## gnovm/tests/files/delete1.gno:13-19 [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/delete1.gno#L13) [posted](https://github.com/gnolang/gno/pull/5808#discussion_r3397412866)
-Two behaviors this PR's verification relies on are pinned nowhere in the suite: the key expression being evaluated exactly once before the nil no-op, and the nil-map read with an unhashable key that the comment below leans on. Fix: extend this file to cover both — paste-ready version below keeps every existing case and adds the two pins.
+Two behaviors this PR's verification relies on are pinned nowhere: the key expression being evaluated exactly once before the nil no-op, and the nil-map read with an unhashable key. Fix: extend this file with both — paste-ready version below keeps every existing case.
 
-<details><summary>extended delete1.gno (verified passing on 17b76f841)</summary>
+<details><summary>extended delete1.gno (passes on 17b76f841)</summary>
 
 ```bash
 # from a local clone of gnolang/gno:
@@ -172,19 +102,13 @@ git checkout HEAD -- gnovm/tests/files/delete1.gno
 ```
 
 ```
-=== RUN   TestFiles/delete1.gno
---- PASS: TestFiles (0.14s)
-    --- PASS: TestFiles/delete1.gno (0.00s)
-PASS
-ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	0.155s
+--- PASS: TestFiles/delete1.gno (0.00s)
 ```
 </details>
 
 *(AI Agent)*
 
 ## gnovm/tests/files/zrealm_mapnil.gno:9-11 [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/zrealm_mapnil.gno#L9)
-The comment cites `TypedValue.IsReadonly`, which no longer exists on this branch: [#5747](https://github.com/gnolang/gno/commit/310dc2a04) (merged in via [bf1467158](https://github.com/gnolang/gno/commit/bf1467158)) removed it along with the taint bit. Fix: reword to the current mechanism, e.g. "a nil value is never readonly: Machine.IsReadonly ends in TypedValue.IsReadonlyBy, which returns false for non-object values".
-
-The claim itself still holds through [`Machine.IsReadonly`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/machine.go#L2685) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/machine.go#L2685) → [`TypedValue.IsReadonlyBy`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/ownership.go#L461) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/ownership.go#L461), whose non-object default [returns false](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/ownership.go#L526-L527) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/ownership.go#L526-L527) for a nil `V`.
+The comment cites `TypedValue.IsReadonly`, removed by [#5747](https://github.com/gnolang/gno/commit/310dc2a04); the claim itself still holds via [`IsReadonlyBy`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/ownership.go#L526-L527) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/ownership.go#L526-L527), which returns false for non-object values. Fix: reword to the current mechanism.
 
 *(AI Agent)*
