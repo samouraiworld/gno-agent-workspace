@@ -69,7 +69,10 @@ def collect():
             ):
                 mds = sorted(
                     f for f in rdir.glob("*.md")
-                    if f.name != "comment.md" and "_" in f.name
+                    if f.name != "comment.md"
+                    and not f.name.endswith("_comment.md")
+                    and not f.name.startswith("comment_")
+                    and "_" in f.name
                 )
                 if not mds:
                     continue

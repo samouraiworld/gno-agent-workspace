@@ -1,6 +1,6 @@
 ---
 name: gno-review
-description: Quick adversarial review of one or more Gno PRs. Takes space-separated PR numbers, outputs severity-grouped findings per PR plus a comment.md GitHub review draft, posted after user approval.
+description: Quick adversarial review of one or more Gno PRs. Takes space-separated PR numbers, outputs severity-grouped findings per PR plus a comment_<model>.md GitHub review draft, posted after user approval.
 argument-hint: <pr-number> [pr-number...]
 ---
 
@@ -31,7 +31,7 @@ Exclude PRs titled `WIP*` and dependabot PRs (`app/dependabot`) unless the user 
 
 When `$ARGUMENTS` contains more than one PR, dispatch one Agent per PR in a single message (multiple `Agent` calls in one response). Use `subagent_type: general-purpose` with this prompt per subagent:
 
-> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, write `overview.html`, draft `comment.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
+> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, write `overview.html`, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
 Do not sequence the agents. After all return, the parent runs `./scripts/build-indexes.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
 
@@ -51,7 +51,7 @@ Single-PR runs skip the dispatch and execute the steps directly.
   ```bash
   cd <workspace-root>/.worktrees/gno-review-<number> && gh pr checkout <number> -R gnolang/gno
   ```
-  All file reads and test runs for this PR use this worktree as working directory.
+  All file reads and test runs for this PR use this worktree as working directory. A reused worktree may carry unrelated uncommitted edits — leave them; never stash, clean, or revert them.
 - `gh pr view <number> -R gnolang/gno --json title,body,author,baseRefName,headRefName,files,additions,deletions,commits`
 - `gh pr diff <number> -R gnolang/gno`
 - Read the PR body, all comments (`gh api repos/gnolang/gno/issues/<number>/comments`), and review comments (`gh api repos/gnolang/gno/pulls/<number>/comments`). Note unresolved threads.
@@ -80,7 +80,7 @@ git diff $(git merge-base origin/master <new-sha>) <new-sha> | git patch-id --st
 - `.gno` packages: `gno test -v ./path/to/package`
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
 - Record pass/fail per affected package.
-- PRs changing runtime behavior of a server or tool (`contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`): boot it from the PR worktree and exercise the changed behavior live (gnodev + `curl` for gnoweb; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader/tooling changes). Record what was verified live in the review file. Unit tests alone are not sufficient verification for these PRs.
+- PRs changing runtime behavior of a server or tool (`contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`): boot it from the PR worktree and exercise the changed behavior live (gnodev + `curl` for gnoweb; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader/tooling changes). Record what was verified live in the review file. Unit tests alone are not sufficient verification for these PRs. PRs not touching those dirs (tests/docs-only) skip the live boot.
 
 ### Review the diff
 
@@ -229,11 +229,11 @@ Calibration:
 - Severity is binary. Warnings = a maintainer could plausibly block (correctness, security, decay, missing invariant). Nits = style, polish, optional. Borderline → Nit.
 - Map the full call graph before claiming dead / redundant / unused. Grep every caller.
 - Never flag contribution-policy compliance (AGENTS.md ADR requirement, commit conventions, AI-disclosure rules). Findings cover the code only.
-- Never flag or critique the ADR — its wording, symbols it names, claims it makes. Don't reference "the ADR" or editorialize "as the ADR claims" anywhere; state behavior facts directly against the code by path. If the underlying code is wrong, the finding is about the code.
+- Never flag or critique the ADR — its wording, symbols it names, claims it makes. Don't reference "the ADR" or editorialize "as the ADR claims" anywhere; state behavior facts directly against the code by path. If the underlying code is wrong, the finding is about the code. When a code or test comment repeats a stale claim, anchor the finding on that comment.
 - Gain-gate deferred-scope and extension questions. Deliberately scoped-out items go in Open questions; they reach comment.md only when there's a concrete risk or a decision the author must make in this PR.
 
 Rules:
-- One file per review: `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/<model>_<reviewer>.md` (e.g. `reviews/pr/5xxx/5405-fix-banker-overflow/1-a1b2c3f/claude-sonnet-4_davd-gzl.md`). `<short-slug>`: 3-4 words from the PR title, lowercase, hyphenated. `<n>`: review round number (check existing directories). `<model>`: lowercase, hyphenated. `<reviewer>`: `gh api user --jq '.login'`. Hash = PR branch HEAD. Reviews of the same commit share the directory.
+- One file per review: `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/review_<model>_<reviewer>.md` (e.g. `reviews/pr/5xxx/5405-fix-banker-overflow/1-a1b2c3f/review_claude-sonnet-4_davd-gzl.md`). `<short-slug>`: 3-4 words from the PR title, lowercase, hyphenated. `<n>`: review round number (check existing directories). `<model>`: lowercase, hyphenated. `<reviewer>`: `gh api user --jq '.login'`. Hash = PR branch HEAD. Reviews of the same commit share the directory. Pre-existing rounds may lack the `review_` prefix.
 - Every finding: one-line TL;DR with priority tag, plus a `<details>` block (prose by default, per the format above). The TL;DR stands alone — no "see below", no hedging. Trivial nits may omit `<details>`.
 - The TL;DR plus the details' final "Fix:" sentence is the canonical finding text: comment.md copies it verbatim. Write it to work as a PR inline comment as-is; if it doesn't, rewrite it here first, then copy.
 - Minimal bold. Reserve it for the rare phrase that must stand out.
@@ -262,9 +262,9 @@ Update `overview.html` only when new commits change the PR's own files. Base-onl
 
 After writing or updating any `overview.html`, run `./scripts/build-indexes.sh` (regenerates `reviews/README.md` and the root `index.html`, served at `https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` with the review artifacts.
 
-## GitHub review draft (`comment.md`)
+## GitHub review draft (`comment_<model>.md`)
 
-After the review file is committed and pushed, draft `comment.md` in the same directory. The user prunes by hand before upload: dropping a comment = prefixing its header with `SKIP ` (`## SKIP <path>:<line>`), never deleting — the script skips SKIP sections and the marker survives regeneration.
+After the review file is committed and pushed, draft `comment_<model>.md` in the same directory — same `<model>` as the review file (e.g. `comment_claude-opus-4-8.md`); "comment.md" below means this file. Pre-existing rounds may still use bare `comment.md`. The user prunes by hand before upload: dropping a comment = prefixing its header with `SKIP ` (`## SKIP <path>:<line>`), never deleting — the script skips SKIP sections and the marker survives regeneration.
 
 Format:
 
@@ -295,7 +295,7 @@ Rules:
 - One `## <path>:<line>` section per finding with a file:line, all severities. Ranges: `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Unanchored findings and questions go at the end of Body.
 - Verify every anchor by reading those lines in the worktree before drafting; the anchor must cover exactly the lines the sentence talks about.
 - Append a local IDE link to each anchor header: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space.
-- Inline comment visible text = the finding's TL;DR plus its "Fix:" sentence, verbatim from the review file, priority tag stripped. Hard cap 1-3 visible sentences. No headers, no priority tags, no bold. Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment.md)`); only findings that never reach comment.md keep their repro in the review file.
+- Inline comment visible text = the finding's TL;DR plus its "Fix:" sentence, verbatim from the review file, priority tag stripped. Hard cap 1-3 visible sentences. No headers, no priority tags, no bold. Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
 - State findings as facts ("X hangs forever"), not questions. A genuine question is one terse line, posted only if the answer changes the verdict or the author's next action.
 - Every file or test referenced by name (visible text or repro `<details>`) gets the dual link: GitHub blob URL at the reviewed sha + ` · [↗](<local worktree path>)`. The "Full review:" line gets a relative `↗`. The upload script strips every `[↗](...)` link at post time.
 - Repro blocks: same rules as review repros — start with `gh pr checkout`, runnable from a fresh gnolang/gno clone, zero local paths, actually run, output included.

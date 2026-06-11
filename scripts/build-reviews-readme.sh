@@ -229,8 +229,8 @@ BODY="$TMP/body.md"
     models=""
     for f in "$latest_round"/*.md; do
       [[ -s "$f" ]] || continue
-      # comment.md is the GitHub review draft, not a review file.
-      [[ "$(basename "$f")" == "comment.md" ]] && continue
+      # comment_<model>.md (and legacy comment.md / <model>_comment.md) is the GitHub review draft, not a review file.
+      case "$(basename "$f")" in comment.md|*_comment.md|comment_*.md) continue ;; esac
       # `|| true` because empty or no-match grep is fine under pipefail.
       # First try strict heading/bold patterns; fall back to any "verdict"
       # occurrence if not found (body text using "verdict" loosely is rare).
@@ -244,8 +244,9 @@ BODY="$TMP/body.md"
         "APPROVE")           has_ap=1 ;;
       esac
 
-      # Parse model from filename: <model>_<reviewer>[__<tier>].md
+      # Parse model from filename: review_<model>_<reviewer>[__<tier>].md (legacy: no review_ prefix)
       fname=$(basename "$f" .md)
+      fname="${fname#review_}"
       # strip optional __<tier> suffix, then take everything before the last _
       base_no_tier="${fname%%__*}"
       model="${base_no_tier%_*}"
@@ -519,7 +520,7 @@ BODY="$TMP/body.md"
       # Reviewers: collect <model>_<reviewer>.md basenames across all rounds (unique reviewers)
       # Filename: <model>_<reviewer>[__<tier>].md — strip the optional __<tier>
       # suffix first, then capture the segment after the last underscore.
-      reviewers=$(find "$d" -mindepth 2 -maxdepth 2 -type f -name '*.md' ! -name 'comment.md' \
+      reviewers=$(find "$d" -mindepth 2 -maxdepth 2 -type f -name '*.md' ! -name 'comment.md' ! -name '*_comment.md' ! -name 'comment_*.md' \
         | sed -E 's|__[^/]+\.md$|.md|' \
         | sed -E 's|.*_([^/_]+)\.md$|\1|' \
         | sort -u | paste -sd ', ' -)
