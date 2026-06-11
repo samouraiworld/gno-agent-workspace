@@ -1,4 +1,5 @@
 # Review: PR #5808
+Posted: https://github.com/gnolang/gno/pull/5808#pullrequestreview-4478507686
 Event: REQUEST_CHANGES
 
 ## Body
