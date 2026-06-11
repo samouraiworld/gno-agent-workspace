@@ -28,7 +28,7 @@ The guard's two key properties both hold against the source:
 - **Readonly ordering is unobservable.** A nil value cannot carry readonly taint: [`IsReadonlyBy`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/ownership.go#L461) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/ownership.go#L461) switches on `tv.V`'s concrete type and a nil `V` falls to the `default` case, [`return false`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/ownership.go#L526-L527) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/ownership.go#L526-L527). So moving the nil guard above or below the readonly check is behaviorally identical.
 - **The gc divergence is real.** Verified against go1.26.4: all hashable-key nil-map deletes no-op, and `delete(nilMap, []int{1})` panics `hash of unhashable type: []int` under gc while gno no-ops it (pinned at [`delete1.gno:24`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/tests/files/delete1.gno#L24) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/delete1.gno#L24)). gno's choice is internally consistent: a nil-map *read* with an unhashable key also no-ops in gno but panics under gc, so this PR brings `delete` in line with gno's existing read behavior, not into a new inconsistency.
 
-All three filetests pass, and #5196's `map48.gno` still passes.
+Both new filetests pass, and #5196's [`map48.gno`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/tests/files/map48.gno) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/map48.gno) still passes.
 
 ```bash
 # from a local clone of gnolang/gno:
