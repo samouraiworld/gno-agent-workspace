@@ -2,29 +2,14 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Repros run on the current head (e881032e5).
-
-- `gnoweb_generate` and `main / build` are red: regenerating on CI's PR+master merge ref diffs `controller-copy.js`, `controller-theme.js`, `main.css`. The PR head itself is in sync (repro below); the diff comes from master moving under the committed bundles ([#5615](https://github.com/gnolang/gno/commit/3961a0d09), [#5761](https://github.com/gnolang/gno/commit/bf5b31eda), npm bumps). Fix: merge current master, run `make gnoweb.generate` under `./gno.land`, commit. Side benefit: #5615's origin-prefixing also fixes the state Link buttons' path-only copies, and the `controller-copy.ts` hunks don't overlap.
-
-  <details><summary>repro (head itself is clean)</summary>
-
-  ```bash
-  # from a local clone of gnolang/gno:
-  gh pr checkout 5649 -R gnolang/gno
-  cd gno.land/pkg/gnoweb && (cd frontend && npm ci) && make generate >/dev/null && git status --short -- public/ && echo IN-SYNC
-  ```
-
-  ```
-  IN-SYNC
-  ```
-  </details>
+Repros run on the current head (e881032e5). The red CI checks are just stale bundles vs master, not a code problem.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5649-state-explorer-frontend/2-e881032e5/review_claude-fable-5_davd-gzl.md · [↗](./review_claude-fable-5_davd-gzl.md)
 
 *(AI Agent)*
 
 ## gno.land/pkg/gnoweb/feature/state/page.go:198 [↗](../../../../../.worktrees/gno-review-5649/gno.land/pkg/gnoweb/feature/state/page.go#L198)
-With more than one page of search matches, the pagination footer's First/Prev/Next/Last links drop `search=` and land on the unfiltered realm: `buildPagination` -> `statePageHref` stamps only offset/limit/view, while the htmx path's `HX-Push-Url` (via `canonicalStateURL`) does carry the filter, so the two URL builders disagree and the PR body's "Page links carry &offset=N and survive search" does not hold. Fix: pass the active search query through `buildPagination`/`statePageHref` (mirroring [`canonicalStateURL`](https://github.com/gnolang/gno/blob/e881032e5/gno.land/pkg/gnoweb/feature/state/helpers.go#L141-L154) · [↗](../../../../../.worktrees/gno-review-5649/gno.land/pkg/gnoweb/feature/state/helpers.go#L141)) and extend the search test fixture past 500 matches.
+With more than one page of search matches, the pagination footer's First/Prev/Next/Last links drop `search=` and land on the unfiltered realm: `buildPagination` -> `statePageHref` stamps only offset/limit/view, while the htmx path's `HX-Push-Url` does carry the filter, so the PR body's "Page links carry &offset=N and survive search" does not hold. Fix: pass the active search query through `buildPagination`/`statePageHref` (mirroring [`canonicalStateURL`](https://github.com/gnolang/gno/blob/e881032e5/gno.land/pkg/gnoweb/feature/state/helpers.go#L141-L154) · [↗](../../../../../.worktrees/gno-review-5649/gno.land/pkg/gnoweb/feature/state/helpers.go#L141)) and extend the search test fixture past 500 matches.
 
 <details><summary>repro</summary>
 
@@ -79,7 +64,7 @@ FAIL
 *(AI Agent)*
 
 ## gno.land/pkg/gnoweb/feature/state/handler.go:13 [↗](../../../../../.worktrees/gno-review-5649/gno.land/pkg/gnoweb/feature/state/handler.go#L13)
-The comment justifying `pageTimeout` says "The page path fans out up to ~17 RPC calls", but since the orchestrator removal the page path does 2 (`StatePkg`+`Doc`, or `StateObject`+`StateType`); previews hydrate via separate rate-limited fragment GETs. Fix: update the stale number so the timeout rationale matches the code.
+The comment justifying `pageTimeout` says "The page path fans out up to ~17 RPC calls", but since the orchestrator removal the page path does 2 (`StatePkg`+`Doc`, or `StateObject`+`StateType`); previews hydrate via separate rate-limited fragment GETs. Fix: update the number.
 
 *(AI Agent)*
 
@@ -119,7 +104,7 @@ The comment describes the envelope as `{pkg_path, height, total, offset, limit}`
 *(AI Agent)*
 
 ## gno.land/pkg/gnoweb/feature/state/ratelimit_test.go:1 [↗](../../../../../.worktrees/gno-review-5649/gno.land/pkg/gnoweb/feature/state/ratelimit_test.go#L1)
-Every limiter test and the bench are single-goroutine, so `-race` never observes the mutex contended; live behavior is correct (a 115-request burst returns 101x200 then 429s), but the lock has no concurrent coverage. Fix: add an N-goroutine fan-out (or `b.RunParallel`) hammering one shared limiter under `-race`.
+Every limiter test and the bench are single-goroutine, so `-race` never observes the mutex contended; live behavior is correct (a 115-request burst returns 101x200 then 429s). Fix: add an N-goroutine fan-out (or `b.RunParallel`) hammering one shared limiter under `-race`.
 
 *(AI Agent)*
 
