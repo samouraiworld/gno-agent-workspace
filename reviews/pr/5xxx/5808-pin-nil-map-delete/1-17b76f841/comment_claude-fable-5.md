@@ -1,6 +1,7 @@
 # Review: PR #5808
-Posted: https://github.com/gnolang/gno/pull/5808#pullrequestreview-4478507686
 Event: REQUEST_CHANGES
+
+> Not posted. A prior posting of this review was removed on 2026-06-11; re-post only on explicit request (`./scripts/post-pr-review.py 5808 <this file>`).
 
 ## Body
 All five related filetests pass on the current head (17b76f841), but the master merge inside this PR ([bf1467158](https://github.com/gnolang/gno/commit/bf1467158)) staled two of the rationales being pinned (inline comments).
@@ -48,7 +49,7 @@ rm gnovm/tests/files/zz5808_recover.gno
 
 *(AI Agent)*
 
-## gnovm/tests/files/delete1.gno:13-19 [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/delete1.gno#L13) [posted](https://github.com/gnolang/gno/pull/5808#discussion_r3397412866)
+## gnovm/tests/files/delete1.gno:13-19 [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/delete1.gno#L13)
 Two behaviors this PR's verification relies on are pinned nowhere: the key expression being evaluated exactly once before the nil no-op, and the nil-map read with an unhashable key. Fix: extend this file with both — paste-ready version below keeps every existing case.
 
 <details><summary>extended delete1.gno (passes on 17b76f841)</summary>
