@@ -81,7 +81,7 @@ git diff $(git merge-base origin/master <new-sha>) <new-sha> | git patch-id --st
 - `.gno` packages: `gno test -v ./path/to/package`
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
 - Record pass/fail per affected package.
-- For PRs touching dev tooling or package loading (`contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`), it may be pertinent to build the tool and boot it against a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`.
+- For PRs changing the runtime behavior of a server or tool (`contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`), boot it for real and exercise the changed behavior over actual usage (gnodev from the PR worktree + `curl` for gnoweb changes; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader/tooling changes). Record what was verified live in the review file. Unit tests alone don't count as verification for these PRs.
 
 ### Review the diff
 
