@@ -81,8 +81,6 @@ def collect():
                     "n": int(rdir.name.split("-", 1)[0]),
                     "sha": rdir.name.split("-", 1)[1],
                     "md": review_md.relative_to(ROOT).as_posix(),
-                    "report": (rdir / "report.html").relative_to(ROOT).as_posix()
-                              if (rdir / "report.html").exists() else None,
                     "verdict": vm.group(1).strip() if vm else "",
                     "title": tm.group(1).strip() if tm else "",
                     "dir": rdir,
@@ -95,6 +93,9 @@ def collect():
                 "title": latest["title"] or prdir.name.split("-", 1)[1].replace("-", " "),
                 "verdict": latest["verdict"],
                 "rounds": rounds,
+                # One report per PR, at the PR directory root.
+                "report": (prdir / "report.html").relative_to(ROOT).as_posix()
+                          if (prdir / "report.html").exists() else None,
                 "date": git_date(latest["dir"]),
             })
     prs.sort(key=lambda p: p["number"], reverse=True)
@@ -102,27 +103,23 @@ def collect():
 
 
 def render(prs) -> str:
-    n_reports = sum(1 for p in prs for r in p["rounds"] if r["report"])
+    n_reports = sum(1 for p in prs if p["report"])
     rows = []
     for p in prs:
         e = html.escape
-        round_links = []
-        for r in p["rounds"]:
-            parts = [f'<a href="{REPO_BLOB}/{e(r["md"])}" title="review file">r{r["n"]} {e(r["sha"][:9])}</a>']
-            if r["report"]:
-                parts.append(f'<a class="rep" href="{e(r["report"])}" title="visual report">report</a>')
-            round_links.append(" ".join(parts))
-        latest_report = next((r["report"] for r in reversed(p["rounds"]) if r["report"]), None)
-        report_btn = (f' <a class="btn-rep" href="{e(latest_report)}">Report</a>'
-                      if latest_report else "")
-        # Title opens the report when there is one, the review file otherwise.
-        title_href = e(latest_report) if latest_report else f'{REPO_BLOB}/{e(p["rounds"][-1]["md"])}'
+        round_links = [
+            f'<a href="{REPO_BLOB}/{e(r["md"])}" title="review file">r{r["n"]} {e(r["sha"][:9])}</a>'
+            for r in p["rounds"]
+        ]
+        # Title opens the report when there is one (blue), the review file otherwise.
+        title_href = e(p["report"]) if p["report"] else f'{REPO_BLOB}/{e(p["rounds"][-1]["md"])}'
+        title_class = "has-report" if p["report"] else ""
         vclass = verdict_class(p["verdict"])
         vlabel = p["verdict"] or "—"
         rows.append(f"""
     <tr data-search="{e(str(p['number']))} {e(p['title'].lower())} {e(p['verdict'].lower())}">
-      <td class="pr"><a href="{GNO_PR}/{p['number']}">#{p['number']}</a>{report_btn}</td>
-      <td class="title"><a href="{title_href}">{e(p['title'])}</a></td>
+      <td class="pr"><a href="{GNO_PR}/{p['number']}">#{p['number']}</a></td>
+      <td class="title"><a class="{title_class}" href="{title_href}">{e(p['title'])}</a></td>
       <td><span class="v {vclass}">{e(vlabel)}</span></td>
       <td class="rounds">{' · '.join(round_links)}</td>
       <td class="date">{e(p['date'])}</td>
@@ -157,14 +154,9 @@ def render(prs) -> str:
   td.title {{ max-width: 420px; }}
   td.title a {{ color: inherit; }}
   td.title a:hover {{ color: #2563eb; }}
+  td.title a.has-report {{ color: #2563eb; }}
   td.rounds {{ font-family: var(--mono); font-size: .8rem; white-space: nowrap; }}
-  td.rounds a.rep {{ background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 999px;
-                     padding: 0 .5em; }}
   td.pr {{ white-space: nowrap; }}
-  a.btn-rep {{ display: inline-block; margin-left: .45em; padding: .1em .6em;
-               background: #2563eb; color: #fff; border-radius: 6px;
-               font-size: .75rem; font-weight: 600; }}
-  a.btn-rep:hover {{ background: #1d4ed8; text-decoration: none; }}
   td.date {{ color: var(--muted); white-space: nowrap; }}
   .v {{ display: inline-block; padding: .05em .55em; border-radius: 999px;
         font-size: .75rem; font-weight: 600; white-space: nowrap; }}
