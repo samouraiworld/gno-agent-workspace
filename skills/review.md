@@ -246,9 +246,8 @@ Format:
 Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 ## Body
-<TL;DR + verdict sentence, 3-5 lines max>
+<One-line assessment folding in the repro pin ("verified on the current head (<short-sha>)"), then one terse bullet per finding with "Inline comment" pointers. No PR re-description — the author knows their PR. Questions are one bullet each.>
 
-Repros run at <short-sha>.
 Full review: <GitHub URL of the pushed review file in gno-agent-workspace>
 
 *(AI Agent)*
