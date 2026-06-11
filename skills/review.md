@@ -31,7 +31,7 @@ From the result, exclude PRs whose title starts with `WIP` and dependabot PRs (`
 
 When `$ARGUMENTS` contains more than one PR, dispatch **one Agent per PR** in a single message (multiple `Agent` tool calls in the same response so they run concurrently). Use `subagent_type: general-purpose` and pass each subagent a self-contained prompt of the form:
 
-> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, write `report.html`, draft `comment.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
+> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, write `overview.html`, draft `comment.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
 Do **not** sequence the agents (no waiting for one before launching the next). After all subagents return, the parent runs `./scripts/build-reviews-readme.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
 
@@ -136,6 +136,7 @@ URL: https://github.com/gnolang/gno/pull/<number>
 Author: <author> | Base: <base> | Files: <count> | +<add> -<del>
 Reviewed by: <GitHub username> | Model: <model used> | Commit: <short-sha> (<status>)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-<number> <short-sha>`
+Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/<thousand>xxx/<number>-<short-slug>/overview.html) · [↗](../overview.html)
 
 `<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since` when the PR has advanced. Recomputed by `scripts/build-reviews-readme.sh` on every run.
 
@@ -191,8 +192,6 @@ If a finding was already raised by another reviewer, surface it in the TL;DR bef
   <Rationale.>
   </details>
 
-## Questions for Author
-- <one-line question; collapse short rationale into the same line. Use `<details>` only when context is long enough to wrap.>
 ```
 
 Efficiency rules:
@@ -236,13 +235,13 @@ Rules:
 - This skill must be run from the workspace root.
 - Once the review is finished (file written, index regenerated, commit done), ask the user before opening the review worktree in VSCode. If they confirm, open it as a new window: `code <workspace-root>/.worktrees/gno-review-<number>`.
 
-## Visual report (`report.html`)
+## PR overview (`overview.html`)
 
-After writing the review file, write `report.html` at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/report.html`, NOT inside the round directory; it explains the PR, not one commit. It is a single self-contained HTML file (inline CSS/JS, zero external requests — no fonts, CDNs, analytics) that makes the PR and the findings faster to grasp than prose. Pick what fits the PR: request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. If the page mirrors PR logic in JS, verify the mirror against the PR's own test table before committing and state the result on the page. Illustrate a finding only when a visual genuinely speeds up understanding; otherwise link the review file. No emoji. End with an "AI-generated artifact" footer linking the review file and the PR.
+After writing the review file, write `overview.html` at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.html`, NOT inside the round directory; it explains the PR, not one commit. It is a single self-contained HTML file (inline CSS/JS, zero external requests — no fonts, CDNs, analytics) that makes the PR and the findings faster to grasp than prose. Pick what fits the PR: request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. If the page mirrors PR logic in JS, verify the mirror against the PR's own test table before committing and state the result on the page. Illustrate a finding only when a visual genuinely speeds up understanding; otherwise link the review file. No emoji. End with an "AI-generated artifact" footer linking the review file and the PR.
 
-Update `report.html` in place whenever the review changes (new round, findings added or dropped) — like comment.md, it must always reflect the current review state.
+On every review round, check whether `overview.html` already exists in the PR directory. If it does, read it and rewrite it against the current review state: re-anchor the reviewed sha and every GitHub link to the new head, drop findings the new commits fixed, add new ones, refresh diagrams/tables that no longer match the code. `overview.html` must never lag behind the latest review file or comment.md — a review round is not finished while it shows a previous round's state.
 
-After writing or updating any `report.html`, run `./scripts/build-reports-index.py` to regenerate `index.html` at the repo root — the central page linking every review and report, served via GitHub Pages (`https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` together with the review artifacts.
+After writing or updating any `overview.html`, run `./scripts/build-reports-index.py` to regenerate `index.html` at the repo root — the central page linking every review and overview, served via GitHub Pages (`https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` together with the review artifacts.
 
 ## GitHub review draft (`comment.md`)
 
@@ -274,7 +273,7 @@ Full review: <GitHub URL of the pushed review file in gno-agent-workspace>
 
 Rules:
 - `Event:` maps from the verdict: APPROVE → APPROVE, REQUEST CHANGES → REQUEST_CHANGES, NEEDS DISCUSSION and CLOSE → COMMENT.
-- One `## <path>:<line>` section per finding that has a file:line, all severities. Range form: `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Questions for author and findings without a file:line go at the end of Body.
+- One `## <path>:<line>` section per finding that has a file:line, all severities. Range form: `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Genuine questions and findings without a file:line go at the end of Body.
 - Verify every anchor by reading the code at those lines in the worktree before drafting. Review-file line refs may be stale or approximate; the anchor must cover exactly the lines the sentence talks about ("this guard" must point at the guard).
 - Append a local IDE link to each anchor header for one-click navigation while pruning: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space, so the link never reaches GitHub.
 - Inline comments are read by a human in the PR: 1-3 SHORT visible sentences, hard cap — no parenthetical mechanism chains. State what's broken and where; mechanism detail goes in the full review, linked. No headers, no priority tags, no bold. The repro command and its observed output go in a collapsed `<details><summary>repro</summary>` block.
