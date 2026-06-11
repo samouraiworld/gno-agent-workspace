@@ -4,6 +4,7 @@ URL: https://github.com/gnolang/gno/pull/5794
 Author: gfanton | Base: master | Files: 6 | +305 -13
 Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 4ab275316 (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5794 4ab275316`
+Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/5xxx/5794-markdown-accept-negotiation/overview.html) · [↗](../overview.html)
 
 Round 2. The head advanced from `589d1970d` (round 1) to a clean `master` merge (`4ab275316`); the PR's own six files are byte-identical, only line numbers shifted, so all anchors are re-cut against the new head. CI is green except the gnoweb codeowner gate. Verdict and findings are unchanged from round 1.
 
@@ -13,7 +14,7 @@ Round 2. The head advanced from `589d1970d` (round 1) to a clean `master` merge 
 
 ## Summary
 
-gnoweb learns to return a realm's raw `Render()` markdown (~4.7 KB for the home realm) instead of the full HTML page (~58 KB) when the client's `Accept` header names `text/markdown`. The path is `Accept`-only and never matches `*/*` or `text/*`, so browsers keep getting HTML; agent fetchers get markdown with zero configuration. `Vary: Accept` is set on every GET so shared caches key the two representations separately. Scope is realm pages and static-markdown aliases only; source/help/directory/user views still fall back to HTML.
+gnoweb learns to return a realm's raw `Render()` markdown (~4.7 KB for the home realm) instead of the full HTML page (~58 KB) when the client's `Accept` header names `text/markdown`. The path is `Accept`-only and never matches `*/*` or `text/*`, so browsers keep getting HTML; agent fetchers get markdown with zero configuration. `Vary: Accept` is set on every GET so shared caches key the two representations separately. Scope is realm pages and static-markdown aliases only; source/help/directory/user views still fall back to HTML "for now" — is that follow-up tracked anywhere?
 
 ```
 GET /r/gnoland/home
@@ -39,7 +40,7 @@ None.
 
 ## Nits
 
-- [`negotiate.go:15-32`](https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/negotiate.go#L15-L32) · [↗](../../../../../.worktrees/gno-review-5794/gno.land/pkg/gnoweb/negotiate.go#L15-L32) — markdown wins whenever it appears with q>0, even when another type has a strictly higher q. `text/html;q=0.9, text/markdown;q=0.8` returns markdown ([`negotiate_test.go:31`](https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/negotiate_test.go#L31) · [↗](../../../../../.worktrees/gno-review-5794/gno.land/pkg/gnoweb/negotiate_test.go#L31) locks this in). This is a deliberate shortcut, not strict RFC 9110 §12.5.1 preference ordering. Real-world impact is near-zero (browsers never send `text/markdown`; Claude WebFetch lists it first), so fine to keep — just confirm it's intended. See Questions.
+- [`negotiate.go:15-32`](https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/negotiate.go#L15-L32) · [↗](../../../../../.worktrees/gno-review-5794/gno.land/pkg/gnoweb/negotiate.go#L15-L32) — markdown wins whenever it appears with q>0, even when another type has a strictly higher q. `text/html;q=0.9, text/markdown;q=0.8` returns markdown ([`negotiate_test.go:31`](https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/negotiate_test.go#L31) · [↗](../../../../../.worktrees/gno-review-5794/gno.land/pkg/gnoweb/negotiate_test.go#L31) locks this in). This is a deliberate shortcut, not strict RFC 9110 §12.5.1 preference ordering. Real-world impact is near-zero (browsers never send `text/markdown`; Claude WebFetch lists it first), so fine to keep — just confirm it's a choice, not an oversight.
 - [`negotiate.go:16`](https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/negotiate.go#L16) · [↗](../../../../../.worktrees/gno-review-5794/gno.land/pkg/gnoweb/negotiate.go#L16) — `strings.Split(accept, ",")` splits inside quoted parameter values too, so `text/markdown;x="a,b"` would mis-parse the fragments. Such a value is not realistic in an `Accept` header and `mime.ParseMediaType` rejects the broken halves (`continue`), so behavior degrades safely. Not worth code; noting for completeness.
 
 ## Suggestions
@@ -52,7 +53,3 @@ None.
 
 ## Missing Tests
 None blocking. Coverage is thorough: `negotiate_test.go` tables the header rules (aliases, q-values, `*/*`/`text/*` wildcards, `q=0` refusal, malformed q, the real WebFetch string); `handler_http_test.go` exercises Content-Type, `Vary`, markdown-vs-HTML bodies, the static-alias path, and the no-Render HTML fallback; `view_markdown_test.go` asserts verbatim render. All pass at this head; `go vet ./gno.land/pkg/gnoweb/...` is clean.
-
-## Questions for Author
-- The q-preference shortcut (nit above): is serving markdown even when the client ranks HTML strictly higher (`text/html;q=0.9, text/markdown;q=0.8`) intended, or should the highest-q acceptable type win? Current behavior is fine for the agent use case; just confirming it's a choice, not an oversight.
-- Source/help/directory/user views fall back to HTML "for now" — is the follow-up to extend markdown there tracked anywhere?
