@@ -14,7 +14,7 @@ Round 2. The head advanced from `589d1970d` (round 1) to a clean `master` merge 
 
 ## Summary
 
-gnoweb learns to return a realm's raw `Render()` markdown (~4.7 KB for the home realm) instead of the full HTML page (~58 KB) when the client's `Accept` header names `text/markdown`. The path is `Accept`-only and never matches `*/*` or `text/*`, so browsers keep getting HTML; agent fetchers get markdown with zero configuration. `Vary: Accept` is set on every GET so shared caches key the two representations separately. Scope is realm pages and static-markdown aliases only; source/help/directory/user views still fall back to HTML "for now" — is that follow-up tracked anywhere?
+gnoweb learns to return a realm's raw `Render()` markdown (~4.7 KB for the home realm) instead of the full HTML page (~58 KB) when the client's `Accept` header names `text/markdown`. The path is `Accept`-only and never matches `*/*` or `text/*`, so browsers keep getting HTML; agent fetchers get markdown with zero configuration. `Vary: Accept` is set on every GET so shared caches key the two representations separately. Scope is realm pages and static-markdown aliases only; source/help/directory/user views still fall back to HTML "for now".
 
 ```
 GET /r/gnoland/home
@@ -49,7 +49,12 @@ None.
   <details><summary>details</summary>
 
   This path serves attacker-controllable realm output (`Render()` bytes) verbatim, unlike the HTML path where goldmark safe-mode sanitizes. Practical XSS risk is low: the path is reached only via an explicit `Accept: text/markdown`, which browsers don't send on top-level navigation, and a declared `text/markdown` type is not in the browser HTML-sniffing set. gnoweb sets no `nosniff`/CSP anywhere today (grep: zero hits across the package at this head), so this is pre-existing and not introduced here. Adding `nosniff` on this one write is a cheap belt-and-suspenders for the new raw-bytes surface. Fix: `w.Header().Set("X-Content-Type-Options", "nosniff")` next to the markdown Content-Type set.
+
+  Confirmed behaviorally: an httptest request with `Accept: text/markdown` returns the markdown body with no `X-Content-Type-Options` header at this head.
   </details>
 
+## Open questions
+- Markdown negotiation stops at realm pages and static aliases ("for now"). Of the remaining views, only `$help` (function docs) would plausibly benefit agents; source is `text/plain` territory, directory/user views are navigation chrome. Not posted — low gain, scoping is the author's call; revisit if agents start fetching `$help`.
+
 ## Missing Tests
-None blocking. Coverage is thorough: `negotiate_test.go` tables the header rules (aliases, q-values, `*/*`/`text/*` wildcards, `q=0` refusal, malformed q, the real WebFetch string); `handler_http_test.go` exercises Content-Type, `Vary`, markdown-vs-HTML bodies, the static-alias path, and the no-Render HTML fallback; `view_markdown_test.go` asserts verbatim render. All pass at this head; `go vet ./gno.land/pkg/gnoweb/...` is clean.
+None blocking. Coverage is thorough: [`negotiate_test.go`](https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/negotiate_test.go) · [↗](../../../../../.worktrees/gno-review-5794/gno.land/pkg/gnoweb/negotiate_test.go) tables the header rules (aliases, q-values, `*/*`/`text/*` wildcards, `q=0` refusal, malformed q, the real WebFetch string); [`handler_http_test.go`](https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/handler_http_test.go) · [↗](../../../../../.worktrees/gno-review-5794/gno.land/pkg/gnoweb/handler_http_test.go) exercises Content-Type, `Vary`, markdown-vs-HTML bodies, the static-alias path, and the no-Render HTML fallback; [`view_markdown_test.go`](https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/components/view_markdown_test.go) · [↗](../../../../../.worktrees/gno-review-5794/gno.land/pkg/gnoweb/components/view_markdown_test.go) asserts verbatim render. All pass at this head; `go vet ./gno.land/pkg/gnoweb/...` is clean.

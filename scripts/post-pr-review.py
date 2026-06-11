@@ -41,6 +41,8 @@ import sys
 # "<path>:<line>" or "<path>:<start>-<end>" (the text after "## ").
 # Anything after a space (e.g. a local [↗](...) IDE link) is ignored.
 ANCHOR_RE = re.compile(r"^(\S+):(\d+)(?:-(\d+))?(?:\s.*)?$")
+# Local [↗](...) IDE links, with their optional " · " separator.
+LOCAL_LINK_RE = re.compile(r"\s*(?:·\s*)?\[↗\]\([^)]*\)")
 # Unified-diff hunk header "@@ -a,b +c,d @@" — capture c, the first
 # line number of the hunk on the NEW (RIGHT) side of the diff.
 HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
@@ -65,6 +67,20 @@ def sections(text):
         yield header, "\n".join(lines).strip()
 
 
+def strip_local_links(text):
+    """Remove local [↗](...) IDE links from posted content — comment.md keeps
+    them for one-click navigation while pruning, but their relative targets
+    don't resolve on GitHub. Fence-aware: code blocks are left untouched."""
+    out, in_fence = [], False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+        elif not in_fence:
+            line = LOCAL_LINK_RE.sub("", line)
+        out.append(line)
+    return "\n".join(out)
+
+
 def parse_comment_md(text):
     """Return (event, body, comments) in GitHub reviews-API shape."""
     m = re.search(r"^Event:\s*(\S+)\s*$", text, re.MULTILINE)
@@ -75,6 +91,7 @@ def parse_comment_md(text):
 
     body, comments = None, []
     for header, content in sections(text):
+        content = strip_local_links(content)
         if header == "Body":
             body = content
             continue
