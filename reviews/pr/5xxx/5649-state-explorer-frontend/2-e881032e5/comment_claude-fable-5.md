@@ -2,9 +2,9 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Re-review on the current head (e881032e5): the hardened surfaces verify clean against a live gnodev boot (page/JSON/fragments/search headers and envelopes, rate limiter 101x200 then 429s, bare-colon OID parse, untrusted X-Real-IP ignored), but one functional bug in the search feature (inline comment on page.go) and one CI item need action before merge; jaekwon's `$state`-routing hold gates regardless.
+Repros run on the current head (e881032e5).
 
-- `gnoweb_generate` and `main / build` are red: regenerating on CI's PR+master merge ref diffs `controller-copy.js`, `controller-theme.js`, `main.css`. The PR head itself is in sync (verified below); the diff comes from master moving under the committed bundles ([#5615](https://github.com/gnolang/gno/commit/3961a0d09), [#5761](https://github.com/gnolang/gno/commit/bf5b31eda), npm bumps). Fix: merge current master, run `make gnoweb.generate` under `./gno.land`, commit. Side benefit: #5615's origin-prefixing also fixes the state Link buttons' path-only copies, and the `controller-copy.ts` hunks don't overlap.
+- `gnoweb_generate` and `main / build` are red: regenerating on CI's PR+master merge ref diffs `controller-copy.js`, `controller-theme.js`, `main.css`. The PR head itself is in sync (repro below); the diff comes from master moving under the committed bundles ([#5615](https://github.com/gnolang/gno/commit/3961a0d09), [#5761](https://github.com/gnolang/gno/commit/bf5b31eda), npm bumps). Fix: merge current master, run `make gnoweb.generate` under `./gno.land`, commit. Side benefit: #5615's origin-prefixing also fixes the state Link buttons' path-only copies, and the `controller-copy.ts` hunks don't overlap.
 
   <details><summary>repro (head itself is clean)</summary>
 
@@ -18,8 +18,6 @@ Re-review on the current head (e881032e5): the hardened surfaces verify clean ag
   IN-SYNC
   ```
   </details>
-
-Repros run at e881032e5 (current head).
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5649-state-explorer-frontend/2-e881032e5/review_claude-fable-5_davd-gzl.md · [↗](./review_claude-fable-5_davd-gzl.md)
 
