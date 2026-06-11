@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PR #5794 — gnoweb markdown Accept negotiation — review explainer</title>
+<style>
+  :root {
+    --bg: #fafafa;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --amber: #d97706;
+    --amber-bg: #fffbeb;
+    --blue: #2563eb;
+    --blue-bg: #eff6ff;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1rem 4rem;
+    background: var(--bg); color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 1.45rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.1rem; margin: 2.2rem 0 .6rem; }
+  p { margin: .5rem 0; }
+  code { font-family: var(--mono); font-size: .86em; background: #f1f3f5; padding: .1em .35em; border-radius: 4px; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .meta { color: var(--muted); font-size: .9rem; }
+  .badge {
+    display: inline-block; padding: .15em .6em; border-radius: 999px;
+    font-size: .8rem; font-weight: 600; vertical-align: middle;
+  }
+  .badge.approve { background: var(--green-bg); color: var(--green); border: 1px solid #bbf7d0; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 1rem 1.25rem; margin: .75rem 0;
+  }
+
+  /* flow diagram */
+  .flow { display: flex; flex-direction: column; gap: .4rem; align-items: center; }
+  .flow .node {
+    border: 1px solid var(--line); background: var(--card);
+    border-radius: 8px; padding: .45rem .9rem; text-align: center; font-size: .92rem;
+  }
+  .flow .decision { border-color: var(--blue); background: var(--blue-bg); font-weight: 600; }
+  .flow .arrow { color: var(--muted); font-size: .85rem; line-height: 1; }
+  .branches { display: flex; gap: 1rem; width: 100%; justify-content: center; flex-wrap: wrap; }
+  .branch { flex: 1 1 280px; max-width: 400px; display: flex; flex-direction: column; gap: .4rem; align-items: center; }
+  .branch .label { font-size: .8rem; font-weight: 700; color: var(--muted); letter-spacing: .04em; }
+  .outcome-md { border-color: #86efac; background: var(--green-bg); }
+  .outcome-html { border-color: #d8b4fe; background: #faf5ff; }
+
+  /* simulator */
+  .sim input[type=text] {
+    width: 100%; padding: .55rem .7rem; font-family: var(--mono); font-size: .9rem;
+    border: 1px solid var(--line); border-radius: 8px;
+  }
+  .presets { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0; }
+  .presets button {
+    border: 1px solid var(--line); background: var(--card); border-radius: 999px;
+    padding: .25rem .7rem; font-size: .8rem; cursor: pointer;
+  }
+  .presets button:hover { border-color: var(--blue); color: var(--blue); }
+  .verdict { font-size: 1rem; font-weight: 700; margin: .7rem 0 .3rem; }
+  .verdict .md { color: var(--green); }
+  .verdict .html { color: #7c3aed; }
+  .trace { font-family: var(--mono); font-size: .82rem; margin: 0; padding: 0; list-style: none; }
+  .trace li { padding: .25rem .5rem; border-left: 3px solid var(--line); margin: .25rem 0; background: #fafafa; }
+  .trace li.hit { border-left-color: var(--green); background: var(--green-bg); }
+  .trace li.refused { border-left-color: var(--amber); background: var(--amber-bg); }
+
+  /* table */
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { border: 1px solid var(--line); padding: .4rem .6rem; text-align: left; }
+  th { background: #f3f4f6; }
+  td code { background: none; padding: 0; }
+  tr.quirk td { background: var(--amber-bg); }
+  .md-cell { color: var(--green); font-weight: 600; }
+  .html-cell { color: #7c3aed; font-weight: 600; }
+
+  /* payload bars */
+  .bars { display: flex; flex-direction: column; gap: .6rem; }
+  .bar-row { display: grid; grid-template-columns: 120px 1fr 90px; gap: .8rem; align-items: center; font-size: .88rem; }
+  .bar { height: 18px; border-radius: 4px; }
+  .bar.html { background: #c4b5fd; width: 100%; }
+  .bar.md { background: #86efac; width: 8.1%; min-width: 14px; }
+
+  /* findings */
+  .finding { border-left: 4px solid var(--amber); padding-left: .9rem; margin: 1rem 0; }
+  .finding.q { border-left-color: var(--blue); }
+  .finding h3 { margin: 0 0 .2rem; font-size: .98rem; }
+  .finding .where { font-size: .82rem; color: var(--muted); font-family: var(--mono); }
+
+  footer { margin-top: 3rem; color: var(--muted); font-size: .82rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>PR #5794: serve realm pages as markdown via Accept negotiation <span class="badge approve">APPROVE</span></h1>
+<p class="meta">
+  <a href="https://github.com/gnolang/gno/pull/5794">gnolang/gno#5794</a> by gfanton ·
+  6 files, +305 −13 · reviewed at <code>4ab275316</code> ·
+  <a href="https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5794-markdown-accept-negotiation/2-4ab275316/claude-opus-4-8_davd-gzl.md">full review</a>
+</p>
+
+<div class="card">
+  <p><strong>In one sentence:</strong> when a client's <code>Accept</code> header names <code>text/markdown</code>, gnoweb returns the realm's raw <code>Render()</code> output instead of the full HTML page; everyone else sees no change.</p>
+  <p>A realm's <code>Render()</code> already produces markdown. gnoweb normally pushes it through goldmark and wraps it in the site layout. Agents and scripts want the source, and this PR gives it to them through standard content negotiation: no new endpoint, no query parameter, same URL.</p>
+</div>
+
+<h2>The request flow</h2>
+<div class="card">
+  <div class="flow">
+    <div class="node">GET <code>/r/gnoland/home</code> with header <code>Accept: …</code></div>
+    <div class="arrow">↓</div>
+    <div class="node decision">negotiatesMarkdown(Accept)?</div>
+    <div class="branches">
+      <div class="branch">
+        <div class="label">YES, AND Render() SUCCEEDS</div>
+        <div class="arrow">↓</div>
+        <div class="node">fetchRealm → raw bytes</div>
+        <div class="arrow">↓</div>
+        <div class="node outcome-md"><strong>text/markdown</strong><br>verbatim Render() bytes, no layout, no goldmark<br>(~4.7 KB for the home realm)</div>
+      </div>
+      <div class="branch">
+        <div class="label">NO, OR REALM HAS NO Render()</div>
+        <div class="arrow">↓</div>
+        <div class="node">goldmark render + IndexLayout<br><span class="meta">(or directory / paths-list / error fallback)</span></div>
+        <div class="arrow">↓</div>
+        <div class="node outcome-html"><strong>text/html</strong><br>the usual full page<br>(~58 KB for the home realm)</div>
+      </div>
+    </div>
+  </div>
+  <p class="meta" style="margin-top:.8rem">Every GET also carries <code>Vary: Accept</code>, so a shared cache never serves the markdown body to a browser or vice versa. The markdown branch only exists for realm pages and static-markdown aliases; source, help, directory and user views always render HTML for now.</p>
+</div>
+
+<h2>Try it: the negotiation logic</h2>
+<div class="card sim">
+  <p class="meta">This runs the same decision <code>negotiatesMarkdown()</code> makes in <a href="https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/negotiate.go#L15-L32">negotiate.go:15-32</a>: split the header on commas, and return markdown on the first part that names <code>text/markdown</code> or <code>text/x-markdown</code> without an explicit <code>q=0</code>. Wildcards never match.</p>
+  <input type="text" id="accept" value="text/markdown, text/html, */*" spellcheck="false" autocomplete="off">
+  <div class="presets">
+    <button data-v="text/markdown, text/html, */*">Claude Code WebFetch</button>
+    <button data-v="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8">Browser</button>
+    <button data-v="*/*">curl default</button>
+    <button data-v="text/markdown">explicit markdown</button>
+    <button data-v="text/markdown;q=0">refusal q=0</button>
+    <button data-v="text/html;q=0.9, text/markdown;q=0.8">HTML ranked higher (quirk)</button>
+  </div>
+  <div class="verdict" id="verdict"></div>
+  <ul class="trace" id="trace"></ul>
+</div>
+
+<h2>Decision table</h2>
+<div class="card">
+  <p class="meta">Straight from <a href="https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/negotiate_test.go">negotiate_test.go</a>, which locks all of these in.</p>
+  <table>
+    <tr><th>Accept header</th><th>Response</th><th>Why</th></tr>
+    <tr><td><code>text/markdown</code></td><td class="md-cell">markdown</td><td>named explicitly</td></tr>
+    <tr><td><code>text/x-markdown</code></td><td class="md-cell">markdown</td><td>accepted alias</td></tr>
+    <tr><td><code>TEXT/Markdown</code></td><td class="md-cell">markdown</td><td>case-insensitive</td></tr>
+    <tr><td><code>text/markdown, text/html, */*</code></td><td class="md-cell">markdown</td><td>the WebFetch string</td></tr>
+    <tr><td><code>text/markdown;q=0</code></td><td class="html-cell">HTML</td><td>explicit refusal honored</td></tr>
+    <tr><td><code>text/html,…,*/*;q=0.8</code> (browser)</td><td class="html-cell">HTML</td><td>markdown never named</td></tr>
+    <tr><td><code>*/*</code> or <code>text/*</code></td><td class="html-cell">HTML</td><td>wildcards never match</td></tr>
+    <tr><td><em>(no Accept header)</em></td><td class="html-cell">HTML</td><td>nothing named</td></tr>
+    <tr class="quirk"><td><code>text/html;q=0.9, text/markdown;q=0.8</code></td><td class="md-cell">markdown</td><td>quirk: any q&gt;0 wins, ranking ignored (finding below)</td></tr>
+  </table>
+</div>
+
+<h2>Why it matters: payload size</h2>
+<div class="card">
+  <div class="bars">
+    <div class="bar-row"><span>HTML page</span><div><div class="bar html"></div></div><span>~58 KB</span></div>
+    <div class="bar-row"><span>raw markdown</span><div><div class="bar md"></div></div><span>~4.7 KB</span></div>
+  </div>
+  <p class="meta" style="margin-top:.6rem">Home realm, measured by the author. An agent fetching realm content gets ~12x less data and the markdown source it actually wants, with zero configuration.</p>
+</div>
+
+<h2>Open items (none blocking)</h2>
+<div class="card">
+  <div class="finding">
+    <h3>q-preference shortcut: confirm intended</h3>
+    <p class="where"><a href="https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/negotiate.go#L15-L32">negotiate.go:15-32</a></p>
+    <p><code>text/html;q=0.9, text/markdown;q=0.8</code> returns markdown: any non-zero q wins regardless of how the client ranks the alternatives. A shortcut over RFC 9110 preference ordering, and a test locks it in. Harmless in practice since browsers never send <code>text/markdown</code>, but worth a one-word confirm that it's a choice, not an oversight.</p>
+  </div>
+  <div class="finding">
+    <h3>Add nosniff to the raw write</h3>
+    <p class="where"><a href="https://github.com/gnolang/gno/blob/4ab275316/gno.land/pkg/gnoweb/handler_http.go#L207">handler_http.go:207</a></p>
+    <p>The markdown branch serves realm <code>Render()</code> bytes verbatim, while the HTML branch sanitizes through goldmark. gnoweb sets no <code>nosniff</code> header anywhere today. Risk is low because the branch requires an explicit <code>Accept: text/markdown</code>, but <code>X-Content-Type-Options: nosniff</code> on this one write is cheap insurance on the only raw-bytes surface.</p>
+  </div>
+  <div class="finding q">
+    <h3>Question: is the follow-up tracked?</h3>
+    <p>Source, help, directory and user views still return HTML "for now". Is extending markdown negotiation to them tracked anywhere?</p>
+  </div>
+</div>
+
+<h2>What was verified</h2>
+<div class="card">
+  <p>All six files read in full at head <code>4ab275316</code>. <code>go vet ./gno.land/pkg/gnoweb/...</code> clean. All negotiation, handler and view tests pass locally. The no-Render fallback ordering (markdown short-circuit sits after the fetch error switch) is guarded by a dedicated test. CI fully green; the only merge gate is gnoweb codeowner approval.</p>
+</div>
+
+<footer>
+  Generated as a companion to the
+  <a href="https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5794-markdown-accept-negotiation/2-4ab275316/claude-opus-4-8_davd-gzl.md">round-2 review</a>
+  of <a href="https://github.com/gnolang/gno/pull/5794">gnolang/gno#5794</a>. AI-generated artifact; verify against the source.
+</footer>
+
+</main>
+<script>
+// Mirror of negotiatesMarkdown (negotiate.go:15-32).
+// Go splits on ",", trims, parses each part with mime.ParseMediaType
+// (lowercases the media type), skips non-markdown types, skips parts
+// refused with a parseable q <= 0, and returns true on the first match.
+function evaluate(accept) {
+  const trace = [];
+  let matched = false;
+  for (const rawPart of accept.split(",")) {
+    const part = rawPart.trim();
+    if (part === "") continue;
+    const segs = part.split(";");
+    const mediaType = segs[0].trim().toLowerCase();
+    if (mediaType === "") { trace.push({ part, why: "skipped: unparseable", cls: "" }); continue; }
+    if (mediaType !== "text/markdown" && mediaType !== "text/x-markdown") {
+      trace.push({ part, why: "skipped: not markdown", cls: "" });
+      continue;
+    }
+    let q = null;
+    for (const s of segs.slice(1)) {
+      const [k, v] = s.split("=").map(x => (x || "").trim().toLowerCase());
+      if (k === "q") q = v;
+    }
+    if (q !== null) {
+      const v = parseFloat(q);
+      if (!Number.isNaN(v) && v <= 0) {
+        trace.push({ part, why: "refused: q=" + q, cls: "refused" });
+        continue;
+      }
+    }
+    trace.push({ part, why: "MATCH: markdown named" + (q !== null ? " with q=" + q : ""), cls: "hit" });
+    matched = true;
+    break;
+  }
+  return { matched, trace };
+}
+
+const input = document.getElementById("accept");
+const verdictEl = document.getElementById("verdict");
+const traceEl = document.getElementById("trace");
+
+function render() {
+  const { matched, trace } = evaluate(input.value);
+  verdictEl.innerHTML = matched
+    ? 'Response: <span class="md">text/markdown</span> (raw Render() bytes)'
+    : 'Response: <span class="html">text/html</span> (full page)';
+  traceEl.innerHTML = "";
+  for (const t of trace) {
+    const li = document.createElement("li");
+    if (t.cls) li.className = t.cls;
+    li.textContent = t.part + "  ->  " + t.why;
+    traceEl.appendChild(li);
+  }
+}
+
+input.addEventListener("input", render);
+for (const b of document.querySelectorAll(".presets button")) {
+  b.addEventListener("click", () => { input.value = b.dataset.v; render(); });
+}
+render();
+</script>
+</body>
+</html>
