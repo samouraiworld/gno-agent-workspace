@@ -305,6 +305,7 @@ Rules:
 - Repro placement: line-specific repros stay with their inline comment; suite/PR-wide repros go in a Body `<details>` block, inline comments point to it.
 - Zero duplication between Body and inline comments. Anchored findings are inline only; unanchored findings/questions are Body only.
 - Update comment.md whenever the review or findings change (new PR commits, new round, re-run repros, format changes). It never lags the review file.
+- Port carried findings to a new round verbatim: only shas, repro URLs, and anchors that no longer point at the right lines change. No round-relative phrasing ("again", "still"): unposted drafts were never seen by the author.
 - When the PR head advanced past the reviewed commit: diff `<reviewed-sha>..<head>`, drop fixed findings, re-run remaining repros on the new head, re-verify every anchor against the current diff before posting.
 - Before regenerating comment.md, read the existing file and preserve every `SKIP` marker whose finding still exists.
 - Pin repros with a "Repros run at <short-sha>." line at the end of the Body. When the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on the current head (<short-sha>)").
