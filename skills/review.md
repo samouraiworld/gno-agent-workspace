@@ -275,7 +275,7 @@ Format:
 Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 ## Body
-<One-line assessment folding in the repro pin ("verified on the current head (<short-sha>)"). No per-finding bullets, no "see the inline comments" pointer, no PR re-description, no list of what the PR does or what passed. Only findings or questions without a file:line anchor get a bullet here. When clean: "Looks good. Verified on the current head (<short-sha>): <what ran> passes." and nothing else.>
+<One-line assessment folding in the repro pin ("verified on the current head (<short-sha>)"). No per-finding bullets, no "see the inline comments" pointer, no PR re-description, no list of what the PR does or what passed, no review-process narration ("re-review", "cross-check round"), no restating thread state the author already knows (maintainer holds, prior verdicts). Only findings or questions without a file:line anchor get a bullet here. When clean: "Looks good. Verified on the current head (<short-sha>): <what ran> passes." and nothing else.>
 
 Full review: <GitHub URL of the pushed review file in gno-agent-workspace>
 
@@ -299,6 +299,7 @@ Rules:
 - Append a local IDE link to each anchor header: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space.
 - Inline comment visible text = the finding's TL;DR plus its "Fix:" sentence, verbatim from the review file, priority tag stripped. Hard cap 1-3 visible sentences. No headers, no priority tags, no bold. Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
 - State findings as facts ("X hangs forever"), not questions. A genuine question is one terse line, posted only if the answer changes the verdict or the author's next action.
+- Never explain routine fixes the author would do anyway (merge master, regenerate assets, re-run a flaky job). A red CI check with a routine cause gets one short Body line ("not a code problem"), no instructions, no repro; detail it only when the cause is non-obvious or changes what the author must do.
 - Every file or test referenced by name (visible text or repro `<details>`) gets the dual link: GitHub blob URL at the reviewed sha + ` · [↗](<local worktree path>)`. The "Full review:" line gets a relative `↗`. The upload script strips every `[↗](...)` link at post time.
 - Repro blocks: same rules as review repros — start with `gh pr checkout`, runnable from a fresh gnolang/gno clone, zero local paths, actually run, output included.
 - Repro placement: line-specific repros stay with their inline comment; suite/PR-wide repros go in a Body `<details>` block, inline comments point to it.
