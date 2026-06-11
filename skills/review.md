@@ -238,9 +238,9 @@ Rules:
 
 ## Visual report (`report.html`)
 
-After writing the review file, write `report.html` next to it: a single self-contained HTML file (inline CSS/JS, zero external requests — no fonts, CDNs, analytics) that makes the PR and the findings faster to grasp than prose. Pick what fits the PR: request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. If the page mirrors PR logic in JS, verify the mirror against the PR's own test table before committing and state the result on the page. Illustrate a finding only when a visual genuinely speeds up understanding; otherwise link the review file. No emoji. End with an "AI-generated artifact" footer linking the review file and the PR.
+After writing the review file, write `report.html` at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/report.html`, NOT inside the round directory; it explains the PR, not one commit. It is a single self-contained HTML file (inline CSS/JS, zero external requests — no fonts, CDNs, analytics) that makes the PR and the findings faster to grasp than prose. Pick what fits the PR: request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. If the page mirrors PR logic in JS, verify the mirror against the PR's own test table before committing and state the result on the page. Illustrate a finding only when a visual genuinely speeds up understanding; otherwise link the review file. No emoji. End with an "AI-generated artifact" footer linking the review file and the PR.
 
-Regenerate `report.html` whenever the review changes (new round, findings added or dropped) — like comment.md, it must always reflect the current review state.
+Update `report.html` in place whenever the review changes (new round, findings added or dropped) — like comment.md, it must always reflect the current review state.
 
 After writing or updating any `report.html`, run `./scripts/build-reports-index.py` to regenerate `index.html` at the repo root — the central page linking every review and report, served via GitHub Pages (`https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` together with the review artifacts.
 
