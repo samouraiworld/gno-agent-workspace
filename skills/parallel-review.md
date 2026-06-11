@@ -74,7 +74,7 @@ After all critics return:
 ### 5. Output and index
 
 - Final review at the path above.
-- Update the reviews index: `./scripts/build-reviews-readme.sh`.
+- Update the reviews index: `./scripts/build-indexes.sh`.
 - Commit to THIS repo only:
   ```
   git add reviews/ && git commit -m "review: PR #<number> (parallel)"

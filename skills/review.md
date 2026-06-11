@@ -33,7 +33,7 @@ When `$ARGUMENTS` contains more than one PR, dispatch **one Agent per PR** in a 
 
 > Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, write `overview.html`, draft `comment.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
-Do **not** sequence the agents (no waiting for one before launching the next). After all subagents return, the parent runs `./scripts/build-reviews-readme.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
+Do **not** sequence the agents (no waiting for one before launching the next). After all subagents return, the parent runs `./scripts/build-indexes.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
 
 For a single-PR run, skip the dispatch and execute the steps below directly.
 
@@ -61,6 +61,20 @@ For a single-PR run, skip the dispatch and execute the steps below directly.
 - Read every changed file in full (not just diff hunks) for surrounding context.
 - Identify callers, dependents, and sibling files to understand blast radius.
 
+### Re-review rounds (head advanced)
+
+When a prior round exists and the head moved from `<old-sha>` to `<new-sha>`, first check whether the PR's own content changed, or only its base moved (master merge / rebase). Compare the patch-id of the PR's diff against its merge-base at both heads:
+
+```bash
+# workdir: .worktrees/gno-review-<number>
+git fetch origin master
+git diff $(git merge-base origin/master <old-sha>) <old-sha> | git patch-id --stable
+git diff $(git merge-base origin/master <new-sha>) <new-sha> | git patch-id --stable
+```
+
+- **Patch-ids equal** (only the base moved): do NOT re-author anything. Run `./scripts/reanchor-round.py <number> <new-sha>` — it re-runs this patch-id gate, copies the latest round's `.md` files into `<n+1>-<new-sha>/`, rewrites every sha reference, and remaps line anchors against the new head, flagging anchors it cannot map. Fix the flagged anchors by reading the worktree, update the round note at the top of the review file (one line: head advanced, PR content unchanged, anchors re-cut, verdict unchanged), regenerate the indexes, commit. Skip the rest of the workflow; `overview.html` is not touched.
+- **Patch-ids differ**: full re-review round, focused on what changed since `<old-sha>`.
+
 ### Run tests
 
 - Check CI status first: `gh pr checks <number> -R gnolang/gno`. Note any failures.
@@ -81,6 +95,7 @@ Read every line. Look for:
 - Untested code paths
 - Breaking changes without migration
 - Style inconsistencies with the codebase
+- Reuse and simplification: logic duplicating an existing helper, code foldable into something simpler, and anything the next developer would have to re-learn (unclear naming, missing doc comment on an exported symbol, non-obvious invariant). These land as Suggestions/Nits, never blockers.
 - Check if the PR touches areas covered by `docs/`. Flag if documentation needs updating.
 
 **Verify every finding against the actual file before including it.** Re-read the source — never write findings from memory or summaries.
@@ -138,7 +153,7 @@ Reviewed by: <GitHub username> | Model: <model used> | Commit: <short-sha> (<sta
 Local worktree: `git -C gno worktree add .worktrees/gno-review-<number> <short-sha>`
 Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/<thousand>xxx/<number>-<short-slug>/overview.html) · [↗](../overview.html)
 
-`<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since` when the PR has advanced. Recomputed by `scripts/build-reviews-readme.sh` on every run.
+`<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since` when the PR has advanced. Recomputed by `scripts/convert-review-links.py` on every run.
 
 **TL;DR:** <1-2 plain-language sentences: what this PR is about and what it does, for a reader with zero context. Goal is the reviewer recalling the PR at a glance — no jargon, no findings, no decision. Always include it, even on re-reviews. Distinct from the Summary below, which is denser and carries the bug/feature shape with anchored numbers.>
 
@@ -192,6 +207,9 @@ If a finding was already raised by another reviewer, surface it in the TL;DR bef
   <Rationale.>
   </details>
 
+## Open questions
+<Optional. Interesting-but-low-gain thoughts the reviewer should see but that are not posted to the PR: deferred-scope follow-ups, possible extensions, design musings. One terse line each, ending with why it wasn't posted.>
+
 ```
 
 Efficiency rules:
@@ -206,10 +224,11 @@ Efficiency rules:
 - **No Test Results section.** Test names are noise to the reader. If a test failure is review-worthy, surface it as a Critical or Warning. Otherwise stay silent — the reviewer ran the tests, that's enough.
 - **Anchor numbers.** "13s" alone is meaningless; "13s = multiple block-production budgets" tells the reader why to care.
 - **Cite line numbers for every assumption.** When the review claims something is true ("every translated child already has a non-zero Span", "this function is only called from X", "the cap is enforced at parse time") back it up with the `file:line` where the reader can see it for themselves. No hand-waved facts.
-- **Every `file:line` reference is a clickable markdown link with two destinations**: a primary GitHub URL (renders correctly when the review is pasted into a PR comment on the web) and a suffix `↗` link to the local worktree (for in-IDE one-click navigation when reading the file directly from this repo). Format: `` [`file:line`](https://github.com/gnolang/gno/blob/<short-sha>/<path>#L<line>) · [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<line>) ``. Use `#L<a>-L<b>` for ranges. `<short-sha>` is the commit hash from the review file's parent directory (`<n>-<sha>/`). Applies to TL;DRs, details, suggestions, nits — every reference. A bare `file:line` in backticks is wrong; readers can't click it. To convert existing reviews from the old local-only format to the dual format, run `./scripts/convert-review-links.py`.
+- **Every `file:line` reference is a clickable markdown link with two destinations**: a primary GitHub URL (renders correctly when the review is pasted into a PR comment on the web) and a suffix `↗` link to the local worktree (for in-IDE one-click navigation when reading the file directly from this repo). Format: `` [`file:line`](https://github.com/gnolang/gno/blob/<short-sha>/<path>#L<line>) · [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<line>) ``. Use `#L<a>-L<b>` for ranges. `<short-sha>` is the commit hash from the review file's parent directory (`<n>-<sha>/`). Applies to TL;DRs, details, suggestions, nits — every reference. A bare `file:line` in backticks is wrong; readers can't click it. Files and tests referenced by name without a line number (a test file in Missing Tests, a test case cited in prose) get the same dual link, pointed at the file or the test's declaration line — never a bare backticked name. To convert existing reviews from the old local-only format to the dual format, run `./scripts/convert-review-links.py`.
 - **Drop GitHub checkboxes (`- [ ]`)** unless reviewer wants the author to tick items — the reviewer chooses, not the template.
 - **Never frame findings as "the ADR says X is fine, but actually..."** — refer to the file by path (e.g. `pr5648_spanfromgo_quadratic.md:195`) and critique the argument directly. No "the ADR" / "the audit table" editorializing.
 - **Ship a copy-pasteable reproducer for every empirical claim** ("I ran X and saw Y"). Fenced `bash` block, self-contained (restore any reverted files at the end), one clear pass/fail signal. Only pin env vars (`GNOROOT=$PWD`, etc.) when the test actually depends on them — defensive padding adds noise.
+- **A repro demonstrates behavior** — a test run, a request, an executed binary — never source inspection. A grep/cat over the code is not a repro. Scale repro effort to severity: heredoc behavioral tests (asserting the correct post-fix state so they fail now and pass once fixed) are for Critical/Warning empirical claims only. For Nits/Suggestions whose fact is visible at the anchor, cite the `file:line` and ship no repro block — a one-line "confirmed behaviorally: X" observation in the details is enough.
 - **Every repro `bash` block MUST be followed by the actual output you observed**, in a second fenced block (no language tag — it's terminal output). The pair tells the reader two things at once: how to reproduce, and what success/failure looks like before they paste anything. Without the output, the claim is unverifiable from the review alone. Trim output to the signal-bearing lines (5–20 typically); use `# …` to mark omitted noise.
 - **Every bash block in the review MUST start with `gh pr checkout <N> -R gnolang/gno` and contain ZERO references to local paths.** No `/home/...`, no `$HOME`, no `cd .worktrees/...`, no `cd reviews/...`, no `$WT`/`$REVIEW` variables pointing at this workspace. No trailing `git checkout <hash>` pin either — `gh pr checkout` lands on the PR head, that's the contract. Reviews are pasted into public GitHub PR comments — external readers run them from a fresh gno checkout, not from our workspace. If the repro needs a test file, inline it with a heredoc (`cat > path/to/file.gno <<'EOF' ... EOF`) rather than referencing it under `reviews/...` or `.worktrees/...`. Clean up at the end (`rm path/to/file.gno`, `git checkout HEAD -- ...`). Prepend a one-line prelude comment naming the prerequisite — `# from a local clone of gnolang/gno:` — above the `gh pr checkout` line so the reader knows where to be before pasting (spell out "local clone of gnolang/gno" rather than shorthand like "gno checkout", which is ambiguous to readers outside this workspace).
 
@@ -218,10 +237,12 @@ Calibration — finding count and severity:
 - **Severity is binary, not a slider.** Warnings = a maintainer could plausibly block on it (correctness, security, decay, missing invariant). Nits = style, polish, optional. If a finding could go either way, it's a Nit.
 - **Map the full call graph before claiming dead / redundant / unused.** Grep every caller, not just the one in the diff. One missed caller flips a real finding to a wrong one.
 - **Never flag contribution-policy compliance** (AGENTS.md ADR requirement, commit conventions, AI-disclosure rules) as a finding, in the review file or in comment.md. Findings cover the code only.
+- **Gain-gate deferred-scope and extension questions.** When the PR deliberately scopes something out ("for now", a TODO, an explicit non-goal), the thought goes in the review file's Open questions section, where the reviewer sees it. It reaches comment.md only when the gain is real: a concrete risk, or a decision the author must make in this PR. Low-gain housekeeping ("is this tracked anywhere?") is never posted.
 
 Rules:
 - Write one file per review: save each PR review to `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/<model>_<reviewer>.md` (e.g. `reviews/pr/5xxx/5405-fix-banker-overflow/1-a1b2c3f/claude-sonnet-4_davd-gzl.md`). `<thousand>xxx` buckets PRs by leading digit(s) (4xxx for 4000–4999, 5xxx for 5000–5999). `<short-slug>` is 3-4 words from the PR title, lowercase, hyphenated. `<n>` is the review round number, incremented per PR in the order reviews are written (check existing directories to determine the next number). `<model>` is the model used (lowercase, hyphenated). `<reviewer>` is the GitHub username (get it via `gh api user --jq '.login'`). Use the HEAD commit hash of the PR branch. Multiple reviews of the same commit share the same directory, making it easy to compare across reviewers and models.
 - Every finding has two layers: a one-line TL;DR with priority tag (scannable in 2 seconds, states the problem) and a `<details>` block below with sub-bullet structure: **Shape:** / **What you see:** / **Why it matters:** / **Fix:**. The TL;DR must stand alone — no "see below", no hedging. Trivial nits may omit the `<details>` block.
+- The TL;DR (plus the details block's final "Fix:" sentence) is the canonical text for this finding everywhere: comment.md copies it verbatim, never re-words it. Write it so it works as a PR inline comment as-is — self-contained, names the place and the consequence, no parenthetical mechanism chains. If it doesn't read as a PR comment, rewrite it here, then copy.
 - Keep bold/emphasis to a minimum. The bullet structure and `file:line` in backticks already provide enough visual separation — don't bold every TL;DR or label. Reserve bold for the rare phrase that genuinely needs to stand out inside a paragraph.
 - The review is meant to be pasted into a GitHub PR comment, so the format must render correctly in GitHub-flavored markdown. Key constraints: `<details>` blocks need a blank line after `<summary>` for the inner markdown to render; indent continuation content by 2 spaces under list items; do not nest `<details>` more than one level deep.
 - Every finding MUST include `file:line`.
@@ -229,7 +250,7 @@ Rules:
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Be direct. No filler. State the problem and why it matters.
 - Large PRs (>20 files): summarize changes by area first, then deep-dive on critical paths.
-- After writing the review file(s), regenerate the indexes: `./scripts/build-reviews-readme.sh` and `./scripts/build-reports-index.py`. Then commit and push to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only: `git add reviews/ && git commit -m "review: PR #<number>" && git push`. For a multi-PR parallel run, the **parent** does this once after all subagents return (use a multi-PR commit message like `review: PRs #<a> and #<b>`); subagents must not commit or push.
+- After writing the review file(s), regenerate the indexes: `./scripts/build-indexes.sh`. Then commit and push to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only: `git add reviews/ && git commit -m "review: PR #<number>" && git push`. For a multi-PR parallel run, the **parent** does this once after all subagents return (use a multi-PR commit message like `review: PRs #<a> and #<b>`); subagents must not commit or push.
 - **Push is pre-authorized for this skill.** The user has standing approval for commit + push when running the review skill — do not stop to ask. This overrides the global "ask before push" rule, scoped to this skill only.
 - Never push to the gnolang/gno repository.
 - This skill must be run from the workspace root.
@@ -237,11 +258,15 @@ Rules:
 
 ## PR overview (`overview.html`)
 
-After writing the review file, write `overview.html` at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.html`, NOT inside the round directory; it explains the PR, not one commit. It is a single self-contained HTML file (inline CSS/JS, zero external requests — no fonts, CDNs, analytics) that makes the PR and the findings faster to grasp than prose. Pick what fits the PR: request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. If the page mirrors PR logic in JS, verify the mirror against the PR's own test table before committing and state the result on the page. Illustrate a finding only when a visual genuinely speeds up understanding; otherwise link the review file. No emoji. End with an "AI-generated artifact" footer linking the review file and the PR.
+After writing the review file, write `overview.html` at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.html`, NOT inside the round directory; it explains the PR, not one commit. It is a single self-contained HTML file (inline CSS/JS, zero external requests — no fonts, CDNs, analytics) that makes the PR itself faster to grasp than prose.
 
-On every review round, check whether `overview.html` already exists in the PR directory. If it does, read it and rewrite it against the current review state: re-anchor the reviewed sha and every GitHub link to the new head, drop findings the new commits fixed, add new ones, refresh diagrams/tables that no longer match the code. `overview.html` must never lag behind the latest review file or comment.md — a review round is not finished while it shows a previous round's state.
+**Scope: explainer only — zero review state.** No verdict, no findings, no reviewed sha, no round references. Review state lives in the review file and comment.md; duplicating it here is forbidden. Include exactly one pointer to it: a `Review files` link to the PR directory on GitHub (`https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/pr/<thousand>xxx/<number>-<slug>/` — a tree URL, so it never goes stale).
 
-After writing or updating any `overview.html`, run `./scripts/build-reports-index.py` to regenerate `index.html` at the repo root — the central page linking every review and overview, served via GitHub Pages (`https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` together with the review artifacts.
+Content — pick what fits the PR: plain-language explanation of what the PR does and why, request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. When the PR hinges on domain concepts the reader may not have at hand (header semantics, cache rules, consensus internals), add a short Concepts section defining each in one or two plain sentences. If the page mirrors PR logic in JS, verify the mirror against the PR's own test table before committing and state the result on the page. No emoji. End with an "AI-generated artifact" footer linking the PR and the review directory.
+
+Update `overview.html` only when new commits change the PR's own files (behavior, scope, shape). Head bumps where only the base moved, new findings, verdict changes, and new review rounds never touch it.
+
+After writing or updating any `overview.html`, run `./scripts/build-indexes.sh` to regenerate `reviews/README.md` and the root `index.html` — the central page linking every review and overview, served via GitHub Pages (`https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` together with the review artifacts.
 
 ## GitHub review draft (`comment.md`)
 
@@ -254,7 +279,7 @@ Format:
 Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 ## Body
-<One-line assessment folding in the repro pin ("verified on the current head (<short-sha>)"), then one terse bullet per finding with "Inline comment" pointers. No PR re-description — the author knows their PR. Questions are one bullet each.>
+<One-line assessment folding in the repro pin ("verified on the current head (<short-sha>)"). NO per-finding bullets and no "see the inline comments" pointer — GitHub shows the inline comments with the review; any restatement is duplication. Only findings or questions without a file:line anchor get a bullet here. No PR re-description — the author knows their PR.>
 
 Full review: <GitHub URL of the pushed review file in gno-agent-workspace>
 
@@ -276,16 +301,17 @@ Rules:
 - One `## <path>:<line>` section per finding that has a file:line, all severities. Range form: `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Genuine questions and findings without a file:line go at the end of Body.
 - Verify every anchor by reading the code at those lines in the worktree before drafting. Review-file line refs may be stale or approximate; the anchor must cover exactly the lines the sentence talks about ("this guard" must point at the guard).
 - Append a local IDE link to each anchor header for one-click navigation while pruning: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space, so the link never reaches GitHub.
-- Inline comments are read by a human in the PR: 1-3 SHORT visible sentences, hard cap — no parenthetical mechanism chains. State what's broken and where; mechanism detail goes in the full review, linked. No headers, no priority tags, no bold. The repro command and its observed output go in a collapsed `<details><summary>repro</summary>` block.
-- State findings as facts: "X hangs forever", not "Did you run X?". No rhetorical questions, no filler openers. A genuine question is one terse line.
+- Inline comment visible text = the finding's TL;DR plus its "Fix:" sentence, copied verbatim from the review file (priority tag stripped). comment.md never re-authors a finding; if the text doesn't work as a PR comment, fix it in the review file first, then copy. Hard cap 1-3 visible sentences. No headers, no priority tags, no bold. The repro command and its observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for any finding anchored there, and the review file's finding states the observed result and links it (`[repro](comment.md)`) instead of duplicating the block; only findings that never reach comment.md keep their repro in the review file.
+- State findings as facts: "X hangs forever", not "Did you run X?". No rhetorical questions, no filler openers. A genuine question is one terse line, gain-gated: post only questions whose answer changes the verdict or the author's next action. Deferred-scope and extension thoughts with small gain stay in the review file's Open questions section, not here.
+- Every file or test referenced by name in visible text or inside a repro `<details>` gets the same dual link as review files: GitHub blob URL at the reviewed sha, then ` · [↗](<local worktree path>)` — never a bare backticked name. The "Full review:" line gets a relative `↗` to the review file in the same directory. The upload script strips every `[↗](...)` link (headers and bodies) at post time, so local links never reach GitHub.
 - Repro blocks follow the same rules as review repros: start with `gh pr checkout`, runnable from a fresh gnolang/gno clone, zero local paths, actually run, output included.
 - Repro placement: line-specific repros stay with their inline comment; suite/PR-wide repros (not tied to the anchored lines) go in a `<details>` block in the Body, and the inline comment points to it.
-- Zero duplication between Body and inline comments. The Body is the complete fast resume: every finding in one line, with "inline comment" pointers where detail exists. Inline comments carry only what the Body doesn't: the line-specific mechanism, fix, and repro. A suite/PR-wide finding lives in the Body alone, no inline echo.
+- Zero duplication between Body and inline comments. A finding lives in exactly one place: anchored findings are inline comments only, never restated in the Body (not even as one-liners); suite/PR-wide findings and questions without an anchor live in the Body alone, no inline echo.
 - Update comment.md every time the review or its findings change: new PR commits, a new review round, re-run repros, or format/style rule changes. comment.md must always reflect the current state, never lag behind the review file.
 - When the PR head has advanced past the reviewed commit: diff `<reviewed-sha>..<head>`, drop findings the new commits fix, re-run the remaining repros on the new head, and re-verify every anchor against the current diff before posting.
 - Before regenerating comment.md, read the existing file and preserve every `SKIP` marker whose finding still exists. A user's prune decision is never undone by an update.
 - Pin the repro commit with a "Repros run at <short-sha>." line at the end of the Body by default — the PR may advance after the repros ran. Only when the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on the current head (<short-sha>)").
-- Before drafting, attempt a repro for every Critical and Warning. Word findings without a run proof as observations, never "I ran X".
+- Before drafting, attempt a repro for every Critical and Warning. Word findings without a run proof as observations, never "I ran X". Behavioral repros only — a grep over the source is not a repro; cite the anchor instead and drop the repro block.
 - End every comment (Body and each inline) with `*(AI Agent)*`.
 - Link to the full review inside an inline comment only when the details block is not enough.
 - **Never post without explicit user approval in the current turn** ("post it", "upload"). The push pre-authorization does NOT cover posting the review.
