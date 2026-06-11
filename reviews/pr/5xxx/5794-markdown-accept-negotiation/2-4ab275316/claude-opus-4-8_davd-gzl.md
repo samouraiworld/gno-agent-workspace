@@ -9,7 +9,7 @@ Round 2. The head advanced from `589d1970d` (round 1) to a clean `master` merge 
 
 **TL;DR:** gnoweb can now hand back a realm's raw `Render()` markdown instead of the full HTML page when the caller's `Accept` header asks for `text/markdown`. Browsers still get HTML; agent fetchers (Claude Code's `WebFetch`) get the ~4.7 KB markdown instead of ~58 KB of HTML, with no config.
 
-**Verdict: APPROVE** — clean, well-tested, vet-clean, gated on an explicit `text/markdown` Accept so browsers are unaffected. Open items are all non-blocking: no ADR (repo policy for AI-assisted feature PRs), a deliberate q-preference shortcut worth a one-word confirm, and a defensive `nosniff` worth adding. The only real merge gate is gnoweb codeowner approval (CI bot requirement).
+**Verdict: APPROVE** — clean, well-tested, vet-clean, gated on an explicit `text/markdown` Accept so browsers are unaffected. Open items are all non-blocking: a deliberate q-preference shortcut worth a one-word confirm, and a defensive `nosniff` worth adding. The only real merge gate is gnoweb codeowner approval (CI bot requirement).
 
 ## Summary
 
@@ -35,12 +35,7 @@ GET /r/gnoland/home
 None.
 
 ## Warnings (should fix)
-
-- **[repo policy: AI-assisted feature PR has no ADR]** [`gno/AGENTS.md:85`](https://github.com/gnolang/gno/blob/4ab275316/AGENTS.md#L85) · [↗](../../../../../.worktrees/gno-review-5794/AGENTS.md#L85) — feature is AI-assisted (commits carry `Co-Authored-By: Claude`) and non-trivial; no ADR in the diff.
-  <details><summary>details</summary>
-
-  `AGENTS.md` states "Every non-trivial AI-assisted PR must include an ADR" and exempts only trivial bug fixes / formatting / simple tests / docs. This PR adds a content-negotiation feature with new public surface (`MarkdownView`, `MarkdownViewType`, `negotiatesMarkdown`) plus a handler refactor, so it falls under the rule. Not a code defect; flag for the codeowner who has to approve anyway. Fix: add `gno.land/adr/pr5794_markdown_negotiation.md` (context: agents want raw markdown; decision: Accept-only negotiation, realm + static-md scope; alternatives: query param, separate endpoint, strict q-ordering; consequences: `Vary: Accept`, follow-up for source/help/user views).
-  </details>
+None.
 
 ## Nits
 

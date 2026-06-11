@@ -6,7 +6,6 @@ Clean and well-tested; verified on the current head (4ab275316). Nothing blockin
 
 - Markdown wins even when the client ranks HTML strictly higher. Inline comment; confirm intended.
 - The raw markdown write skips sanitization; worth a `nosniff`. Inline comment.
-- `AGENTS.md` requires an ADR for non-trivial AI-assisted PRs; this one has none.
 - Is the markdown follow-up for source/help/directory/user views tracked anywhere?
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5794-markdown-accept-negotiation/2-4ab275316/claude-opus-4-8_davd-gzl.md
