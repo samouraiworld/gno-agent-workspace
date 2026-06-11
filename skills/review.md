@@ -31,7 +31,7 @@ From the result, exclude PRs whose title starts with `WIP` and dependabot PRs (`
 
 When `$ARGUMENTS` contains more than one PR, dispatch **one Agent per PR** in a single message (multiple `Agent` tool calls in the same response so they run concurrently). Use `subagent_type: general-purpose` and pass each subagent a self-contained prompt of the form:
 
-> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, draft `comment.md`. Do not commit, push, regenerate the index, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
+> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, write `report.html`, draft `comment.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
 Do **not** sequence the agents (no waiting for one before launching the next). After all subagents return, the parent runs `./scripts/build-reviews-readme.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
 
@@ -230,11 +230,19 @@ Rules:
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Be direct. No filler. State the problem and why it matters.
 - Large PRs (>20 files): summarize changes by area first, then deep-dive on critical paths.
-- After writing the review file(s), regenerate the index: `./scripts/build-reviews-readme.sh`. Then commit and push to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only: `git add reviews/ && git commit -m "review: PR #<number>" && git push`. For a multi-PR parallel run, the **parent** does this once after all subagents return (use a multi-PR commit message like `review: PRs #<a> and #<b>`); subagents must not commit or push.
+- After writing the review file(s), regenerate the indexes: `./scripts/build-reviews-readme.sh` and `./scripts/build-reports-index.py`. Then commit and push to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only: `git add reviews/ && git commit -m "review: PR #<number>" && git push`. For a multi-PR parallel run, the **parent** does this once after all subagents return (use a multi-PR commit message like `review: PRs #<a> and #<b>`); subagents must not commit or push.
 - **Push is pre-authorized for this skill.** The user has standing approval for commit + push when running the review skill — do not stop to ask. This overrides the global "ask before push" rule, scoped to this skill only.
 - Never push to the gnolang/gno repository.
 - This skill must be run from the workspace root.
 - Once the review is finished (file written, index regenerated, commit done), ask the user before opening the review worktree in VSCode. If they confirm, open it as a new window: `code <workspace-root>/.worktrees/gno-review-<number>`.
+
+## Visual report (`report.html`)
+
+After writing the review file, write `report.html` next to it: a single self-contained HTML file (inline CSS/JS, zero external requests — no fonts, CDNs, analytics) that makes the PR and the findings faster to grasp than prose. Pick what fits the PR: request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. If the page mirrors PR logic in JS, verify the mirror against the PR's own test table before committing and state the result on the page. Illustrate a finding only when a visual genuinely speeds up understanding; otherwise link the review file. No emoji. End with an "AI-generated artifact" footer linking the review file and the PR.
+
+Regenerate `report.html` whenever the review changes (new round, findings added or dropped) — like comment.md, it must always reflect the current review state.
+
+After writing or updating any `report.html`, run `./scripts/build-reports-index.py` to regenerate `index.html` at the repo root — the central page linking every review and report, served via GitHub Pages (`https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` together with the review artifacts.
 
 ## GitHub review draft (`comment.md`)
 
