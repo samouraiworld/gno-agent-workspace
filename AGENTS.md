@@ -20,7 +20,7 @@ When asked to **review all** (e.g. "review all", "review all non-reviewed recent
 
 When asked for a **parallel**, **red-team / blue-team**, or **deeper** review of a single PR (or "review and loop until perfect"), read and follow `skills/review.md` — see its "Deep mode" section.
 
-When you say **post** while a `comment_<model>.md` draft is the pointed-at file, that is approval to post it: run `./scripts/post-pr-review.py <number> <path>` directly, then commit and push the annotated draft. `<number>` is the `<number>-<slug>/` segment of the path. Don't read the draft first — the script parses it and refuses an APPROVE event without `--approve` (which still needs separate explicit confirmation).
+When the user says **post** pointing at a `comment_<model>.md` draft (open file or path in the message), that is one-shot approval: run `./scripts/post-pr-review.py <number> <path>` directly, without reading the draft or the review file. The PR number is the `<number>-<slug>/` segment of the path. If the script refuses an APPROVE event, get the user's explicit confirmation of the approval, then re-run with `--approve`. If it reports invalid anchors, follow the "GitHub review draft" section of `skills/review.md`. After a successful post, commit and push the script-updated draft: `review: PR #<number> posted (<event>)`.
 
 ## Fix Issue
 

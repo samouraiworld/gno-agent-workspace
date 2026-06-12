@@ -97,7 +97,7 @@ git diff $(git merge-base origin/master <new-sha>) <new-sha> | git patch-id --st
 - `gh pr checks <number> -R gnolang/gno` first. Note failures.
 - `.gno` packages: `gno test -v ./path/to/package`
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
-- Testing an example package whose branch also modifies a **stdlib**: set `GNOROOT=<worktree-root>` on the `gno test` command, else stdlibs load from a stale GNOROOT and new symbols read as `name X not declared`. CI sets this; the failure is local-only.
+- Example-package tests on a branch that also modifies a stdlib: run `gno test` with `GNOROOT=<worktree-root>`, else new stdlib symbols fail preprocessing (`name X not declared`).
 - Record pass/fail per affected package.
 - PRs changing runtime behavior of a server or tool (`contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`): boot it from the PR worktree and exercise the changed behavior live (gnodev + `curl` for gnoweb; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader/tooling changes). Record what was verified live in the review file. Unit tests alone are not sufficient verification for these PRs. PRs not touching those dirs (tests/docs-only) skip the live boot.
 
@@ -116,7 +116,7 @@ Read every line. Look for:
 - Reuse and simplification: duplicated helpers, foldable code, unclear naming, missing doc comments on exported symbols, non-obvious invariants. These land as Suggestions/Nits, never blockers.
 - Docs impact: flag if `docs/` needs updating.
 
-Verify every finding against the actual file before including it — never from memory or summaries. Run greps and lint against the PR worktree (`.worktrees/gno-review-<number>`), never the `gno/` submodule: it sits at an arbitrary, often stale detached HEAD, so a symbol present on the branch can read as absent. Treat gno language-server diagnostics as possibly stale too — confirm a symbol with `gno lint` built from the worktree (`go run ../gnovm/cmd/gno lint ./path`), sanity-checked by feeding a bogus symbol.
+Verify every finding against the actual file before including it — never from memory or summaries. Run greps and lint in the PR worktree (`.worktrees/gno-review-<number>`), never in the `gno/` submodule (stale detached HEAD). Confirm symbol existence with `gno lint` run from the worktree source (`go run ../gnovm/cmd/gno lint ./path`), not IDE/language-server diagnostics; sanity-check that lint typechecks by feeding it a bogus symbol.
 
 ### (Optional) Write adversarial tests
 
@@ -145,7 +145,7 @@ For `**Repro:**` blocks inside the review, prefer inline heredocs (`cat > … <<
 
 Headers stand alone (~12 lines): disclaimer + `Run:` block, then 2-4 comment lines covering the mechanism, the observed result at the pinned hash, and what changes when fixed. No flip-check instructions, no restating the finding. Name code paths by actual symbol, not review labels. Keep in-test comments to one line per non-obvious step.
 
-Assert the desired post-fix state, not the current panic: a test pinned to the bug's error goes green while the bug lives. For gno filetests use `// Output:` with the correct values, not `// Error:` matching the panic — reserve `// Error:` for code whose rejection is the correct outcome (e.g. an illegal recursive type).
+Assert the desired post-fix state, never the bug's current output. Gno filetests: `// Output:` with the correct values, not `// Error:` matching the panic; `// Error:` only when rejection is the correct outcome (e.g. an illegal recursive type).
 
 Pair the bug with its related baseline invariant in one assertion (e.g. `"p==q=false q==r=true"`).
 

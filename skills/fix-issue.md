@@ -20,7 +20,7 @@ Ensure a fork remote exists (`git -C gno remote -v`). If not:
 ```
 gh repo fork gnolang/gno --remote-only --remote-name fork
 ```
-Never push to `origin` (gnolang/gno) — always push to `fork`.
+Never push to `origin` (gnolang/gno). Push only to the user's fork `davd-gzl` (alias `fork`); every other remote is another contributor's fork, never a push target. Read `git remote -v` in full, never truncated.
 
 ---
 
