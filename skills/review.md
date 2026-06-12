@@ -244,6 +244,7 @@ Format rules:
 
 Calibration:
 - No target finding count. Stop when the diff is read in full and blast radius mapped.
+- The review's verification claims (the Fix section's "Verified on `<sha>`:" line, the Summary) follow the same rule as comment.md: only what CI does not show. Revert-proofs, behavior/Go parity, exercised edge cases, a new code path CI skips. Never "`go test ...` passes", "lint clean", "build green".
 - Severity is binary. Warnings = a maintainer could plausibly block (correctness, security, decay, missing invariant). Nits = style, polish, optional. Borderline → Nit.
 - Map the full call graph before claiming dead / redundant / unused. Grep every caller.
 - Never flag contribution-policy compliance (AGENTS.md ADR requirement, commit conventions, AI-disclosure rules). Findings cover the code only.
@@ -293,9 +294,9 @@ Format:
 Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 ## Body
-<One-line assessment folding in the repro pin ("verified on the current head (<short-sha>)"). No per-finding bullets, no "see the inline comments" pointer, no PR re-description, no list of what the PR does or what passed, no review-process narration ("re-review", "cross-check round"), no restating thread state the author already knows (maintainer holds, prior verdicts). Only findings or questions without a file:line anchor get a bullet here. When clean: "Looks good. Verified on the current head (<short-sha>): <what ran> passes." and nothing else.>
+<One-line assessment folding in the repro pin ("verified on the current head (<short-sha>)"). Anchored findings never appear here in any form: no bullets, no prose recap, no "(inline)" pointer, no count ("four doc nits inline"). No PR re-description, no list of what the PR does or what passed, no review-process narration ("re-review", "cross-check round"), no restating thread state the author already knows (maintainer holds, prior verdicts). Only findings or questions without a file:line anchor get a bullet here, one sentence each: gap, then fix. When clean: "Looks good. Verified on the current head (<short-sha>): <CI-invisible check>." and nothing else. <CI-invisible check> is something CI does not show: reverting the fix reproduces the bug, output matches Go across the boundary table, a behavior-preserving move returns identical data. Name at most three checks, the strongest ones, each as a claim, not its test matrix — no parenthetical lists of tested values or shapes; the full check inventory stays in the review file.>
 
-Full review: <GitHub URL of the pushed review file in gno-agent-workspace>
+Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<review-file-path> [↗](review_<model>_<reviewer>.md)
 
 *(AI Agent)*
 
@@ -315,8 +316,9 @@ Rules:
 - One `## <path>:<line>` section per finding with a file:line, all severities. Ranges: `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Unanchored findings and questions go at the end of Body.
 - Verify every anchor by reading those lines in the worktree before drafting; the anchor must cover exactly the lines the sentence talks about.
 - Append a local IDE link to each anchor header: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space.
-- Inline comment visible text = the finding's TL;DR plus its "Fix:" sentence, verbatim from the review file, priority tag stripped. Hard cap 1-3 visible sentences. No headers, no priority tags, no bold. Plain English, essentials only: problem, why it matters, fix — short sentences, no stacked technical clauses, no symbol-chain walkthroughs; the reader must get it in one pass. Drop the Fix sentence when it only restates the obvious remedy ("add it", "delete it", "update the number"). Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
+- Inline comment visible text = the finding's TL;DR plus its "Fix:" sentence, verbatim from the review file, priority tag stripped. Hard cap 1-3 visible sentences. No headers, no priority tags, no bold. Plain English, essentials only: problem, why it matters, fix — short sentences, no stacked technical clauses, no symbol-chain walkthroughs; the reader must get it in one pass. Cut scenario-painting: keep fact, stake, fix. Before: "It's fine here because the parent dir is already 700, but a half-sentence saying the parent dir is the real guard would stop a reader who relocates the socket from relying on a perm that can silently not apply." After: "The real guard is the 700 parent dir; say so, or a reader who relocates the socket loses the protection." Drop the Fix sentence when it only restates the obvious remedy ("add it", "delete it", "update the number"). Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
 - State findings as facts ("X hangs forever"), not questions. A genuine question is one terse line, posted only if the answer changes the verdict or the author's next action.
+- Post only comments that change what the author does: fix, decide, or answer. A finding whose details end "no change needed" / "flagging for whoever touches this next" stays in the review file and never reaches comment.md.
 - Never explain routine fixes the author would do anyway (merge master, regenerate assets, re-run a flaky job). A red CI check with a routine cause gets one short Body line ("not a code problem"), no instructions, no repro; detail it only when the cause is non-obvious or changes what the author must do.
 - Every file or test referenced by name (visible text or repro `<details>`) gets the dual link: GitHub blob URL at the reviewed sha + ` · [↗](<local worktree path>)`. Every behavioral claim links the line that proves it, dual-link form, not just claims that name a symbol. The "Full review:" line gets a relative `↗`. The upload script strips every `[↗](...)` link at post time.
 - Repro blocks: same rules as review repros — start with `gh pr checkout`, runnable from a fresh gnolang/gno clone, zero local paths, actually run, output included.
@@ -327,7 +329,7 @@ Rules:
 - When the PR head advanced past the reviewed commit: diff `<reviewed-sha>..<head>`, drop fixed findings, re-run remaining repros on the new head, re-verify every anchor against the current diff before posting.
 - Before regenerating comment.md, read the existing file and preserve every `SKIP` marker whose finding still exists.
 - Pin repros with a "Repros run at <short-sha>." line at the end of the Body. When the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on the current head (<short-sha>)").
-- Attempt a repro for every Critical and Warning before drafting. Findings without a run proof are worded as observations, never "I ran X". Behavioral repros only — for source-visible facts, cite the anchor and drop the repro block.
+- Attempt a repro for every Critical and Warning before drafting. Findings without a run proof are worded as observations, never "I ran X". Behavioral repros only — for source-visible facts, cite the anchor and drop the repro block. A repro whose only output is the PR's own test passing (`--- PASS`) shows nothing CI doesn't, so drop it.
 - End every comment (Body and each inline) with `*(AI Agent)*`.
 - Link to the full review inside an inline comment only when the details block is not enough.
 - Never post without explicit user approval in the current turn: the literal word "post" (or "upload"). "push" authorizes git push only and never covers posting.
@@ -335,3 +337,12 @@ Rules:
 - APPROVE is a human decision: state the verdict and wait for the user to confirm the approval itself — a generic "post it" covers REQUEST_CHANGES/COMMENT only. Then run the script with `--approve` (it refuses APPROVE without the flag).
 - Post with `./scripts/post-pr-review.py <number> <path-to-comment.md>`. It pre-validates anchors against the PR diff and reports invalid ones — move those into Body, or re-run with `--skip-invalid`. `--dry-run` prints the payload without posting.
 - After a successful post, the script writes GitHub URLs back into comment.md (`Posted: <review-url>` under the title, `[posted](<comment-url>)` on each anchor header). Commit and push the updated comment.md.
+
+Final check — verify each line of the draft before handing it over:
+
+1. Every `## <path>:<line>` header ends with its worktree `[↗](...)` link.
+2. The Full review line is a `blob/` (not `tree/`) URL ending with `[↗](review_<model>_<reviewer>.md)`.
+3. Body names at most three checks, none CI-visible, and neither recaps nor counts anchored findings.
+4. No repro block whose output is only a passing run.
+5. Body and every inline comment end with `*(AI Agent)*`.
+6. Every inline comment is at most 3 sentences and asks for a fix, a decision, or an answer.
