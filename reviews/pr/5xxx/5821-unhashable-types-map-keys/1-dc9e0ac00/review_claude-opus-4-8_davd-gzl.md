@@ -50,4 +50,3 @@ None.
 ## Open questions
 
 - `isComparable`'s `*ChanType` arm panics with a raw host `panic("channel type is not yet supported")` ([`gnovm/pkg/gnolang/type_check.go:1172-1173`](https://github.com/gnolang/gno/blob/dc9e0ac00/gnovm/pkg/gnolang/type_check.go#L1172-L1173) · [↗](../../../../../.worktrees/gno-review-5821/gnovm/pkg/gnolang/type_check.go#L1172-L1173)) — the same uncatchable-panic class this PR fixes. Unreachable today: channels are rejected at preprocess (`channels are not permitted`), so no channel value can reach a map key. Not posted: predates this PR, no reachable path, out of scope.
-</content>

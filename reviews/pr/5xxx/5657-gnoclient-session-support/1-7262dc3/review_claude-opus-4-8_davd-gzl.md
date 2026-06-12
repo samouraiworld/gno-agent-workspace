@@ -49,5 +49,3 @@ None.
 
 ## Open questions
 - The session feature intersects the known single-master-signature limitation (issue #5731, demonstrated by PR #5793). A session tx that also needs a second, independent signer is exactly the multi-signer case that panics today; whether gnoclient should support that combination at all is a design question, but it should error cleanly rather than panic regardless. Not posted as a separate finding — folded into the Warning.
-</content>
-</invoke>
