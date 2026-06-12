@@ -1,6 +1,6 @@
 ---
 name: gno-review
-description: Quick adversarial review of one or more Gno PRs. Takes space-separated PR numbers, outputs severity-grouped findings per PR plus a comment_<model>.md GitHub review draft, posted after user approval.
+description: Adversarial review of one or more Gno PRs. Takes space-separated PR numbers, outputs severity-grouped findings per PR plus a comment_<model>.md GitHub review draft, posted after user approval. Supports a deep multi-angle mode (red-team / blue-team / correctness lenses plus a critic pass) for a single PR that warrants extra scrutiny.
 argument-hint: <pr-number> [pr-number...]
 ---
 
@@ -36,6 +36,24 @@ When `$ARGUMENTS` contains more than one PR, dispatch one Agent per PR in a sing
 Do not sequence the agents. After all return, the parent runs `./scripts/build-indexes.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
 
 Single-PR runs skip the dispatch and execute the steps directly.
+
+## Deep mode (multi-angle, single PR)
+
+Trigger: the user asks for a **parallel**, **red-team / blue-team**, or **deeper** review of one PR, or "review and loop until perfect". Deep mode runs MANY lenses on ONE PR; the multi-PR parallel dispatch above runs ONE reviewer across MANY PRs. Everything else — worktree, output format, `comment_<model>.md`, indexes, push rules — is identical to the normal flow.
+
+1. **Set up.** Run *Fetch & understand* and *Run tests* below. Collect the diff, comments, CI status, and prior reviews once; hand the same paths to every agent.
+
+2. **Dispatch lens agents.** One message, multiple `Agent` calls (`subagent_type: general-purpose`) so they run concurrently. Default three lenses; add more for large PRs. Each prompt is self-contained — worktree path, PR number, diff path, prior-review paths, one narrow lens — and returns findings in this skill's severity model (Critical / Warning / Nit / Suggestion) with `file:line` citations.
+   - **Red team** — bugs, broken invariants, security holes, edge cases, determinism / gas issues, missing input validation, downstream footguns.
+   - **Blue team** — missing tests, undocumented invariants, hardening gaps, misuse-inviting ergonomics, migration / rollback risk.
+   - **Correctness** — does the code match the PR description and linked issue? Scope drift, silent behavior changes, contract mismatches.
+   - Optional for big PRs: perf, docs, consensus impact, API surface.
+
+3. **Synthesize.** Read all reports, dedupe overlaps, re-rank by the severity ladder. Verify each finding against the actual file before keeping it — never trust an agent summary alone.
+
+4. **Critic pass (one round, parallel).** Dispatch 2-3 critics in one message, each a distinct lens — verdict-check, missing-blocking, severity-calibration — over the synthesized draft plus diff and worktree. Each critic returns ONLY findings that (a) flip the verdict, (b) raise an existing finding by ≥1 severity band, or (c) add a Critical/Warning absent from the draft; everything sub-bar is dropped at the source. Nothing qualifying → return exactly `NO_MATERIAL_FINDINGS`. Avoid open-ended "what's wrong / what's missing" prompts. After critics return: dedupe, re-read each cited `file:line`, drop what doesn't hold, revise. One critic round only — never loop.
+
+5. **Output.** Continue with the normal *Output*, `comment_<model>.md`, and push flow. The commit message may suffix `(deep)`.
 
 ## For each PR
 

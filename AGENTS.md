@@ -18,7 +18,7 @@ When given a PR number or URL, read and follow `skills/review.md`.
 
 When asked to **review all** (e.g. "review all", "review all non-reviewed recent PRs"), read and follow `skills/review.md` — see its "Review all" section: review every open, non-draft PR whose number is absent from `reviews/pr/`, excluding `WIP`-titled and dependabot PRs unless explicitly included.
 
-When asked for a **parallel**, **red-team / blue-team**, or **deeper** review of a single PR (or "review and loop until perfect"), read and follow `skills/parallel-review.md` instead.
+When asked for a **parallel**, **red-team / blue-team**, or **deeper** review of a single PR (or "review and loop until perfect"), read and follow `skills/review.md` — see its "Deep mode" section.
 
 ## Fix Issue
 
