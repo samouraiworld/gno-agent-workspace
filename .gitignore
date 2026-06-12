@@ -16,3 +16,4 @@ audits/**/.cache/
 
 # Personal Claude Code settings
 .claude/settings.local.json
+.cache
