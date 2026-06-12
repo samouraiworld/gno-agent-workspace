@@ -16,6 +16,8 @@ Generate the Samourai team weekly status report.
 - **Mergers** (only their approvals count for ✅): `thehowl`, `moul`, `jeronimoalbi`, `gfanton`, `ltzmaxwell`, `sw360cab`, `alexiscolin`, `aeddi`, `zivkovicmilos`, `jaekwon`, `nemanjantic`, `ajnavarro`, `Kouteki`, `NotJoon`, `tbruyelle`
 - **Repos:** `gnolang/gno`, `samouraiworld/gnomonitoring`
 
+A renamed GitHub handle returns zero PRs with no error, silently dropping that member. On a missing-PR complaint, verify handles via `gh api users/<login>` first. `Villaquiranm` appears as "Miguel" in manual cross-repo entries (same person).
+
 ## Classification rules
 
 For non-draft, open gnolang/gno PRs — **first match wins** (1→7):
@@ -119,6 +121,8 @@ List **every open PR**. Line syntax: `` <number> [highlight|high|medium|low]: [n
 **Save** to `reports/weekly/YYYY-MM-DD/context.md`, present to user, and **wait for edits** before generating the report.
 
 ### 4. Produce report.md
+
+First re-read `reports/weekly/YYYY-MM-DD/context.md` from disk, even after approval: the user edits it between steps. The on-disk file is the source of truth for priorities and notes.
 
 Use `context.md` + JSON data. Content categories (2-8) omitted if empty; all other sections always appear.
 
