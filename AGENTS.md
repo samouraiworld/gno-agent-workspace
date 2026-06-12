@@ -20,6 +20,8 @@ When asked to **review all** (e.g. "review all", "review all non-reviewed recent
 
 When asked for a **parallel**, **red-team / blue-team**, or **deeper** review of a single PR (or "review and loop until perfect"), read and follow `skills/review.md` — see its "Deep mode" section.
 
+When you say **post** while a `comment_<model>.md` draft is the pointed-at file, that is approval to post it: run `./scripts/post-pr-review.py <number> <path>` directly, then commit and push the annotated draft. `<number>` is the `<number>-<slug>/` segment of the path. Don't read the draft first — the script parses it and refuses an APPROVE event without `--approve` (which still needs separate explicit confirmation).
+
 ## Fix Issue
 
 When asked to fix a gnolang/gno issue (bug, security fix, etc.), read and follow `skills/fix-issue.md`. Supports two modes: `fix` to implement and open a PR, `cleanup` to remove worktrees for merged PRs.
@@ -38,3 +40,10 @@ When asked to generate or update the weekly UX report (a/ux label), read and fol
 - **Never write into the `gno/` submodule in-place.** Any task that modifies files under `gno/` — code, docs, READMEs, anything — happens inside a worktree at `.worktrees/gno-<slug>/`. See `skills/fix-issue.md` for the worktree-creation procedure. Docs/README work is not an exception: "small" is not a reason to skip a worktree.
 - **Never push to gnolang/gno** for review purposes. Pushing to a fork of gnolang/gno is acceptable for specific cases (e.g. cherry-picks).
 - After writing a review, commit and push to this repo only: `git add reviews/ && git commit -m "review: PR #<number>" && git push`.
+- **Every `scripts/*.sh` carries the NOT AUDITED line as line 2**, right after the shebang: `# NOT AUDITED — AI-generated tooling. Review before executing in any privileged context.` then a `#` separator. Never on adversarial test files under `reviews/.../tests/` — those use the test-file disclaimer in `skills/review.md`.
+
+## Authoring skills, prompts, and these instruction files
+
+- Strip rationale, justifications, and war-stories; keep only directives, in imperative form. State a non-obvious *condition* tersely, never the historical reason. When a template defines the full output, removing a section is the rule: don't add a "No X section" note explaining the absence. Applies to skills, agent prompts, and `AGENTS.md`; not to commit messages, PR descriptions, code comments, or chat.
+- A prompt that delegates to a skill points at it, never restates its steps. A routine or dispatched-agent prompt carries only: the skill pointer, automation-specific deltas, output requirements, error boundaries.
+- When one of a skill's rules proves unclear, missing, or wrong during use, update the skill in the same turn — don't wait to be asked. Cross-PR conventions belong in the skill; one-off PR specifics don't.
