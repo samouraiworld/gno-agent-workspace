@@ -52,5 +52,3 @@ None
 
 - jefft0 (PR thread): clicking a subdirectory like `/r/sys/users` lands on the file listing rather than the realm's Render page. The Directories links point at the bare package path (`{{ .Path }}`, no `$source`), so their routing is the existing `/r/<pkg>` behavior this PR does not touch; whether a subpackage shows Render or a file listing depends on whether that path has a `Render()` on the running node. Likely a devnet-data difference, but the author should confirm the intended target. Not posted — needs the author's product call, not a code change here.
 - jefft0 (PR thread): the Copy button does nothing on `$source&file=README.md`. That is the unchanged source-code view, not the overview, so it is pre-existing behavior outside this PR's diff. Not posted for the same reason.
-</content>
-</invoke>
