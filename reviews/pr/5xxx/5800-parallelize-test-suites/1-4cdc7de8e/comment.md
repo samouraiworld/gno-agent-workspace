@@ -3,7 +3,7 @@ Posted: https://github.com/gnolang/gno/pull/5800#pullrequestreview-4471795728
 Event: REQUEST_CHANGES
 
 ## Body
-Solid design and a real CI win. Two blockers, both reproduced on the current head (13064df):
+Solid design and a real CI win. Two blockers, both reproduced on 13064df:
 
 - `go test -race ./gnovm/pkg/gnolang`: 0 races on master, 27 on this branch. Culprits: the global `enabled` debug bool and an `*Allocator` shared across pool stores. Repro below, breakdown in the full review.
 - `gno test -jobs -1` hangs forever with no output. Inline comment with fix and repro.

@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Looks good. Verified on the current head (44cd6b494): the four new filetests are genuine regression guards, each failing with only `machine.go`+`op_assign.go` reverted to the merge-base; the single-LHS fast path and the `doOpRef` read path are semantically unchanged; and the benchmarks confirm 0 allocs/op.
+Looks good. Verified on 44cd6b494: the four new filetests are genuine regression guards, each failing with only `machine.go`+`op_assign.go` reverted to the merge-base; the single-LHS fast path and the `doOpRef` read path are semantically unchanged; and the benchmarks confirm 0 allocs/op.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5790-tuple-assign-inplace/1-44cd6b494/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 

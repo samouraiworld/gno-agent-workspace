@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Repros run on the current head (e881032e5). The red CI checks are just stale bundles vs master, not a code problem.
+Repros run on e881032e5. The red CI checks are just stale bundles vs master, not a code problem.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5649-state-explorer-frontend/2-e881032e5/review_claude-fable-5_davd-gzl.md · [↗](./review_claude-fable-5_davd-gzl.md)
 

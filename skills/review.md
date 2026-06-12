@@ -97,6 +97,7 @@ git diff $(git merge-base origin/master <new-sha>) <new-sha> | git patch-id --st
 - `gh pr checks <number> -R gnolang/gno` first. Note failures.
 - `.gno` packages: `gno test -v ./path/to/package`
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
+- Testing an example package whose branch also modifies a **stdlib**: set `GNOROOT=<worktree-root>` on the `gno test` command, else stdlibs load from a stale GNOROOT and new symbols read as `name X not declared`. CI sets this; the failure is local-only.
 - Record pass/fail per affected package.
 - PRs changing runtime behavior of a server or tool (`contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`): boot it from the PR worktree and exercise the changed behavior live (gnodev + `curl` for gnoweb; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader/tooling changes). Record what was verified live in the review file. Unit tests alone are not sufficient verification for these PRs. PRs not touching those dirs (tests/docs-only) skip the live boot.
 
@@ -115,7 +116,7 @@ Read every line. Look for:
 - Reuse and simplification: duplicated helpers, foldable code, unclear naming, missing doc comments on exported symbols, non-obvious invariants. These land as Suggestions/Nits, never blockers.
 - Docs impact: flag if `docs/` needs updating.
 
-Verify every finding against the actual file before including it — never from memory or summaries.
+Verify every finding against the actual file before including it — never from memory or summaries. Run greps and lint against the PR worktree (`.worktrees/gno-review-<number>`), never the `gno/` submodule: it sits at an arbitrary, often stale detached HEAD, so a symbol present on the branch can read as absent. Treat gno language-server diagnostics as possibly stale too — confirm a symbol with `gno lint` built from the worktree (`go run ../gnovm/cmd/gno lint ./path`), sanity-checked by feeding a bogus symbol.
 
 ### (Optional) Write adversarial tests
 
@@ -143,6 +144,8 @@ Same shape for `.txtar` tests — `#` comments, destination `gno.land/pkg/integr
 For `**Repro:**` blocks inside the review, prefer inline heredocs (`cat > … <<'EOF' … EOF`) over `curl`.
 
 Headers stand alone (~12 lines): disclaimer + `Run:` block, then 2-4 comment lines covering the mechanism, the observed result at the pinned hash, and what changes when fixed. No flip-check instructions, no restating the finding. Name code paths by actual symbol, not review labels. Keep in-test comments to one line per non-obvious step.
+
+Assert the desired post-fix state, not the current panic: a test pinned to the bug's error goes green while the bug lives. For gno filetests use `// Output:` with the correct values, not `// Error:` matching the panic — reserve `// Error:` for code whose rejection is the correct outcome (e.g. an illegal recursive type).
 
 Pair the bug with its related baseline invariant in one assertion (e.g. `"p==q=false q==r=true"`).
 
@@ -294,7 +297,7 @@ Format:
 Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 ## Body
-<One-line assessment folding in the repro pin ("verified on the current head (<short-sha>)"). Anchored findings never appear here in any form: no bullets, no prose recap, no "(inline)" pointer, no count ("four doc nits inline"). No PR re-description, no list of what the PR does or what passed, no review-process narration ("re-review", "cross-check round"), no restating thread state the author already knows (maintainer holds, prior verdicts). Only findings or questions without a file:line anchor get a bullet here, one sentence each: gap, then fix. When clean: "Looks good. Verified on the current head (<short-sha>): <CI-invisible check>." and nothing else. <CI-invisible check> is something CI does not show: reverting the fix reproduces the bug, output matches Go across the boundary table, a behavior-preserving move returns identical data. Name at most three checks, the strongest ones, each as a claim, not its test matrix — no parenthetical lists of tested values or shapes; the full check inventory stays in the review file.>
+<One-line assessment folding in the repro pin ("verified on <short-sha>"). Anchored findings never appear here in any form: no bullets, no prose recap, no "(inline)" pointer, no count ("four doc nits inline"). No PR re-description, no list of what the PR does or what passed, no review-process narration ("re-review", "cross-check round"), no restating thread state the author already knows (maintainer holds, prior verdicts). Only findings or questions without a file:line anchor get a bullet here, one sentence each: gap, then fix. When clean: "Looks good. Verified on <short-sha>: <CI-invisible check>." and nothing else. <CI-invisible check> is something CI does not show: reverting the fix reproduces the bug, output matches Go across the boundary table, a behavior-preserving move returns identical data. Name at most three checks, the strongest ones, each as a claim, not its test matrix — no parenthetical lists of tested values or shapes; the full check inventory stays in the review file.>
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<review-file-path> [↗](review_<model>_<reviewer>.md)
 
@@ -328,7 +331,7 @@ Rules:
 - Port carried findings to a new round verbatim: only shas, repro URLs, and anchors that no longer point at the right lines change. No round-relative phrasing ("again", "still"): unposted drafts were never seen by the author.
 - When the PR head advanced past the reviewed commit: diff `<reviewed-sha>..<head>`, drop fixed findings, re-run remaining repros on the new head, re-verify every anchor against the current diff before posting.
 - Before regenerating comment.md, read the existing file and preserve every `SKIP` marker whose finding still exists.
-- Pin repros with a "Repros run at <short-sha>." line at the end of the Body. When the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on the current head (<short-sha>)").
+- Pin repros with a "Repros run at <short-sha>." line at the end of the Body. When the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on <short-sha>").
 - Attempt a repro for every Critical and Warning before drafting. Findings without a run proof are worded as observations, never "I ran X". Behavioral repros only — for source-visible facts, cite the anchor and drop the repro block. A repro whose only output is the PR's own test passing (`--- PASS`) shows nothing CI doesn't, so drop it.
 - End every comment (Body and each inline) with `*(AI Agent)*`.
 - Link to the full review inside an inline comment only when the details block is not enough.

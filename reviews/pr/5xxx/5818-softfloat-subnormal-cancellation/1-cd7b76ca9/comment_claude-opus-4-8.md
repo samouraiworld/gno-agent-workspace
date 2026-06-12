@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Looks good. Verified on the current head (cd7b76ca9): the issue MRE returns `847895691526144` for both add and sub and fails again with the fix reverted, a 30M+ pair sweep shows 0 mismatches vs hardware, and the generator reproduces both committed files byte-for-byte under a different Go toolchain.
+Looks good. Verified on cd7b76ca9: the issue MRE returns `847895691526144` for both add and sub and fails again with the fix reverted, a 30M+ pair sweep shows 0 mismatches vs hardware, and the generator reproduces both committed files byte-for-byte under a different Go toolchain.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5818-softfloat-subnormal-cancellation/1-cd7b76ca9/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 

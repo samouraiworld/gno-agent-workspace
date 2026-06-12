@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Looks good. Verified on the current head (dc9e0ac00): the panic message matches Go for every key shape, and comparable interface-boxed keys still dedup and look up.
+Looks good. Verified on dc9e0ac00: the panic message matches Go for every key shape, and comparable interface-boxed keys still dedup and look up.
 
 - Optional: the new filetests only cover the failure path; a small positive-case filetest (a comparable key boxed into `map[interface{}]V`) would guard the happy path too.
 

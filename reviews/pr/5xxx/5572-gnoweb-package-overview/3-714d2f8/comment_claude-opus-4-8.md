@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Solid work. Verified on the current head (714d2f8) against a live node: the `$source` overview renders, and its symbol links deep-link to the correct source file and line.
+Solid work. Verified on 714d2f8 against a live node: the `$source` overview renders, and its symbol links deep-link to the correct source file and line.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5572-gnoweb-package-overview/3-714d2f8/review_claude-opus-4-8_davd-gzl.md [↗](./review_claude-opus-4-8_davd-gzl.md)
 

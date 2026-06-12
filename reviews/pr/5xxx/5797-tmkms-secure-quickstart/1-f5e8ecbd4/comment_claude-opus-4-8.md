@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Looks good. Verified on the current head (f5e8ecbd4): every flag, config key, default, and rejection behavior the doc asserts checks out against the base branch, all internal anchor links resolve, and `pkconv.go` reproduces the example `g1qmptf8…` address.
+Looks good. Verified on f5e8ecbd4: every flag, config key, default, and rejection behavior the doc asserts checks out against the base branch, all internal anchor links resolve, and `pkconv.go` reproduces the example `g1qmptf8…` address.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5797-tmkms-secure-quickstart/1-f5e8ecbd4/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
