@@ -8,7 +8,7 @@ argument-hint: <pr-number> [pr-number...]
 
 Review one or more PRs from the `gnolang/gno` repository.
 
-Every artifact is written for a human reader: skimmable structure (verdict first, then narrative, then findings), concise prose, clickable references, self-sufficient files.
+Every artifact is written for a human reader: skimmable structure (verdict first, then narrative, then findings), concise prose, clickable references, self-sufficient files. Every extra line adds human review time: cut anything that doesn't change what the reader does next. Plain English everywhere, including test comments: write real words, no shorthand like "decls".
 
 **Input:** `$ARGUMENTS` — space-separated PR numbers or GitHub URLs. Process each PR independently.
 
@@ -124,7 +124,7 @@ Same shape for `.txtar` tests — `#` comments, destination `gno.land/pkg/integr
 
 For `**Repro:**` blocks inside the review, prefer inline heredocs (`cat > … <<'EOF' … EOF`) over `curl`.
 
-Headers stand alone (~20 lines): disclaimer + `Run:` block, one paragraph on the mechanism, 2-3 lines on the observed result, one line on how to flip the assertion. Name code paths by actual symbol, not review labels.
+Headers stand alone (~12 lines): disclaimer + `Run:` block, then 2-4 comment lines covering the mechanism, the observed result at the pinned hash, and what changes when fixed. No flip-check instructions, no restating the finding. Name code paths by actual symbol, not review labels. Keep in-test comments to one line per non-obvious step.
 
 Pair the bug with its related baseline invariant in one assertion (e.g. `"p==q=false q==r=true"`).
 
@@ -297,10 +297,10 @@ Rules:
 - One `## <path>:<line>` section per finding with a file:line, all severities. Ranges: `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Unanchored findings and questions go at the end of Body.
 - Verify every anchor by reading those lines in the worktree before drafting; the anchor must cover exactly the lines the sentence talks about.
 - Append a local IDE link to each anchor header: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space.
-- Inline comment visible text = the finding's TL;DR plus its "Fix:" sentence, verbatim from the review file, priority tag stripped. Hard cap 1-3 visible sentences. No headers, no priority tags, no bold. Plain English, essentials only: problem, why it matters, fix — short sentences, no stacked technical clauses, no symbol-chain walkthroughs; the reader must get it in one pass. Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
+- Inline comment visible text = the finding's TL;DR plus its "Fix:" sentence, verbatim from the review file, priority tag stripped. Hard cap 1-3 visible sentences. No headers, no priority tags, no bold. Plain English, essentials only: problem, why it matters, fix — short sentences, no stacked technical clauses, no symbol-chain walkthroughs; the reader must get it in one pass. Drop the Fix sentence when it only restates the obvious remedy ("add it", "delete it", "update the number"). Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
 - State findings as facts ("X hangs forever"), not questions. A genuine question is one terse line, posted only if the answer changes the verdict or the author's next action.
 - Never explain routine fixes the author would do anyway (merge master, regenerate assets, re-run a flaky job). A red CI check with a routine cause gets one short Body line ("not a code problem"), no instructions, no repro; detail it only when the cause is non-obvious or changes what the author must do.
-- Every file or test referenced by name (visible text or repro `<details>`) gets the dual link: GitHub blob URL at the reviewed sha + ` · [↗](<local worktree path>)`. The "Full review:" line gets a relative `↗`. The upload script strips every `[↗](...)` link at post time.
+- Every file or test referenced by name (visible text or repro `<details>`) gets the dual link: GitHub blob URL at the reviewed sha + ` · [↗](<local worktree path>)`. Every behavioral claim links the line that proves it, dual-link form, not just claims that name a symbol. The "Full review:" line gets a relative `↗`. The upload script strips every `[↗](...)` link at post time.
 - Repro blocks: same rules as review repros — start with `gh pr checkout`, runnable from a fresh gnolang/gno clone, zero local paths, actually run, output included.
 - Repro placement: line-specific repros stay with their inline comment; suite/PR-wide repros go in a Body `<details>` block, inline comments point to it.
 - Zero duplication between Body and inline comments. Anchored findings are inline only; unanchored findings/questions are Body only.
