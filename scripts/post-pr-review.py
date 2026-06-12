@@ -30,6 +30,11 @@ Anchors are validated against the PR diff before posting: the GitHub API
 only accepts inline comments on lines present in the diff (added or
 context, RIGHT side; the web UI is more permissive, the API is not).
 Invalid anchors abort the upload unless --skip-invalid.
+
+A draft that already carries a "Posted:" line (written back by a previous
+run) is updated in place instead of re-posted: the review body and every
+[posted]-linked inline comment are rewritten on GitHub. Anchors without a
+[posted] link abort — comments can't be added to an existing review.
 """
 
 import argparse
@@ -43,6 +48,8 @@ import sys
 ANCHOR_RE = re.compile(r"^(\S+):(\d+)(?:-(\d+))?(?:\s.*)?$")
 # Local [↗](...) IDE links, with their optional " · " separator.
 LOCAL_LINK_RE = re.compile(r"\s*(?:·\s*)?\[↗\]\([^)]*\)")
+# "[posted](<url>)" links written back onto anchor headers after a post.
+POSTED_RE = re.compile(r"\[posted\]\(([^)]*)\)")
 # Unified-diff hunk header "@@ -a,b +c,d @@" — capture c, the first
 # line number of the hunk on the NEW (RIGHT) side of the diff.
 HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
@@ -111,6 +118,9 @@ def parse_comment_md(text):
              "body": content}
         if end:
             c["start_line"], c["start_side"] = int(start), "RIGHT"
+        m = POSTED_RE.search(header)
+        if m:
+            c["_posted"] = m.group(1)
         comments.append(c)
     if body is None:
         sys.exit("error: missing '## Body' section")
@@ -147,6 +157,60 @@ def diff_right_lines(repo, pr):
                 lines_by_path.setdefault(path, set()).add(new_line)
                 new_line += 1
     return lines_by_path
+
+
+def gh_json(path):
+    return json.loads(subprocess.run(
+        ["gh", "api", path], capture_output=True, text=True, check=True,
+    ).stdout)
+
+
+def gh_graphql(query, **vars):
+    cmd = ["gh", "api", "graphql", "-f", f"query={query}"]
+    for k, v in vars.items():
+        cmd += ["-f", f"{k}={v}"]
+    subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+
+def update_posted(repo, pr, review_url, body, comments):
+    """Rewrite an already-posted review in place. The REST review-update
+    endpoint (PUT .../reviews/{id}) returns 404 even for the review's own
+    author, so updates go through GraphQL by node id instead."""
+    m = re.search(r"pullrequestreview-(\d+)", review_url)
+    if not m:
+        sys.exit(f"error: can't parse a review id from 'Posted: {review_url}'")
+
+    missing = [c for c in comments if "_posted" not in c]
+    if missing:
+        for c in missing:
+            start = c.get("start_line")
+            loc = f"{start}-{c['line']}" if start else c["line"]
+            print(f"  {c['path']}:{loc}", file=sys.stderr)
+        sys.exit("aborting: anchors above have no [posted] link — comments "
+                 "can't be added to an already-posted review. Remove them "
+                 "or post them separately.")
+
+    node = gh_json(f"repos/{repo}/pulls/{pr}/reviews/{m.group(1)}")["node_id"]
+    gh_graphql(
+        "mutation($id: ID!, $body: String!) { updatePullRequestReview("
+        "input: {pullRequestReviewId: $id, body: $body}) "
+        "{ clientMutationId } }",
+        id=node, body=body)
+
+    for c in comments:
+        m = re.search(r"discussion_r(\d+)", c["_posted"])
+        if not m:
+            sys.exit(f"error: can't parse a comment id from {c['_posted']}")
+        cnode = gh_json(f"repos/{repo}/pulls/comments/{m.group(1)}")["node_id"]
+        gh_graphql(
+            "mutation($id: ID!, $body: String!) { "
+            "updatePullRequestReviewComment(input: "
+            "{pullRequestReviewCommentId: $id, body: $body}) "
+            "{ clientMutationId } }",
+            id=cnode, body=c["body"])
+
+    print(f"review updated in place: {review_url}")
+    print(f"body + {len(comments)} inline comment(s) rewritten")
 
 
 def write_back_links(path_md, review_url, posted):
@@ -197,7 +261,23 @@ def main():
     args = ap.parse_args()
 
     with open(args.comment_md) as f:
-        event, body, comments = parse_comment_md(f.read())
+        text = f.read()
+    event, body, comments = parse_comment_md(text)
+
+    # A "Posted:" line means this draft is live on GitHub: rewrite the
+    # posted review instead of creating a duplicate. No --approve gate —
+    # the event doesn't change, only the text.
+    posted_m = re.search(r"^Posted:\s*(\S+)\s*$", text, re.MULTILINE)
+    if posted_m:
+        if args.dry_run:
+            print(json.dumps({"update": posted_m.group(1), "body": body,
+                              "comments": comments}, indent=2))
+            return
+        update_posted(args.repo, args.pr, posted_m.group(1), body, comments)
+        return
+
+    for c in comments:
+        c.pop("_posted", None)
 
     # Pre-flight: check every anchor against the diff so a single bad
     # line number doesn't make GitHub reject the whole review upload.
