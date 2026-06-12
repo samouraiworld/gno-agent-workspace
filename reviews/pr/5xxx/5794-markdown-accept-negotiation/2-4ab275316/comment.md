@@ -3,7 +3,7 @@ Posted: https://github.com/gnolang/gno/pull/5794#pullrequestreview-4477498171
 Event: APPROVE
 
 ## Body
-Clean and well-tested; verified on the current head (4ab275316). Nothing blocking.
+Clean and well-tested; verified on 4ab275316. Nothing blocking.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5794-markdown-accept-negotiation/2-4ab275316/claude-opus-4-8_davd-gzl.md · [↗](claude-opus-4-8_davd-gzl.md)
 

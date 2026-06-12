@@ -4,7 +4,7 @@ Event: REQUEST_CHANGES
 > Not posted. A prior posting of this review was removed on 2026-06-11; re-post only on explicit request (`./scripts/post-pr-review.py 5808 <this file>`).
 
 ## Body
-All five related filetests pass on the current head (17b76f841), but the master merge inside this PR ([bf1467158](https://github.com/gnolang/gno/commit/bf1467158)) staled two of the rationales being pinned (inline comments).
+All five related filetests pass on 17b76f841, but the master merge inside this PR ([bf1467158](https://github.com/gnolang/gno/commit/bf1467158)) staled two of the rationales being pinned (inline comments).
 
 - `cannot delete from readonly tainted map` ([`uverse.go:983-985`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/pkg/gnolang/uverse.go#L983-L985) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/pkg/gnolang/uverse.go#L983-L985)) is asserted by no test on this branch: since [#5747](https://github.com/gnolang/gno/commit/310dc2a04), [`zrealm_map1.gno`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/tests/files/zrealm_map1.gno#L32-L33) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/zrealm_map1.gno#L32-L33) and [`zrealm_map3.gno`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/tests/files/zrealm_map3.gno#L46-L49) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/zrealm_map3.gno#L46-L49) pin successful same-realm deletes. Fix: add a test pinning the readonly-delete panic (external-realm map fixture plus a filetest or txtar), or state explicitly that it is intentionally unpinned.
 

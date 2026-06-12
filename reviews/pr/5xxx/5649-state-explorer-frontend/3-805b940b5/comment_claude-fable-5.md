@@ -3,7 +3,7 @@ Posted: https://github.com/gnolang/gno/pull/5649#pullrequestreview-4487230385
 Event: REQUEST_CHANGES
 
 ## Body
-Repros run on the current head (805b940b5). The red CI checks are just stale generated bundles, not a code problem; regenerating also revives the state page's Copy-JSON button, which currently ships without its handler.
+Repros run on 805b940b5. The red CI checks are just stale generated bundles, not a code problem; regenerating also revives the state page's Copy-JSON button, which currently ships without its handler.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5649-state-explorer-frontend/3-805b940b5/review_claude-fable-5_davd-gzl.md · [↗](./review_claude-fable-5_davd-gzl.md)
 

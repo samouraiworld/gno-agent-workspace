@@ -4,7 +4,7 @@ Event: REQUEST_CHANGES
 ## Body
 The reference-StringValue optimization is sound in shape, but two things block and the in-memory accounting model needs to be stated explicitly rather than left implicit.
 
-- benchstore no longer builds behind `-tags=genproto2`: `StringValue` is now a struct, so the `gno.StringValue(s)` conversion at [`gnovm/cmd/benchstore/values.go:44`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/cmd/benchstore/values.go#L44) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/cmd/benchstore/values.go#L44) is invalid. The migration was applied everywhere else but missed here, and no CI job builds with that tag, so the break is latent. Verified locally on the current head (3be8c3b1). Fix: `gno.NewStringValue(s)`.
+- benchstore no longer builds behind `-tags=genproto2`: `StringValue` is now a struct, so the `gno.StringValue(s)` conversion at [`gnovm/cmd/benchstore/values.go:44`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/cmd/benchstore/values.go#L44) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/cmd/benchstore/values.go#L44) is invalid. The migration was applied everywhere else but missed here, and no CI job builds with that tag, so the break is latent. Verified locally on 3be8c3b1. Fix: `gno.NewStringValue(s)`.
   <details><summary>repro</summary>
 
   ```bash

@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Looks good. Verified on the current head (6d99daf0e) that this is a behavior-preserving move: every retained `Get*` view returns the same data as before, hidden-thread lookup still works, and the only deliberate change is dropping the caller-namespace gate on reads, matching the new "no caller authorization" header.
+Looks good. Verified on 6d99daf0e that this is a behavior-preserving move: every retained `Get*` view returns the same data as before, hidden-thread lookup still works, and the only deliberate change is dropping the caller-namespace gate on reads, matching the new "no caller authorization" header.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5809-boards2-hub-non-crossing/1-6d99daf0e/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
