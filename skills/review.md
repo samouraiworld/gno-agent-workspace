@@ -53,7 +53,7 @@ Trigger: the user asks for a **parallel**, **red-team / blue-team**, or **deeper
 
 4. **Critic pass (one round, parallel).** Dispatch 2-3 critics in one message, each a distinct lens — verdict-check, missing-blocking, severity-calibration — over the synthesized draft plus diff and worktree. Each critic returns ONLY findings that (a) flip the verdict, (b) raise an existing finding by ≥1 severity band, or (c) add a Critical/Warning absent from the draft; everything sub-bar is dropped at the source. Nothing qualifying → return exactly `NO_MATERIAL_FINDINGS`. Avoid open-ended "what's wrong / what's missing" prompts. After critics return: dedupe, re-read each cited `file:line`, drop what doesn't hold, revise. One critic round only — never loop.
 
-5. **Output.** Continue with the normal *Output*, `comment_<model>.md`, and push flow. The commit message may suffix `(deep)`.
+5. **Output.** Continue with the normal *Output*, `comment_<model>.md`, and push flow. In the metadata line, append the model intensity to the model name: `Model: <model> (<intensity>)`, e.g. `(low)`, `(xhigh)`, `(max)`; ask the user if the intensity is not known. The commit message may suffix `(deep)`.
 
 ## For each PR
 
