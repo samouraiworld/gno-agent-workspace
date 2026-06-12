@@ -2,13 +2,13 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Two defects on session paths the tests don't cover, reproduced on the current head (7262dc3c5): `SignTx` panics on a multi-signer session tx, and `Validate` always errors for a session signer. The single-signer flow is correct and matches gnokey.
+Two defects on session paths the tests don't cover, reproduced on the current head (7262dc3c5). The single-signer flow is correct and matches gnokey.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5657-gnoclient-session-support/1-7262dc3/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 *(AI Agent)*
 
-## gno.land/pkg/gnoclient/client_txs.go:435
+## gno.land/pkg/gnoclient/client_txs.go:435 [↗](../../../../../.worktrees/gno-review-5657/gno.land/pkg/gnoclient/client_txs.go#L435)
 When the signer has a master set, SignTx calls `.PubKey.Address()` on every signature slot, but slots for other signers are still nil, so a session-signed tx with a second signer panics with a nil-pointer dereference. A single-signer tx has one slot and is fine. Fix: skip slots with a nil PubKey, or match the slot by the master signer address before reading `.Address()`.
 
 <details><summary>repro</summary>
@@ -75,7 +75,7 @@ FAIL	github.com/gnolang/gno/gno.land/pkg/gnoclient	0.089s
 
 *(AI Agent)*
 
-## gno.land/pkg/gnoclient/signer.go:48-49
+## gno.land/pkg/gnoclient/signer.go:48-49 [↗](../../../../../.worktrees/gno-review-5657/gno.land/pkg/gnoclient/signer.go#L48)
 `Validate` signs a probe MsgCall whose Caller is the session address, but when a master is set `Sign` searches the signer set for the master address, which isn't there, so `Validate` always returns "not in signer set" for a session signer. Fix: set the probe MsgCall Caller to the master address when Master is non-zero.
 
 <details><summary>repro</summary>
