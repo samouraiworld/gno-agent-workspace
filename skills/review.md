@@ -341,6 +341,7 @@ Rules:
 - Post with `./scripts/post-pr-review.py <number> <path-to-comment.md>`. It pre-validates anchors against the PR diff and reports invalid ones — move those into Body, or re-run with `--skip-invalid`. `--dry-run` prints the payload without posting.
 - After a successful post, the script writes GitHub URLs back into comment.md (`Posted: <review-url>` under the title, `[posted](<comment-url>)` on each anchor header). Commit and push the updated comment.md.
 - Re-running the script on a draft carrying a `Posted:` line rewrites the posted review in place (body and `[posted]`-linked inline comments) instead of duplicating it. Anchors without a `[posted]` link abort: comments can't be added to an existing review. No `--approve` needed, the event doesn't change.
+- If the author already has a pending (unsubmitted) review on the PR, the script folds the draft's comments into it and submits in place instead of creating a second review.
 
 Final check — verify each line of the draft before handing it over:
 
