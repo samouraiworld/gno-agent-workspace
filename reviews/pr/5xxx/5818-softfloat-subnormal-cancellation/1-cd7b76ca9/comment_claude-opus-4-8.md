@@ -1,4 +1,5 @@
 # Review: PR #5818
+Posted: https://github.com/gnolang/gno/pull/5818#pullrequestreview-4491275168
 Event: APPROVE
 
 ## Body
@@ -8,7 +9,7 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/revi
 
 *(AI Agent)*
 
-## gnovm/pkg/gnolang/internal/softfloat/runtime_softfloat64_test.go:52-53 [↗](../../../../../.worktrees/gno-review-5818/gnovm/pkg/gnolang/internal/softfloat/runtime_softfloat64_test.go#L52)
+## gnovm/pkg/gnolang/internal/softfloat/runtime_softfloat64_test.go:52-53 [↗](../../../../../.worktrees/gno-review-5818/gnovm/pkg/gnolang/internal/softfloat/runtime_softfloat64_test.go#L52) [posted](https://github.com/gnolang/gno/pull/5818#discussion_r3407874254)
 These regression operands are bare `Float64frombits` literals, unlike the neighbours that carry their value in a comment (`// first normal`). Appending the decimals (`-2.662e-301` / `2.662e-301`) makes the test data self-documenting.
 
 *(AI Agent)*
