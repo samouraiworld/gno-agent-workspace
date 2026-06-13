@@ -11,9 +11,7 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/revi
 ## gno.land/pkg/sdk/vm/convert.go:214-218 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/sdk/vm/convert.go#L214)
 Go accepts NaN and ±Inf as float arguments, and the VM already produces and stores both, so rejecting them only on `maketx call` diverges from Go for no gain. The malleability rationale doesn't hold: the signature commits to the arg string, not the parsed float, and every spelling of NaN/Inf parses to one fixed bit pattern. Drop the two panics so NaN/Inf are accepted, matching Go.
 
-<details><summary>Go vs Gno: identical behavior, only the maketx boundary rejects</summary>
-
-The same source run in Go and in the GnoVM, then the same values at the `maketx call` arg boundary:
+The same source, run in Go and in the GnoVM, then the same values at the `maketx call` arg boundary:
 
 | input | Go | Gno (VM) | `maketx call` arg (this PR) |
 |---|---|---|---|
@@ -21,11 +19,12 @@ The same source run in Go and in the GnoVM, then the same values at the `maketx 
 | `Inf` | `echo=+Inf isInf=true` | `echo=+Inf isInf=true` | panic: `float64 does not accept Inf` |
 | `-0.0` | `signbit=false` | `signbit=false` | `signbit=false` (bits `0x0`, folded) |
 
+<details><summary>Go</summary>
+
 ```bash
-# from a local clone of gnolang/gno (run from the repo root):
+# from a local clone of gnolang/gno:
 gh pr checkout 5221 -R gnolang/gno
-# Identical source for Go and Gno (println is a builtin in both):
-cat > /tmp/fc <<'EOF'
+cat > /tmp/fc.go <<'EOF'
 package main
 import ("math"; "strconv")
 func echo(x float64) string { return strconv.FormatFloat(x, 'f', -1, 64) }
@@ -35,10 +34,34 @@ func main() {
 	println("-0.0 signbit=" + strconv.FormatBool(math.Signbit(-0.0)))
 }
 EOF
-cp /tmp/fc /tmp/fc.go; cp /tmp/fc /tmp/fc.gno
-echo "== Go =="; go run /tmp/fc.go
-echo "== Gno (VM) =="; GNOROOT=$PWD go run ./gnovm/cmd/gno run /tmp/fc.gno 2>/dev/null
-# Same values at the maketx-call arg boundary (this PR):
+go run /tmp/fc.go; rm /tmp/fc.go
+```
+
+```
+NaN  echo=NaN isNaN=true
+Inf  echo=+Inf isInf=true
+-0.0 signbit=false
+```
+</details>
+
+<details><summary>Gno</summary>
+
+Same source in the GnoVM (the language agrees with Go), then the same values at the `maketx call` arg boundary (this PR):
+
+```bash
+# from a local clone of gnolang/gno (run from the repo root):
+gh pr checkout 5221 -R gnolang/gno
+cat > /tmp/fc.gno <<'EOF'
+package main
+import ("math"; "strconv")
+func echo(x float64) string { return strconv.FormatFloat(x, 'f', -1, 64) }
+func main() {
+	println("NaN  echo=" + echo(math.NaN()) + " isNaN=" + strconv.FormatBool(math.IsNaN(math.NaN())))
+	println("Inf  echo=" + echo(math.Inf(1)) + " isInf=" + strconv.FormatBool(math.IsInf(math.Inf(1), 1)))
+	println("-0.0 signbit=" + strconv.FormatBool(math.Signbit(-0.0)))
+}
+EOF
+echo "== gno run =="; GNOROOT=$PWD go run ./gnovm/cmd/gno run /tmp/fc.gno 2>/dev/null; rm /tmp/fc.gno
 cat > gno.land/pkg/sdk/vm/zz_parity_test.go <<'EOF'
 package vm
 import ("fmt"; "testing"; "github.com/gnolang/gno/gnovm/pkg/gnolang")
@@ -53,15 +76,11 @@ func TestZZParity(t *testing.T) {
 }
 EOF
 echo "== maketx call arg (this PR) =="; go test -run TestZZParity -v ./gno.land/pkg/sdk/vm/ 2>&1 | grep "arg "
-rm /tmp/fc /tmp/fc.go /tmp/fc.gno gno.land/pkg/sdk/vm/zz_parity_test.go
+rm gno.land/pkg/sdk/vm/zz_parity_test.go
 ```
 
 ```
-== Go ==
-NaN  echo=NaN isNaN=true
-Inf  echo=+Inf isInf=true
--0.0 signbit=false
-== Gno (VM) ==
+== gno run ==
 NaN  echo=NaN isNaN=true
 Inf  echo=+Inf isInf=true
 -0.0 signbit=false
