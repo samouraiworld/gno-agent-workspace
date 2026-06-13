@@ -92,8 +92,3 @@ The `-0`→`+0` fold is fine and matches Go (the literal `-0.0` folds to `+0`), 
 If the `-0` fold stays, no test covers a value that underflows to float32 `-0` (e.g. `"-1e-50"` as `Float32Type`). Add that case so a refactor touching only literal `-0` can't silently regress the float32 underflow path.
 
 *(AI Agent)*
-
-## gno.land/pkg/integration/testdata/maketx_call_float_args.txtar:38-39 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/integration/testdata/maketx_call_float_args.txtar#L38)
-The float64 `-0.0` case only asserts the formatted output is `"0"`, which `strconv.FormatFloat` also prints for true `+0`, so a float64 fold regression would slip through. Only the float32 path has a sign-bit assertion; add a `CheckSignBitFloat64` for parity.
-
-*(AI Agent)*

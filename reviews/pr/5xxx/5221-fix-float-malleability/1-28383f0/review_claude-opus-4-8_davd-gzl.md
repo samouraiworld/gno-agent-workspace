@@ -75,7 +75,7 @@ None.
 
 ## Suggestions
 
-- [`maketx_call_float_args.txtar:38-39`](https://github.com/gnolang/gno/blob/28383f0/gno.land/pkg/integration/testdata/maketx_call_float_args.txtar#L38-L39) · [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/integration/testdata/maketx_call_float_args.txtar#L38-L39) — the float64 `-0.0` case only asserts the *formatted* output is `"0"`, which `strconv.FormatFloat` also prints for true `+0`, so a float64 fold regression would slip through. Only the float32 path has a sign-bit assertion ([`:45`](https://github.com/gnolang/gno/blob/28383f0/gno.land/pkg/integration/testdata/maketx_call_float_args.txtar#L45) · [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/integration/testdata/maketx_call_float_args.txtar#L45)). Add a `CheckSignBitFloat64` for parity.
+None.
 
 ## Open questions
 
