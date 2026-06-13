@@ -53,7 +53,9 @@ Trigger: the user asks for a **parallel**, **red-team / blue-team**, or **deeper
 
 4. **Critic pass (one round, parallel).** Dispatch 2-3 critics in one message, each a distinct lens — verdict-check, missing-blocking, severity-calibration — over the synthesized draft plus diff and worktree. Each critic returns ONLY findings that (a) flip the verdict, (b) raise an existing finding by ≥1 severity band, or (c) add a Critical/Warning absent from the draft; everything sub-bar is dropped at the source. Nothing qualifying → return exactly `NO_MATERIAL_FINDINGS`. Avoid open-ended "what's wrong / what's missing" prompts. After critics return: dedupe, re-read each cited `file:line`, drop what doesn't hold, revise. One critic round only — never loop.
 
-5. **Output.** Continue with the normal *Output*, `comment_<model>.md`, and push flow. In the metadata line, append the model intensity to the model name: `Model: <model> (<intensity>)`, e.g. `(low)`, `(xhigh)`, `(max)`; ask the user if the intensity is not known. The commit message may suffix `(deep)`.
+5. **Claim-verification gate (parallel).** Before drafting `comment_<model>.md`, dispatch one agent over the synthesized review plus worktree: extract every falsifiable claim — behavioral ("FormatFloat prints X"), structural ("only caller is keeper.go:678"), numeric ("bits = 0x7FF8…") — and for each run a check in the worktree designed to falsify it. It returns only claims that fail or can't be verified. Re-read those against the code, drop or fix, then finalize. Scope to facts only, never severity, verdict, or design judgment. Distinct from the critic pass: this asks "is each stated fact true", not "is the severity right".
+
+6. **Output.** Continue with the normal *Output*, `comment_<model>.md`, and push flow. In the metadata line, append the model intensity to the model name: `Model: <model> (<intensity>)`, e.g. `(low)`, `(xhigh)`, `(max)`; ask the user if the intensity is not known. The commit message may suffix `(deep)`.
 
 ## For each PR
 
@@ -116,7 +118,7 @@ Read every line. Look for:
 - Reuse and simplification: duplicated helpers, foldable code, unclear naming, missing doc comments on exported symbols, non-obvious invariants. These land as Suggestions/Nits, never blockers.
 - Docs impact: flag if `docs/` needs updating.
 
-Verify every finding against the actual file before including it — never from memory or summaries. Run greps and lint in the PR worktree (`.worktrees/gno-review-<number>`), never in the `gno/` submodule (stale detached HEAD). Confirm symbol existence with `gno lint` run from the worktree source (`go run ../gnovm/cmd/gno lint ./path`), not IDE/language-server diagnostics; sanity-check that lint typechecks by feeding it a bogus symbol.
+Verify every finding against the actual file before including it — never from memory or summaries. Every behavioral claim (what a function prints or returns, what the VM produces, what a stdlib call does) ships with an actual run behind it before it enters the review at any severity, including Nits and Suggestions; never assert stdlib or runtime behavior from memory. Run greps and lint in the PR worktree (`.worktrees/gno-review-<number>`), never in the `gno/` submodule (stale detached HEAD). Confirm symbol existence with `gno lint` run from the worktree source (`go run ../gnovm/cmd/gno lint ./path`), not IDE/language-server diagnostics; sanity-check that lint typechecks by feeding it a bogus symbol.
 
 ### (Optional) Write adversarial tests
 
@@ -334,6 +336,7 @@ Rules:
 - When the PR head advanced past the reviewed commit: diff `<reviewed-sha>..<head>`, drop fixed findings, re-run remaining repros on the new head, re-verify every anchor against the current diff before posting.
 - Before regenerating comment.md, read the existing file and preserve every `SKIP` marker whose finding still exists.
 - Pin repros with a "Repros run at <short-sha>." line at the end of the Body. When the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on <short-sha>").
+- Write every reviewed-commit sha in comment.md prose (the `Verified on <sha>` / `reproduced on <sha>` pin, `Repros run at <sha>`) as a bare sha, no backticks and no markdown link. GitHub auto-links a bare commit sha in a gnolang/gno comment and gives it the native commit hovercard; backticks or a `[...](commit-url)` wrapper suppress the hovercard. The review file keeps its own shas as-is (rendered in our repo, where a bare gno sha wouldn't resolve; its file-line links are already clickable).
 - Attempt a repro for every Critical and Warning before drafting. Findings without a run proof are worded as observations, never "I ran X". Behavioral repros only — for source-visible facts, cite the anchor and drop the repro block. A repro whose only output is the PR's own test passing (`--- PASS`) shows nothing CI doesn't, so drop it.
 - End every comment (Body and each inline) with `*(AI Agent)*`.
 - Link to the full review inside an inline comment only when the details block is not enough.
