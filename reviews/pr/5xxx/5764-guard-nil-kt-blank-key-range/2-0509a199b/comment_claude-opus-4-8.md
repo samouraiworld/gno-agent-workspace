@@ -7,3 +7,8 @@ Looks good. Verified on 0509a199b: the new nil-`dt` panic in `checkAssignableTo`
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5764-guard-nil-kt-blank-key-range/2-0509a199b/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 *(AI Agent)*
+
+## gnovm/pkg/gnolang/type_check.go:848-872 [↗](../../../../../.worktrees/gno-review-5764/gnovm/pkg/gnolang/type_check.go#L848)
+Range over a pointer-to-array (`for _, v = range &arr`) isn't operand-type-checked: a `*PointerType` source matches no case in either switch, so a mismatched key/value target is silently accepted and caught only by the go/types pass. Fix: add a `*PointerType` case unwrapping `pt.Elem()` to the array element in both switches.
+
+*(AI Agent)*
