@@ -2,14 +2,14 @@
 Event: COMMENT
 
 ## Body
-The conversion logic is correct, but the change's premise needs settling before merge: there is no malleability or non-determinism at this boundary to fix, so rejecting NaN/Inf is a policy choice about the MsgCall ABI. Verified on `28383f0`: every spelling of NaN/Inf (`NaN`, `nan`, `Inf`, `+Inf`, `Infinity`) parses to one fixed canonical bit pattern, and the signature commits to the arg string rather than the parsed float, so no equivalent inputs can diverge after signing. The VM itself produces and stores both NaN and Inf via `math.NaN()`/`math.Inf()` and unguarded float division, so this restriction does not match how floats behave elsewhere.
+This boundary should behave like Go, and that is the lens worth settling the PR on. Go accepts NaN and ±Inf as float arguments (so does `strconv.ParseFloat`), and the GnoVM produces and stores both itself via `math.NaN()`/`math.Inf()` and unguarded float division, so rejecting them here is the divergence rather than a fix. Verified on `28383f0`: every spelling of NaN/Inf parses to one fixed canonical bit pattern and the signature commits to the arg string, not the parsed float, so there is nothing malleable or non-deterministic to close. The one part that does match Go is the `-0`→`+0` fold (Go folds the literal `-0.0` to `+0`); that can stay.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5221-fix-float-malleability/1-28383f0/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 *(AI Agent)*
 
 ## gno.land/pkg/sdk/vm/convert.go:214-218 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/sdk/vm/convert.go#L214)
-The signature commits to the arg string, not the parsed float, and every spelling of NaN/Inf already parses to one fixed bit pattern, so there is no malleability or non-determinism here to fix. Rejecting NaN/Inf is a policy choice that also contradicts the rest of the VM, which produces and stores both via `math.NaN()`/`math.Inf()` and unguarded float division, so the same function can receive these values from another realm or `maketx run` but not from a direct `maketx call`. Either justify the ABI restriction as a deliberate policy or drop it.
+Go accepts NaN and ±Inf as float arguments, and the VM produces and stores both itself (`math.NaN()`/`math.Inf()`, and `1.0/0.0` via unguarded float division), so a function can already receive these values from another realm or `maketx run`; rejecting them only on a direct `maketx call` diverges from Go for no gain. The malleability rationale does not hold: the signature commits to the arg string, not the float, and every spelling of NaN/Inf parses to one fixed bit pattern. Drop the two panics so NaN/Inf are accepted, matching Go.
 
 <details><summary>repro</summary>
 
@@ -49,21 +49,16 @@ convertArgToGno("Inf") panics: float64 does not accept Inf
 *(AI Agent)*
 
 ## gno.land/pkg/sdk/vm/convert.go:220-224 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/sdk/vm/convert.go#L220)
-The `-0` to `+0` step is fine, but its comment ("prevent malleability") is the wrong reason, and the step is redundant at the only consensus-relevant place since `MapKeyBytes` already normalizes `-0` to `0`. The real justification is Go parity: a Go source literal `-0.0` folds to `+0`, so the arg boundary matching that is sensible. Reword the comment to say that.
-
-*(AI Agent)*
-
-## gno.land/pkg/sdk/vm/convert.go:215 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/sdk/vm/convert.go#L215)
-`"float%d does not accept NaN"` reads like a parser-internal spec; `"float%d argument cannot be NaN"` is clearer to the realm caller who sees it as a transaction error.
+The `-0`→`+0` fold is the one Go-consistent part here, since Go folds the source literal `-0.0` to `+0`, so it can stay. But its comment ("prevent malleability") is the wrong reason and the step is redundant at the only consensus-relevant place, since `MapKeyBytes` already normalizes `-0` to `0`. Reword the comment to "match Go's `-0.0` literal folding."
 
 *(AI Agent)*
 
 ## gno.land/pkg/sdk/vm/convert_test.go:117 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/sdk/vm/convert_test.go#L117)
-The canonicalization test covers float64 `-0.0`/`-0` but not a value that underflows to float32 `-0` (e.g. `"-1e-50"` for `Float32Type`, which rounds to float32 `-0` and is then canonicalized). Add that case so a refactor touching only literal `-0` cannot regress the float32 underflow path invisibly.
+If the `-0` fold stays, the test covers float64 `-0.0`/`-0` but not a value that underflows to float32 `-0` (e.g. `"-1e-50"` for `Float32Type`, which rounds to float32 `-0` and is then folded). Add that case so a refactor touching only literal `-0` cannot regress the float32 underflow path invisibly.
 
 *(AI Agent)*
 
 ## gno.land/pkg/integration/testdata/maketx_call_float_args.txtar:38-39 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/integration/testdata/maketx_call_float_args.txtar#L38)
-The float64 `-0.0` case only asserts the formatted output is `"0"`, which `strconv.FormatFloat` also prints for true `+0`, so a float64 canonicalization regression would slip through. Only the float32 path has a sign-bit assertion; add a `CheckSignBitFloat64` for parity.
+The float64 `-0.0` case only asserts the formatted output is `"0"`, which `strconv.FormatFloat` also prints for true `+0`, so a float64 fold regression would slip through. Only the float32 path has a sign-bit assertion; add a `CheckSignBitFloat64` for parity.
 
 *(AI Agent)*
