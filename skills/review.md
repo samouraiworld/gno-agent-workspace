@@ -143,7 +143,7 @@ Same shape for `.txtar` tests — `#` comments, destination `gno.land/pkg/integr
 
 For `**Repro:**` blocks inside the review, prefer inline heredocs (`cat > … <<'EOF' … EOF`) over `curl`.
 
-Headers stand alone (~12 lines): disclaimer + `Run:` block, then 2-4 comment lines covering the mechanism, the observed result at the pinned hash, and what changes when fixed. No flip-check instructions, no restating the finding. Name code paths by actual symbol, not review labels. Keep in-test comments to one line per non-obvious step.
+Headers stand alone: disclaimer + `Run:` block, then 2-3 comment lines max covering the mechanism, the observed result at the pinned hash, and what changes when fixed. No flip-check instructions, no restating the finding. Name code paths by actual symbol, not review labels. Keep in-test comments to one line per non-obvious step.
 
 Assert the desired post-fix state, never the bug's current output. Gno filetests: `// Output:` with the correct values, not `// Error:` matching the panic; `// Error:` only when rejection is the correct outcome (e.g. an illegal recursive type).
 
@@ -239,6 +239,7 @@ Format rules:
 - Anchor numbers to budgets ("13s = multiple block-production budgets").
 - Cite `file:line` for every claim the review asserts ("this function is only called from X").
 - Every `file:line` reference is a dual link: `` [`file:line`](https://github.com/gnolang/gno/blob/<short-sha>/<path>#L<line>) · [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<line>) `` — GitHub blob URL at the reviewed sha plus local worktree `↗`. Ranges: `#L<a>-L<b>`. `<short-sha>` comes from the round directory name (`<n>-<sha>/`). Applies to every reference, including files/tests cited by name (link the file or its declaration line). Never a bare backticked `file:line` or filename. Converter for old reviews: `./scripts/convert-review-links.py`.
+- Anchor a supporting link on a coherent word or phrase already in the prose (`a [pointer-to-array](...) hits no case`), never as a standalone sentence whose only job is to host the link.
 - No GitHub checkboxes (`- [ ]`) unless the author must tick items.
 - Every empirical claim ("I ran X and saw Y") ships a copy-pasteable repro: fenced `bash` block, self-contained, one clear pass/fail signal, restoring any modified files at the end. Pin env vars only when the test depends on them.
 - A repro demonstrates behavior (test run, request, executed binary) — never source inspection; a grep is not a repro. Heredoc behavioral tests (asserting the correct post-fix state: fail now, pass when fixed) are for Critical/Warning claims only. Nits/Suggestions cite the anchor, no repro block; a one-line "confirmed behaviorally: X" note in the details is enough.
@@ -297,7 +298,7 @@ Format:
 Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 ## Body
-<One-line assessment folding in the repro pin ("verified on <short-sha>"). Anchored findings never appear here in any form: no bullets, no prose recap, no "(inline)" pointer, no count ("four doc nits inline"). No PR re-description, no list of what the PR does or what passed, no review-process narration ("re-review", "cross-check round"), no restating thread state the author already knows (maintainer holds, prior verdicts). Only findings or questions without a file:line anchor get a bullet here, one sentence each: gap, then fix. When clean: "Looks good. Verified on <short-sha>: <CI-invisible check>." and nothing else. <CI-invisible check> is something CI does not show: reverting the fix reproduces the bug, output matches Go across the boundary table, a behavior-preserving move returns identical data. Name at most three checks, the strongest ones, each as a claim, not its test matrix — no parenthetical lists of tested values or shapes; the full check inventory stays in the review file.>
+<One-line assessment folding in the repro pin ("verified on <short-sha>"). Anchored findings never appear here in any form: no bullets, no prose recap, no "(inline)" pointer, no count ("four doc nits inline"). No PR re-description, no list of what the PR does or what passed, no review-process narration ("re-review", "cross-check round"), no restating thread state the author already knows (maintainer holds, prior verdicts). Only findings or questions without a file:line anchor get a bullet here, one sentence each: gap, then fix. When clean: "Looks good. Verified on <short-sha>: <CI-invisible check>." and nothing else. <CI-invisible check> is something CI does not show: reverting the fix reproduces the bug, output matches Go across the boundary table, a behavior-preserving move returns identical data. Name at most three checks, the strongest ones, each as a claim, not its test matrix — no parenthetical lists of tested values or shapes; the full check inventory stays in the review file. State each check as an action and its result ("verdicts match the Go compiler", "reverting the fix reproduces the bug"), never as a characterization of the change ("a real correctness gain", "not just error wording").>
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<review-file-path> [↗](review_<model>_<reviewer>.md)
 
