@@ -8,6 +8,9 @@ issue-history.jsonl
 # OS
 .DS_Store
 
+# Python
+__pycache__/
+
 # Worktrees
 .worktrees/
 
