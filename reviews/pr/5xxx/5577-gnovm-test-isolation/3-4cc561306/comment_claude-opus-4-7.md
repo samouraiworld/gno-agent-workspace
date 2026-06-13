@@ -2,20 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-The doc comment directly above the new exported [`NewPackageInstance`](https://github.com/gnolang/gno/blob/4cc561306/gnovm/pkg/gnolang/machine.go#L795) · [↗](../../../../../.worktrees/gno-review-5577/gnovm/pkg/gnolang/machine.go#L795) describes [`instantiatePackageFiles`](https://github.com/gnolang/gno/blob/4cc561306/gnovm/pkg/gnolang/machine.go#L661) · [↗](../../../../../.worktrees/gno-review-5577/gnovm/pkg/gnolang/machine.go#L661) instead, so `go doc` and IDE hover show the wrong text for a public API. That is the only blocker; the remaining inline findings are decay risks around the new API and two test-coverage gaps. Reproduced on `4cc561306`: the three new txtars ([`init_and_isolation`](https://github.com/gnolang/gno/blob/4cc561306/gnovm/cmd/gno/testdata/test/init_and_isolation.txtar) · [↗](../../../../../.worktrees/gno-review-5577/gnovm/cmd/gno/testdata/test/init_and_isolation.txtar), [`issue_1982_increment`](https://github.com/gnolang/gno/blob/4cc561306/gnovm/cmd/gno/testdata/test/issue_1982_increment.txtar) · [↗](../../../../../.worktrees/gno-review-5577/gnovm/cmd/gno/testdata/test/issue_1982_increment.txtar), [`realm_isolation`](https://github.com/gnolang/gno/blob/4cc561306/gnovm/cmd/gno/testdata/test/realm_isolation.txtar) · [↗](../../../../../.worktrees/gno-review-5577/gnovm/cmd/gno/testdata/test/realm_isolation.txtar)) pass.
-
-<details><summary>repro</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 5577 -R gnolang/gno
-go test -run 'Test_Scripts/test/(init_and_isolation|issue_1982_increment|realm_isolation)' ./gnovm/cmd/gno/
-```
-
-```
-ok  	github.com/gnolang/gno/gnovm/cmd/gno	2.260s
-```
-</details>
+Verified on 4cc561306: the head moved only by a `master` merge since the previous push, leaving the PR's own files unchanged.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5577-gnovm-test-isolation/3-4cc561306/claude-opus-4-7_davd-gzl.md · [↗](./claude-opus-4-7_davd-gzl.md)
 

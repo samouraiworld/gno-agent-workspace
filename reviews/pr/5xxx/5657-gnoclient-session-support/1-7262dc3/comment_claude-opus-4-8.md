@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Two defects on session paths the tests don't cover, reproduced on 7262dc3c5. The single-signer flow is correct and matches gnokey.
+The single-signer flow is correct and matches gnokey. Repros run at 7262dc3c5.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5657-gnoclient-session-support/1-7262dc3/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
