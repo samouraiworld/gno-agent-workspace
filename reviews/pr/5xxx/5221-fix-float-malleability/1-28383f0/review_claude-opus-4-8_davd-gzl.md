@@ -42,6 +42,16 @@ What each input does at Go's parser, as a Go source literal, inside the GnoVM, a
 
 Go's own parser accepts NaN/Inf with fixed canonical bits, so the PR is stricter than Go. The only place the PR matches Go is `-0`, and only against the *literal* rule.
 
+Observed output, same source run in Go and in the GnoVM, then the same values at the `maketx call` arg boundary (run on `28383f0`):
+
+| input | Go | Gno (VM) | `maketx call` arg (this PR) |
+|---|---|---|---|
+| `NaN` | `echo=NaN isNaN=true` | `echo=NaN isNaN=true` | panic: `float64 does not accept NaN` |
+| `Inf` | `echo=+Inf isInf=true` | `echo=+Inf isInf=true` | panic: `float64 does not accept Inf` |
+| `-0.0` | `signbit=false` | `signbit=false` | `signbit=false` (bits `0x0`, folded) |
+
+Go and the GnoVM are byte-identical for every case; the boundary is the sole divergence, rejecting NaN/Inf and agreeing only on `-0.0`. Repro in [comment_claude-opus-4-8.md](comment_claude-opus-4-8.md).
+
 ## Critical (must fix)
 
 None.
