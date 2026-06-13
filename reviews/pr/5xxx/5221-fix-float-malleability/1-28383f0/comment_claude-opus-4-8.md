@@ -2,22 +2,14 @@
 Event: COMMENT
 
 ## Body
-This boundary should behave like Go, and that is the lens worth settling the PR on. Go accepts NaN and ±Inf as float arguments and the GnoVM already produces and stores both itself, so rejecting them here is the divergence rather than a fix. Verified on `28383f0`: every spelling of NaN/Inf parses to one fixed canonical bit pattern, so there is nothing non-deterministic to canonicalize. The one part that does match Go is the `-0`→`+0` fold (Go folds the literal `-0.0` to `+0`); that can stay.
+This boundary should behave like Go. Go accepts NaN and ±Inf as float arguments and the GnoVM produces and stores both itself, so rejecting them here is a divergence, not a fix; the `-0`→`+0` fold is the one part that matches Go and can stay. Verified on `28383f0`: Go and the VM give identical output for NaN, Inf, and `-0.0`, so there is nothing non-deterministic at this boundary to canonicalize.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5221-fix-float-malleability/1-28383f0/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 *(AI Agent)*
 
 ## gno.land/pkg/sdk/vm/convert.go:214-218 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/sdk/vm/convert.go#L214)
-Go accepts NaN and ±Inf as float arguments, and the VM already produces and stores both, so rejecting them only on `maketx call` diverges from Go for no gain. The malleability rationale doesn't hold: the signature commits to the arg string, not the parsed float, and every spelling of NaN/Inf parses to one fixed bit pattern. Drop the two panics so NaN/Inf are accepted, matching Go.
-
-The same source, run in Go and in the GnoVM, then the same values at the `maketx call` arg boundary:
-
-| input | Go | Gno (VM) | `maketx call` arg (this PR) |
-|---|---|---|---|
-| `NaN` | `echo=NaN isNaN=true` | `echo=NaN isNaN=true` | panic: `float64 does not accept NaN` |
-| `Inf` | `echo=+Inf isInf=true` | `echo=+Inf isInf=true` | panic: `float64 does not accept Inf` |
-| `-0.0` | `signbit=false` | `signbit=false` | `signbit=false` (bits `0x0`, folded) |
+Go accepts NaN and ±Inf as float arguments, and the VM produces and stores both itself, so rejecting them only on `maketx call` diverges from Go for no gain; the stated malleability rationale doesn't hold, since signing commits to the arg string, not the parsed float. Drop the two panics so NaN/Inf are accepted, matching Go. Same program in Go and the GnoVM below: identical output; only the `maketx call` boundary rejects.
 
 <details><summary>Go</summary>
 
@@ -45,8 +37,6 @@ Inf  echo=+Inf isInf=true
 </details>
 
 <details><summary>Gno</summary>
-
-Same source in the GnoVM (the language agrees with Go), then the same values at the `maketx call` arg boundary (this PR):
 
 ```bash
 # from a local clone of gnolang/gno (run from the repo root):
