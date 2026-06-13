@@ -9,7 +9,7 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/revi
 *(AI Agent)*
 
 ## gno.land/pkg/sdk/vm/convert.go:214-218 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/sdk/vm/convert.go#L214)
-Go accepts NaN and ±Inf as float arguments, and the VM produces and stores both itself (`math.NaN()`/`math.Inf()`, and `1.0/0.0` via unguarded float division), so a function can already receive these values from another realm or `maketx run`; rejecting them only on a direct `maketx call` diverges from Go for no gain. The malleability rationale does not hold: the signature commits to the arg string, not the float, and every spelling of NaN/Inf parses to one fixed bit pattern. Drop the two panics so NaN/Inf are accepted, matching Go.
+Go accepts NaN and ±Inf as float arguments, and the VM already produces and stores both, so rejecting them only on `maketx call` diverges from Go for no gain. The malleability rationale doesn't hold: the signature commits to the arg string, not the parsed float, and every spelling of NaN/Inf parses to one fixed bit pattern. Drop the two panics so NaN/Inf are accepted, matching Go.
 
 <details><summary>repro</summary>
 
@@ -49,12 +49,12 @@ convertArgToGno("Inf") panics: float64 does not accept Inf
 *(AI Agent)*
 
 ## gno.land/pkg/sdk/vm/convert.go:220-224 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/sdk/vm/convert.go#L220)
-The `-0`→`+0` fold is the one Go-consistent part here, since Go folds the source literal `-0.0` to `+0`, so it can stay. But its comment ("prevent malleability") is the wrong reason and the step is redundant at the only consensus-relevant place, since `MapKeyBytes` already normalizes `-0` to `0`. Reword the comment to "match Go's `-0.0` literal folding."
+The `-0`→`+0` fold is fine and matches Go (the literal `-0.0` folds to `+0`), so it can stay, but its comment blames "malleability," which isn't the reason. Reword it to "match Go's `-0.0` literal folding."
 
 *(AI Agent)*
 
 ## gno.land/pkg/sdk/vm/convert_test.go:117 [↗](../../../../../.worktrees/gno-review-5221/gno.land/pkg/sdk/vm/convert_test.go#L117)
-If the `-0` fold stays, the test covers float64 `-0.0`/`-0` but not a value that underflows to float32 `-0` (e.g. `"-1e-50"` for `Float32Type`, which rounds to float32 `-0` and is then folded). Add that case so a refactor touching only literal `-0` cannot regress the float32 underflow path invisibly.
+If the `-0` fold stays, no test covers a value that underflows to float32 `-0` (e.g. `"-1e-50"` as `Float32Type`). Add that case so a refactor touching only literal `-0` can't silently regress the float32 underflow path.
 
 *(AI Agent)*
 
