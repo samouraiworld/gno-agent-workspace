@@ -353,3 +353,5 @@ Final check — verify each line of the draft before handing it over:
 4. No repro block whose output is only a passing run.
 5. Body and every inline comment end with `*(AI Agent)*`.
 6. Every inline comment is at most 3 sentences and asks for a fix, a decision, or an answer.
+
+Then dispatch one `Agent` (`subagent_type: general-purpose`) to recheck concision. Hand it the comment.md path, the worktree path, and the visible-text rules above; ask only whether any Body line or inline comment can be shorter or clearer without dropping fact, stake, or fix, returning a per-section verdict with the proposed rewrite. Apply the rewrites that hold against the cited lines; discard the rest. Re-run this recheck on every regeneration of comment.md.
