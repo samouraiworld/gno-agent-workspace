@@ -1,4 +1,5 @@
 # Review: PR #5221
+Posted: https://github.com/gnolang/gno/pull/5221#pullrequestreview-4492119999
 Event: COMMENT
 
 ## Body
