@@ -5,11 +5,11 @@ Author: ltzmaxwell | Base: master | Files: 28 | +481 -81
 Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 0509a199b (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5764 0509a199b`
 
-Round 2. The round-1 review (`1-fa5c11d3f/`) covered a 2-file, +15 -3 change: a single nil-key guard in `assertIndexTypeIsInt`. Since then the PR grew into a full generalization of assignment-target/RHS validation across `RangeStmt`, `AssignStmt`, and `IncDecStmt`, absorbing #5804. Re-reviewed from scratch against the new head.
+Round 2. The round-1 review (`1-fa5c11d3f/`) covered a 2-file, +15 -3 change: a single nil-key guard in `assertIndexTypeIsInt`. Since then the PR grew into a full generalization of assignment-target/RHS validation across `RangeStmt`, `AssignStmt`, and `IncDecStmt`, absorbing #5804. Re-reviewed from scratch against the new head, then re-run through a deep multi-lens pass (red-team / blue-team / correctness): all three converged on one scope-completion gap (pointer-to-array range, below) and confirmed every other claim by running. No regressions or false positives found; verdict unchanged.
 
 **TL;DR:** Makes the GnoVM preprocessor type-check every assignment target the same way: each range/assign/compound-assign/inc-dec operand is checked on its own, blank operands are skipped by syntax instead of by passing a nil type around, and the leftover checks now use real assignability (matching Go's `go/types`) instead of ad-hoc kind comparisons.
 
-**Verdict: APPROVE** — principled, well-tested generalization of the round-1 fix; resolves both round-1 nits; no blocking issues found. One pre-existing out-of-scope gap (range over `*[N]T`) noted in Open questions only.
+**Verdict: APPROVE** — principled, well-tested generalization of the round-1 fix; resolves both round-1 nits; no blocking issues found. One scope-completion gap: pointer-to-array range is the single container shape the rewrite leaves unchecked (Suggestion), pre-existing and backstopped by go/types, so non-blocking.
 
 ## Summary
 
@@ -35,7 +35,9 @@ None.
 
 ## Nits
 
-None. Both round-1 nits are resolved: the wrong-variable `kt`-for-`vt` panic message is gone (that whole string branch was replaced by `mustAssignableTo`), and `gno fmt` leaves `for _ = range s` untouched (verified), so `range_blank_key3`/`5` stay load-bearing regressions.
+- [`type_check.go:1011-1012`](https://github.com/gnolang/gno/blob/0509a199b/gnovm/pkg/gnolang/type_check.go#L1011-L1012) · [↗](../../../../../.worktrees/gno-review-5764/gnovm/pkg/gnolang/type_check.go#L1011-L1012) — the "like go/types" comment on the compound-assign precedence overstates fidelity to `gc`. For `c += f()` (const target, no-value RHS), `gc` lists the target error first (`cannot assign to c`), then the RHS error; the `assign_op_g` golden pins only the RHS error. The golden is self-consistent with what gno's checker actually emits (test passes), so this is a comment-accuracy nit, not a behavior bug. Confirmed behaviorally: built the equivalent Go, `gc` reports both errors target-first.
+
+Both round-1 nits are resolved: the wrong-variable `kt`-for-`vt` panic message is gone (that whole string branch was replaced by `mustAssignableTo`), and `gno fmt` leaves `for _ = range s` untouched (verified), so `range_blank_key3`/`5` stay load-bearing regressions.
 
 ## Missing Tests
 
@@ -43,11 +45,11 @@ None blocking. Coverage is thorough: `range_blank_key2`–`5` (blank key/value a
 
 ## Suggestions
 
-None.
+- **[generalization skips one container shape]** [`type_check.go:848-872`](https://github.com/gnolang/gno/blob/0509a199b/gnovm/pkg/gnolang/type_check.go#L848-L872) · [↗](../../../../../.worktrees/gno-review-5764/gnovm/pkg/gnolang/type_check.go#L848-L872) — range over `*[N]T` (pointer-to-array) is not operand-type-checked, so the two gno type-checkers disagree on exactly the kind of mismatch this PR exists to catch.
+  <details><summary>details</summary>
 
-## Open questions
-
-- Range over `*[N]T` (pointer-to-array) is not operand-type-checked: `baseOf(*PointerType)` matches no case in the per-operand switch, so `for s = range p` with a mistyped index runs silently. Pre-existing on master (verified — same silent acceptance there), untouched by this PR, and the define form is unaffected; a natural follow-up to the same generalization but not a regression here, so not posted.
+  After `xt := baseOf(evalStaticTypeOf(x.X))`, a pointer-to-array source is a `*PointerType`, which matches none of the `*MapType` / `*SliceType, *ArrayType` / `PrimitiveType` cases, so both the key and value checks are skipped. `for _, v = range &arr` with `var v string` is silently accepted by `AssertCompatible`; only the separate go/types pass rejects it (`cannot use v (value of type int) as string value in assignment`), so the preprocess assertion and go/types diverge. Pre-existing on master (same silent acceptance, verified) and not a regression, but the PR's stated scope is per-operand assignment-target validation, and this is the one container shape Go accepts in `range` that the rewrite leaves out. Fix: add `case *PointerType:` unwrapping `pt.Elem()` to the array element in both switches, with a filetest. No on-chain type-safety escape: the go/types backstop in `TypeCheckMemPackage` still rejects the program.
+  </details>
 
 ---
 
