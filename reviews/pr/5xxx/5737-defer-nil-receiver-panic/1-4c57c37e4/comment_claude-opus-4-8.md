@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Correct for the interface-boxed nil receiver. Verified on 4c57c37e4: reverting the new deferred-panic path to master's eager panic makes a concrete `defer pt.M()` filetest print Go's `0` instead of the PR's `1`, and a value method bound to a nil pointer through an interface, once persisted and reloaded, runs on a zero receiver and returns instead of panicking.
+The fix sits at one site, `VPDerefValMethod`, but that path can't be correct for both receiver kinds: by the time it runs, an interface has already been unwrapped to its dynamic `*T`, so a concrete `*T` and an interface-boxed `*T` are indistinguishable, while Go panics eagerly for the former and at call time only for the latter. The eager-vs-deferred decision has to move to where the two are still distinguishable (interface dispatch, or marked in the preprocessor); otherwise fixing the interface case regresses the concrete one. Worth an ADR pinning the intended semantics, since the persistence interaction below shows the design space isn't obvious.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5737-defer-nil-receiver-panic/1-4c57c37e4/claude-opus-4-8_davd-gzl.md [↗](claude-opus-4-8_davd-gzl.md)
 
