@@ -490,8 +490,8 @@ BODY="$TMP/body.md"
     count=$(find "$bucket" -mindepth 1 -maxdepth 1 -type d | wc -l)
     echo "### \`$bname/\` ($count)"
     echo
-    echo "| PR | Status | Title | Rounds | Reviewers |"
-    echo "|---:|:------:|:------|:------:|:----------|"
+    echo "| PR | Status | Title | Rounds | Reviewers | Files |"
+    echo "|---:|:------:|:------|:------:|:----------|:------|"
 
     # Sort PR dirs by number desc
     while IFS= read -r d; do
@@ -529,8 +529,26 @@ BODY="$TMP/body.md"
       # Escape pipes in title
       safe_title=$(printf '%s' "$title" | sed 's/|/\\|/g')
 
+      # Direct links to the latest round's review + comment files, so each
+      # review.md and comment.md is one click from the index (not just the dir).
+      latest_round=$(find "$d" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended -regex '.*/[0-9]+-[a-f0-9]+' \
+        | awk -F/ '{print $NF, $0}' | sort -k1,1n | tail -1 | awk '{print $2}')
+      files_links=""
+      if [[ -n "$latest_round" ]]; then
+        while IFS= read -r rf; do
+          [[ -n "$rf" ]] || continue
+          files_links+="[review](${rf#reviews/}) "
+        done < <(find "$latest_round" -maxdepth 1 -type f -name '*.md' ! -name 'comment.md' ! -name '*_comment.md' ! -name 'comment_*.md' | sort)
+        while IFS= read -r cf; do
+          [[ -n "$cf" ]] || continue
+          files_links+="[comment](${cf#reviews/}) "
+        done < <(find "$latest_round" -maxdepth 1 -type f \( -name 'comment.md' -o -name '*_comment.md' -o -name 'comment_*.md' \) | sort)
+      fi
+      files_links="${files_links%% }"
+      [[ -z "$files_links" ]] && files_links="—"
+
       rel="${d#reviews/}"
-      echo "| [#$num]($url) | $icon | [$safe_title]($rel/) | $rounds | $reviewers |"
+      echo "| [#$num]($url) | $icon | [$safe_title]($rel/) | $rounds | $reviewers | $files_links |"
     done < <(find "$bucket" -mindepth 1 -maxdepth 1 -type d | sort -t/ -k4 -r)
     echo
   done
