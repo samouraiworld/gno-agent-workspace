@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Verified on 5038db249: with no `-remote` flag the loader refuses every fetch and a default boot stays network-free (repro below); the prior round's `r/samcrew/daodemo` phantom is the on-disk `examples/quarantined` copy loaded via `-extra-root $GNOROOT/examples`, which type-checks clean and is not a network fetch; the genesis `users/init.Bootstrap` tx fires only when that realm is in the package set.
+Re-verified on 5038db249 (d2d0da30e + 448343c3b are in), following up on the network-fetch thread: the concern is resolved. With no `-remote`, `newRemoteFetcher` returns a `disabledFetcher` that refuses every fetch, wired into both the lazy `rpcLookup` and the eager `gnovm.Load` (now handed a non-nil `Fetcher`, so gnovm no longer builds its own rpc fallback). Live: a realm importing an unresolvable path boots network-free, failing locally with `remote fetching is disabled, pass -remote ...`, and only `-remote gno.land=<rpc>` makes it issue a `qfile` query to the chain (repro below). The `r/samcrew/daodemo` phantom is the `examples/quarantined` disk copy that `-extra-root $GNOROOT/examples` loads wholesale (type-checks clean here), not a network fetch. The genesis `users/init.Bootstrap` tx fires only when that realm is in the package set.
 
 <details><summary>repro: opt-in remote gate</summary>
 
