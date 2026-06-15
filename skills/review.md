@@ -124,10 +124,7 @@ Verify every finding against the actual file before including it — never from 
 
 When findings suggest fragile or under-tested code, write edge-case tests, run them, report failures. Save to `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/tests/`.
 
-Each test file starts with, before the `package` line:
-
-1. `// NOT AUDITED — AI-generated adversarial test artifact. Verify before executing in any privileged context.`
-2. A `/* Run: ... */` block with exact repro commands (use `/* */`, not `//` per line).
+Each test file starts with, before the `package` line, a `/* Run: ... */` block with exact repro commands (use `/* */`, not `//` per line).
 
 The header must be runnable from a gnolang/gno clone alone — no `.worktrees/`, `$GNO`, or home paths. Pin `git checkout <hash>` in test-file headers only; review and comment.md repro blocks never pin.
 
@@ -145,7 +142,7 @@ Same shape for `.txtar` tests — `#` comments, destination `gno.land/pkg/integr
 
 For `**Repro:**` blocks inside the review, prefer inline heredocs (`cat > … <<'EOF' … EOF`) over `curl`.
 
-Headers stand alone: disclaimer + `Run:` block, then 2-3 comment lines max covering the mechanism, the observed result at the pinned hash, and what changes when fixed. No flip-check instructions, no restating the finding. Name code paths by actual symbol, not review labels. Keep in-test comments to one line per non-obvious step.
+Headers stand alone: the `Run:` block, then 2-3 comment lines max covering the mechanism, the observed result at the pinned hash, and what changes when fixed. No flip-check instructions, no restating the finding. Name code paths by actual symbol, not review labels. Keep in-test comments to one line per non-obvious step.
 
 Assert the desired post-fix state, never the bug's current output. Gno filetests: `// Output:` with the correct values, not `// Error:` matching the panic; `// Error:` only when rejection is the correct outcome (e.g. an illegal recursive type).
 
@@ -253,7 +250,7 @@ Calibration:
 - The review's verification claims (the Fix section's "Verified on `<sha>`:" line, the Summary) follow the same rule as comment.md: only what CI does not show. Revert-proofs, behavior/Go parity, exercised edge cases, a new code path CI skips. Never "`go test ...` passes", "lint clean", "build green".
 - Severity is binary. Warnings = a maintainer could plausibly block (correctness, security, decay, missing invariant). Nits = style, polish, optional. Borderline → Nit.
 - Map the full call graph before claiming dead / redundant / unused. Grep every caller.
-- Never flag contribution-policy compliance (AGENTS.md ADR requirement, commit conventions, AI-disclosure rules). Findings cover the code only.
+- Never flag contribution-policy compliance (AGENTS.md ADR requirement, commit conventions). Findings cover the code only.
 - Never flag or critique the ADR — its wording, symbols it names, claims it makes. Don't reference "the ADR" or editorialize "as the ADR claims" anywhere; state behavior facts directly against the code by path. If the underlying code is wrong, the finding is about the code. When a code or test comment repeats a stale claim, anchor the finding on that comment.
 - Gain-gate deferred-scope and extension questions. Deliberately scoped-out items go in Open questions; they reach comment.md only when there's a concrete risk or a decision the author must make in this PR.
 
@@ -271,6 +268,7 @@ Rules:
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
 - Never push to gnolang/gno.
 - Run from the workspace root.
+- Final handoff to the user links each reviewed PR's `comment_<model>.md` draft, not only the review file.
 - After the review is finished, ask the user before opening the worktree in VSCode (`code <workspace-root>/.worktrees/gno-review-<number>`).
 
 ## PR overview (`overview.html`)
@@ -283,7 +281,7 @@ Scope: explainer only — zero review state. No verdict, no findings, no reviewe
 
 Back-to-index link to the root `index.html` at both the top and in the footer, relative path `../../../../index.html`.
 
-Content — pick what fits: plain-language explanation, request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. Add a short Concepts section when the PR hinges on domain concepts the reader may not have (one-two plain sentences each). If the page mirrors PR logic in JS, verify the mirror against the PR's own tests before committing and state the result on the page. No emoji. End with an "AI-generated artifact" footer linking the PR and the review directory.
+Content — pick what fits: plain-language explanation, request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. Add a short Concepts section when the PR hinges on domain concepts the reader may not have (one-two plain sentences each). If the page mirrors PR logic in JS, verify the mirror against the PR's own tests before committing and state the result on the page. No emoji.
 
 Update `overview.html` only when new commits change the PR's own files. Base-only head bumps, new findings, verdict changes, and new review rounds never touch it.
 
@@ -304,8 +302,6 @@ Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<review-file-path> [↗](review_<model>_<reviewer>.md)
 
-*(AI Agent)*
-
 ## <path>:<line>
 <1-3 sentences: the problem and why it matters>
 
@@ -313,8 +309,6 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<rev
 
 <fenced bash repro block + fenced observed-output block>
 </details>
-
-*(AI Agent)*
 ```
 
 Rules:
@@ -338,7 +332,6 @@ Rules:
 - Pin repros with a "Repros run at <short-sha>." line at the end of the Body. When the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on <short-sha>").
 - Write every reviewed-commit sha in comment.md prose (the `Verified on <sha>` / `reproduced on <sha>` pin, `Repros run at <sha>`) as a bare sha, no backticks and no markdown link. GitHub auto-links a bare commit sha in a gnolang/gno comment and gives it the native commit hovercard; backticks or a `[...](commit-url)` wrapper suppress the hovercard. The review file keeps its own shas as-is (rendered in our repo, where a bare gno sha wouldn't resolve; its file-line links are already clickable).
 - Attempt a repro for every Critical and Warning before drafting. Findings without a run proof are worded as observations, never "I ran X". Behavioral repros only — for source-visible facts, cite the anchor and drop the repro block. A repro whose only output is the PR's own test passing (`--- PASS`) shows nothing CI doesn't, so drop it.
-- End every comment (Body and each inline) with `*(AI Agent)*`.
 - Link to the full review inside an inline comment only when the details block is not enough.
 - Never post without explicit user approval in the current turn: the literal word "post" (or "upload"). "push" authorizes git push only and never covers posting.
 - Same gate for mutating posted content (editing or deleting a posted comment, re-posting): update the local draft first, show the user the exact new text, and touch GitHub only after they approve it in the current turn — even when the change itself was requested.
@@ -354,7 +347,6 @@ Final check — verify each line of the draft before handing it over:
 2. The Full review line is a `blob/` (not `tree/`) URL ending with `[↗](review_<model>_<reviewer>.md)`.
 3. Body names at most three checks, none CI-visible, and neither recaps nor counts anchored findings.
 4. No repro block whose output is only a passing run.
-5. Body and every inline comment end with `*(AI Agent)*`.
-6. Every inline comment is at most 3 sentences and asks for a fix, a decision, or an answer.
+5. Every inline comment is at most 3 sentences and asks for a fix, a decision, or an answer.
 
 Then dispatch one `Agent` (`subagent_type: general-purpose`) to recheck concision. Hand it the comment.md path, the worktree path, and the visible-text rules above; ask only whether any Body line or inline comment can be shorter or clearer without dropping fact, stake, or fix, returning a per-section verdict with the proposed rewrite. Apply the rewrites that hold against the cited lines; discard the rest. Re-run this recheck on every regeneration of comment.md.
