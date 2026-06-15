@@ -27,7 +27,7 @@ rm -rf /tmp/ws /tmp/gnodev
 ```
 </details>
 
-Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5604-gnodev-native-loader/1-5038db249/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
+Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5604-gnodev-native-loader/4-5038db249/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## contribs/gnodev/pkg/packages/workspace.go:16 [↗](../../../../../.worktrees/gno-review-5604/contribs/gnodev/pkg/packages/workspace.go#L16)
 Running gnodev from a non-package subdir of a single-package realm logs `workspace detected` then crashes at node init, because `FindWorkspace` promotes an ancestor `gnomod.toml` to a workspace while gnovm honors `gnomod.toml` only in the current dir. Walk up only for `gnowork.toml`, and accept `gnomod.toml` solely when it sits in the start dir, matching gnovm's loader context.
