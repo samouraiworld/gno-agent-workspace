@@ -39,7 +39,7 @@ When asked to generate or update the weekly UX report (a/ux label), read and fol
 - **Always read `gno/AGENTS.md`** at the start of any task involving the gno repository. It contains project-specific conventions, build instructions, and coding guidelines that must be followed.
 - **Never write into the `gno/` submodule in-place.** Any task that modifies files under `gno/` — code, docs, READMEs, anything — happens inside a worktree at `.worktrees/gno-<slug>/`. See `skills/fix-issue.md` for the worktree-creation procedure. Docs/README work is not an exception: "small" is not a reason to skip a worktree.
 - **Never push to gnolang/gno** for review purposes. Pushing to a fork of gnolang/gno is acceptable for specific cases (e.g. cherry-picks).
-- After writing a review, commit and push to this repo only: `git add reviews/ && git commit -m "review: PR #<number>" && git push`.
+- After writing a review, commit and push to this repo only: `git add reviews/ docs/glossary.md && git commit -m "review: PR #<number>" && git push`.
 - **Every `scripts/*.sh` carries the NOT AUDITED line as line 2**, right after the shebang: `# NOT AUDITED — AI-generated tooling. Review before executing in any privileged context.` then a `#` separator. Never on adversarial test files under `reviews/.../tests/`.
 
 ## Authoring skills, prompts, and these instruction files

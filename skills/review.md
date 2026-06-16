@@ -8,7 +8,7 @@ argument-hint: <pr-number> [pr-number...]
 
 Review one or more PRs from the `gnolang/gno` repository.
 
-Every artifact is written for a human reader: skimmable structure (verdict first, then narrative, then findings), concise prose, clickable references, self-sufficient files. Every extra line adds human review time: cut anything that doesn't change what the reader does next. Plain English everywhere, including test comments: write real words, no shorthand like "decls".
+Every artifact is written for a human reader: skimmable structure (verdict first, then narrative, then findings), concise prose, clickable references, self-sufficient files. Cut anything that doesn't change what the reader does next. Plain English everywhere, including test comments: write real words, no shorthand like "decls". Lean on the shared gno vocabulary in `docs/glossary.md` and name a concept rather than re-explaining its mechanics.
 
 **Input:** `$ARGUMENTS` — space-separated PR numbers or GitHub URLs. Process each PR independently.
 
@@ -33,7 +33,7 @@ When `$ARGUMENTS` contains more than one PR, dispatch one Agent per PR in a sing
 
 > Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
-Do not sequence the agents. After all return, the parent runs `./scripts/build-indexes.sh` once, then a single `git add reviews/ && git commit && git push` covering all reviews.
+Do not sequence the agents. After all return, the parent runs `./scripts/build-indexes.sh` once, then a single `git add reviews/ docs/glossary.md && git commit && git push` covering all reviews.
 
 Single-PR runs skip the dispatch and execute the steps directly.
 
@@ -43,13 +43,13 @@ Trigger: the user asks for a **parallel**, **red-team / blue-team**, or **deeper
 
 1. **Set up.** Run *Fetch & understand* and *Run tests* below. Collect the diff, comments, CI status, and prior reviews once; hand the same paths to every agent.
 
-2. **Dispatch lens agents.** One message, multiple `Agent` calls (`subagent_type: general-purpose`) so they run concurrently. Default three lenses; add more for large PRs. Each prompt is self-contained — worktree path, PR number, diff path, prior-review paths, one narrow lens — and returns findings in this skill's severity model (Critical / Warning / Nit / Suggestion) with `file:line` citations.
+2. **Dispatch lens agents.** One message, multiple `Agent` calls (`subagent_type: general-purpose`) so they run concurrently. Default three lenses; add more for large PRs. Each prompt is self-contained — worktree path, PR number, diff path, prior-review paths, one narrow lens — and returns findings in this skill's severity model (Critical / Warning / Nit / Suggestion) with `file:line` citations. Each lens prompt also tells its agent to load `skills/invariant-catalog.md` and `docs/glossary.md` and to check the catalog classes that fall in its lens.
    - **Red team** — bugs, broken invariants, security holes, edge cases, determinism / gas issues, missing input validation, downstream footguns.
    - **Blue team** — missing tests, undocumented invariants, hardening gaps, misuse-inviting ergonomics, migration / rollback risk.
    - **Correctness** — does the code match the PR description and linked issue? Scope drift, silent behavior changes, contract mismatches.
    - Optional for big PRs: perf, docs, consensus impact, API surface.
 
-3. **Synthesize.** Read all reports, dedupe overlaps, re-rank by the severity ladder. Verify each finding against the actual file before keeping it — never trust an agent summary alone.
+3. **Synthesize.** Read all reports, dedupe overlaps, re-rank by the severity ladder. Verify each finding against the actual file before keeping it — never trust an agent summary alone. Confirm every invariant-catalog class was covered by at least one lens; walk any uncovered class against the diff before finalizing.
 
 4. **Critic pass (one round, parallel).** Dispatch 2-3 critics in one message, each a distinct lens — verdict-check, missing-blocking, severity-calibration — over the synthesized draft plus diff and worktree. Each critic returns ONLY findings that (a) flip the verdict, (b) raise an existing finding by ≥1 severity band, or (c) add a Critical/Warning absent from the draft; everything sub-bar is dropped at the source. Nothing qualifying → return exactly `NO_MATERIAL_FINDINGS`. Avoid open-ended "what's wrong / what's missing" prompts. After critics return: dedupe, re-read each cited `file:line`, drop what doesn't hold, revise. One critic round only — never loop.
 
@@ -77,6 +77,7 @@ Trigger: the user asks for a **parallel**, **red-team / blue-team**, or **deeper
 - Read the PR body, all comments (`gh api repos/gnolang/gno/issues/<number>/comments`), and review comments (`gh api repos/gnolang/gno/pulls/<number>/comments`). Note unresolved threads.
 - Read past reviews in `reviews/pr/<thousand>xxx/<number>-*/` first (`<thousand>` = leading digit(s): 4 for 4000–4999, 5 for 5000–5999). Focus on what changed since the last reviewed commit.
 - Read linked issues.
+- Read `docs/glossary.md` so its terms are in context while drafting findings; add any term you use but can't find there.
 - Read every changed file in full, not just diff hunks.
 - Map callers, dependents, and sibling files for blast radius.
 
@@ -105,20 +106,20 @@ git diff $(git merge-base origin/master <new-sha>) <new-sha> | git patch-id --st
 
 ### Review the diff
 
-Read every line. Look for:
+Read every line, then look for:
 
 - Correctness (logic errors, nil checks, type assertions, off-by-one)
-- Security (caller validation, access control, coin/banker handling)
-- Determinism violations
-- Realm state safety (partial updates, re-entrancy)
-- Error handling (panics vs errors, swallowed errors)
 - Untested code paths
 - Breaking changes without migration
 - Style inconsistencies with the codebase
-- Reuse and simplification: duplicated helpers, foldable code, unclear naming, missing doc comments on exported symbols, non-obvious invariants. These land as Suggestions/Nits, never blockers.
+- Reuse and simplification: duplicated helpers, foldable code, unclear naming, missing doc comments on exported symbols, undocumented invariants worth a comment. These land as Suggestions/Nits, never blockers.
 - Docs impact: flag if `docs/` needs updating.
 
 Verify every finding against the actual file before including it — never from memory or summaries. Every behavioral claim (what a function prints or returns, what the VM produces, what a stdlib call does) ships with an actual run behind it before it enters the review at any severity, including Nits and Suggestions; never assert stdlib or runtime behavior from memory. Run greps and lint in the PR worktree (`.worktrees/gno-review-<number>`), never in the `gno/` submodule (stale detached HEAD). Confirm symbol existence with `gno lint` run from the worktree source (`go run ../gnovm/cmd/gno lint ./path`), not IDE/language-server diagnostics; sanity-check that lint typechecks by feeding it a bogus symbol.
+
+### Invariant catalog (mandatory)
+
+For a PR that touches gno code (the GnoVM, stdlibs, or `.gno` packages and realms), load `skills/invariant-catalog.md`, walk every class against the diff, and confirm coverage before writing the Output. Skip for docs- or tooling-only PRs with no gno-code change.
 
 ### (Optional) Write adversarial tests
 
@@ -184,7 +185,7 @@ Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/
 <Optional ASCII diagram when the bug/fix is shape-y.>
 
 ## Glossary
-<Only if 2+ project-internal terms appear below. One terse line each, in order of first use. Skip otherwise.>
+<List the `docs/glossary.md` terms that appear below, one terse line each, in order of first use; include only if 2+ appear.>
 
 ## Fix
 <2-4 sentences prose: before-state, after-state, the load-bearing constraint. No code blocks. Link `file:Lstart-Lend` inline. Skip if the diff is purely additive/trivial.>
@@ -264,7 +265,7 @@ Rules:
 - Empty categories: "None". Never fabricate.
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Large PRs (>20 files): summarize by area first, then deep-dive critical paths.
-- After writing review file(s): `./scripts/build-indexes.sh`, then `git add reviews/ && git commit -m "review: PR #<number>" && git push` — to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only. Multi-PR runs: the parent commits once (`review: PRs #<a> and #<b>`); subagents never commit or push.
+- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: run `./scripts/build-indexes.sh`, then `git add reviews/ docs/glossary.md && git commit -m "review: PR #<number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only. Multi-PR runs: the parent commits once (`review: PRs #<a> and #<b>`); subagents never commit or push.
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
 - Never push to gnolang/gno.
 - Run from the workspace root.
@@ -289,7 +290,7 @@ After writing or updating any `overview.html`, run `./scripts/build-indexes.sh` 
 
 ## GitHub review draft (`comment_<model>.md`)
 
-After the review file is committed and pushed, draft `comment_<model>.md` in the same directory — same `<model>` as the review file (e.g. `comment_claude-opus-4-8.md`); "comment.md" below means this file. Pre-existing rounds may still use bare `comment.md`. The user prunes by hand before upload: dropping a comment = prefixing its header with `SKIP ` (`## SKIP <path>:<line>`), never deleting — the script skips SKIP sections and the marker survives regeneration.
+Draft `comment_<model>.md` in the same directory, same `<model>` as the review file (e.g. `comment_claude-opus-4-8.md`); "comment.md" below means this file. Pre-existing rounds may still use bare `comment.md`. The user prunes by hand before upload: dropping a comment = prefixing its header with `SKIP ` (`## SKIP <path>:<line>`), never deleting — the script skips SKIP sections and the marker survives regeneration.
 
 Format:
 
