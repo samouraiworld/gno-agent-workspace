@@ -44,31 +44,7 @@ None.
 
   This is pre-existing (master behaves identically) and the panic is a recoverable `*Exception`, not the unrecoverable host panic that motivated #5723, so it is not a safety or determinism issue. But the PR's own comment claims the `[...]T{idx: v}` form is "rejected at compile time," and this one input in that exact form is not. Fix: validate the largest index before the `+ 1` (an index already past the threshold is "larger than address space" regardless of the `+1`), so the ellipsis form is rejected at preprocess time across its whole range.
 
-  Repro:
-
-  ```bash
-  # from a local clone of gnolang/gno:
-  gh pr checkout 5829 -R gnolang/gno
-  cat > gnovm/tests/files/zz_ellipsis_maxidx.gno <<'EOF'
-  package main
-
-  func main() {
-  	x := [...]int{9223372036854775807: 1}
-  	_ = x
-  }
-  EOF
-  go test -run 'TestFiles/zz_ellipsis_maxidx.gno$' ./gnovm/pkg/gnolang/
-  rm gnovm/tests/files/zz_ellipsis_maxidx.gno
-  ```
-
-  ```
-  --- FAIL: TestFiles/zz_ellipsis_maxidx.gno (0.00s)
-      files_test.go:111: unexpected panic: len out of range
-          panic: len out of range
-          main/zz_ellipsis_maxidx.gno:4
-  ```
-
-  Go on the same source: `./m.go:4:16: array index 9223372036854775807 out of bounds [0:0]` (compile-time).
+  Observed on `de74ab7`: gno panics at runtime with `unexpected panic: len out of range`; Go rejects the same source at compile time (`array index 9223372036854775807 out of bounds`). [repro](comment_claude-opus-4-8.md)
   </details>
 
 ## Nits
