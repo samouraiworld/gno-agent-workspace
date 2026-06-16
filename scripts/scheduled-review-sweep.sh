@@ -122,7 +122,7 @@ if (( COUNT > 0 )); then
     echo "[$(date -u +%FT%TZ)] REFUSE commit+push: HEAD is on '$BRANCH', expected 'main'. Reviews left uncommitted in working tree."
     PUSH_HINT="checkout main, then commit + push manually"
   else
-    git add reviews/
+    git add reviews/ docs/glossary.md
     git commit -m "review: scheduled sweep — $total_done PRs
 
 Autonomous review sweep dispatched via scheduled-review-sweep.sh.
