@@ -6,5 +6,8 @@ Looks good. Verified on 127513b that every rule from the deleted `CLAUDE.md` is 
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5830-claude-md-local-agents-md/1-127513b/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
+## AGENTS.md:97 [↗](../../../../../.worktrees/gno-review-5830/AGENTS.md#L97)
+This bullet lists `/e/` as a place you write or review access-control code, but ephemeral `/e/` packages are user-submitted `maketx run` scripts, not stored on-chain and never durable repo code; `/e/` is the caller to defend against (it returns `IsUser() == true`, the basis of the `IsUserCall()` bullet below), not an authoring location. Optional: drop `/e/` from this list and keep it in the payment-guard bullet where it's load-bearing.
+
 ## AGENTS.md:100 [↗](../../../../../.worktrees/gno-review-5830/AGENTS.md#L100)
 The migration dropped this rule's cross-check command: the old `CLAUDE.md` had `grep -rn "IsUser()" examples/` to locate existing `IsUser()`+`OriginSend()` realms, and the new wording says what to look for but not how. Optional given `AGENTS.md` is the terser public file: restore the grep so the rule stays runnable.

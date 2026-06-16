@@ -37,6 +37,8 @@ None.
 
 - [`AGENTS.md:100`](https://github.com/gnolang/gno/blob/127513b/AGENTS.md#L100) · [↗](../../../../../.worktrees/gno-review-5830/AGENTS.md#L100) — the payment-guard "flag existing usage" rule lost its actionable cross-check command. `CLAUDE.md` had ``grep -rn "IsUser()" examples/ | xargs ...`` plus "it's the same bug"; the migrated line is "flag it and cross-check nearby `OriginSend` usage", which tells an agent what to look for but not how. Optional: restore the grep so the rule stays runnable. Author's call given `AGENTS.md` is the public, terser file.
 
+- [`AGENTS.md:97`](https://github.com/gnolang/gno/blob/127513b/AGENTS.md#L97) · [↗](../../../../../.worktrees/gno-review-5830/AGENTS.md#L97) — bullet 1 lists `/e/` as a place you "write or review ... code", but ephemeral `/e/` packages are user-submitted `maketx run` scripts, not stored on-chain and never durable repo code (there is no `examples/gno.land/e/`). `/e/` is the *caller* the model defends against (it returns `IsUser() == true`, the whole basis of the `IsUserCall()` bullet two lines down), not an authoring location. Optional: drop `/e/` from this bullet's list and keep it where it's load-bearing. Pre-existing from `CLAUDE.md`; surfaced because it now lives in the tracked source of truth.
+
 ## Missing Tests
 
 None (docs).
