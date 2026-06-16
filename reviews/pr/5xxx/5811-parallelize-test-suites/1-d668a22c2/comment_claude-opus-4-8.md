@@ -1,13 +1,14 @@
 # Review: PR #5811
+Posted: https://github.com/gnolang/gno/pull/5811#pullrequestreview-4510873942
 Event: REQUEST_CHANGES
 
 ## Body
-`-p 1` and `-p N` produce identical pass/fail sets, verified on d668a22c2 across 8 example packages including an injected `[setup failed]` case. The red CI `docs` job is unrelated: its URL linter hit a dead external link, and this PR touches no docs.
+`-p 1` and `-p N` produce identical pass/fail sets, verified on d668a22c2 across 8 example packages including an injected `[setup failed]` case.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5811-parallelize-test-suites/1-d668a22c2/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## gnovm/pkg/gnolang/files_test.go:116 [↗](../../../../../.worktrees/gno-review-5811/gnovm/pkg/gnolang/files_test.go#L116)
-Parallelizing the short filetests (and the stdlib suite, and `gno test -p`) writes two unsynchronized process globals, the [`fallbackAllocator`](https://github.com/gnolang/gno/blob/d668a22c2/gnovm/pkg/gnolang/alloc.go#L45) [↗](../../../../../.worktrees/gno-review-5811/gnovm/pkg/gnolang/alloc.go#L45) (via `copyValueWithRefs`→[`MapList.Append`](https://github.com/gnolang/gno/blob/d668a22c2/gnovm/pkg/gnolang/realm.go#L1695) [↗](../../../../../.worktrees/gno-review-5811/gnovm/pkg/gnolang/realm.go#L1695)) and the debug [`enabled`](https://github.com/gnolang/gno/blob/d668a22c2/gnovm/pkg/gnolang/debug.go#L203-L209) [↗](../../../../../.worktrees/gno-review-5811/gnovm/pkg/gnolang/debug.go#L203) flag, so `go test -race ./gnovm/pkg/gnolang/` now fails where it passes on master. The same writes ship in the default-parallel `gno test`, since `-p` defaults to GOMAXPROCS; both are value-benign today but are real data races. Give these paths per-worker or synchronized state, the same class as the `gnoBuiltinsCache` race this PR already fixed.
+Running the short filetests in parallel (also the stdlib suite and `gno test -p`) races on two process globals: the [`fallbackAllocator`](https://github.com/gnolang/gno/blob/d668a22c2/gnovm/pkg/gnolang/alloc.go#L45) [↗](../../../../../.worktrees/gno-review-5811/gnovm/pkg/gnolang/alloc.go#L45), written via `copyValueWithRefs`→[`MapList.Append`](https://github.com/gnolang/gno/blob/d668a22c2/gnovm/pkg/gnolang/realm.go#L1695) [↗](../../../../../.worktrees/gno-review-5811/gnovm/pkg/gnolang/realm.go#L1695), and the debug [`enabled`](https://github.com/gnolang/gno/blob/d668a22c2/gnovm/pkg/gnolang/debug.go#L203-L209) [↗](../../../../../.worktrees/gno-review-5811/gnovm/pkg/gnolang/debug.go#L203) flag. Neither write is synchronized, so `go test -race ./gnovm/pkg/gnolang/` now fails where it passed on master. These also race in the default `gno test` (`-p` defaults to GOMAXPROCS): value-benign today, but real data races. Fix: give these paths per-worker or synchronized state, same class as the `gnoBuiltinsCache` race this PR already fixed.
 
 <details><summary>repro</summary>
 

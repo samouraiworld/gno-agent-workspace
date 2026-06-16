@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Looks good. Verified on fc54106: reverting the `BinaryExpr` `ATTR_IFACE_CMP` set makes `TestBinaryExprIfaceCmp_SurvivesColdReload` fail, so the cold-reload test genuinely guards the re-preprocess-on-restart assumption. The boundary the new code could have broken also holds: it snapshots the operand types before `checkOrConvertType` rewrites them, and a call operand returning an uncomparable interface (`get() == get()`) still panics while `interface == nil` still returns false, matching pre-PR behavior.
+Looks good. Verified on fc54106: removing the line that sets `ATTR_IFACE_CMP` on the `BinaryExpr` makes `TestBinaryExprIfaceCmp_SurvivesColdReload` fail, so the cold-reload test genuinely guards the re-preprocess-on-restart assumption. The one case the new code could have regressed also holds: it reads the operand types before `checkOrConvertType` rewrites them, so a call operand returning an uncomparable interface (`get() == get()`) still panics while `interface == nil` still returns false, matching pre-PR behavior.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5825-cache-iface-cmp-preprocess/1-fc54106/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
