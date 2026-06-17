@@ -31,4 +31,5 @@ Shared vocabulary for gnolang/gno review and reporting, loaded by `skills/review
 - txtar: testscript-based integration tests under `gno.land/pkg/integration/testdata/`.
 - type-check: go/types-based validation of gno source (`TypeCheckMemPackage`), distinct from preprocessing.
 - TypeCheckCache: per-run map of already-type-checked imported packages (`gno.TypeCheckCache`, `gotypecheck.go`), passed via `TypeCheckOptions.Cache` to skip re-checking; an unlocked map, so parallel `gno test` workers each hold their own.
+- TypeID: a gno type's canonical string identity (`Type.TypeID()`, built in `types.go`) that decides type equality and is persisted in on-chain object state; structurally distinct types must get distinct TypeIDs, and changing the TypeID of an already-persisted type is consensus-breaking. For a struct/interface the id folds in each field/method entry's name, so an embedded field's derived name participates.
 - unsafe: package `chain/runtime/unsafe` holding the stack-walking tx-origin primitives (`PreviousRealm`, `CurrentRealm`, `OriginCaller`, `OriginSend`); footgun-prone for auth (prefer `cur.Previous()`; see the catalog's Caller & access control).
