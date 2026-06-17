@@ -123,6 +123,35 @@ rm -rf "$tmp"
 Go: `invalid operation: cannot take address of t.M (value of type func() int)`.
 </details>
 
+## gnovm/pkg/gnolang/preprocess.go:2344 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L2344)
+This gate runs for an explicit `&x`, but the receiver-address the VM synthesizes for a pointer-method call (preprocess.go:2404/2432) is marked `setPreprocessed`, so it never reaches here. As a result `m["k"].Inc()` and `T{1}.Inc()` are accepted, where Go rejects calling a pointer method on a non-addressable value, and the map case mutates the stored element. Fix: run the same `isAddressable` check before synthesizing the receiver address at 2404 and 2432.
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 5609 -R gnolang/gno
+tmp=$(mktemp -d)
+cat > "$tmp/main.gno" <<'EOF'
+package main
+type T struct{ n int }
+func (t *T) Inc() { t.n++ }
+func main() {
+	m := map[string]T{"k": {1}}
+	m["k"].Inc()
+	println(m["k"].n)
+}
+EOF
+go run ./gnovm/cmd/gno run "$tmp/main.gno"
+rm -rf "$tmp"
+```
+
+```
+2
+```
+Go: `cannot call pointer method Inc on T`.
+</details>
+
 ## gnovm/pkg/gnolang/preprocess.go:2347 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L2347)
 For untyped `nil`, `evalStaticTypeOf` returns nil and `xt.String()` here dereferences it, so `_ = &nil` crashes the preprocessor with a nil-pointer panic instead of a clean error. Fix: guard the nil type and return a `cannot take address of nil` error.
 

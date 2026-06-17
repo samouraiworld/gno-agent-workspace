@@ -267,6 +267,7 @@ Rules:
 - Large PRs (>20 files): summarize by area first, then deep-dive critical paths.
 - Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: run `./scripts/build-indexes.sh`, then `git add reviews/ docs/glossary.md && git commit -m "review: PR #<number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only. Multi-PR runs: the parent commits once (`review: PRs #<a> and #<b>`); subagents never commit or push.
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
+- New findings surfaced after the initial draft (a follow-up question, a deeper dig) are folded into the review file and `comment_<model>.md`, verified with a real run, and committed/pushed in the same turn automatically — never ask whether to add them. Posting still waits for the literal `post`.
 - Never push to gnolang/gno.
 - Run from the workspace root.
 - Final handoff to the user links each reviewed PR's `comment_<model>.md` draft, not only the review file.
