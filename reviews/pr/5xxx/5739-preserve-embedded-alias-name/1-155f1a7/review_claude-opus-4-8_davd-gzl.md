@@ -5,7 +5,7 @@ Author: ltzmaxwell | Base: master | Files: 7 | +145 -51
 Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 155f1a7 (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5739 155f1a7`
 
-**TL;DR:** When you embed a type by its name inside a `struct{...}` or `interface{...}`, that name becomes the field's name. This PR makes the name come from exactly what was written, so `type Int = int; struct{ Int }` is named `Int` and stays distinct from `struct{ int }`, instead of being collapsed to `int`. That brings struct identity in line with Go, but the same change has a side effect on interfaces: embedding an aliased interface now also rewrites the interface's identity, which it shouldn't.
+**TL;DR:** When you embed a type by its name inside a `struct{...}` or `interface{...}`, that name becomes the field's name. This PR makes that name come from exactly what was written rather than from the underlying type, so a type alias keeps its own spelling as the field name instead of resolving away to the aliased type.
 
 **Verdict: REQUEST CHANGES.** Struct, pointer, selector, and rune/byte embed naming now matches Go, but embedding an aliased interface inside an interface (`type SAlias = Stringer; interface{ SAlias }`) splits a type that Go and current master both treat as identical to `interface{ Stringer }`; fix that sub-case before this consensus-breaking identity change lands.
 
@@ -19,6 +19,17 @@ A Gno embedded field takes its name from the embedded type, and that name is par
   master (pre)   identical ✗        identical ✓
   PR 155f1a7     distinct  ✓        distinct  ✗  <- new divergence
 ```
+
+## Examples
+How the embedded field is named under this PR, all matching the Go compiler:
+
+| Written embed | Field name | Type identity |
+|---|---|---|
+| `type Int = int; struct{ Int }` | `Int` | distinct from `struct{ int }` |
+| `struct{ rune }` / `struct{ byte }` | `rune` / `byte` | distinct from `struct{ int32 }` / `struct{ uint8 }` |
+| `struct{ pkg.Int }` (qualified) | `Int` | same as `struct{ Int }` |
+| `struct{ *Int }` (pointer) | `Int` | distinct from `struct{ *int }` |
+| `type C = T; struct{ C }` (alias to a named type) | `C` | distinct from `struct{ T }` |
 
 ## Glossary
 - TypeID: a type's canonical string identity; type equality and persisted on-chain state both key off it. For structs/interfaces it folds in each field/method entry's name.
