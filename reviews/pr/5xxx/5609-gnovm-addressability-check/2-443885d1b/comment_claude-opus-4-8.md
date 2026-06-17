@@ -178,3 +178,6 @@ panic: runtime error: invalid memory address or nil pointer dereference [recover
 	stack 2: func main() { _<VPInvalid(0)> = &((const (undefined))) }
 ```
 </details>
+
+## gnovm/pkg/gnolang/preprocess.go:4393-4413 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4393-L4413)
+`isAddressable` re-walks the node kinds that [`assertValidAssignLhs`](https://github.com/gnolang/gno/blob/443885d1b/gnovm/pkg/gnolang/type_check.go#L1019) · [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/type_check.go#L1019) already classifies for assignment targets, and that sibling already guards a nil static type and rejects a string index, the two cases this helper gets wrong. Borrowing those two arms and keeping the checks together would fix both and avoid the two classifiers drifting apart.
