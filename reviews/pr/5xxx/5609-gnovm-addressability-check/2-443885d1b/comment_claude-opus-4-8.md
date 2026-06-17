@@ -2,14 +2,42 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Nice cleanup; moving these from runtime panics to preprocess errors is the right direction. Two things before it lands. The branch isn't mergeable against master, but the conflict is mechanical (`RefExpr`/`SliceExpr` are unchanged upstream), so a rebase clears it. And `isAddressable` matches Go only for the classes this PR targeted: several expressions Go rejects still build a usable pointer at runtime, each closable locally in the helper.
+Nice cleanup; moving these from runtime panics to preprocess errors is the right direction. The branch isn't mergeable against master, but the conflict is mechanical (`RefExpr`/`SliceExpr` are unchanged upstream), so a rebase clears it. Two more classes slip past `isAddressable` on top of the ones already noted: `&funcName` for a package-level function builds a usable `*func()`, and `_ = &nil` crashes the preprocessor instead of erroring cleanly.
 
-Verified on 443885d1b: every flagged expression runs to a printed value under the VM while `go build` of the same source fails with `cannot take address` / `cannot slice unaddressable value`.
+Verified on 443885d1b: `&funcName` runs to completion under the VM where `go build` rejects it, and `_ = &nil` panics with a nil-pointer dereference in the error path.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5609-gnovm-addressability-check/2-443885d1b/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
+## SKIP gnovm/pkg/gnolang/preprocess.go:4395 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4395)
+`&[3]int{1,2,3}[0]`, `&struct{ x int }{}.x`, and `[3]int{1,2,3}[:]` all build pointers or slices at runtime where Go rejects them, because this arm reports any `*CompositeLitExpr` addressable. A composite literal is addressable only as the direct `&T{}` operand, not as an index/slice/selector base. Fix: treat a composite literal reached by recursion as non-addressable.
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 5609 -R gnolang/gno
+tmp=$(mktemp -d)
+cat > "$tmp/main.gno" <<'EOF'
+package main
+func main() {
+	a := &[3]int{1, 2, 3}[0]
+	b := &struct{ x int }{}.x
+	c := [3]int{1, 2, 3}[:]
+	println(*a, *b, len(c))
+}
+EOF
+go run ./gnovm/cmd/gno run "$tmp/main.gno"
+rm -rf "$tmp"
+```
+
+```
+1 0 3
+```
+Go rejects all three: `cannot take address of [3]int{…}[0]`, `cannot take address of struct{x int}{}.x`, `cannot slice unaddressable value [3]int{…}`.
+</details>
+
 ## gnovm/pkg/gnolang/preprocess.go:4395 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4395)
-`&[3]int{1,2,3}[0]`, `&struct{ x int }{}.x`, `[3]int{1,2,3}[:]`, and `&funcName` all build pointers at runtime where Go rejects them, because this arm accepts any `*CompositeLitExpr` or `*NameExpr`. A composite literal is addressable only as the direct `&T{}` operand, not as an index/slice/selector base, and a function name is never addressable. Fix: treat a composite literal reached by recursion as non-addressable, and reject a name whose static type is a function or type.
+`&funcName` for a package-level function builds a usable `*func()` at runtime; this arm reports any `*NameExpr` addressable regardless of type. Go rejects taking the address of a function. Fix: reject a name whose static type is a function or type.
 
 <details><summary>repro</summary>
 
@@ -21,12 +49,9 @@ cat > "$tmp/main.gno" <<'EOF'
 package main
 func bar() {}
 func main() {
-	a := &[3]int{1, 2, 3}[0]
-	b := &struct{ x int }{}.x
-	c := [3]int{1, 2, 3}[:]
-	d := &bar
-	_ = d
-	println(*a, *b, len(c), "ok")
+	p := &bar
+	_ = p
+	println("ok")
 }
 EOF
 go run ./gnovm/cmd/gno run "$tmp/main.gno"
@@ -34,12 +59,12 @@ rm -rf "$tmp"
 ```
 
 ```
-1 0 3 ok
+ok
 ```
-Go rejects all four: `cannot take address of [3]int{…}[0]`, `cannot take address of struct{x int}{}.x`, `cannot slice unaddressable value [3]int{…}`, `cannot take address of bar`.
+Go: `invalid operation: cannot take address of bar (value of type func())`.
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:4397-4404 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4397-L4404)
+## SKIP gnovm/pkg/gnolang/preprocess.go:4397-4404 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4397-L4404)
 `&s[0]` on a string builds a byte pointer: a `StringKind` index isn't handled by the `Kind()` switch and falls through to the recursive call, which returns true for a name base. Go rejects taking the address of a string byte. Fix: reject a string index.
 
 <details><summary>repro</summary>
@@ -66,7 +91,7 @@ rm -rf "$tmp"
 Go: `invalid operation: cannot take address of s[0] (value of type byte)`.
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:4405-4409 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4405-L4409)
+## SKIP gnovm/pkg/gnolang/preprocess.go:4405-4409 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4405-L4409)
 `&t.M` on a bound method value builds a pointer: the SelectorExpr arm recurses on the receiver without inspecting the selector, so a method value is treated like a field. Go rejects taking the address of a method value. Fix: reject a selector whose static type is a function.
 
 <details><summary>repro</summary>
