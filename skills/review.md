@@ -292,6 +292,8 @@ After writing or updating any `overview.html`, run `./scripts/build-indexes.sh` 
 
 Draft `comment_<model>.md` in the same directory, same `<model>` as the review file (e.g. `comment_claude-opus-4-8.md`); "comment.md" below means this file. Pre-existing rounds may still use bare `comment.md`. The user prunes by hand before upload: dropping a comment = prefixing its header with `SKIP ` (`## SKIP <path>:<line>`), never deleting — the script skips SKIP sections and the marker survives regeneration.
 
+Auto-SKIP duplicates: when another reviewer already raised a finding (PR review or thread comment), prefix its header `SKIP` while drafting without waiting for the user, attribute them in the review file (see the attribution rule), and make `Already raised: <comment-url>` the first body line so the reaction step can find it. Split a section that bundles a raised finding with a novel one so the novel part still posts (keep `&funcName` live while SKIPping the composite-literal cases a reviewer already flagged).
+
 Format:
 
 ```markdown
@@ -338,6 +340,7 @@ Rules:
 - Same gate for mutating posted content (editing or deleting a posted comment, re-posting): update the local draft first, show the user the exact new text, and touch GitHub only after they approve it in the current turn — even when the change itself was requested.
 - APPROVE is a human decision: state the verdict and wait for the user to confirm the approval itself — a generic "post it" covers REQUEST_CHANGES/COMMENT only. Then run the script with `--approve` (it refuses APPROVE without the flag).
 - Post with `./scripts/post-pr-review.py <number> <path-to-comment.md>`. It pre-validates anchors against the PR diff and reports invalid ones — move those into Body, or re-run with `--skip-invalid`. `--dry-run` prints the payload without posting.
+- Thumbs-up acknowledged duplicates: as part of the same `post`, react 👍 to each comment a section SKIPs as already-raised, reading the URL from its `Already raised:` line — `gh api -X POST repos/gnolang/gno/pulls/comments/<id>/reactions -f content=+1` for an inline thread, `repos/gnolang/gno/issues/comments/<id>/reactions` for a top-level review/issue comment. The `<id>` is the trailing number of the comment URL. Skip ids already carrying your 👍 (`gh api repos/gnolang/gno/pulls/comments/<id>/reactions`).
 - Post every verdict as a PR review with the mapped Event, never a plain issue comment. A findings-free one-liner still goes as a review: `gh api repos/gnolang/gno/pulls/<number>/reviews -f event=<EVENT> -f body='...'`.
 - After a successful post, the script writes GitHub URLs back into comment.md (`Posted: <review-url>` under the title, `[posted](<comment-url>)` on each anchor header). Commit and push the updated comment.md.
 - Re-running the script on a draft carrying a `Posted:` line rewrites the posted review in place (body and `[posted]`-linked inline comments) instead of duplicating it. Anchors without a `[posted]` link abort: comments can't be added to an existing review. No `--approve` needed, the event doesn't change.
