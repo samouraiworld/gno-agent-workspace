@@ -393,11 +393,13 @@ def main():
         input=json.dumps(payload), capture_output=True, text=True, check=True,
     )
     review = json.loads(res.stdout)
-    posted = json.loads(subprocess.run(
+    # Read posted comments from pulls/{pr}/comments, not reviews/{id}/comments:
+    # the latter returns null line/start_line, so the anchor keys never match.
+    posted = [c for c in json.loads(subprocess.run(
         ["gh", "api", "--paginate",
-         f"repos/{args.repo}/pulls/{args.pr}/reviews/{review['id']}/comments"],
+         f"repos/{args.repo}/pulls/{args.pr}/comments"],
         capture_output=True, text=True, check=True,
-    ).stdout)
+    ).stdout) if c.get("pull_request_review_id") == review["id"]]
     write_back_links(args.comment_md, review["html_url"], posted)
     print(f"review posted: {review['html_url']}")
     print(f"{event}, {len(posted)} inline comment(s); links written back "

@@ -7,8 +7,8 @@ Looks good. Verified on 996467249: the local backend builds and runs the scenari
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5775-local-runtime-backend/1-996467249/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## misc/val-scenarios/lib/scenario.sh:961-975 [↗](../../../../../.worktrees/gno-review-5775/misc/val-scenarios/lib/scenario.sh#L961)
-Local nodes are launched as `disown`ed background processes with nothing watching them, so a node that dies at startup is noticed only when its RPC poll times out 120s later with a generic message. Have the startup wait also check the node PID so a crashed process fails fast with its log path.
+## misc/val-scenarios/lib/scenario.sh:961-975 [↗](../../../../../.worktrees/gno-review-5775/misc/val-scenarios/lib/scenario.sh#L961) [posted](https://github.com/gnolang/gno/pull/5775#discussion_r3429484456)
+Local nodes are launched as `disown`ed background processes with nothing watching them, so a node that dies at startup is noticed only when its RPC poll times out 120s later with a generic message. Have the RPC wait loop (`wait_for_rpc`) also check the node PID so a crashed process fails fast with its log path.
 
 <details><summary>repro</summary>
 
@@ -37,5 +37,5 @@ wait_for_rpc burned 6s and failed without ever checking the dead PID
 ```
 </details>
 
-## misc/val-scenarios/lib/scenario.sh:20 [↗](../../../../../.worktrees/gno-review-5775/misc/val-scenarios/lib/scenario.sh#L20)
+## misc/val-scenarios/lib/scenario.sh:20 [↗](../../../../../.worktrees/gno-review-5775/misc/val-scenarios/lib/scenario.sh#L20) [posted](https://github.com/gnolang/gno/pull/5775#discussion_r3429484472)
 `RUNTIME` isn't validated, so any value other than exactly `local` runs the docker path: `RUNTIME=lcoal` silently gives you docker, not the local run you asked for. Reject unknown values with a one-line guard after the default.
