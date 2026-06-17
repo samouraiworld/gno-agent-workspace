@@ -124,7 +124,7 @@ Go: `invalid operation: cannot take address of t.M (value of type func() int)`.
 </details>
 
 ## gnovm/pkg/gnolang/preprocess.go:2344 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L2344)
-This gate runs for an explicit `&x`, but the receiver-address the VM synthesizes for a pointer-method call (preprocess.go:2404/2432) is marked `setPreprocessed`, so it never reaches here. As a result `m["k"].Inc()` and `T{1}.Inc()` are accepted, where Go rejects calling a pointer method on a non-addressable value, and the map case mutates the stored element. Fix: run the same `isAddressable` check before synthesizing the receiver address at 2404 and 2432.
+The check only fires on explicit `&x` / `arr[:]`; the receiver-address the VM synthesizes for a pointer-method call or value (preprocess.go:2404/2432, marked `setPreprocessed`) never reaches this gate, so a pointer method on any non-addressable receiver slips through. `m["k"].Inc()` is accepted and mutates the stored element, `Outer{}.in.Inc()` and the method value `m["k"].Inc` are accepted, and `mk().Inc()` still hits the opaque `illegal assignment ... *CallExpr` runtime crash this PR set out to replace; Go rejects all with `cannot call pointer method`. Fix: gate the receiver-address synthesis on `isAddressable` at 2404 and 2432.
 
 <details><summary>repro</summary>
 
@@ -132,24 +132,33 @@ This gate runs for an explicit `&x`, but the receiver-address the VM synthesizes
 # from a local clone of gnolang/gno:
 gh pr checkout 5609 -R gnolang/gno
 tmp=$(mktemp -d)
-cat > "$tmp/main.gno" <<'EOF'
+cat > "$tmp/accept.gno" <<'EOF'
 package main
 type T struct{ n int }
 func (t *T) Inc() { t.n++ }
 func main() {
 	m := map[string]T{"k": {1}}
-	m["k"].Inc()
+	m["k"].Inc()        // accepted, mutates the element
 	println(m["k"].n)
 }
 EOF
-go run ./gnovm/cmd/gno run "$tmp/main.gno"
+cat > "$tmp/crash.gno" <<'EOF'
+package main
+type T struct{ n int }
+func (t *T) Inc() { t.n++ }
+func mk() T { return T{1} }
+func main() { mk().Inc() }   // still the opaque runtime crash
+EOF
+go run ./gnovm/cmd/gno run "$tmp/accept.gno"
+go run ./gnovm/cmd/gno run "$tmp/crash.gno"
 rm -rf "$tmp"
 ```
 
 ```
 2
+panic running expression main(): illegal assignment X expression type *gnolang.CallExpr
 ```
-Go: `cannot call pointer method Inc on T`.
+Go rejects both: `cannot call pointer method Inc on T`.
 </details>
 
 ## gnovm/pkg/gnolang/preprocess.go:2347 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L2347)
