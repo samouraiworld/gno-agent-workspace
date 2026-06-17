@@ -4,112 +4,71 @@
 gh pr checkout 5826 -R gnolang/gno && git checkout 088ce87
 curl -fsSL -o gnovm/pkg/gnolang/zz_generic_fanout_dos_test.go \
   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5826-typecheck-fanout-dos/1-088ce87/tests/generic_fanout_dos_test.go
-go test -timeout 30s -run 'TestGenericInstantiationFanoutBounded|TestValueFanoutBounded' ./gnovm/pkg/gnolang/
+go test -count=1 -run TestGenericFanOutGuardHole -v ./gnovm/pkg/gnolang/
 rm gnovm/pkg/gnolang/zz_generic_fanout_dos_test.go
 */
 
-// checkTypeExpansionBound's cost() returns cost(t.X) for an *ast.IndexExpr,
-// dropping the type argument, so a value-doubling chain routed through a generic
-// instantiation (W[A_{n-1}]) is counted as a constant and slips past the budget.
-// go/types' validType then walks it exponentially inside TypeCheckMemPackage,
-// the same unmetered AddPackage path the PR's value-fan-out case rejects.
-// At 088ce87 TestGenericInstantiationFanoutBounded hangs (the -timeout fires);
-// TestValueFanoutBounded already passes, pinning that the value case is fixed.
+// checkTypeExpansionBound is the gate before go/types' exponential validType walk.
+// Its cost() for an *ast.IndexExpr returns cost(t.X), dropping the type argument,
+// so a value-doubling chain routed through a generic instantiation (W[A_{n-1}])
+// scores as a constant and the guard returns nil. This is the SAME value fan-out
+// the PR's own fanOutSrc row rejects, so it reproduces straight at the guard: no
+// goroutine, no timeout. At 088ce87 the value chain is rejected and the generic
+// chain is accepted, leaving the unmetered AddPackage deploy path exposed.
 
 package gnolang
 
 import (
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func itoaFanout(i int) string {
-	if i == 0 {
-		return "0"
-	}
-	var d []byte
-	for i > 0 {
-		d = append([]byte{byte('0' + i%10)}, d...)
-		i /= 10
-	}
-	return string(d)
-}
-
-func typeCheckFanoutPkg(t *testing.T, body string) error {
+func parseFanout(t *testing.T, src string) (*token.FileSet, []*ast.File) {
 	t.Helper()
-	mpkg := &std.MemPackage{
-		Name: "fanout",
-		Path: "gno.land/r/foo/fanout",
-		Type: MPUserProd,
-		Files: []*std.MemFile{
-			{Name: "gnomod.toml", Body: "module = \"gno.land/r/foo/fanout\"\ngno = \"0.9\"\n"},
-			{Name: "fanout.gno", Body: body},
-		},
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "fanout.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
 	}
-	_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{Mode: TCLatestStrict})
-	return err
+	return fset, []*ast.File{f}
 }
 
-// runWithDeadline runs fn; a value-fan-out DoS makes TypeCheckMemPackage hang,
-// so the surrounding `go test -timeout` is what records the failure. The inner
-// deadline only keeps a green run from blocking the whole suite.
-func runWithDeadline(t *testing.T, body string) error {
-	t.Helper()
-	done := make(chan error, 1)
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				done <- nil // a panic is a clean rejection for this DoS-only assertion
-			}
-		}()
-		done <- typeCheckFanoutPkg(t, body)
-	}()
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(25 * time.Second):
-		t.Fatal("TypeCheckMemPackage did not return within 25s: type-expansion DoS reached validType")
-		return nil
-	}
-}
-
-// Generic instantiation doubling: A_n contains W[A_{n-1}] by value, and W holds
-// its type parameter twice by value, so each level doubles validType's work.
-func TestGenericInstantiationFanoutBounded(t *testing.T) {
+// Direct value-doubling chain: each level embeds the previous one twice by value.
+func valueFanOutSrc(depth int) string {
 	var b strings.Builder
-	b.WriteString("package fanout\n")
-	b.WriteString("type W[P any] struct{ a, b [0]P }\n")
-	b.WriteString("type A0 struct{ v int }\n")
-	prev := "A0"
-	for i := 1; i <= 40; i++ {
-		b.WriteString("type A" + itoaFanout(i) + " struct{ x W[" + prev + "] }\n")
-		prev = "A" + itoaFanout(i)
+	b.WriteString("package x\ntype T0 struct{ v int }\n")
+	for i := 1; i <= depth; i++ {
+		fmt.Fprintf(&b, "type T%d struct{ a, b [0]T%d }\n", i, i-1)
 	}
-	b.WriteString("var Sink A40\n")
-
-	err := runWithDeadline(t, b.String())
-	if err == nil {
-		t.Fatal("generic-instantiation fan-out was accepted; expected a type-expansion rejection")
-	}
-	if !strings.Contains(err.Error(), "denial-of-service") {
-		t.Fatalf("expected a denial-of-service rejection, got: %v", err)
-	}
+	return b.String()
 }
 
-// Baseline the PR already fixes: the same doubling expressed directly by value.
-func TestValueFanoutBounded(t *testing.T) {
+// The same doubling routed through a generic: A_n embeds W[A_{n-1}] by value,
+// and W holds its type parameter twice, so each level still doubles.
+func genericFanOutSrc(depth int) string {
 	var b strings.Builder
-	b.WriteString("package fanout\ntype T0 struct{ v int }\n")
-	for i := 1; i <= 40; i++ {
-		b.WriteString("type T" + itoaFanout(i) + " struct{ a, b [0]T" + itoaFanout(i-1) + " }\n")
+	b.WriteString("package x\ntype W[P any] struct{ a, b [0]P }\ntype A0 struct{ v int }\n")
+	for i := 1; i <= depth; i++ {
+		fmt.Fprintf(&b, "type A%d struct{ x W[A%d] }\n", i, i-1)
 	}
-	b.WriteString("var Sink T40\n")
+	return b.String()
+}
 
-	err := runWithDeadline(t, b.String())
-	if err == nil || !strings.Contains(err.Error(), "denial-of-service") {
-		t.Fatalf("expected a denial-of-service rejection for the value-fan-out baseline, got: %v", err)
+func TestGenericFanOutGuardHole(t *testing.T) {
+	// Baseline the PR fixes: the guard rejects the direct value fan-out.
+	fset, gofs := parseFanout(t, valueFanOutSrc(30))
+	if err := checkTypeExpansionBound(fset, gofs); err == nil {
+		t.Fatal("value fan-out: expected a denial-of-service rejection, got nil")
 	}
+
+	// The hole: the identical fan-out through a generic slips past the guard.
+	fset, gofs = parseFanout(t, genericFanOutSrc(30))
+	if err := checkTypeExpansionBound(fset, gofs); err != nil {
+		t.Fatalf("generic fan-out was rejected (%v); the guard hole appears fixed", err)
+	}
+	t.Fatal("generic fan-out ACCEPTED by the guard: it reaches the exponential validType walk this PR fences off")
 }
