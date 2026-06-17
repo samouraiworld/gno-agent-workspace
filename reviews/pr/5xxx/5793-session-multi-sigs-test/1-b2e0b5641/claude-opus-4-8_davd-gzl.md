@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5793
 Author: jefft0 | Base: master | Files: 3 | +192 -13
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: b2e0b5641 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `b2e0b5641` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5793 b2e0b5641`
 
 **Verdict: APPROVE** — test-only chore; the helper refactor is correct and all four tests pass under CI. Two things to reconcile before merge: the PR body says "the other tests fail," but the Go tests pass (they assert the *transaction* is rejected), and the rejection assertions check only the error *type*, so they will silently survive the eventual #5731 fix instead of flagging it.

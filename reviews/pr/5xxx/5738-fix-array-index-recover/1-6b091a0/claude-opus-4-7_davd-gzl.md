@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5738
 Author: ltzmaxwell | Base: master | Files: 2 | +32 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: 6b091a0 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `6b091a0` (stale — +57 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5738 6b091a0`
 
 **Verdict: APPROVE** — small targeted fix at the right convergence point, behaviour confirmed by filetest and three independent adversarial tests; only nits and a missing-coverage observation remain.

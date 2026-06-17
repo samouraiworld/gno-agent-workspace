@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5585
 Author: davd-gzl | Base: master | Files: 24 | +285 -34
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 5ae68a81 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `5ae68a81` (stale — +84 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5585 5ae68a81`
 
 > Round-2 re-review. Prior round-1 verdict (commit `5c82b44a`) was REQUEST CHANGES on three correctness/a11y bugs. This round checks whether the redesign fixed them and looks for new regressions. Self-authored PR, reviewed adversarially.

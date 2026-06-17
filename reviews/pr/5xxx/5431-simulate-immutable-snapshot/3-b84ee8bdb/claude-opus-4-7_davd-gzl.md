@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5431
 Author: Villaquiranm | Base: master | Files: 14 | +628 -35
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `b84ee8bdb` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `b84ee8bdb` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5431 b84ee8bdb`
 Prior reviews: [`1-02458c712/claude-opus-4-6_davd-gzl.md`](../1-02458c712/claude-opus-4-6_davd-gzl.md), [`2-f3c8706a/claude-opus-4-7_davd-gzl.md`](../2-f3c8706a/claude-opus-4-7_davd-gzl.md)
 

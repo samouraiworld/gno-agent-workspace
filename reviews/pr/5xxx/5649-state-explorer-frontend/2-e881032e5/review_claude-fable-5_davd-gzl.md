@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5649
 Author: alexiscolin | Base: master | Files: 104 | +16219 -250
-Reviewed by: davd-gzl | Model: claude-fable-5 | Commit: `e881032e5` (latest)
+Reviewed by: davd-gzl | Model: claude-fable-5 | Commit: `e881032e5` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5649 e881032e5`
 
 **TL;DR:** gnoweb gets a "State" tab: every realm's stored variables and objects become browsable web pages, rendered server-side with shareable URLs, lazy expansion of nested objects, live search, and a raw JSON API for external tools. Same architecture as before (chain query endpoints feed a Go decoder), but the rendering moved from browser TypeScript into Go templates.

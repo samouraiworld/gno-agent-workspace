@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5825
 Author: ltzmaxwell | Base: master | Files: 9 | +313 -26
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: fc54106 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `fc54106` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5825 fc54106`
 
 **TL;DR:** Comparing two interface values with `==`/`!=` must panic when their boxed dynamic type is uncomparable (e.g. a slice). That rule needs a static "is an operand interface-typed?" verdict, which a sibling PR recomputed on every comparison. This PR computes it once during compilation and stores it on the syntax node, so the hot loop just reads a flag.

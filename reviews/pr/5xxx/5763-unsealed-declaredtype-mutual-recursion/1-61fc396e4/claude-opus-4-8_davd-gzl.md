@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5763
 Author: ltzmaxwell | Base: master | Files: 2 | +22 -7
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 61fc396e4 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `61fc396e4` (stale — +61 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5763 61fc396e4`
 
 **Verdict: REQUEST CHANGES** — the removed `panic("should not happen")` was over-strict, but dropping it converts a loud predefine-time abort into silent structural corruption for the closely related shape `type T2 T1` where `T1` is declared first and carries data fields: `T2`'s base collapses to `struct{}` and any field access on `T2` panics at runtime. The fix suppresses the symptom (the panic) without making the underlying mutual-recursion case actually resolve correctly. Determinism is intact (errors are byte-stable), and the legitimate shapes the PR targets do work — but the PR's own filetest passes only because it never reads a field on `T2`.

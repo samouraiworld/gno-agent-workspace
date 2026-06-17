@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5608
 Author: davd-gzl | Base: master | Files: 5 | +37 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5c57764` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `5c57764` (stale — +99 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5608 5c57764`
 
 **Verdict: APPROVE** — small, well-scoped UX win for `addpkg`; only fixable items are a stale per-command callback override (now dead-equivalent to the root callback) and a docs-output mismatch missing the `INFO:` line.

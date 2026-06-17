@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5794
 Author: gfanton | Base: master | Files: 6 | +305 -13
-Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: 589d1970d (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: `589d1970d` (stale — +31 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5794 589d1970d`
 
 **Verdict: APPROVE** — clean, well-tested, vet-clean, behavior gated correctly on an explicit `text/markdown` Accept. Open items are non-blocking: no ADR (repo policy for AI-assisted feature PRs), a deliberate q-preference shortcut worth confirming, and a defensive `nosniff` worth adding. Merge still needs gnoweb codeowner approval (the only real CI gate).

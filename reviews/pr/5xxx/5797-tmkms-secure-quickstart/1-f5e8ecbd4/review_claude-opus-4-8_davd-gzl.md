@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5797
 Author: D4ryl00 | Base: feat/tmkms-compat/03-listener-integration | Files: 2 | +1096 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: f5e8ecbd4 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `f5e8ecbd4` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5797 f5e8ecbd4`
 
 **TL;DR:** A new, ~1090-line operator guide (`docs/validators/tmkms-quickstart.md`) that walks you from an empty machine to a gnoland validator whose consensus key is held by tmkms, plus a 6-line cross-link from the existing `tmkms.md` reference. It is procedural and security-first: dedicated `gnoland` user, `0600` secrets, transport choice (Unix socket vs firewalled TCP), and three signer backends (YubiHSM recommended, softsign for labs, Ledger for advanced).

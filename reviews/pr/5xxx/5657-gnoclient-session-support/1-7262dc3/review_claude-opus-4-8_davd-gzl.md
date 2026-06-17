@@ -2,8 +2,8 @@
 
 URL: https://github.com/gnolang/gno/pull/5657
 Author: jefft0 | Base: master | Files: 5 | +501 -9
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 7262dc3c5 (latest)
-Local worktree: `git -C gno worktree add .worktrees/gno-review-5657 7262dc3c5`
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `7262dc3` (stale)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5657 7262dc3`
 
 **TL;DR:** gnoclient (the Go SDK for talking to a gno.land node) gains account-session support, mirroring the session feature gnokey already has. A "session" is a delegated signing key that a master account authorizes to sign transactions on its behalf within spend limits. The PR adds a session-account query, three session-management transaction helpers (create / revoke / revoke-all), and teaches the signer to sign as a session by tagging its signature with the session address.
 

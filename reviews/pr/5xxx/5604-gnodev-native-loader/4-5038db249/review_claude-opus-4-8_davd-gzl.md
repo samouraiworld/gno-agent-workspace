@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5604
 Author: gfanton | Base: master | Files: 69 | +3837 -1908
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 5038db249 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `5038db249` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5604 5038db249`
 
 Round 4 re-review. Prior rounds: [round 1](../1-ed10e81f3/claude-sonnet-4-6_davd-gzl.md) (`ed10e81f3`, APPROVE), [round 2](../2-7eb33db9e/claude-opus-4-7_davd-gzl.md) (`7eb33db9e`, REQUEST CHANGES), [round 3](../3-43528ef2e/claude-opus-4-8_davd-gzl.md) (`43528ef2e`, APPROVE). Since round 3 the PR merged master and gfanton landed the fixes for [@thehowl](https://github.com/thehowl)'s GitHub review pass: opt-in `-remote` fetching, eager deps resolved from the FS roots, the single-package recursive pattern (gnovm), eager-root logging, and `Loader.Track` for `-paths`/txs-file deps. This round focuses on those changes and re-checks the still-open round-3 Warnings.

@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5759
 Author: jaekwon | Base: master | Files: 88 | +3283 -276
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 52e7c45cb (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `52e7c45cb` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5759 52e7c45cb`
 
 **Verdict: REQUEST CHANGES** — the feature is well-built and the sandbox holds under adversarial probing, but `TestAppHashCrossrealm38` fails: adding the `chain/markdown.MaxForeignBlocksPerConvert` native shifts the on-chain stdlib Merkle root and the pinned consensus hash was not updated. That is the one blocker; everything else is a nit or a question.

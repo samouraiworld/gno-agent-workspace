@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5792
 Author: davd-gzl | Base: master | Files: 17 | +533 -89
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: e68b124f2 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `e68b124f2` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5792 e68b124f2`
 
 **Verdict: APPROVE** — adds the missing owner/existence guard to `SetTokenMetadata`, byte-for-byte consistent with `SetTokenURI` and `SetTokenRoyalty`; tests pass; the red CI is Codecov-uploader infra noise, not test failures. Stacked on #5385, so most of the diff is the dependency.

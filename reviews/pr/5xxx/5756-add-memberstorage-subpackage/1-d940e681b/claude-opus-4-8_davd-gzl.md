@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5756
 Author: jeronimoalbi | Base: master | Files: 12 | +1365 -35
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: d940e681b (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `d940e681b` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5756 d940e681b`
 
 **Verdict: REQUEST CHANGES** — the new package is clean and well-tested, but the Boards2 migration silently drops the de-duplication guarantee the old `commondao` storage provided: a user added as a guest and later given a role is counted twice by `UsersCount()` and emitted twice by `IterateUsers()`, and `RemoveUser()` can't clean up the leftover. This path is reachable from the live invite→promote flow.

@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5790
 Author: ltzmaxwell | Base: master | Files: 8 | +406 -20
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 44cd6b494 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `44cd6b494` (stale — +4 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5790 44cd6b494`
 
 **TL;DR:** When Gno code assigns several things at once (`a, b = 1, 2`), the VM was committing the writes right-to-left, the reverse of Go. This breaks two visible cases: `a, a, a = 1, 2, 3` left `a == 1` instead of `3`, and a panic partway through a multi-assign (e.g. `m[k], *p = 42, 2` where `*p` is a nil deref) discarded the earlier `m[k]` write instead of keeping it. This PR makes the VM resolve and commit each target left-to-right, matching Go, with no extra memory allocation.

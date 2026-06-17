@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5420
 Author: moul | Base: master | Files: 1 | +127 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `9098f1116` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `9098f1116` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5420 9098f1116`
 
 **Verdict: APPROVE** — single new workflow, CI green, action SHAs pinned, `persist-credentials: false`, scoped per-job permissions; only soft notes are an absent `CGO_ENABLED=0` (silently relies on default deps being CGO-free), a `workflow_dispatch` input that accepts un-prefixed tags without validation, and a stray unused `actions/checkout` in the release job.

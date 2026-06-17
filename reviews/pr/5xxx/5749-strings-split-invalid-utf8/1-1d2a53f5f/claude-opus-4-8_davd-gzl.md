@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5749
 Author: davd-gzl | Base: master | Files: 4 | +1177 -6
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 1d2a53f5f (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `1d2a53f5f` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5749 1d2a53f5f`
 
 **Verdict: APPROVE** — `explode` now slices raw bytes, matching current upstream Go; the test ports are faithful and pin the round-trip; the consensus-visible Merkle-root shift is correctly handled by the regenerated `expectedCrossrealm38Hash`. CI green (only `Merge Requirements` red — the approval-gate bot). Two non-blocking notes below: the change is consensus-affecting, and ~1171 lines of stdlib test source now land in committed genesis state.

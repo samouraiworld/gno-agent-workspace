@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5715
 Author: omarsy | Base: master | Files: 3 | +122 -1
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `6d5b684c4` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `6d5b684c4` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5715 6d5b684c4`
 
 **Verdict: APPROVE** — one-line fix converts a raw Go panic into a `*Exception` so user `recover()` catches it; matches the documented in-file convention and the precedent set by PRs #5711, #5195, #4452, #3856. CI green, filetest added, no regressions in the `interface*` filetests.

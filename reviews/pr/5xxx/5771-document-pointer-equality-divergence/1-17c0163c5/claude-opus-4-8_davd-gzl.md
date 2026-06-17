@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5771
 Author: ltzmaxwell | Base: master | Files: 5 | +65 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `17c0163c5` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `17c0163c5` (stale — +22 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5771 17c0163c5`
 Related: [PR #5708](../../5708-zerobase-zero-sized-types/2-e94b9079/claude-opus-4-7_davd-gzl.md) — the abandoned "implement zerobase folding" approach this PR supersedes by documenting the divergence instead.
 

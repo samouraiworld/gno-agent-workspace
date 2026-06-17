@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5784
 Author: omarsy | Base: master | Files: 5 | +88 -4
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 58875dc65 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `58875dc65` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5784 58875dc65`
 
 **Verdict: APPROVE** — correct, spec-conformant fix with verified Go parity and good tests; one theoretical migration edge (pre-existing persisted maps whose struct keys differ only in blank fields collapse on load) is worth acknowledging but is not a blocker given there is no live chain state with that shape.

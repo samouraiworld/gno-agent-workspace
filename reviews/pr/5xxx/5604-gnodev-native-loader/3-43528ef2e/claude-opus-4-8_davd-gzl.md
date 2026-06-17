@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5604
 Author: gfanton | Base: master | Files: 56 | +2595 -1805
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `43528ef2e` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `43528ef2e` (stale — +70 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5604 43528ef2e`
 
 **TL;DR:** Reworks `gnodev`'s package loading. A new eager "native loader" discovers packages across the workspace plus any extra roots, merges them, and runs one cross-root topological sort so a realm that imports a sibling package in another root deploys in dependency order instead of failing to compile. Also adds package-path sanitization for dirs without a `gnomod.toml`, a `-without-quarantined-examples` flag, and a non-zero exit code on fatal config refusal.

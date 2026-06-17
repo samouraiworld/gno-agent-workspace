@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5747
 Author: moul | Base: master | Files: 15 | +131 -82
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `73ed1b08f` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `73ed1b08f` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5747 73ed1b08f`
 
 **Verdict: APPROVE** — fix is load-bearing and verified (master panics with the exact issue error, PR passes); the removed Copy-time hardening was provably non-load-bearing (syntactically routable via `copy()`), and the real cross-realm-write defense at the pointer-deref / conversion boundary is untouched and still blocks every victim-reaching write. Two non-blocking asks: the `/r/`-declared **array** retention branch is untested ([values.go:347-349](https://github.com/gnolang/gno/blob/73ed1b08f/gnovm/pkg/gnolang/values.go#L347-L349) · [↗](../../../../../.worktrees/gno-review-5747/gnovm/pkg/gnolang/values.go#L347-L349) is uncovered), and the safety rests on an unguarded deep-copy-independence invariant worth a regression test. No ADR despite "non-trivial AI-assisted" repo rule.

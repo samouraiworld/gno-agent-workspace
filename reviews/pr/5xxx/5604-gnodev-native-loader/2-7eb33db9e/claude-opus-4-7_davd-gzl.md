@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5604
 Author: gfanton | Base: master | Files: 56 | +2280 -1789
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `7eb33db9e` (stale)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `7eb33db9e` (stale — +89 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5604 7eb33db9e`
 
 **Verdict: REQUEST CHANGES** — CI is red on a self-included unit test (`TestGuessPath_NoGnoModProducesValidPath`) showing `sanitizePathSegment` produces import-path segments that `gnolang.IsUserlib` rejects, which blocks any user running `gnodev local` in a dir whose basename starts with `_` or doubled separators. `TestSanitizePathSegment` also hard-codes the same invalid outputs in its golden table, so a naïve unit-test pass is no protection.

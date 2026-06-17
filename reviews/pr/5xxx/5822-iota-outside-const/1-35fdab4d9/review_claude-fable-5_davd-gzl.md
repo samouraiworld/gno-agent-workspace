@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5822
 Author: Villaquiranm | Base: master | Files: 3 | +40 -0
-Reviewed by: davd-gzl | Model: claude-fable-5 | Commit: 35fdab4d9 (latest)
+Reviewed by: davd-gzl | Model: claude-fable-5 | Commit: `35fdab4d9` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5822 35fdab4d9`
 
 **TL;DR:** In Go, the special identifier `iota` only has meaning inside a `const` declaration. GnoVM crashed with an internal error when a program used `iota` anywhere else; this PR makes it report the same clear error Go does, with the right source position, plus two tests pinning that.

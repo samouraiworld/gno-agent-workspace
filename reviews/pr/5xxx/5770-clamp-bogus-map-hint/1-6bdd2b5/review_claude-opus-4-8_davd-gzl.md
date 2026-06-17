@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5770
 Author: ltzmaxwell | Base: master | Files: 3 | +71 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 6bdd2b5 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `6bdd2b5` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5770 6bdd2b5`
 
 **TL;DR:** In the GnoVM, `make(map[K]V, n)` used to crash the whole transaction with an internal "addition overflow" when the size hint `n` was astronomically large. This PR makes a bogus hint (negative, or large enough to overflow the allocator's byte math) behave exactly like real Go: the hint is quietly ignored and the map is created empty-but-usable, no crash.

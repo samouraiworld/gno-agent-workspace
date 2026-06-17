@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5827
 Author: thehowl | Base: master | Files: 8 | +84 -24
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 96c9a8ce0 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `96c9a8ce0` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5827 96c9a8ce0`
 
 **TL;DR:** In the GnoVM, `make(map[K]V, n)` used to charge gas for `n` map items up front, but each item also pays again when actually inserted, and a giant `n` crashed the whole transaction with an internal overflow panic. This PR stops reading the size hint at all: the map is created empty and you pay per item only as you fill it. The hint never affected stored data anyway (it is recomputed from the real item count when state reloads), so nothing of value is lost.

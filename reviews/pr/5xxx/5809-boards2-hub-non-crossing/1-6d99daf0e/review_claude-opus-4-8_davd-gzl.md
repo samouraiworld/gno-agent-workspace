@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5809
 Author: jefft0 | Base: master | Files: 39 | +286 -486
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 6d99daf0e (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `6d99daf0e` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5809 6d99daf0e`
 
 **TL;DR:** boards2 had a separate `hub` sub-realm exposing read-only views (boards, threads, comments) over its data. A recent interrealm change forced those view functions to take a `cur realm` parameter, which made them crossing functions unusable as a plain query API. This PR folds the views back into the main `boards2/v1` realm as ordinary non-crossing functions, moves the safe view structs into a reusable `p/gnoland/boards/exts/hub` package, and deletes the now-unused namespace-gated `protected.gno`.

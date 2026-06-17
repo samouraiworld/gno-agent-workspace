@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5807
 Author: omarsy | Base: master | Files: 3 | +135 -4
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: b22859722 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `b22859722` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5807 b22859722`
 
 **TL;DR:** Converting a 64-bit integer to a string in Gno (e.g. `string(someInt64)`) is supposed to give back the character at that Unicode code point, and anything out of range should give the replacement character `�`. Gno chopped the number down to 32 bits first, so huge values could land back on a real character instead of `�`. This PR adds two small helpers that detect the out-of-range case up front and return `�`, matching Go exactly.

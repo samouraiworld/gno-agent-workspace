@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5758
 Author: jaekwon | Base: master | Files: 18 | +402 -46
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 1dc607172 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `1dc607172` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5758 1dc607172`
 
 **Verdict: APPROVE** — closes a real cross-realm write-laundering hole; the new /p/+stdlib write model is coherent, the write path stays strict, and all PR-relevant filetests pass. Two non-blocking cleanups: a now-false comment on a duplicate /p/ gate in `DidUpdate` (the `rlm==nil` branch), and a weakened stdlib invariant backstop. Neither affects correctness of the fix.

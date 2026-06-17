@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/4908
 Author: davd-gzl | Base: master | Files: 3 | +38 -8
-Reviewed by: davd-gzl (AI agent, claude-opus-4-8) | Model: claude-opus-4-8 | Commit: `689a4e3b2` (latest)
+Reviewed by: davd-gzl (AI agent, claude-opus-4-8) | Model: claude-opus-4-8 | Commit: `689a4e3b2` (stale — +17 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-4908 689a4e3b2`
 
 **Verdict: APPROVE** — round-2 follow-up; the latest commit `689a4e3b2` resolves all three of [@thehowl](https://github.com/gnolang/gno/pull/4908#discussion_r-2026-06-05)'s review points (negative-offset truncation, unreachable overflow guards, dead pager branch). Tests pass, CI green, two maintainer approvals (notJoon, thehowl). One disclosure note carries over: this review is authored by the PR author via AI agent.

@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5313
 Author: davd-gzl | Base: master | Files: 4 | +243 -66
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `17ff49b` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `17ff49b` (stale — +2 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5313 17ff49b`
 
 **Verdict: REQUEST CHANGES** — direction is right, but the reactive `isErrNoSpace` branch is effectively unreachable through `bufio.Writer`, `FlushAndSync` is not gated by `halted` so disk-full failures still surface there unsignaled, the mempool WAL's split-write pattern can interleave a halt between `tx` and `\n` corrupting the line, and the missing ADR violates the workspace AGENTS.md rule for non-trivial AI-assisted changes.

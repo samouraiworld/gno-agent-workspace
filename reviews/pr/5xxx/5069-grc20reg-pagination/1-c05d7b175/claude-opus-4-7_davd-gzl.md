@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5069
 Author: davd-gzl | Base: master | Files: 2 | +70 -36
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `c05d7b175` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `c05d7b175` (stale — +148 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5069 c05d7b175`
 
 Verdict: APPROVE — pagination works, CI green, three approvals; the only loose end is the silent loss of `md.EscapeText` on token names/symbols, which is worth fixing as a follow-up but not blocking.

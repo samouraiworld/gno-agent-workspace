@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5708
 Author: ltzmaxwell | Base: master | Files: 8 | +210 -13
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `e94b9079` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `e94b9079` (stale — +6 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5708 e94b9079`
 Prior review (for history; this review stands alone): [1-350d630e3/](../1-350d630e3/claude-opus-4-7_davd-gzl.md)
 

@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5677
 Author: davd-gzl | Base: master | Files: 1 | +69 -27
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `8ba854d` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `8ba854d` (stale — +50 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5677 8ba854d`
 
 **Verdict: REQUEST CHANGES** — one fabricated symbol (`NewChaCha8` in `math/rand`), two miscategorized Gno-only package rows (`chain/params` mislabeled as accessors, `sys/params` advertised as setters-only while it ships getters too), and an incomplete Gno-only table (missing `math/overflow`, `crypto/chacha20/chacha`, `crypto/chacha20/rand`). Renumber and reorder is clean and the legend pass is otherwise accurate.
