@@ -3,7 +3,7 @@ Posted: https://github.com/gnolang/gno/pull/5737#pullrequestreview-4515999355
 Event: REQUEST_CHANGES
 
 ## Body
-This is a design problem, not a tweak. Go's two timings aren't a policy to flag: a concrete `*T(nil)` derefs `*pt` when the method value is formed, so it panics eagerly at bind, while an interface-boxed `*T` only derefs inside the call, so its panic lands at call time. The PR adds a `nilReceiverPanic` flag at the single `VPDerefValMethod` site, but that site runs after the interface is unwrapped to a bare `*T`, so it can't tell the two apart and defers both, fixing the interface case and regressing the concrete one. The decision has to live where the receiver kind is still known (interface dispatch, or marked in the preprocessor), not in a flag read at one late site.
+This is a design problem, not a tweak. The root cause sits a level deeper than the single flag site, so as written the change fixes the interface case but regresses the concrete one. Go has two distinct timings: a concrete `*T(nil)` derefs `*pt` when the method value is formed, so it panics eagerly at bind, while an interface-boxed `*T` only derefs inside the call, so its panic lands at call time. The `nilReceiverPanic` flag is read at the single `VPDerefValMethod` site, but that site runs after the interface is unwrapped to a bare `*T`, so it can't tell the two apart and defers both, when only the interface case should defer. To hold both, the decision needs to live where the receiver kind is still known (interface dispatch, or marked in the preprocessor) rather than at that one late site.
 
 ```
 receiver form        Go            master         this PR
@@ -13,15 +13,15 @@ defer i.M()  iface    call-time(=1) eager(=0) ✗   call-time(=1) ✓   <- fixed
 G=i.M; persist; G()   panic         (binds eager)  no panic ✗        <- new hole
 ```
 
-The PR's only filetest covers the interface case, so both the concrete regression and the persistence hole below ship untested. Worth an ADR pinning the intended semantics.
+The current filetest covers the interface case; the concrete case and the persistence hole below are both unexercised today, so they'd be worth adding. An ADR pinning the intended semantics would also help anchor the fix.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5737-defer-nil-receiver-panic/1-4c57c37e4/claude-opus-4-8_davd-gzl.md [↗](claude-opus-4-8_davd-gzl.md)
 
 Repros run at 4c57c37e4.
 
 
-## gnovm/pkg/gnolang/values.go:1835 [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/values.go#L1835)
-A concrete `defer pt.M()` or `g := pt.M` on a nil `*T` value method now panics at call time, but Go and master panic eagerly when the method value is formed (the deferred `r = 1` never runs, so `f()` returns `0`). The `VPDerefValMethod`-nil path can't tell a concrete `*T` from an interface unwrapped to `*T`, so it defers both, while only the interface case should defer; the concrete path must keep the eager panic at bind.
+## gnovm/pkg/gnolang/values.go:1835 [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/values.go#L1835) [posted](https://github.com/gnolang/gno/pull/5737#discussion_r3428467430)
+A concrete `defer pt.M()` or `g := pt.M` on a nil `*T` value method now panics at call time, whereas Go and master panic eagerly when the method value is formed (the deferred `r = 1` never runs, so `f()` returns `0`). The `VPDerefValMethod`-nil path can't tell a concrete `*T` from an interface unwrapped to `*T`, so it defers both, while only the interface case should defer; the concrete path needs to keep panicking eagerly at bind.
 
 <details><summary>repro</summary>
 
@@ -69,8 +69,8 @@ FAIL
 </details>
 
 
-## gnovm/pkg/gnolang/values.go:655 [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/values.go#L655)
-Store a nil-receiver method value like `G := i.M` and the unexported `nilReceiverPanic` flag is dropped by amino and `exportValue`, so after a reload `G` runs on a zero receiver instead of panicking. It panics when called in the tx that bound it but succeeds in a later tx: same on every node, so no consensus split, but still a Go-semantics divergence. If the deferred-panic model stays, the panic-at-call property has to survive serialization, not live in a transient bool.
+## gnovm/pkg/gnolang/values.go:655 [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/values.go#L655) [posted](https://github.com/gnolang/gno/pull/5737#discussion_r3428467444)
+Store a nil-receiver method value like `G := i.M` and the unexported `nilReceiverPanic` flag is dropped by amino and `exportValue`, so after a reload `G` runs on a zero receiver instead of panicking. It panics when called in the tx that bound it but succeeds in a later tx: same on every node, so no consensus split, but still a Go-semantics divergence. If the deferred-panic model stays, the panic-at-call property needs to survive serialization rather than living in a transient bool.
 
 <details><summary>repro</summary>
 
