@@ -9,6 +9,7 @@ Verified on 443885d1b: `&funcName` runs to completion under the VM where `go bui
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5609-gnovm-addressability-check/2-443885d1b/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## SKIP gnovm/pkg/gnolang/preprocess.go:4395 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4395)
+Already raised: https://github.com/gnolang/gno/pull/5609#pullrequestreview-4389750223 (review body, not reactable)
 `&[3]int{1,2,3}[0]`, `&struct{ x int }{}.x`, and `[3]int{1,2,3}[:]` all build pointers or slices at runtime where Go rejects them, because this arm reports any `*CompositeLitExpr` addressable. A composite literal is addressable only as the direct `&T{}` operand, not as an index/slice/selector base. Fix: treat a composite literal reached by recursion as non-addressable.
 
 <details><summary>repro</summary>
@@ -65,6 +66,7 @@ Go: `invalid operation: cannot take address of bar (value of type func())`.
 </details>
 
 ## SKIP gnovm/pkg/gnolang/preprocess.go:4397-4404 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4397-L4404)
+Already raised: https://github.com/gnolang/gno/pull/5609#pullrequestreview-4389750223 (review body, not reactable)
 `&s[0]` on a string builds a byte pointer: a `StringKind` index isn't handled by the `Kind()` switch and falls through to the recursive call, which returns true for a name base. Go rejects taking the address of a string byte. Fix: reject a string index.
 
 <details><summary>repro</summary>
@@ -92,6 +94,7 @@ Go: `invalid operation: cannot take address of s[0] (value of type byte)`.
 </details>
 
 ## SKIP gnovm/pkg/gnolang/preprocess.go:4405-4409 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4405-L4409)
+Already raised: https://github.com/gnolang/gno/pull/5609#pullrequestreview-4389750223 (review body, not reactable)
 `&t.M` on a bound method value builds a pointer: the SelectorExpr arm recurses on the receiver without inspecting the selector, so a method value is treated like a field. Go rejects taking the address of a method value. Fix: reject a selector whose static type is a function.
 
 <details><summary>repro</summary>
