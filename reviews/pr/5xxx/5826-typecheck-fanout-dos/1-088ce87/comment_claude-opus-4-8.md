@@ -1,26 +1,24 @@
 # Review: PR #5826
+Posted: https://github.com/gnolang/gno/pull/5826#pullrequestreview-4510941387
 Event: REQUEST_CHANGES
 
 ## Body
-The value-containment fan-out fix is correct and the guard is genuinely linear, but the same exponential `validType` DoS is still reachable through three type shapes the guard under-counts: generic instantiations, interface type-set unions, and imported types. Verified on 088ce87 end-to-end through `addpkg` on an in-memory gnoland node with drop-in txtars in the form of the PR's own `addpkg_typecheck_fanout.txtar`: a generic-instantiation fan-out (`A_n` embeds `W[A_{n-1}]`) and an interface union-doubling chain (`I_n = [0]I_{n-1} | [1]I_{n-1}`) each pass the guard and then hang the node past 60s on the unmetered deploy path instead of producing the `denial-of-service` rejection the guard gives the direct case; and a value-doubling chain split across a deploy chain of imported packages keeps every package's gas flat (~5M) while wall-clock `validType` time doubles each hop (0.1s, 0.3s, 0.9s, 3.5s, 14s) until the next deploy kills the node. The other arms hold: pointer/slice/map/chan/func breaks complete in microseconds, matching `validType`.
+The fix is correct and the guard is linear, but the `validType` DoS is still reachable through three type shapes the guard under-counts. Verified on 088ce87: each drop-in txtar deploys past the guard and hangs the node on the unmetered `addpkg` path, where the direct fan-out is rejected.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5826-typecheck-fanout-dos/1-088ce87/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
+## gnovm/pkg/gnolang/typecheck_bound.go:143-146 [↗](../../../../../.worktrees/gno-review-5826/gnovm/pkg/gnolang/typecheck_bound.go#L143) [posted](https://github.com/gnolang/gno/pull/5826#discussion_r3424921039)
+For `W[A{n-1}]` the guard counts the base `W` and ignores the type argument, where the doubling lives. A generic fan-out reads as a constant and passes into the `validType` hang. Fix: count the type arguments too, or reject the instantiation.
 
-*(AI Agent)*
+<details><summary>repro</summary>
 
-## gnovm/pkg/gnolang/typecheck_bound.go:143-146 [↗](../../../../../.worktrees/gno-review-5826/gnovm/pkg/gnolang/typecheck_bound.go#L143)
-A value fan-out routed through a generic instantiation (`W[A{n-1}]`) is counted as `cost(W)`, a constant, because this arm drops the type argument, so the guard accepts it and `go/types` validType still hangs the unmetered deploy path. The base type does not bound the cost when the type argument drives the expansion. Fix: reject or conservatively over-count generic instantiations whose type arguments can drive value-containment fan-out, so a generic doubling chain hits the budget like the direct-value one.
+The direct `[0]T%d` form at this depth is rejected in milliseconds; the generic form is not:
 
-<details><summary>repro (drop-in txtar, same form as the PR's own addpkg_typecheck_fanout.txtar)</summary>
-
-Save as `gno.land/pkg/integration/testdata/addpkg_typecheck_fanout_generic.txtar`, then `go test ./gno.land/pkg/integration/ -run TestTestdata/addpkg_typecheck_fanout_generic`. On 088ce87 the guard does not reject the package, so the deploy reaches the unmetered `validType` walk and the node stops responding (the RPC client gives up with `context deadline exceeded`) instead of the clean `denial-of-service` rejection the test asserts. Swap `W[A%d]` for the direct `[0]T%d` form and the same depth is rejected at the guard in milliseconds, which is the difference this finding is about.
-
-```txtar
-# Adding a package whose types form an exponential value-containment fan-out
-# routed through a generic instantiation must ALSO be rejected cleanly at
-# type-check time, not hang the node. Each A_n embeds W[A_{n-1}] by value and
-# W holds its type parameter twice, so the validType walk still doubles, but
-# checkTypeExpansionBound's cost() drops the IndexExpr type argument.
+```bash
+gh pr checkout 5826 -R gnolang/gno && git checkout 088ce87
+cat > gno.land/pkg/integration/testdata/addpkg_typecheck_fanout_generic.txtar <<'EOF'
+# Value-containment fan-out routed through a generic: each A_n embeds W[A_{n-1}]
+# by value, W holds its type parameter twice, so validType still doubles. The
+# guard drops the IndexExpr type argument, so it must ALSO reject this, not hang.
 
 # start a new node
 gnoland start
@@ -81,9 +79,12 @@ type A39 struct{ x W[A38] }
 type A40 struct{ x W[A39] }
 
 var Sink A40
+EOF
+go test -count=1 -v -run TestTestdata/addpkg_typecheck_fanout_generic ./gno.land/pkg/integration/
+rm gno.land/pkg/integration/testdata/addpkg_typecheck_fanout_generic.txtar
 ```
 
-Observed on 088ce87 (the guard never fires; the node hangs until the client deadline):
+Observed on 088ce87:
 ```
 # adding the generic fan-out package must fail with a denial-of-service rejection (65.00s)
 > ! gnokey maketx addpkg ... -pkgpath gno.land/r/foobar/fanout ...
@@ -92,23 +93,18 @@ Observed on 088ce87 (the guard never fires; the node hangs until the client dead
 FAIL: testdata/addpkg_typecheck_fanout_generic.txtar:12: no match for `denial-of-service` found in stderr
 ```
 </details>
+## gnovm/pkg/gnolang/typecheck_bound.go:127-138 [↗](../../../../../.worktrees/gno-review-5826/gnovm/pkg/gnolang/typecheck_bound.go#L127) [posted](https://github.com/gnolang/gno/pull/5826#discussion_r3424921076)
+The guard recurses into struct fields and array elements but not into an interface type-set union. A union term `[0]X | [1]X` (a `BinaryExpr`, `~T` a `UnaryExpr`) hits `default: return 1` at line 147-148, yet `validType` walks both sides, so a union-doubling chain blows up unscored. Fix: recurse both sides of a `|` and the operand of a `~`.
 
-*(AI Agent)*
+<details><summary>repro</summary>
 
-## gnovm/pkg/gnolang/typecheck_bound.go:127-138 [↗](../../../../../.worktrees/gno-review-5826/gnovm/pkg/gnolang/typecheck_bound.go#L127)
-The `*ast.InterfaceType` arm only recurses embedded named types; an interface type-set union (`[0]X | [1]X`) is a single field whose `Type` is an `*ast.BinaryExpr` (and `~T` is an `*ast.UnaryExpr`), both of which fall through to `default: return 1` at line 147-148. But `validType` does walk interface type-set terms, so a union-doubling chain is scored as a constant by the guard yet drives the same exponential walk. Fix: recurse both operands of a `|` `*ast.BinaryExpr` and the operand of a `~` `*ast.UnaryExpr` inside the interface/type-elem handling, mirroring the struct/array value-containment recursion.
-
-<details><summary>repro (drop-in txtar, same form as the PR's own addpkg_typecheck_fanout.txtar)</summary>
-
-Save as `gno.land/pkg/integration/testdata/addpkg_typecheck_fanout_union.txtar`, then `go test ./gno.land/pkg/integration/ -run TestTestdata/addpkg_typecheck_fanout_union`. The union term `[0]I{n-1} | [1]I{n-1}` is an `*ast.BinaryExpr` the guard scores as `1`, so `checkTypeExpansionBound` returns nil and the deploy reaches the exponential `validType` walk; on 088ce87 the node hangs until the client deadline rather than rejecting.
-
-```txtar
-# Adding a package whose interface type-set unions form an exponential
-# value-containment fan-out must be rejected cleanly at type-check time, not
-# hang the node. Each I_n unions two array types over I_{n-1}, so go/types'
-# validType walk over the type set still doubles per level, but
-# checkTypeExpansionBound's *ast.InterfaceType arm does not recurse the
-# *ast.BinaryExpr union term: it falls through to default and returns 1.
+```bash
+gh pr checkout 5826 -R gnolang/gno && git checkout 088ce87
+cat > gno.land/pkg/integration/testdata/addpkg_typecheck_fanout_union.txtar <<'EOF'
+# Value-containment fan-out through interface type-set unions: each I_n unions
+# two array types over I_{n-1}, so validType still doubles per level. The guard's
+# InterfaceType arm doesn't recurse the BinaryExpr union term (default returns 1),
+# so it must reject this, not hang.
 
 # start a new node
 gnoland start
@@ -168,6 +164,9 @@ type I39 interface{ [0]I38 | [1]I38 }
 type I40 interface{ [0]I39 | [1]I39 }
 
 type Use struct{ x I40 }
+EOF
+go test -count=1 -v -run TestTestdata/addpkg_typecheck_fanout_union ./gno.land/pkg/integration/
+rm gno.land/pkg/integration/testdata/addpkg_typecheck_fanout_union.txtar
 ```
 
 Observed on 088ce87:
@@ -179,24 +178,20 @@ Observed on 088ce87:
 FAIL: testdata/addpkg_typecheck_fanout_union.txtar:13: no match for `denial-of-service` found in stderr
 ```
 </details>
+## gnovm/pkg/gnolang/typecheck_bound.go:141-142 [↗](../../../../../.worktrees/gno-review-5826/gnovm/pkg/gnolang/typecheck_bound.go#L141) [posted](https://github.com/gnolang/gno/pull/5826#discussion_r3424921125)
+The guard counts an imported type `pkg.T` as a flat `1`. But `validType` re-expands imported types without caching across packages (golang/go#65711), so a doubling chain spread across deployed packages stays under the per-package guard while the walk doubles at every link until a deploy hangs the node. The guard never sees the imported cost. Fix: remember each package's worst-case expansion (e.g. in `TypeCheckCache`) and add it in for `pkg.T`.
 
-*(AI Agent)*
+<details><summary>repro (deploy chain)</summary>
 
-## gnovm/pkg/gnolang/typecheck_bound.go:141-142 [↗](../../../../../.worktrees/gno-review-5826/gnovm/pkg/gnolang/typecheck_bound.go#L141)
-`*ast.SelectorExpr` (an imported type `pkg.T`) is scored as a leaf (`return 1`). That is sound within one package, but `validType` follows value containment across package boundaries and does not memoize (golang/go#65711), so it re-expands imported types in full. The guard runs per package at each `AddPackage`, while `validType` at that same deploy walks the whole transitive type graph. A value-doubling chain split across a deploy-chain of packages, each with a trivial local cost (`pkg.T` = 1), makes the Nth package's `validType` walk expand 2^N while every package individually passes the per-package budget; the deploy that first crosses the time threshold hangs the unmetered path. This is an architectural gap, not a single-package miscount: the guard cannot see the imported cost. Fix: persist each package's max named-type expansion cost (e.g. in `TypeCheckCache`) and add it for `SelectorExpr`, instead of treating imported types as constant leaves.
+`p0` is a depth-16 chain (cost 2^16, under budget); `p1..p5` each embed the previous package's `T` four times. Each passes the guard, but `validType` re-expands the imported chain per deploy:
 
-<details><summary>repro (drop-in txtar: a deploy chain, each package passes the guard, the last one falls over)</summary>
-
-Save as `gno.land/pkg/integration/testdata/addpkg_typecheck_fanout_imported.txtar`, then `go test ./gno.land/pkg/integration/ -run TestTestdata/addpkg_typecheck_fanout_imported`. `p0` is a depth-16 value-doubling chain (cost 2^16, under the 1M budget); `p1..p5` each embed the previous package's `T` four times by value. Per package the guard cost stays tiny because `p{k-1}.T` is a `SelectorExpr` scored as `1`, so every package passes. But `validType` re-expands the imported chain each deploy, so the deploys succeed with flat gas while wall-clock time doubles per hop, and `p5` takes the node down.
-
-```txtar
-# A value-containment fan-out SPLIT ACROSS A DEPLOY CHAIN of packages. Each
-# package passes checkTypeExpansionBound on its own: imported types are scored as
-# a constant leaf (*ast.SelectorExpr -> return 1), so every package's cost stays
-# far under the per-package budget. But go/types' validType follows value
-# containment across import boundaries and does not memoize, so the walk doubles
-# per package and the final deploy hangs/kills the unmetered addpkg path even
-# though no single package ever crosses the budget.
+```bash
+gh pr checkout 5826 -R gnolang/gno && git checkout 088ce87
+cat > gno.land/pkg/integration/testdata/addpkg_typecheck_fanout_imported.txtar <<'EOF'
+# Value-containment fan-out split across a deploy chain. Each package passes the
+# guard on its own (imported types score as a leaf: SelectorExpr returns 1), but
+# validType crosses import boundaries without memoizing, so the walk doubles per
+# package and the final deploy kills the node, with no package over budget.
 
 # start a new node
 gnoland start
@@ -299,9 +294,12 @@ package p5
 import "gno.land/r/foobar/p4"
 
 type T struct{ a, b, c, d [0]p4.T }
+EOF
+go test -count=1 -v -run TestTestdata/addpkg_typecheck_fanout_imported ./gno.land/pkg/integration/
+rm gno.land/pkg/integration/testdata/addpkg_typecheck_fanout_imported.txtar
 ```
 
-Observed on 088ce87 (gas stays flat while wall-clock doubles each hop, then the node dies):
+Observed on 088ce87 (gas flat, wall-clock doubles each hop, then the node dies):
 ```
 # deploy p0 (0.118s)   GAS USED: 3055141
 # deploy p1 (0.297s)   GAS USED: 4126720
@@ -313,5 +311,3 @@ Observed on 088ce87 (gas stays flat while wall-clock doubles each hop, then the 
 FAIL: testdata/addpkg_typecheck_fanout_imported.txtar:29: no match for `denial-of-service` found in stderr
 ```
 </details>
-
-*(AI Agent)*
