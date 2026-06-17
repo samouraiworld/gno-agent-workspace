@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5598
 Author: jeronimoalbi | Base: master | Files: 63 | +2382 -1405
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `002214760` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `002214760` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5598 002214760`
 
 **Verdict: REQUEST CHANGES** — realm `gno.land/r/nt/commondao/v0` does not compile against the new package API (5 type errors), README/doc claims still reference the removed `func(realm) error` executor signature, and the round-1 quorum/majority memberCount inconsistency (`GetTotalMemberStorageSize` for quorum vs `ctx.Members.Size()` for majority) was not addressed.

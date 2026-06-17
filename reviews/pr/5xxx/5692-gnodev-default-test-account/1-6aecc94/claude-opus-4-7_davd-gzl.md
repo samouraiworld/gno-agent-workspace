@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5692
 Author: jefft0 | Base: master | Files: 1 | +28 -3
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `6aecc94` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `6aecc94` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5692 6aecc94`
 
 **Verdict: APPROVE** — small, correct docs-only addition that surfaces the publicly-known test mnemonic in `docs/builders/local-dev-with-gnodev.md`; minor redundancy between the new `Security note` subsection and the existing `[^1]` footnote, and the `(registered in r/sys/users)` parenthetical is not load-bearing for a fresh local dev node — both nits, not blockers.

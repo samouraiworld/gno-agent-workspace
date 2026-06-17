@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5751
 Author: Villaquiranm | Base: master | Files: 2 | +32 -2
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: bf61261c2 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `bf61261c2` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5751 bf61261c2`
 
 **Verdict: REQUEST CHANGES** — the one-line fix is correct for the reported reproducer, but it patches the symptom in `AssertCompatible`'s early-return instead of the root cause, so the sibling form `for _, v = range slice` (blank key, value present) still panics with the identical nil deref.

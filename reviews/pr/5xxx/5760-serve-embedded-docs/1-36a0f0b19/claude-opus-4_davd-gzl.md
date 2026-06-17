@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5760
 Author: moul | Base: master | Files: 14 | +1202 -3
-Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: 36a0f0b19 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: `36a0f0b19` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5760 36a0f0b19`
 
 **Verdict: APPROVE** — security posture is sound (embed scope clean, no path traversal, assets served as `text/plain`/image not `text/html`, no routing collision); the only real gap is unstyled `http.FileServer` directory listings leaking under `/docs/_assets/` and `/docs/images/`, plus a few untested error paths. None block merge; PR is draft and feature-complete for parity.

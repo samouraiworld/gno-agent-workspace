@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5752
 Author: davd-gzl | Base: master | Files: 3 | +118 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: eae090c2f (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `eae090c2f` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5752 eae090c2f`
 
 **Verdict: APPROVE** — dev-only tooling, additive, no production/CI/runtime surface; the rsync `--delete` blast radius is correctly fenced and the path assumptions match the frontend's own wiring. Only nits remain (named-`.nvmrc` brittleness, no corepack preflight).

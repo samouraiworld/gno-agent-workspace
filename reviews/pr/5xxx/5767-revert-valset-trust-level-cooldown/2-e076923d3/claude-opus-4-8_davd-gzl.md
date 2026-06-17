@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5767
 Author: omarsy | Base: master | Files: 12 | +148 -1173
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: e076923d3 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `e076923d3` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5767 e076923d3`
 
 Round 2: head advanced a0d3629ca → e076923d3, PR content unchanged (patch-ids equal, base-only move). Anchors re-cut; the `proposal_test.gno` test anchor was corrected to its real line (217). Verdict unchanged.

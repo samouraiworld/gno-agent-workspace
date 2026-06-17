@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5682
 Author: davd-gzl | Base: master | Files: 8 | +266 -94
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `b25f19c` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `b25f19c` (stale — +71 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5682 b25f19c`
 
 **Verdict: APPROVE** — Minimal-shape fix that aligns Gno expression-switch semantics with Go for `fallthrough` from a non-last `default:`; runtime/type-switch defers default-selection cleanly and the preprocess fallthrough check is now correct by construction. Only nits and a small ADR doc drift.

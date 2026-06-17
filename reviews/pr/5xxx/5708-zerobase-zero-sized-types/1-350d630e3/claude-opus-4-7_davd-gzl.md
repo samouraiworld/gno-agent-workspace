@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5708
 Author: ltzmaxwell | Base: master | Files: 6 | +210 -29
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `350d630e3` (stale — +5 commits since)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `350d630e3` (stale — +11 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5708 350d630e3`
 
 **Verdict: REQUEST CHANGES** — the stated parity with Go's `runtime.zerobase` is broken by an incomplete `isZeroSizeType` (misses `[N]T` where `T` is zero-sized but `N>0`), and the per-machine cache silently breaks the same pointer-identity guarantee across realm persistence.

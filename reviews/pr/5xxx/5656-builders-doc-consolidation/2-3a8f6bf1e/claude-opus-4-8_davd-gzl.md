@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5656
 Author: davd-gzl | Base: master | Files: 29 | +330 -835
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `3a8f6bf1e` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `3a8f6bf1e` (stale — +5 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5656 3a8f6bf1e`
 
 Round 2 re-review. Prior round (`1-b00a4b2f7`, verdict REQUEST CHANGES) raised one Critical (`devtest` vs `test1`), two Warnings (stale gnodev README link, orphaned `quickstart`), four Nits, two Suggestions, two Questions.

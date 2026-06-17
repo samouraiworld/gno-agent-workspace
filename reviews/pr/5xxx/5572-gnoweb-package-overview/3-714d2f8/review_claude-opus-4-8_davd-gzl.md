@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5572
 Author: alexiscolin | Base: master | Files: 33 | +2988 -123
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 714d2f8 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `714d2f8` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5572 714d2f8`
 
 **TL;DR:** Today, opening `/r/<pkg>$source` jumps straight into the first source file. This PR replaces that with a pkg.go.dev-style landing page: package doc, README, the exported funcs/types/consts/vars (each deep-linking to its exact source line), imports, file list, subdirectories, and a metadata sidebar with code stats. The deep-link line numbers come from new `File`/`Line` fields added to the `vm/qdoc` JSON output.

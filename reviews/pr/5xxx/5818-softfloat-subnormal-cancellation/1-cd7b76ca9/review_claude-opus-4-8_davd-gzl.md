@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5818
 Author: omarsy | Base: master | Files: 3 | +90 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: cd7b76ca9 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `cd7b76ca9` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5818 cd7b76ca9`
 
 **TL;DR:** Gno does float math in software (softfloat) so every node gets the same bit-for-bit result. That software code had a bug: when two close, opposite-sign numbers subtract down to a very tiny "subnormal" value, it returned a wrongly-scaled answer that disagreed with real hardware and with `go run`. This PR adds the one missing normalization step that fixes it.

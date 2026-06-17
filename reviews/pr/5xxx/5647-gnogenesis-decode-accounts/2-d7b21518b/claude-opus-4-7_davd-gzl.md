@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5647
 Author: @gfanton | Base: master | Files: 1 | +7 -11
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `d7b21518b` (stale)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `d7b21518b` (stale — +11 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5647 d7b21518b`
 
 Verdict: APPROVE — fix is correct, mirrors the established `gnoclient.QueryAccount` pattern, and CI is green; only remaining gaps are a silent fallthrough on the `IsZero` guard and a missing unit test for the decode path.

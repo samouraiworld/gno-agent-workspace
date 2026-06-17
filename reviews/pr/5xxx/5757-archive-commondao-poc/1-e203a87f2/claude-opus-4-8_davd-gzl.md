@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5757
 Author: jeronimoalbi | Base: master | Files: 77 | +0 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: e203a87f2 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `e203a87f2` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5757 e203a87f2`
 
 **Verdict: REQUEST CHANGES** — the directory moved from `r/nt/commondao/v0` to `r/archive/commondao/v0` but the realm's declared path did not: `gnomod.toml` still says `module = "gno.land/r/nt/commondao/v0"`, so the realm keeps its old on-chain identity and the archive is filesystem-cosmetic only. Sibling archived packages (`p/archive/{acl,bank,rat}`) moved in the same effort all have `module` matching their new dir; this one is the outlier.

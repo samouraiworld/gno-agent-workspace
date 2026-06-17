@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5800
 Author: thehowl | Base: master | Files: 4 | +265 -140
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 4cdc7de8e (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `4cdc7de8e` (stale — +8 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5800 4cdc7de8e`
 
 **TL;DR:** Restructures the gnovm test suites (`TestFiles`, `TestStdlibs`) to run in parallel and adds a `-jobs N` flag to `gno test` so CI can test packages concurrently. No test content changes; the goal is wall-clock CI time (`stdlibs / test` 8m33s → 5m21s). The risk is concurrency safety, since the VM and its test harness lean on process-global state.

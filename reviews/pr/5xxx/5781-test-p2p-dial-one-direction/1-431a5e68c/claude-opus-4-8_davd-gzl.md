@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5781
 Author: thehowl | Base: master | Files: 1 | +8 -4
-Reviewed by: davd-gzl | Model: claude-opus-4-8[1m] | Commit: 431a5e68c (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8[1m] | Commit: `431a5e68c` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5781 431a5e68c`
 
 **Verdict: APPROVE** — Correct, minimal fix for a real CI flake; the one-directional dial provably eliminates the duplicate-rejection teardown race, and every `PeerConnected` accounting invariant still holds. No blockers; one latent scaling note below the current test sizes.

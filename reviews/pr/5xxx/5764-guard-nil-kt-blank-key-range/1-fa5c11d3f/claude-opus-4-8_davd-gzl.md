@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5764
 Author: ltzmaxwell | Base: master | Files: 2 | +15 -3
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: fa5c11d3f (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `fa5c11d3f` (stale — +65 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5764 fa5c11d3f`
 
 **Verdict: APPROVE** — this is the root-cause fix the [#5751 review](https://github.com/gnolang/gno/pull/5751) asked for: it guards `assertIndexTypeIsInt` against a nil key type and folds the duplicated string-branch guard into it, so all four range branches (slice/array/string/map) now tolerate a blank key. Supersedes #5751's narrower early-return approach. Only nits: a pre-existing wrong-variable panic message on the line right below the change, and overlap with two sibling open PRs that should be reconciled.

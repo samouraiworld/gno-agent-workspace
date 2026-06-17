@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5780
 Author: Villaquiranm | Base: master | Files: 2 | +27 -2
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 4b00b2b44 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `4b00b2b44` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5780 4b00b2b44`
 
 **Verdict: APPROVE** — minimal, correct fix; nil-slice guard added in the one spot that did an unchecked type assertion, regression test reproduces the exact panic on master and passes with the fix. No blocking concerns.

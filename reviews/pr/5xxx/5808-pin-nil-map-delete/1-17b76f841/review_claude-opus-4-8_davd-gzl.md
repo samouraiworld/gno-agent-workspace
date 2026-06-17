@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5808
 Author: omarsy | Base: master | Files: 3 | +107 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 17b76f841 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `17b76f841` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5808 17b76f841`
 Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/5xxx/5808-pin-nil-map-delete/overview.html) · [↗](../overview.html)
 

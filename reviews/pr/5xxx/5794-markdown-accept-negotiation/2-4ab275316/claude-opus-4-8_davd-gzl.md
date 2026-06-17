@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5794
 Author: gfanton | Base: master | Files: 6 | +305 -13
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 4ab275316 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `4ab275316` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5794 4ab275316`
 Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/5xxx/5794-markdown-accept-negotiation/overview.html) · [↗](../overview.html)
 

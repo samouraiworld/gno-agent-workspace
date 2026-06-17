@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5829
 Author: ltzmaxwell | Base: master | Files: 4 | +66 -0
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `de74ab7` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `de74ab7` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5829 de74ab7`
 
 **TL;DR:** A fixed-size array whose declared length is huge enough to overflow the allocator's byte accounting (`[9e18]int`) used to slip past the type checker and only blow up when the array was actually allocated. This PR catches it at compile time instead, the way Go does, by checking the length against the same overflow threshold the runtime allocator uses.

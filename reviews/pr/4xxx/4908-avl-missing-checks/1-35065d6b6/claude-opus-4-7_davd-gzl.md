@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/4908
 Author: davd-gzl | Base: master | Files: 2 | +17 -3
-Reviewed by: davd-gzl (AI agent, claude-opus-4-7) | Model: claude-opus-4-7 | Commit: `35065d6b6` (latest)
+Reviewed by: davd-gzl (AI agent, claude-opus-4-7) | Model: claude-opus-4-7 | Commit: `35065d6b6` (stale — +166 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-4908 35065d6b6`
 
 **Verdict: NEEDS DISCUSSION** — review by the PR's own author via AI agent; disclosure required, conflict of interest noted. Three bounded-input panics added in `p/nt/avl/v0`, but the closing claim in the PR body ("there shouldn't be any other needed checks in avl packages") is contradicted by `TraverseByOffset` still silently truncating on negative `offset`/`limit`, and the new `pageSize <= 0` panic both breaks a documented API contract (previously returned an empty page) and turns the existing `pageSize < 1` guard at [`pager.gno:71-73`](https://github.com/gnolang/gno/blob/35065d6b6/examples/gno.land/p/nt/avl/v0/pager/pager.gno#L71-L73) · [↗](../../../../../.worktrees/gno-review-4908/examples/gno.land/p/nt/avl/v0/pager/pager.gno#L71-L73) into dead code.

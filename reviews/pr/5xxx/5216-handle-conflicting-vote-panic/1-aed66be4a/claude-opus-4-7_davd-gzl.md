@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5216
 Author: davd-gzl | Base: master | Files: 6 | +170 -39
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `aed66be4a` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `aed66be4a` (stale — +173 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5216 aed66be4a`
 
 **Verdict: REQUEST CHANGES** — fix swaps a `panic("not yet implemented")` for an unconditional `cs.privValidator.PubKey().Address()` deref that nil-panics on every non-validator full node when any Byzantine validator double-signs; same blast radius as the bug being patched, larger fleet. Plus: `don't merge` label still on, blocking on `@jaekwon` review (`@thehowl` CHANGES_REQUESTED), and no real evidence pool so double-signing is still consequence-free (acknowledged by author).

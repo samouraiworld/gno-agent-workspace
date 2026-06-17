@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5750
 Author: thehowl | Base: master | Files: 14 | +175 -171
-Reviewed by: davd-gzl | Model: claude-opus-4-8 (1M) | Commit: 42f6403 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 (1M) | Commit: `42f6403` (stale — +24 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5750 42f6403`
 
 **Verdict: APPROVE** — the one consensus-relevant change (GC gas exclusion of `.uverse`) is correct, deterministic, and test-guarded; the rest is test-infra/CI plumbing that builds and passes. Only open item: the `.uverse` exclusion is a second consensus-visible effect (it also drops `.uverse` from the GC alloc recount, not just gas) that the description frames as gas-only — confirm + document.

@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5704
 Author: thehowl | Base: master | Files: 4 | +56 -8
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `4ff865d10` (stale)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `4ff865d10` (stale — +16 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5704 4ff865d10`
 
 **Verdict: APPROVE** — unblocks master CI. The "absorb any panic when a directive is present" rule is the only sane choice given how `// Error:` is currently overloaded across stages; the real ceiling on lint's signal is the directive design itself, which a new stage-specific directive (e.g. `// PreprocessError:`) would lift in a follow-up.

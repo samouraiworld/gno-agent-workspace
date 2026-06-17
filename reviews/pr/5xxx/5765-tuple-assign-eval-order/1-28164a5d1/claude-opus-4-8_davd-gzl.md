@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5765
 Author: ltzmaxwell | Base: master | Files: 3 | +46 -4
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `28164a5d1` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `28164a5d1` (stale — +3 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5765 28164a5d1`
 
 **Verdict: APPROVE** — correct, Go-spec-faithful fix for tuple-assignment evaluation order; verified parity against equivalent Go on five shapes (last-writer-wins aliasing, mixed-arity LHS, operand side-effects, 8-wide aliasing stress, mid-statement panic). Reorder is contained to `doOpAssign`, gas accounting is unchanged, and the `frames` buffer is stack-allocated on the hot path. Open items are non-blocking: a hidden 3-way sync invariant (`numStackValuesForPointer` ↔ `PushForPointer` ↔ `PopAsPointer2`) and a dropped single-LHS fast path. The one e2e CI failure (`scenario-01-four-validators-reset-three`) is a TM2 consensus scenario unrelated to this diff.

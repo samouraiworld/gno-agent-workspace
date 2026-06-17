@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5678
 Author: davd-gzl | Base: master | Files: 8 | +1732 -2
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: e46de6fc4 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `e46de6fc4` (stale — +1 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5678 e46de6fc4`
 
 **Verdict: NEEDS DISCUSSION** — correct, well-tested, cleanly bridged; the load-bearing open items are (1) gas calibration, which the author already flags as a hard pre-mainnet prerequisite, and (2) confirming that stdlib `_test.gno` files belong in the consensus-relevant persisted package set, since adding test cases shifts the `crossrealm38` apphash. No correctness defects found.

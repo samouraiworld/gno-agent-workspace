@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5421
 Author: moul | Base: master | Files: 46 | +3854 -1593
-Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: `339469041` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: `339469041` (stale — +57 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5421 339469041`
 
 **Verdict: REQUEST CHANGES** — load-bearing security gaps on public, unauthenticated endpoints: deflate bomb on `/_/play?code=…&z`, no body cap on `/_/api/eval`, XFF-spoofable rate limiter, no limiter at all on `/_/api/funcs`, unbounded serial RPC fan-out on `?fork`, and a goroutine-leaking `pruneLoop`. All six are concrete amplification or OOM vectors and most were already flagged by @alexiscolin in the round-1 thread without being addressed. Approve once those land; the feature scope and UX are solid.

@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5380
 Author: davd-gzl | Base: master | Files: 10 | +638 -7
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `2d0babd` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `2d0babd` (stale — +1 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5380 2d0babd`
 Note: self-authored PR — flagged for transparency; findings stand on their own.
 

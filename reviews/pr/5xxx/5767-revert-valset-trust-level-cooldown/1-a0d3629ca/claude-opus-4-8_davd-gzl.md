@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5767
 Author: omarsy | Base: master | Files: 12 | +148 -1173
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: a0d3629ca (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `a0d3629ca` (stale — +38 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5767 a0d3629ca`
 
 **Verdict: APPROVE** — clean, complete revert of the chain-side valset trust-level and cooldown checks added in #4834 by the same author; mechanically sound, no dangling references, all tests pass. The single open item is a design/security call, not a code defect: removing the chain-side trust-level guard shifts an IBC liveness property onto relayers, so a maintainer with IBC context should sign off on the rationale (see Warnings).

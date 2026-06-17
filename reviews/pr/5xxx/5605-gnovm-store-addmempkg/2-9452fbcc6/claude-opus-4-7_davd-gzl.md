@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5605
 Author: moul | Base: master | Files: 2 | +208 -40
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `9452fbcc6` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `9452fbcc6` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5605 9452fbcc6`
 
 Verdict: APPROVE — Write-ordering fix is correct and the fail-fast contract is the right call. Two cosmetic blockers from round 1 still stand (stale comment + phantom commit ref + unused-import hack) and one missing regression-anchor adversarial test would harden a load-bearing invariant; none are merge blockers.

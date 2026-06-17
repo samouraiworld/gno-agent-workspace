@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5554
 Author: gfanton | Base: master | Files: 33 | +791 -96
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `9b25bcd6b` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `9b25bcd6b` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5554 9b25bcd6b`
 
 **Verdict: APPROVE** — privacy posture tightened since round 1; remaining concerns (scroll_depth surface remap, JS-side outbound cardinality guard) are non-blocking polish.

@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5732
 Author: Villaquiranm | Base: master | Files: 6 | +81 -4
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `d716c5286` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `d716c5286` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5732 d716c5286`
 
 **Verdict: REQUEST CHANGES** — author explicitly flags the PR as incomplete; ~20 other `typedString("runtime error: ...")` panic sites still emit string-typed panics, so `recover().(error)` works on exactly one runtime-panic shape and silently fails on every other (nil-deref via field path, division by zero, slice OOB, negative shift, makeslice, call-of-nil-func, map-key, etc.). Either migrate all sites in this PR or split into a tracked epic and gate merge on completion.

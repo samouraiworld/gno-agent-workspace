@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5821
 Author: Villaquiranm | Base: master | Files: 9 | +95 -9
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: dc9e0ac00 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `dc9e0ac00` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5821 dc9e0ac00`
 
 **TL;DR:** In Gno, putting an uncomparable value (a slice, map, func, or a struct/array containing one) into a `map[interface{}]V` could crash the whole VM with an error that user code could not `recover()` from. This PR turns those crashes into normal catchable panics whose message matches Go's, so a realm can guard against bad keys.

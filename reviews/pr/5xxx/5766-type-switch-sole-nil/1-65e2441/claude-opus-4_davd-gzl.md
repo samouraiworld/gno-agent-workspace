@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5766
 Author: ltzmaxwell | Base: master | Files: 2 | +88 -2
-Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: 65e2441 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: `65e2441` (stale — +45 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5766 65e2441`
 
 **Verdict: APPROVE** — minimal, correct one-line preprocess fix; behavior now matches Go; regression covered by a filetest that panics on master and passes here. No blocking concerns.

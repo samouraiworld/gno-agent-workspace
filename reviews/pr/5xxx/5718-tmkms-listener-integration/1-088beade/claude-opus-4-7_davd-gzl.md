@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5718
 Author: clockworkgr | Base: feat/tmkms-compat/02-secret-conn-signer-client | Files: 15 | +1477 -73
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `088beade` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `088beade` (stale — +4 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5718 088beade`
 
 Verdict: REQUEST CHANGES — lint is red on the new file (unused var + non-wrapping `%v`-on-error + gofmt drift in `upstream_config.go`), the dedicated `ci-tmkms-integration.yml` job dies on `tmkms --version` (tmkms 0.15.0's clap CLI rejects the flag) so the integration test never actually runs in CI for this PR, and `docs/validators/tmkms.md` cites a `tmkms init --pubkey-only` invocation that isn't real. Fix those three and the stack lands.

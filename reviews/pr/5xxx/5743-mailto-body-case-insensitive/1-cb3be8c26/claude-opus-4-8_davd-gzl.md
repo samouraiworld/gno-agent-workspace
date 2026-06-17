@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5743
 Author: davd-gzl | Base: master | Files: 3 | +22 -6
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: cb3be8c26 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `cb3be8c26` (stale — +26 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5743 cb3be8c26`
 
 **Verdict: APPROVE** — correct, minimal, tested fix for the case-insensitivity hole; the percent-encoding bypass [@thehowl](https://github.com/gnolang/gno/pull/5743#discussion_r) flagged is real and still open, but it predates this PR and is a fair follow-up, not a regression. Three maintainers already approved.

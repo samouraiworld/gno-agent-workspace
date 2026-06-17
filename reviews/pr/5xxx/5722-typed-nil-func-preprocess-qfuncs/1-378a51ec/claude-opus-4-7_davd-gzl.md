@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5722
 Author: ltzmaxwell | Base: master | Files: 5 | +48 -8
-Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `378a51ec` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7[1m] | Commit: `378a51ec` (stale — +1 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5722 378a51ec`
 
 Verdict: APPROVE — minimal, surgical fix for two related typed-nil-func crashes; both preprocess call sites and the QueryFuncs site are correctly guarded, the new test (`func31.gno`) is a verbatim port of Go's `issue8047.go`, the regression test for QueryFuncs reproduces the live bug, and the CI failures are unrelated to this diff.

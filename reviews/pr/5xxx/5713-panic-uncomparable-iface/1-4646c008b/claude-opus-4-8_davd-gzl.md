@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5713
 Author: ltzmaxwell | Base: master | Files: 16 | +451 -26
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 4646c008b (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `4646c008b` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5713 4646c008b`
 
 **Verdict: APPROVE** — closes a Go-incompatibility where GnoVM silently returned a pointer-identity result instead of panicking on uncomparable interface comparisons; the fix is correctly gated on static interface type, matches Go's runtime message and short-circuit semantics, and all 14 new filetests plus adversarial probes pass. Only nits below.

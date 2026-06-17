@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5733
 Author: Villaquiranm | Base: master | Files: 2 | +25 -1
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `8867633` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `8867633` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5733 8867633`
 
 **Verdict: APPROVE** — one-line fix matches Go semantics, txtar covers the headline case, only nits (test filename names the wrong issue, helper comment typo, `Name == blankIdentifier` would be more idiomatic than `Name == "_"`).

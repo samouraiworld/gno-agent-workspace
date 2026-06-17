@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5754
 Author: davd-gzl | Base: master | Files: 2 | +150 -4
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 0b36de2c0 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `0b36de2c0` (stale — +38 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5754 0b36de2c0`
 
 **Verdict: APPROVE** — minimal, behavior-preserving fix for a real preprocess panic; the new `default` branch keeps the existing func-local behavior and extends it to block parents, TypeID disambiguation is sound (block spans are unique), and the only untested line is a documented unreachable guard. No correctness, determinism, or state-safety concerns.
