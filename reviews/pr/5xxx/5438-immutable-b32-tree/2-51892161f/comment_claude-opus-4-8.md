@@ -1,0 +1,15 @@
+# Review: PR #5438
+Event: COMMENT
+
+## Body
+Deep adversarial re-review of the merged code (51892161f) across proof-soundness, determinism, pruning/state-corruption, memory-safety/DoS, and coverage, with targeted fuzzing and multi-thousand-op differential/stress runs. No proof forgery, no honest-node consensus fork, no pruning data-loss, and no reachable memory-safety bug; the round-1 data-loss/panic bugs are confirmed fixed. The PR is merged and not yet mounted (production stays on IAVL), so the items below are hardening for a follow-up PR, each gated on bptree actually being used or state-sync being wired. Since the PR squash-merged, these can't attach as inline diff comments — listing them here.
+
+- A compressed/batch ICS23 proof is wire-decodable through the registered `ics23:bptree` decoder and panics inside ics23 `Calculate()` (out-of-range index); the only barrier is the guard at [`tm2/pkg/store/bptree/store.go:487-495`](https://github.com/gnolang/gno/blob/51892161f/tm2/pkg/store/bptree/store.go#L487-L495), whose comment wrongly calls it unreachable defense-in-depth. Keep the guard, fix the comment, and make it a positive allow-list of exist/nonexist so a refactor can't reintroduce a one-query node crash.
+- The importer has no resource bound: [`Add`](https://github.com/gnolang/gno/blob/51892161f/tm2/pkg/bptree/import.go#L103-L141) buffers leaf entries and stages values with no per-entry cap, and `node.Value` has no size cap, so a marker-less stream grows memory without limit. Latent (no state-sync handler wired today). Cap the inter-marker buffer at `B`, bound stack depth, and cap value size.
+- Inner separators are outside the Merkle commitment ([`node.go:94-103`](https://github.com/gnolang/gno/blob/51892161f/tm2/pkg/bptree/node.go#L94-L103) hashes only child hashes); import accepts any separator in its window ([`import.go:224-230`](https://github.com/gnolang/gno/blob/51892161f/tm2/pkg/bptree/import.go#L224-L230)), so a malicious snapshot can ship a valid-rooted tree that mis-routes and self-halts a synced node later. Require the canonical `separator == min(right subtree)` on import, or bind separators into the commitment.
+- The store panics on an empty key ([`store.go:230-236`](https://github.com/gnolang/gno/blob/51892161f/tm2/pkg/store/bptree/store.go#L230-L236) → `ErrEmptyKey`) where IAVL accepts it ([`iavl/store.go:205`](https://github.com/gnolang/gno/blob/51892161f/tm2/pkg/store/iavl/store.go#L205)), a deterministic crash divergence on cutover. Decide empty-key legality and reconcile, or confirm no store write ever uses an empty key, before mounting bptree.
+- Coverage gaps worth closing alongside the above: a malformed-wire fuzz on the decoder/`Run`, a proof-forgery negative test (tampered InnerOp/key must fail), and an import resource-bound test.
+
+Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5438-immutable-b32-tree/2-51892161f/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
+
+Repros run at 51892161f.
