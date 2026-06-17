@@ -1,10 +1,13 @@
 # Review: PR #5609
+Posted: https://github.com/gnolang/gno/pull/5609#pullrequestreview-4517679188
 Event: REQUEST_CHANGES
 
 ## Body
-Nice cleanup; moving these from runtime panics to preprocess errors is the right direction. The branch isn't mergeable against master, but the conflict is mechanical (`RefExpr`/`SliceExpr` are unchanged upstream), so a rebase clears it. Two more classes slip past `isAddressable` on top of the ones already noted: `&funcName` for a package-level function builds a usable `*func()`, and `_ = &nil` crashes the preprocessor instead of erroring cleanly.
+The branch isn't mergeable against master; the conflict is mechanical (`RefExpr`/`SliceExpr` are unchanged upstream), so a rebase clears it.
 
-Verified on 443885d1b: `&funcName` runs to completion under the VM where `go build` rejects it, and `_ = &nil` panics with a nil-pointer dereference in the error path.
+The one cross-cutting thing to weigh: `isAddressable` is wired only into the explicitly written `&x` and `arr[:]` AST nodes, so any address the preprocessor itself synthesizes is never checked. Tying the check to the point where an address is constructed, rather than to the syntax node, would close that whole category at once.
+
+Verified on 443885d1b: gno accepts addresses that `go build` rejects, and one synthesized-receiver form still reproduces the pre-PR `*CallExpr` runtime crash.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5609-gnovm-addressability-check/2-443885d1b/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
@@ -37,7 +40,7 @@ rm -rf "$tmp"
 Go rejects all three: `cannot take address of [3]int{…}[0]`, `cannot take address of struct{x int}{}.x`, `cannot slice unaddressable value [3]int{…}`.
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:4395 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4395)
+## gnovm/pkg/gnolang/preprocess.go:4395 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4395) [posted](https://github.com/gnolang/gno/pull/5609#discussion_r3429886162)
 `&funcName` for a package-level function builds a usable `*func()` at runtime; this arm reports any `*NameExpr` addressable regardless of type. Go rejects taking the address of a function. Fix: reject a name whose static type is a function or type.
 
 <details><summary>repro</summary>
@@ -123,7 +126,7 @@ rm -rf "$tmp"
 Go: `invalid operation: cannot take address of t.M (value of type func() int)`.
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:2344 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L2344)
+## gnovm/pkg/gnolang/preprocess.go:2344 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L2344) [posted](https://github.com/gnolang/gno/pull/5609#discussion_r3429886168)
 The check only fires on explicit `&x` / `arr[:]`; the receiver-address the VM synthesizes for a pointer-method call or value (preprocess.go:2404/2432, marked `setPreprocessed`) never reaches this gate, so a pointer method on any non-addressable receiver slips through. `m["k"].Inc()` is accepted and mutates the stored element, `Outer{}.in.Inc()` and the method value `m["k"].Inc` are accepted, and `mk().Inc()` still hits the opaque `illegal assignment ... *CallExpr` runtime crash this PR set out to replace; Go rejects all with `cannot call pointer method`. Fix: gate the receiver-address synthesis on `isAddressable` at 2404 and 2432.
 
 <details><summary>repro</summary>
@@ -161,7 +164,7 @@ panic running expression main(): illegal assignment X expression type *gnolang.C
 Go rejects both: `cannot call pointer method Inc on T`.
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:2347 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L2347)
+## gnovm/pkg/gnolang/preprocess.go:2347 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L2347) [posted](https://github.com/gnolang/gno/pull/5609#discussion_r3429886175)
 For untyped `nil`, `evalStaticTypeOf` returns nil and `xt.String()` here dereferences it, so `_ = &nil` crashes the preprocessor with a nil-pointer panic instead of a clean error. Fix: guard the nil type and return a `cannot take address of nil` error.
 
 <details><summary>repro</summary>
@@ -188,5 +191,5 @@ panic: runtime error: invalid memory address or nil pointer dereference [recover
 ```
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:4393-4413 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4393-L4413)
+## gnovm/pkg/gnolang/preprocess.go:4393-4413 [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/preprocess.go#L4393-L4413) [posted](https://github.com/gnolang/gno/pull/5609#discussion_r3429886181)
 `isAddressable` re-walks the node kinds that [`assertValidAssignLhs`](https://github.com/gnolang/gno/blob/443885d1b/gnovm/pkg/gnolang/type_check.go#L1019) · [↗](../../../../../.worktrees/gno-review-5609/gnovm/pkg/gnolang/type_check.go#L1019) already classifies for assignment targets, and that sibling already guards a nil static type and rejects a string index, the two cases this helper gets wrong. Borrowing those two arms and keeping the checks together would fix both and avoid the two classifiers drifting apart.
