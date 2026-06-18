@@ -2,53 +2,12 @@
 Event: COMMENT
 
 ## Body
-Design is sound and both review threads are genuinely closed. Verified on e9199dc9e:
+Design is sound and both review threads are closed. Checked on e9199dc9e:
 
-- A slice of a source string charges the full source backing once, even with the source out of GC roots. Reverting the range lookup to the old pointer-equality keying drops those bytes, so the new keying is what counts them.
-- A forked allocator's end-of-cycle cleanup no longer prunes the parent's ranges.
-- Each store-loaded string is charged once (`allocString + len`). A container's shallow size is independent of its string fields' length, so the load-path `Allocate` adds nothing and `fillTypesOfValue`'s `NewString` is the only charge.
+- A slice keeps the source backing counted even after the source dies.
+- A forked allocator's cleanup no longer touches the parent's ranges.
+- Each loaded string is charged once; the +32 / +485 gas deltas are that single charge.
 
-These match the +32 / +485 gas deltas.
+Pre-existing, outside this diff: `StringValue`s built directly (not via `NewString`/`TrackString`) aren't charged to the allocator, so GC undercounts them. See [uverse.go:171](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/uverse.go#L171) and [values.go:2720](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/values.go#L2720).
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/4xxx/4885-correctly-reuse-count-string/1-e9199dc9e/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
-
-## gnovm/pkg/gnolang/uverse.go:171 [↗](../../../../../.worktrees/gno-review-4885/gnovm/pkg/gnolang/uverse.go#L171)
-After this PR a `StringValue` built directly, without `NewString`/`TrackString`, has its backing counted as zero at GC. Three sites do this: here, `GetSlice` ([values.go:2194](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/values.go#L2194)), and `typedString` ([values.go:2720](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/values.go#L2720)). It's safe today: they carry only a realm path and fixed panic messages, and every user-controllable string routes through `NewString`. But nothing enforces that, and no test fails if a future direct `StringValue(x)` site is added. Route the three through a `safeStringValue(alloc, s)` helper that tracks first, and add a regression test that GC-counts a directly-built `StringValue`.
-
-<details><summary>repro</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 4885 -R gnolang/gno
-cat > gnovm/pkg/gnolang/zz_untracked_test.go <<'EOF'
-package gnolang
-
-import "testing"
-
-func TestUntrackedStringUndercount(t *testing.T) {
-	const s = "this-string-is-fifty-something-bytes-long-padded-xx" // 51 bytes
-	var vc int64
-
-	a1 := NewAllocator(1_000_000) // direct construction, as in NewConcreteRealm/typedString/GetSlice
-	v1 := GCVisitorFn(1, a1, &vc)
-	a1.Reset()
-	v1(StringValue(s))
-	t.Logf("untracked StringValue(s): %d bytes (header only = %d)", a1.bytes, int64(allocString))
-
-	a2 := NewAllocator(1_000_000) // same content via NewString (tracked)
-	sv := a2.NewString(s)
-	v2 := GCVisitorFn(1, a2, &vc)
-	a2.Reset()
-	v2(sv)
-	t.Logf("tracked   NewString(s):   %d bytes (header + %d backing)", a2.bytes, int64(len(s)))
-}
-EOF
-go test ./gnovm/pkg/gnolang/ -run TestUntrackedStringUndercount -v 2>&1 | grep -E "untracked|tracked"
-rm gnovm/pkg/gnolang/zz_untracked_test.go
-```
-
-```
-untracked StringValue(s): 48 bytes (header only = 48)
-tracked   NewString(s):   99 bytes (header + 51 backing)
-```
-</details>
