@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5739
 Author: ltzmaxwell | Base: master | Files: 7 | +145 -51
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 155f1a7 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `155f1a7` (stale — +5 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5739 155f1a7`
 
 **TL;DR:** When you embed a type by its name inside a `struct{...}` or `interface{...}`, that name becomes the field's name. This PR makes that name come from exactly what was written rather than from the underlying type, so a type alias keeps its own spelling as the field name instead of resolving away to the aliased type.

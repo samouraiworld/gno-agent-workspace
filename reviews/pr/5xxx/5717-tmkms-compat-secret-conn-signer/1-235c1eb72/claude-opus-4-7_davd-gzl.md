@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5717
 Author: @clockworkgr | Base: master | Files: 51 | +9425 -30
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `235c1eb72` (stale — +65 commits since)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `235c1eb72` (stale — +74 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5717 235c1eb72`
 
 **Verdict: NEEDS DISCUSSION** — second slice of the tmkms-compat stack is solid (clean cometbft v0.34/v0.39 ports, three-layer wire-compat tests, six iterations of bug-hunt fixes pinned by regression tests), but CI is red on `mod-tidy` (merlin needs to move from indirect → direct in `go.mod`), the PR is `CONFLICTING` against master because PR1 (#5716) already merged, and a couple of recurring panic-on-malformed-input and retry-of-deterministic-failure issues from the #5716 review carry forward into the new code paths and should be fixed before this lands as live wiring (PR3) — they're dormant in #5717 alone but become reachable the moment PR3 attaches this to `NewPrivValidatorFromConfig`.

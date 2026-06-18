@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5649
 Author: alexiscolin | Base: master | Files: 107 | +16225 -251
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `e881032e5` (stale)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `e881032e5` (stale — +31 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5649 e881032e5`
 
 **Verdict: APPROVE (blocked by maintainer hold)** — round-2 re-review after a substantial refactor. Both of gfanton's JSON-path findings are fixed and tested; round-1's cache-control and timeout concerns are fixed. The PR is mergeable on code grounds, but [jaekwon placed an explicit "do not merge yet" hold](https://github.com/gnolang/gno/pull/5649) on the `$state` routing-consistency question (unknown `$XYZ` should be rejected, not silently passed) — that design thread, not code quality, is the gate. Remaining code items are non-blocking: `maxTypeDepth=8` still silently truncates (carried from round 1), `resolveBlock` panics instead of degrading, and a few header/test nits. The failing `main / lint` CI check is a transient go-proxy fetch flake, not a real issue (see Notes).
