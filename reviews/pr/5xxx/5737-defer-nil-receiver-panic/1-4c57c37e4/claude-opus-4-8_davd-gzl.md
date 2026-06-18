@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5737
 Author: ltzmaxwell | Base: master | Files: 6 | +89 -13
-Reviewed by: davd-gzl | Model: claude-opus-4.8 | Commit: `4c57c37e4` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4.8 | Commit: `4c57c37e4` (stale — +2 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5737 4c57c37e4`
 
 **Verdict: REQUEST CHANGES** — the fix is correct for an interface-boxed nil receiver but regresses the *concrete* nil-pointer case that master already matched to Go (now panics at call time instead of eagerly at bind), and the transient unexported `nilReceiverPanic` flag is silently dropped on persistence, so a stored nil-receiver method value runs on a zero receiver after reload instead of panicking.

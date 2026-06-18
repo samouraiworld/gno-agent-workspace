@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5830
 Author: moul | Base: master | Files: 3 | +22 -29
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `127513b` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `127513b` (stale — +7 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5830 127513b`
 
 **TL;DR:** Stops tracking the repo's `CLAUDE.md`, folds its content into the already-tracked `AGENTS.md`, and gitignores `CLAUDE.md` so each contributor can keep a local Claude-specific file. Pure docs/tooling, no code.

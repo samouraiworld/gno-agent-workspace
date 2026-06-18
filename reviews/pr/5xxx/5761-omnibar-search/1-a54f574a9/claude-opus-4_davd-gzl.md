@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5761
 Author: alexiscolin | Base: master | Files: 13 | +766 -21
-Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: `a54f574a9` (stale)
+Reviewed by: davd-gzl | Model: claude-opus-4 | Commit: `a54f574a9` (stale — +21 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5761 a54f574a9`
 
 **Verdict: APPROVE** — clean, well-tested feature; no correctness or security blockers. Two non-blocking items: the deep-path relevance cutoff silently drops legitimate matches, and a first-load redraw race can render stale page-snippets. Both Warnings at most; neither blocks merge.

@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5615
 Author: alexiscolin | Base: master | Files: 7 | +218 -3
-Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `13e5bf528` (stale)
+Reviewed by: davd-gzl | Model: claude-opus-4-7 | Commit: `13e5bf528` (stale — +52 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5615 13e5bf528`
 
 **Verdict: APPROVE** — fix is correct, tests cover the cross-deployment matrix, and the client-side fallback makes the `Origin`-empty path harmless. Only concern is unconditional trust of `X-Forwarded-{Proto,Host}`, which is low-severity given the rendered URL is HTML-escaped and the realistic exposure path is direct-to-internet gnodev/gnoweb deployments.

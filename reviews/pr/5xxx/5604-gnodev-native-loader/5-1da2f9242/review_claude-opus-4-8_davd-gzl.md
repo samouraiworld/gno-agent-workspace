@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5604
 Author: gfanton | Base: master | Files: 70 | +3965 -1913
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `1da2f9242` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `1da2f9242` (stale — +18 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5604 1da2f9242`
 
 Round 5 re-review. Prior rounds: [round 1](../1-ed10e81f3/claude-sonnet-4-6_davd-gzl.md) (`ed10e81f3`, APPROVE), [round 2](../2-7eb33db9e/claude-opus-4-7_davd-gzl.md) (`7eb33db9e`, REQUEST CHANGES), [round 3](../3-43528ef2e/claude-opus-4-8_davd-gzl.md) (`43528ef2e`, APPROVE), [round 4](../4-5038db249/review_claude-opus-4-8_davd-gzl.md) (`5038db249`, APPROVE). Since round 4 the PR added four commits, all in the package-discovery layer: re-scan extra roots on reload (`adba09b50`), warn when single-package mode drops nested packages (`28e3de121`), export `FindLoaderRoot` from gnovm (`219b804f0`), and route `FindWorkspace` through it so a subdir of a bare-`gnomod.toml` realm boots instead of crashing (`1da2f9242`). The last commit resolves the round-4 `FindWorkspace` Warning. This round verifies the four commits and re-checks the still-open round-4 findings.

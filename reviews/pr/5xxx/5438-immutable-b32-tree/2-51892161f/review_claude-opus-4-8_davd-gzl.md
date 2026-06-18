@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5438
 Author: jaekwon | Base: master | Files: 100 | +27894 -86
-Reviewed by: davd-gzl | Model: claude-opus-4-8 (deep) | Commit: `51892161f` (merged — squash of head `7b779eff0`)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 (deep) | Commit: `51892161f` (stale)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5438 51892161f`
 
 Round 2. Round 1 reviewed head `33f5dc340`; this round reviews the squash-merged code now in master (`51892161f`). The round-1 Criticals are resolved: PR-scope / red-CI are moot post-merge, and the data-loss/panic bugs (`VersionExists` error-swallow, idempotent-save leaking into `Rollback`, `deleteAllNodesForVersion`, `getChild` panic-on-not-found, `Iterate` swallowing resolver errors) are all fixed in the merged code (verified below).

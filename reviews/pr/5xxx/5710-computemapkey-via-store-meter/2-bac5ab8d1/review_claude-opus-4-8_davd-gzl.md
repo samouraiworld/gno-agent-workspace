@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5710
 Author: ltzmaxwell | Base: master | Files: 10 | +193 -53
-Reviewed by: davd-gzl | Model: claude-opus-4-8 (deep) | Commit: bac5ab8d1 (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 (deep) | Commit: `bac5ab8d1` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5710 bac5ab8d1`
 
 > Round 2 (head advanced `55d874f6` → `bac5ab8d1`, +15 commits). The GnoVM code (`values.go`, `machine.go`, `store.go`, `realm.go`, `values_test.go`) is byte-identical to round 1; the only PR-content change since is the `compute_map_key_restore_gas.txtar` comment rewrite (commit `ee230482`), which quantified the regression signal (~788 gas/entry). **Round 1's headline Critical (the `transactionStore` meter-sync gap) is re-assessed down to a Warning here:** verified that no gas-enforcing or consensus path is affected (production and the gas-pinning filetests both install the meter at `BeginTransaction`); the gap's only effect is a cosmetic `gno test` gas undercount. New since round 1: two unresolved maintainer comments by @thehowl on the current head, one of which questions whether the restore path should charge at all. Verdict shifts REQUEST CHANGES → NEEDS DISCUSSION accordingly.

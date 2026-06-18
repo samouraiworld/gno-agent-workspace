@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5764
 Author: ltzmaxwell | Base: master | Files: 28 | +481 -81
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `0509a199b` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `0509a199b` (stale — +36 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5764 0509a199b`
 
 Round 2. The round-1 review (`1-fa5c11d3f/`) covered a 2-file, +15 -3 change: a single nil-key guard in `assertIndexTypeIsInt`. Since then the PR grew into a full generalization of assignment-target/RHS validation across `RangeStmt`, `AssignStmt`, and `IncDecStmt`, absorbing #5804. Re-reviewed from scratch against the new head, then re-run through a deep multi-lens pass (red-team / blue-team / correctness): all three converged on one scope-completion gap (pointer-to-array range, below) and confirmed every other claim by running. No regressions or false positives found; verdict unchanged.
