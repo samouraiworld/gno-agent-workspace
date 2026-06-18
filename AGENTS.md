@@ -34,6 +34,10 @@ When asked to generate or update the weekly team report, read and follow `skills
 
 When asked to generate or update the weekly UX report (a/ux label), read and follow `skills/weekly-ux-report.md`. Data is fetched directly via `gh` CLI. Reports are saved in `reports/weekly-ux/`.
 
+## Writing docs & comments
+
+When writing or editing gno docs (`docs/resources/*.md`, READMEs), code comments, or PR review comments, read and follow `skills/writing-style.md`.
+
 ## Rules
 
 - **Always read `gno/AGENTS.md`** at the start of any task involving the gno repository. It contains project-specific conventions, build instructions, and coding guidelines that must be followed.
