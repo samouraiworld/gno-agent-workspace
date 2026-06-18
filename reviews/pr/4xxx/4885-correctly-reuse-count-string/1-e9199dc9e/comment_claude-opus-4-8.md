@@ -2,12 +2,18 @@
 Event: COMMENT
 
 ## Body
-Design is sound and both review threads are genuinely closed. Verified on e9199dc9e: with the source string out of GC roots, visiting only the slice still charges the full source backing once, and reverting the range lookup to the old pointer-equality keying drops those bytes; a forked allocator's end-of-cycle cleanup no longer prunes the parent's ranges; and each store-loaded string is charged once (`allocString + len`), since a container's shallow size is independent of its string fields' length, so the load-path `Allocate` adds nothing and `fillTypesOfValue`'s `NewString` is the only charge. That matches the +32 / +485 gas deltas.
+Design is sound and both review threads are genuinely closed. Verified on e9199dc9e:
+
+- A slice of a source string charges the full source backing once, even with the source out of GC roots. Reverting the range lookup to the old pointer-equality keying drops those bytes, so the new keying is what counts them.
+- A forked allocator's end-of-cycle cleanup no longer prunes the parent's ranges.
+- Each store-loaded string is charged once (`allocString + len`). A container's shallow size is independent of its string fields' length, so the load-path `Allocate` adds nothing and `fillTypesOfValue`'s `NewString` is the only charge.
+
+These match the +32 / +485 gas deltas.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/4xxx/4885-correctly-reuse-count-string/1-e9199dc9e/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## gnovm/pkg/gnolang/uverse.go:171 [↗](../../../../../.worktrees/gno-review-4885/gnovm/pkg/gnolang/uverse.go#L171)
-After this PR a `StringValue` built directly, without `NewString`/`TrackString`, has its backing counted as zero at GC; this site, `GetSlice` ([values.go:2194](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/values.go#L2194)), and `typedString` ([values.go:2720](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/values.go#L2720)) all do that. It's bounded today since these carry only a realm path and fixed panic messages and every user-controllable string routes through `NewString`, but nothing enforces that invariant and no test fails if a future direct `StringValue(x)` site is added. Route the three through a `safeStringValue(alloc, s)` helper that tracks first, and add a regression test that GC-counts a directly-built `StringValue`.
+After this PR a `StringValue` built directly, without `NewString`/`TrackString`, has its backing counted as zero at GC. Three sites do this: here, `GetSlice` ([values.go:2194](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/values.go#L2194)), and `typedString` ([values.go:2720](https://github.com/gnolang/gno/blob/e9199dc9e/gnovm/pkg/gnolang/values.go#L2720)). It's safe today: they carry only a realm path and fixed panic messages, and every user-controllable string routes through `NewString`. But nothing enforces that, and no test fails if a future direct `StringValue(x)` site is added. Route the three through a `safeStringValue(alloc, s)` helper that tracks first, and add a regression test that GC-counts a directly-built `StringValue`.
 
 <details><summary>repro</summary>
 
