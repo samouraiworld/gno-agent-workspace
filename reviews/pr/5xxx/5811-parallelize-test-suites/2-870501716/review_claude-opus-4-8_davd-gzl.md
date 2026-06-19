@@ -58,9 +58,9 @@ Round 1's Warning — `go test -race ./gnovm/pkg/gnolang/` failing on the `fallb
 
 All at `870501716`, from the PR worktree.
 
-- **`go test -race -short ./gnovm/pkg/gnolang/` is clean** where round 1 failed:
+- **`go test -race -short ./gnovm/pkg/gnolang/` reports 0 data races** where round 1 failed:
   - `TestStdlibs`: `ok`, 0 data races (1228s). Round 1 at `d668a22c2`: 6 races, all `fallbackAllocator`.
-  - `TestFiles`: `ok`, 0 data races (RUNNING — to fill). Round 1 at `d668a22c2`: 12 races (`fallbackAllocator` + debug `enabled`).
+  - `TestFiles`: 0 data races (305s). Round 1 at `d668a22c2`: 12 races (`fallbackAllocator` + debug `enabled`). The run reports `FAIL` only on 10 pre-existing `TypeCheckError` filetests (`redeclaration3/4`, `redeclaration_global1`, `switch13`, `type41`, `types/{add,and,or}_f0`, `types/eql_0b4/0f0`) — go/types message-wording diffs from the local toolchain (go1.26.4), not data races. Confirmed identical on `origin/master` (7e7749b52) with the same toolchain, even without `-race`, so they are unrelated to this PR (which does not touch typecheck error formatting). On the CI-pinned Go they do not appear (CI `gnovm` job is green).
   - Repro and observed output: [repro](comment_claude-opus-4-8.md).
 - **Gas / consensus unchanged**: `go test -run Gas ./gno.land/pkg/sdk/vm/` → `ok` (40s). The `fallbackAllocator` → `nil` swap is gas-neutral by construction: `fallbackAllocator` was `NewAllocator(MaxInt64)` with no gas meter, so it never charged gas or throttled; a `nil` allocator skips accounting the same way. The stamp is also identical — `fallbackAllocator.currentRealmID` was zero, and `stampPkgID` on `nil` leaves PkgID zero, so freshly-allocated objects are stamped the same.
 - **nil-allocator safety (static)**: every `Allocate*` method delegates to the nil-guarded `Allocate`; the `New*` constructors call those plus the nil-safe `stampPkgID`. `checkConstructionTime` (the storage=authority guard) is only reached via `m.Alloc` at op-execution sites, where the Machine always has a real budgeted allocator — the nil branch there is defensive and never skips a real check.

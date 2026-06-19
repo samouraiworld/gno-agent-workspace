@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5641
 Author: omarsy | Base: master | Files: 9 | +1622 -302
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: 8e90f07e (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `8e90f07e` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5641 8e90f07e`
 
 **TL;DR:** `print`/`println` and panic formatting used to build the whole output string in memory (with `fmt.Sprintf` + `make([]string,N)` + `strings.Join` intermediates) and only then charge a flat gas cost. Printing a 1M-element slice allocated ~887 MB of native memory, none of it metered. This rewrites formatting to stream bytes into a small reused buffer and charges gas per flush, so output is now bounded by the per-transaction gas budget. Output bytes are unchanged.
