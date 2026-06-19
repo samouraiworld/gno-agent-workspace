@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5811
 Author: thehowl | Base: master | Files: 3 | +281 -144
-Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `d668a22c2` (latest)
+Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `d668a22c2` (stale — +18 commits since)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5811 d668a22c2`
 
 **TL;DR:** Reworks the GnoVM test suites so they run in parallel, and adds a `-p N` flag to `gno test` (like `go test -p`) that tests N packages concurrently, each worker on its own store. Goal is faster CI: `pkg/gnolang` test time and the `gno test` stdlib/examples jobs both drop substantially.
