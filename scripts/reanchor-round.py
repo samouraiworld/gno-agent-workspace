@@ -229,7 +229,12 @@ def main() -> int:
     for md in mds:
         text = md.read_text(encoding="utf-8")
         flagged: list[str] = []
-        out = text.replace(old_full, new_full).replace(old_short, new_short)
+        # Bump the round-dir path segment (e.g. 1-<oldsha> -> 2-<newsha>) before
+        # the bare-sha replace, else the sha swap alone leaves the stale round
+        # number (1-<newsha>) in self-referential paths like comment.md's
+        # "Full review:" link.
+        out = text.replace(src.name, dst.name)
+        out = out.replace(old_full, new_full).replace(old_short, new_short)
         out = reanchor_text(out, mapper, flagged)
         n_anchors = len(LINK_RE.findall(out)) + len(HEADER_RE.findall(out))
         status = f"{n_anchors} anchors" + (f", {len(flagged)} FLAGGED" if flagged else "")
