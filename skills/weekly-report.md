@@ -52,11 +52,11 @@ Our own AI review (under `reviews/pr/`) routes a PR, it is not a trailing marker
 | Verdict | Effect |
 |---------|--------|
 | `REQUEST CHANGES` | Route PR to **🚧 PR In Progress**, prefix line with 🤖❌ |
-| `NEEDS DISCUSSION` | Stays in its normal category, prefix line with 🤖💬 (not routed to In Progress) |
+| `NEEDS DISCUSSION` | No marker, PR stays in its normal category |
 | `APPROVE` (incl. `with nits`/`with caveats`) | No marker, PR stays in its normal category |
 | no review under `reviews/pr/` | No marker, PR stays in its normal category |
 
-`REQUEST CHANGES` routing wins over every other category (Approved, Waiting for review, etc.): if our AI flagged it ❌, it lands in In Progress regardless of core-review state. Keep any core-team emoji prefixes (✅ etc.) on the line. A `NEEDS DISCUSSION` PR keeps its normal category and prefixes (✅/📥/💥), with 🤖💬 added. A draft PR stays in In Progress on the draft rule even if also 🤖💬, with no 🤖 marker.
+`REQUEST CHANGES` routing wins over every other category (Approved, Waiting for review, etc.): if our AI flagged it ❌, it lands in In Progress regardless of core-review state. Keep any core-team emoji prefixes (✅ etc.) on the line. 🤖❌ is the only AI marker; no marker is rendered for any other verdict.
 
 Derivation per open PR `<n>`: find `reviews/pr/<bucket>/<n>-<slug>/`, take the highest-numbered round dir `<round>-<commit>/`, read the `**Verdict: ...**` line (older reviews omit the `**`) from the `*.md` inside, normalise to `REQUEST CHANGES` / `NEEDS DISCUSSION` / `APPROVE`. Login matching for approvers is case-insensitive (`notJoon` == `NotJoon`).
 
@@ -145,7 +145,6 @@ Verified by:
 From DD/MM to DD/MM  **: Samourai crew**
 
 > ⚠️ High priority · 🆕 New this week · ✅ Approved by core team · 📥 Waiting for first review · 🚫 Don't merge · 💥 Merge conflict
-> 🤖❌ our AI: changes requested (routed to In Progress) · 🤖💬 our AI: needs discussion (stays in its review section)
 
 ## Gno Core (/gnolang/gno)
 
@@ -205,7 +204,7 @@ From DD/MM to DD/MM  **: Samourai crew**
 - Sections separated by `---`. Headers **bold** (not `##`), except `## Gno Core (/gnolang/gno)`.
 - PR lines: `- <emoji prefixes> <title> - <url> - <author> <(context note)> <🤖 AI marker>`
 - Context notes in parentheses after author. Don't duplicate emoji-derived status.
-- AI ❌ PRs are routed to In Progress (see "AI review routing"), prefixed 🤖❌. AI 💬 PRs stay in their normal section, prefixed 🤖💬. No trailing AI marker anywhere.
+- AI ❌ PRs are routed to In Progress (see "AI review routing"), prefixed 🤖❌. No other AI marker is rendered anywhere.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - Highlight entries may use free-text formatting.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
