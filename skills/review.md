@@ -12,6 +12,15 @@ Every artifact is written for a human reader: skimmable structure (verdict first
 
 **Input:** `$ARGUMENTS` — space-separated PR numbers or GitHub URLs. Process each PR independently.
 
+## Non-gno repositories
+
+A PR outside `gnolang/gno` goes under `reviews/<repo>/`, not `reviews/pr/` (gno-only).
+
+- First review for a repo: create `reviews/<repo>/README.md` with the repo's GitHub link and a one-line description.
+- Write `reviews/<repo>/<number>-<short-slug>/review_<model>.md` and `comment_<model>.md`, same formats as below.
+- Skip gno-only steps: submodule worktree, glossary, invariant catalog, `build-indexes.sh`, gno blob/`↗` dual links. Cite plain `file:line` from the repo's own checkout.
+- Post via `gh` against the target repo (no `post-pr-review.py`), after the literal `post`.
+
 ## Review all
 
 When invoked with "review all" (no explicit PR numbers), build the target set:
