@@ -51,12 +51,12 @@ Our own AI review (under `reviews/pr/`) routes a PR, it is not a trailing marker
 
 | Verdict | Effect |
 |---------|--------|
-| `REQUEST CHANGES` | Route PR to **🚧 PR In Progress**, prefix line with 🤖❌ |
-| `NEEDS DISCUSSION` | No marker, PR stays in its normal category |
-| `APPROVE` (incl. `with nits`/`with caveats`) | No marker, PR stays in its normal category |
-| no review under `reviews/pr/` | No marker, PR stays in its normal category |
+| `REQUEST CHANGES` | Route PR to **🚧 PR In Progress — Not approved by AI** |
+| `NEEDS DISCUSSION` | PR stays in its normal category |
+| `APPROVE` (incl. `with nits`/`with caveats`) | PR stays in its normal category |
+| no review under `reviews/pr/` | PR stays in its normal category |
 
-`REQUEST CHANGES` routing wins over every other category (Approved, Waiting for review, etc.): if our AI flagged it ❌, it lands in In Progress regardless of core-review state. Keep any core-team emoji prefixes (✅ etc.) on the line. 🤖❌ is the only AI marker; no marker is rendered for any other verdict.
+In Progress has two subsections: **Not approved by AI** (header links to `reviews/README.md`) holds the `REQUEST CHANGES` PRs; **Draft** holds the `isDraft` PRs. `REQUEST CHANGES` routing wins over every other category (Approved, Waiting for review, etc.): if our AI flagged it ❌, it lands in Not-approved-by-AI regardless of core-review state. A PR that is both ❌ and draft goes under Not approved by AI. No per-line AI marker is rendered (the subsection header carries the meaning); keep core-team/status emoji prefixes (✅/📥/🚫/💥 etc.).
 
 Derivation per open PR `<n>`: find `reviews/pr/<bucket>/<n>-<slug>/`, take the highest-numbered round dir `<round>-<commit>/`, read the `**Verdict: ...**` line (older reviews omit the `**`) from the `*.md` inside, normalise to `REQUEST CHANGES` / `NEEDS DISCUSSION` / `APPROVE`. Login matching for approvers is case-insensitive (`notJoon` == `NotJoon`).
 
@@ -180,7 +180,11 @@ From DD/MM to DD/MM  **: Samourai crew**
 
 ---
 
-**🚧 PR In Progress:**
+**🚧 PR In Progress — [Not approved by AI](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/README.md)**
+
+---
+
+**🚧 PR In Progress — Draft**
 
 ---
 
@@ -204,7 +208,7 @@ From DD/MM to DD/MM  **: Samourai crew**
 - Sections separated by `---`. Headers **bold** (not `##`), except `## Gno Core (/gnolang/gno)`.
 - PR lines: `- <emoji prefixes> <title> - <url> - <author> <(context note)> <🤖 AI marker>`
 - Context notes in parentheses after author. Don't duplicate emoji-derived status.
-- AI ❌ PRs are routed to In Progress (see "AI review routing"), prefixed 🤖❌. No other AI marker is rendered anywhere.
+- AI ❌ PRs are routed to the **In Progress — Not approved by AI** subsection (see "AI review routing"); drafts go to **In Progress — Draft**. No per-line AI marker is rendered.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - Highlight entries may use free-text formatting.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
