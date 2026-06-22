@@ -14,7 +14,7 @@ Verified by:
 From 15/06 to 22/06  **: Samourai crew**
 
 > ⚠️ High priority · 🆕 New this week · ✅ Approved by core team · 📥 Waiting for first review · 🚫 Don't merge · 💥 Merge conflict
-> 🚧 In Progress may carry 🤖❌ (our AI: changes requested) or 🤖💬 (our AI: needs discussion)
+> 🤖❌ our AI: changes requested (in Progress) · 🤖💬 our AI: needs discussion (stays in its review section)
 
 ## Gno Core (/gnolang/gno)
 
@@ -36,6 +36,7 @@ From 15/06 to 22/06  **: Samourai crew**
 **🛡️ PR Waiting for review (Security)**
 
 - ⚠️ 📥 fix(gnokey): inject block height when not provided in ABCI requests - https://github.com/gnolang/gno/pull/5049 - davd-gzl
+- 🤖💬 ✅ fix(gnovm): recover from preprocessing panics on node restart - https://github.com/gnolang/gno/pull/5384 - davd-gzl
 - ✅ 💥 fix(gnovm/debugger): add bounds checks to prevent index panics - https://github.com/gnolang/gno/pull/5202 - davd-gzl
 - 🆕 fix(gnovm): recover panics when having unhashable type as map key - https://github.com/gnolang/gno/pull/5821 - Villaquiranm
 - 💥 fix(gnovm): include missing field in shallow size calculation + add overflow protection - https://github.com/gnolang/gno/pull/4892 - davd-gzl
@@ -49,6 +50,7 @@ From 15/06 to 22/06  **: Samourai crew**
 - fix(gnovm): Add missing checks - https://github.com/gnolang/gno/pull/4886 - davd-gzl
 - fix(gnolang): allow indirect cur-call through a local func variable - https://github.com/gnolang/gno/pull/5689 - omarsy
 - fix(preprocess): using iota outside constant declaration - https://github.com/gnolang/gno/pull/5822 - Villaquiranm
+- 🤖💬 💥 feat(gnovm): skip print/println in production discard-output mode - https://github.com/gnolang/gno/pull/5206 - omarsy
 - 📥 fix(autofile): halt writes on disk space exhaustion with auto-recovery - https://github.com/gnolang/gno/pull/5313 - davd-gzl
 - 📥 fix(validators): handle duplicate validator entries in same block - https://github.com/gnolang/gno/pull/5478 - omarsy
 - 📥 fix(gnovm): meter BigInt and BigDec comparison operators - https://github.com/gnolang/gno/pull/5646 - davd-gzl
@@ -64,6 +66,7 @@ From 15/06 to 22/06  **: Samourai crew**
 
 **📖 PR Waiting for review (Documentation)**
 
+- 🤖💬 ✅ 💥 docs(builders): consolidate and clean up builder documentation - https://github.com/gnolang/gno/pull/5656 - davd-gzl
 - 🆕 📥 docs(gnovm): simplify zero-sized pointer equality docs - https://github.com/gnolang/gno/pull/5836 - davd-gzl
 - 📥 docs: add `make preview` target for the docs.gno.land frontend - https://github.com/gnolang/gno/pull/5752 - davd-gzl
 
@@ -74,6 +77,7 @@ From 15/06 to 22/06  **: Samourai crew**
 - ⚠️ ✅ 💥 fix(example/avl): simplify `Get` to return `nil` as "no value" - https://github.com/gnolang/gno/pull/5314 - davd-gzl
 - ✅ fix(avl): add missing checks in avl package - https://github.com/gnolang/gno/pull/4908 - davd-gzl
 - ✅ 💥 feat(example/bptree): simplify `Get` to return `nil` as "no value" - https://github.com/gnolang/gno/pull/5644 - davd-gzl
+- 🤖💬 📥 💥 feat(example): add `r/sys/security` dashboard realm - https://github.com/gnolang/gno/pull/5354 - davd-gzl
 - 💥 feat(grc20reg): implement pagination - https://github.com/gnolang/gno/pull/5069 - davd-gzl
 
 ---
@@ -115,11 +119,7 @@ From 15/06 to 22/06  **: Samourai crew**
 - 🤖❌ 💥 docs: add cheat sheet page - https://github.com/gnolang/gno/pull/5551 - davd-gzl
 - 🤖❌ 💥 feat(tm2/std,gnovm): drop _filetest.gno suffix requirement - https://github.com/gnolang/gno/pull/5712 - davd-gzl
 - 🤖❌ fix(gnovm): typedRuntimeError for runtime errors - https://github.com/gnolang/gno/pull/5732 - Villaquiranm
-- 🤖💬 💥 feat(gnovm): skip print/println in production discard-output mode - https://github.com/gnolang/gno/pull/5206 - omarsy
-- 🤖💬 📥 💥 feat(example): add `r/sys/security` dashboard realm - https://github.com/gnolang/gno/pull/5354 - davd-gzl
-- 🤖💬 ✅ fix(gnovm): recover from preprocessing panics on node restart - https://github.com/gnolang/gno/pull/5384 - davd-gzl
-- 🤖💬 ✅ 💥 docs(builders): consolidate and clean up builder documentation - https://github.com/gnolang/gno/pull/5656 - davd-gzl
-- 🤖💬 💥 WIP feat(gnovm): add math/big stdlib (Int subset) - https://github.com/gnolang/gno/pull/5678 - davd-gzl
+- 💥 WIP feat(gnovm): add math/big stdlib (Int subset) - https://github.com/gnolang/gno/pull/5678 - davd-gzl
 - 💥 feat: realm transaction sponsorship (PayGas + PayStorage) - https://github.com/gnolang/gno/pull/5382 - omarsy
 - 💥 feat(gnovm): add per-type GC allocation tracking in debug builds - https://github.com/gnolang/gno/pull/5437 - omarsy
 - 💥 feat(gnoweb): add `:::details` collapsible block - https://github.com/gnolang/gno/pull/5593 - davd-gzl
