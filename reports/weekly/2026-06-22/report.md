@@ -162,10 +162,10 @@ samouraiworld/gnomonitoring
 
 **🤖 Onboarding Bot (/samouraiworld/gno-onboarding-bot)**
 
-- 🎉 Auto-fill /submit-request from r/gnops/valopers - https://github.com/samouraiworld/gno-onboarding-bot/pull/4 - davd-gzl
-- 🎉 Feat/ghcr image publish - https://github.com/samouraiworld/gno-onboarding-bot/pull/3 - louis14448
-- 🎉 Harden reviewer commands and submission handling - https://github.com/samouraiworld/gno-onboarding-bot/pull/2 - louis14448
-- 🎉 feat: end-of-window competency digest harvest - https://github.com/samouraiworld/gno-onboarding-bot/pull/1 - davd-gzl
+- Auto-fill /submit-request from r/gnops/valopers - https://github.com/samouraiworld/gno-onboarding-bot/pull/4 - davd-gzl
+- Feat/ghcr image publish - https://github.com/samouraiworld/gno-onboarding-bot/pull/3 - louis14448
+- Harden reviewer commands and submission handling - https://github.com/samouraiworld/gno-onboarding-bot/pull/2 - louis14448
+- feat: end-of-window competency digest harvest - https://github.com/samouraiworld/gno-onboarding-bot/pull/1 - davd-gzl
 
 ---
 
