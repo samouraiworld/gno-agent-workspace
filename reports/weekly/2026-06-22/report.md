@@ -19,8 +19,9 @@ From 15/06 to 22/06  **: Samourai crew**
 
 **⭐ Highlight**
 
-- ✅ **fix(tm2): use separate mutex on ABCI queries client** - https://github.com/gnolang/gno/pull/5431 - Villaquiranm. Ready! And approved
+- ✅ **fix(tm2): use separate mutex on ABCI queries client** - https://github.com/gnolang/gno/pull/5431 - Villaquiranm. Fix some feedback from Morgan
 - ✅ **test(misc/e2e): add gnovm audit and e2e regression scripts** - https://github.com/gnolang/gno/pull/5663 - louis14448
+- ✅ 💥 **docs(builders): consolidate and clean up builder documentation** - https://github.com/gnolang/gno/pull/5656 - davd-gzl
 - **fix(gnovm): meter gas correctly for switch case** - https://github.com/gnolang/gno/pull/5217 - davd-gzl
 - **docs: add new `r/docs/...` examples** - https://github.com/gnolang/gno/pull/5016 - davd-gzl
 - 💥 **refactor(gnovm): stream print/println & panic formatting through a buffered metered writer** - https://github.com/gnolang/gno/pull/5641 - omarsy (In progress)
@@ -65,7 +66,6 @@ From 15/06 to 22/06  **: Samourai crew**
 
 **📖 PR Waiting for review (Documentation)**
 
-- ✅ 💥 docs(builders): consolidate and clean up builder documentation - https://github.com/gnolang/gno/pull/5656 - davd-gzl
 - 🆕 📥 docs(gnovm): simplify zero-sized pointer equality docs - https://github.com/gnolang/gno/pull/5836 - davd-gzl
 - 📥 docs: add `make preview` target for the docs.gno.land frontend - https://github.com/gnolang/gno/pull/5752 - davd-gzl
 
@@ -104,20 +104,25 @@ From 15/06 to 22/06  **: Samourai crew**
 
 ---
 
-**🚧 PR In Progress:**
+**🚧 PR In Progress — [Not approved by AI](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/README.md)**
 
-- 🤖❌ ⚠️ 💥 feat(GovDAO): add activity page to highlight inactive GovDAO's members - https://github.com/gnolang/gno/pull/4731 - davd-gzl
-- 🤖❌ feat(examples): add subscriptions package - https://github.com/gnolang/gno/pull/4931 - mvallenet
-- 🤖❌ 💥 feat(govdao): add proposal fee-based for non-member - https://github.com/gnolang/gno/pull/4944 - davd-gzl
-- 🤖❌ ✅ 💥 feat(gnovm/lint): enforce last elem of pkg path to match pkg name - https://github.com/gnolang/gno/pull/5048 - mvallenet
-- 🤖❌ 💥 feat(gnovm): add extensible linting framework with AVL001 and GLOBAL001 rules - https://github.com/gnolang/gno/pull/5068 - mvallenet
-- 🤖❌ 💥 feat(vm): control namespace enforcement via sysnames_pkgpath VM param - https://github.com/gnolang/gno/pull/5080 - davd-gzl
-- 🤖❌ ✅ 💥 feat: Blocks backup restore WebSocket - https://github.com/gnolang/gno/pull/5169 - Villaquiranm
-- 🤖❌ 🚫 fix(consensus): implement `RemovePeer` cleanup - https://github.com/gnolang/gno/pull/5231 - davd-gzl
-- 🤖❌ feat(gnokms): add insecure flag - https://github.com/gnolang/gno/pull/5360 - mvallenet
-- 🤖❌ 💥 docs: add cheat sheet page - https://github.com/gnolang/gno/pull/5551 - davd-gzl
-- 🤖❌ 💥 feat(tm2/std,gnovm): drop _filetest.gno suffix requirement - https://github.com/gnolang/gno/pull/5712 - davd-gzl
-- 🤖❌ fix(gnovm): typedRuntimeError for runtime errors - https://github.com/gnolang/gno/pull/5732 - Villaquiranm
+- ⚠️ 💥 feat(GovDAO): add activity page to highlight inactive GovDAO's members - https://github.com/gnolang/gno/pull/4731 - davd-gzl
+- feat(examples): add subscriptions package - https://github.com/gnolang/gno/pull/4931 - mvallenet
+- 💥 feat(govdao): add proposal fee-based for non-member - https://github.com/gnolang/gno/pull/4944 - davd-gzl
+- ✅ 💥 feat(gnovm/lint): enforce last elem of pkg path to match pkg name - https://github.com/gnolang/gno/pull/5048 - mvallenet
+- 💥 feat(gnovm): add extensible linting framework with AVL001 and GLOBAL001 rules - https://github.com/gnolang/gno/pull/5068 - mvallenet
+- 💥 feat(vm): control namespace enforcement via sysnames_pkgpath VM param - https://github.com/gnolang/gno/pull/5080 - davd-gzl
+- ✅ 💥 feat: Blocks backup restore WebSocket - https://github.com/gnolang/gno/pull/5169 - Villaquiranm
+- 🚫 fix(consensus): implement `RemovePeer` cleanup - https://github.com/gnolang/gno/pull/5231 - davd-gzl
+- feat(gnokms): add insecure flag - https://github.com/gnolang/gno/pull/5360 - mvallenet
+- 💥 docs: add cheat sheet page - https://github.com/gnolang/gno/pull/5551 - davd-gzl
+- 💥 feat(tm2/std,gnovm): drop _filetest.gno suffix requirement - https://github.com/gnolang/gno/pull/5712 - davd-gzl
+- fix(gnovm): typedRuntimeError for runtime errors - https://github.com/gnolang/gno/pull/5732 - Villaquiranm
+
+---
+
+**🚧 PR In Progress — Draft**
+
 - 💥 WIP feat(gnovm): add math/big stdlib (Int subset) - https://github.com/gnolang/gno/pull/5678 - davd-gzl
 - 💥 feat: realm transaction sponsorship (PayGas + PayStorage) - https://github.com/gnolang/gno/pull/5382 - omarsy
 - 💥 feat(gnovm): add per-type GC allocation tracking in debug builds - https://github.com/gnolang/gno/pull/5437 - omarsy
