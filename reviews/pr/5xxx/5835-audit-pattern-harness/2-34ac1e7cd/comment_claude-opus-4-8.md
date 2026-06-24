@@ -50,7 +50,7 @@ Nit: `path` sits in a manual code span but is escaped with inline-text escaping,
 ## examples/gno.land/r/docs/security_patterns/gnomod.toml:2 [↗](../../../../../.worktrees/gno-review-5835/examples/gno.land/r/docs/security_patterns/gnomod.toml#L2)
 Nit: `gno = ""` here, while every other example realm pins `gno = "0.9"`. Set it for consistency.
 
-## misc/audit-pattern-harness/internal/auditpattern/run.go:369 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run.go#L369)
-Optional: `render_map_iteration` matches `range `+name as a substring, so a map named `scores` also flags `range scoresList`; `interface_realm_param` matches `realm` on comment lines inside an interface block too. The heuristic limits are documented, so this is polish: a word-boundary check and skipping comment lines would cut the likely false positives on real code.
+## misc/audit-pattern-harness/internal/auditpattern/run.go:166 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run.go#L166)
+Optional: brace-depth tracking counts `{`/`}` inside string literals and comments, so a `}` in a string flips a correctly guarded function to a false positive. Confirmed: `current_guard` flags a guarded `cur.Previous()` when an earlier line in the same function is `msg := "}"`. AGENTS.md now points agents at this harness for unfamiliar realm code, where braces-in-strings are routine; stripping string and comment spans before counting fixes the class, and the five scanners also reduce to two shared helpers. The separate substring matches (`range scoresList`, `realm` in a comment) are a smaller false-positive source in the same engine.
 
 Repros run at 34ac1e7cd.
