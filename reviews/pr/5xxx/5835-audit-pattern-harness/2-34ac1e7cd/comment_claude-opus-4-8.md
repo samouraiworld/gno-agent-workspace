@@ -7,13 +7,13 @@ This is authoritative guidance plus a reference realm, so correctness of the pub
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5835-audit-pattern-harness/2-34ac1e7cd/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## AGENTS.md:90 [↗](../../../../../.worktrees/gno-review-5835/AGENTS.md#L90)
-blocking: the caller-identity row prescribes `cur.Previous().IsUserCall()` for auth. That primitive rejects realm-mediated calls, so a realm meant to be callable by other realms locks out every legitimate realm caller, and the row also drops the `cur.IsCurrent()` guard this PR's own guide requires before reading `cur.Previous()`. Scope `IsUserCall()` to the payment row; ordinary realm authorization is `cur.Previous()` under `cur.IsCurrent()`.
+The caller-identity row prescribes `cur.Previous().IsUserCall()` for auth. That primitive rejects realm-mediated calls, so a realm meant to be callable by other realms locks out every legitimate realm caller, and the row also drops the `cur.IsCurrent()` guard this PR's own guide requires before reading `cur.Previous()`. Scope `IsUserCall()` to the payment row; ordinary realm authorization is `cur.Previous()` under `cur.IsCurrent()`.
 
 ## examples/gno.land/r/docs/security_patterns/security_patterns.gno:56-58 [↗](../../../../../.worktrees/gno-review-5835/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L56)
-blocking: `md.EscapeText` is [deprecated](https://github.com/gnolang/gno/blob/34ac1e7cd/examples/gno.land/p/moul/md/md.gno#L397). The package comment says use `sanitize.InlineText` directly, and §5.9 of this PR's own guide recommends `gno.land/p/nt/markdown/sanitize/v0`. The reference example for safe Render output should not model the deprecated call.
+`md.EscapeText` is [deprecated](https://github.com/gnolang/gno/blob/34ac1e7cd/examples/gno.land/p/moul/md/md.gno#L397). The package comment says use `sanitize.InlineText` directly, and [§5.9](https://github.com/gnolang/gno/blob/34ac1e7cd/docs/resources/gno-security-guide.md#L376) of this PR's own guide recommends `gno.land/p/nt/markdown/sanitize/v0`. The reference example for safe Render output should not model the deprecated call.
 
 ## docs/resources/gno-security-guide.md:340 [↗](../../../../../.worktrees/gno-review-5835/docs/resources/gno-security-guide.md#L340)
-blocking: this block does not compile under gno 0.9. With the standard `import "chain/runtime"`, `runtime.OriginCaller` is undefined; the symbol lives in [`chain/runtime/unsafe`](https://github.com/gnolang/gno/blob/34ac1e7cd/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno#L51). The section's table and checklist already use bare `OriginCaller()`, so only this snippet carries the stale `runtime.` qualifier.
+This block does not compile under gno 0.9. With the standard `import "chain/runtime"`, `runtime.OriginCaller` is undefined; the symbol lives in [`chain/runtime/unsafe`](https://github.com/gnolang/gno/blob/34ac1e7cd/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno#L51). The section's table and checklist already use bare `OriginCaller()`, so only this snippet carries the stale `runtime.` qualifier.
 
 <details><summary>repro</summary>
 
@@ -42,7 +42,7 @@ a.gno:7:41: undefined: runtime.OriginCaller (code=gnoTypeCheckError)
 </details>
 
 ## .github/workflows/ci-dir-misc.yml:24 [↗](../../../../../.worktrees/gno-review-5835/.github/workflows/ci-dir-misc.yml#L24)
-blocking: the `audit-pattern-harness` module is not in this matrix, so its Go tests and the `TestAgentPatternContract` agent contract never run in CI (`grep -rln 'audit-pattern-harness' .github/` is empty). The README, the security guide, and the new AGENTS.md section call these lessons executable, but nothing executes them, so a later edit to a rule or fixture breaks the contract silently. Add the module to the matrix, with a gno toolchain on PATH so the `.gno` fixtures compile too.
+The `audit-pattern-harness` module is not in this matrix, so its Go tests and the `TestAgentPatternContract` agent contract never run in CI (`grep -rln 'audit-pattern-harness' .github/` is empty). The README, the security guide, and the new AGENTS.md section call these lessons executable, but nothing executes them, so a later edit to a rule or fixture breaks the contract silently. Add the module to the matrix, with a gno toolchain on PATH so the `.gno` fixtures compile too.
 
 ## examples/gno.land/r/docs/security_patterns/security_patterns.gno:38 [↗](../../../../../.worktrees/gno-review-5835/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L38)
 Nit: `path` sits in a manual code span but is escaped with inline-text escaping, so a backtick in `path` closes the span early. Confirmed behaviorally: `Render` of a path containing a backtick emits an unbalanced code span, though not an injection. `md.InlineCode(path)` is the code-span-safe primitive.
