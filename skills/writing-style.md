@@ -13,7 +13,7 @@ description: Use when writing or editing gno docs, code comments, or PR review c
 - No em-dashes, no parentheticals. Short sentences, one idea each. No "This page" openers.
 - Wrap around 80 columns, no trailing whitespace.
 - Don't vouch for code with a bare adjective ("sound", "correct", "safe", "fine") or a bare absence ("no auth defect found", "nothing broken"). Both are unverifiable reassurance. State the specific checks run and what each showed, or locate the findings ("every finding is in the docs, not the auth path"). A bare absence-claim with no named check behind it is filler; cut it or name the check.
-- When more than one thing is verified, list the checks one per line, not a prose run-on. A single check stays inline.
+- When more than one thing is verified, prefer one plain claim that covers them all ("ran the realm and both guards; each rejects the attacker case it claims to"). List separately, one per line, only when synthesis would drop something load-bearing. Never a prose run-on of several packed, jargon-dense checks.
 - Plain words over named jargon in visible text: "a middle realm can't pass the admin check", not "no confused-deputy path". Use the jargon term only when it saves real length and the reader surely knows it.
 - State the problem and stop. Drop the why-it-matters chain (the reader infers it) and the fix (they work it out). Keep a fix only when the remedy is non-obvious, and then name the outcome, not the steps.
 - In code comments, keep the symbols a contributor needs, drop other-language jargon, link to the canonical source instead of restating it.
