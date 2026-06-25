@@ -44,6 +44,30 @@ a.gno:7:41: undefined: runtime.OriginCaller (code=gnoTypeCheckError)
 ## .github/workflows/ci-dir-misc.yml:24 [↗](../../../../../.worktrees/gno-review-5835/.github/workflows/ci-dir-misc.yml#L24)
 The `audit-pattern-harness` module is not in this matrix, so its Go tests and the `TestAgentPatternContract` agent contract never run in CI (`grep -rln 'audit-pattern-harness' .github/` is empty). The README, the security guide, and the new AGENTS.md section call these lessons executable, but nothing executes them, so a later edit to a rule or fixture breaks the contract silently. Add the module to the matrix, with a gno toolchain on PATH so the `.gno` fixtures compile too.
 
+## misc/audit-pattern-harness/internal/auditpattern/run_test.go:189-203 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run_test.go#L189)
+`TestAgentPatternContract` checks only `len(hits)` against the want-count, never which file or line matched, and six of the eight rules have no location assertion anywhere. So a rule can be rewritten to flag a coincidental line and the suite stays green while it stops detecting its vulnerability. Record the expected `{file, line}` per vulnerable fixture and assert the hit content, not just the count.
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 5835 -R gnolang/gno
+cd misc/audit-pattern-harness
+# Gut origin_caller_auth so it never inspects OriginCaller(); it now matches the
+# vulnerable fixture's import line (present once) and nothing in the fixed fixture.
+perl -0pi -e 's/func originCallerAuthHits\(dir string\) \(\[\]Hit, error\) \{.*?\n\}/func originCallerAuthHits(dir string) ([]Hit, error) {\n\treturn lineContainsHits(dir, func(line string) bool { return strings.Contains(line, "chain\/runtime\/unsafe") })\n}/s' internal/auditpattern/run.go
+go test -count=1 -run 'TestAgentPatternContract$|TestOriginCallerAuthRule' ./internal/auditpattern/
+git checkout -- internal/auditpattern/run.go
+```
+
+```
+ok  	github.com/gnolang/gno/misc/audit-pattern-harness/internal/auditpattern	0.007s
+```
+</details>
+
+## docs/resources/community-packages.md:3 [↗](../../../../../.worktrees/gno-review-5835/docs/resources/community-packages.md#L3)
+The page says packages under `examples/gno.land/p/...` "may be deployed on public networks," then recommends seven that exist only under `examples/quarantined/` (`moul/collection`, `jeronimoalbi/bitset` with a runnable import block, `nt/pausable/v0`, `lou/query`, `agherasie/forms`, `lou/blog`, `morgan/chess`), with no caveat. `examples/README.md` marks that subtree not shipped to genesis and not audited, so a reader importing `gno.land/p/jeronimoalbi/bitset` will not find it on-chain. Label them quarantined / unaudited or drop them.
+
 ## examples/gno.land/r/docs/security_patterns/security_patterns.gno:38 [↗](../../../../../.worktrees/gno-review-5835/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L38)
 Nit: `path` sits in a manual code span but is escaped with inline-text escaping, so a backtick in `path` closes the span early. Confirmed behaviorally: `Render` of a path containing a backtick emits an unbalanced code span, though not an injection. `md.InlineCode(path)` is the code-span-safe primitive.
 
