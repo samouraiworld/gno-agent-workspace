@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Ran the realm and both harness guards on 34ac1e7cd; each rejects the attacker case it claims to.
+Ran the reference realm and seven of the eight harness families on 34ac1e7cd; each vulnerable case is exploitable and its fix blocks the same attack. The eighth, render-map-iteration, is forward-compat, not a live exploit.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5835-audit-pattern-harness/2-34ac1e7cd/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
