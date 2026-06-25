@@ -2,7 +2,10 @@
 Event: REQUEST_CHANGES
 
 ## Body
-The auth content is sound. Verified on 34ac1e7cd: the realm's admin guard rejects an intermediate realm that cross-calls `SetMessage`/`TransferAdmin`, so there is no confused-deputy path. Removing the `IsCurrent()` check from `current-guard/fixed` lets a forged realm whose `IsCurrent()` is false pass the address-only guard. The vulnerable `IsUser()` payment guard accepts an ephemeral `/e/<addr>/run` realm that the fixed `IsUserCall()` guard rejects.
+No auth defect found. Verified on 34ac1e7cd:
+- The realm's admin guard rejects an intermediate realm that cross-calls `SetMessage`/`TransferAdmin`, so no confused-deputy path.
+- Removing the `IsCurrent()` check from `current-guard/fixed` lets a forged realm whose `IsCurrent()` is false pass the address-only guard.
+- The vulnerable `IsUser()` payment guard accepts an ephemeral `/e/<addr>/run` realm that the fixed `IsUserCall()` guard rejects.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5835-audit-pattern-harness/2-34ac1e7cd/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
