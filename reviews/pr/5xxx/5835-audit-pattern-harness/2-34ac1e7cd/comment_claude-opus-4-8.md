@@ -80,4 +80,7 @@ Nit: `gno = ""` here, while every other example realm pins `gno = "0.9"`. Set it
 ## misc/audit-pattern-harness/internal/auditpattern/run.go:166 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run.go#L166)
 Optional: brace-depth tracking counts `{`/`}` inside strings and comments, so a `}` in a string flips a correctly guarded function to a false positive. AGENTS.md now points agents at this harness for unfamiliar realm code, where braces-in-strings are routine. Stripping string and comment spans before counting fixes it; the substring matches and the five-scanners-to-two refactor are smaller items in the same engine.
 
+## misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno:4 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno#L4)
+Optional: the interface-realm-param and callback-param slices teach the realm-into-caller-supplied-code leak, but nothing documents the safe counterpart, threading `cur` through your own concrete `/p/` functions, which is what daokit's interrealm-v2 port needs. A realm value is a frame-scoped capability: `cross(rlm)` works only while `rlm.IsCurrent()` holds, so the only escape is handing the live token to code the realm did not audit. One line drawing that boundary, the danger is a caller-supplied `func`/`interface` value, keeps a reader from concluding never to give a realm to `/p/`.
+
 Repros run at 34ac1e7cd.
