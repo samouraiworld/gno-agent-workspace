@@ -69,7 +69,33 @@ ok  	github.com/gnolang/gno/misc/audit-pattern-harness/internal/auditpattern	0.0
 The page recommends seven packages that currently live only under [`examples/quarantined/`](https://github.com/gnolang/gno/tree/34ac1e7cd/examples/quarantined), one with a runnable import block. A reader who imports one, like [`gno.land/p/jeronimoalbi/bitset`](https://github.com/gnolang/gno/tree/34ac1e7cd/examples/quarantined/gno.land/p/jeronimoalbi/bitset), may be confused when it is not yet on-chain. Flag them as quarantined.
 
 ## examples/gno.land/r/docs/security_patterns/security_patterns.gno:38 [↗](../../../../../.worktrees/gno-review-5835/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L38)
-`path` sits in a manual code span but uses inline-text escaping, so a backtick in `path` closes the span early. Not an injection. [`md.InlineCode(path)`](https://github.com/gnolang/gno/blob/34ac1e7cd/examples/gno.land/p/moul/md/md.gno#L214) is the code-span-safe primitive.
+A backtick in `path` breaks the code span. `path` arrives via `vm/qrender` as arbitrary bytes, so it can contain a backtick; the inline-text escaping backslash-escapes it, but a backslash is literal inside a code span, so the backtick still closes the span early. Not an injection. [`md.InlineCode(path)`](https://github.com/gnolang/gno/blob/34ac1e7cd/examples/gno.land/p/moul/md/md.gno#L214) picks a safe fence and is the code-span-safe primitive.
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 5835 -R gnolang/gno
+go build -o /tmp/gno ./gnovm/cmd/gno
+export GNOROOT=$(pwd)
+D=examples/gno.land/r/docs/security_patterns
+cat > "$D/zz_bt_test.gno" <<'GO'
+package securitypatterns
+
+import "testing"
+
+func TestBacktickPath(t *testing.T) { t.Logf("%q", Render("a`b")) }
+GO
+(cd "$D" && /tmp/gno test -v -run TestBacktickPath .)
+rm "$D/zz_bt_test.gno"
+```
+
+```
+zz_bt_test.go:5: "# Security Patterns\n\n...\n\nPath: `a\`b`\n"
+```
+
+The `\`` is the escape, but inside a code span the backslash is literal, so the span closes at the user's backtick and `b` lands outside it with a dangling backtick.
+</details>
 
 ## examples/gno.land/r/docs/security_patterns/gnomod.toml:2 [↗](../../../../../.worktrees/gno-review-5835/examples/gno.land/r/docs/security_patterns/gnomod.toml#L2)
 `gno = ""` here, while every other example realm pins `gno = "0.9"`. Set it for consistency.
@@ -115,4 +141,4 @@ FAIL
 </details>
 
 ## misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno:4 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno#L4)
-The [interface-realm-param](https://github.com/gnolang/gno/blob/34ac1e7cd/misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno#L4) and [callback-param](https://github.com/gnolang/gno/blob/34ac1e7cd/misc/audit-pattern-harness/fixtures/callback-param/vulnerable/hooks.gno#L6) slices show the bad pattern, a realm handed to caller-supplied code, but not the safe one: threading `cur` through your own concrete `/p/` functions, which [daokit's interrealm-v2 port](https://github.com/samouraiworld/gnodaokit/pull/64) needs. The danger is specifically a caller-supplied `func` or `interface` value, because a realm token grants authority only while `cur.IsCurrent()` holds. Without one sentence saying that, a reader concludes never to pass a realm to `/p/`, which blocks the legitimate pattern.
+The [interface-realm-param](https://github.com/gnolang/gno/blob/34ac1e7cd/misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno#L4) and [callback-param](https://github.com/gnolang/gno/blob/34ac1e7cd/misc/audit-pattern-harness/fixtures/callback-param/vulnerable/hooks.gno#L6) slices show the bad pattern, a realm handed to caller-supplied code, but not the safe one: threading `cur` through your own concrete `/p/` functions, which [daokit's interrealm-v2 port](https://github.com/samouraiworld/gnodaokit/pull/64) needs. The danger is specifically a caller-supplied `func` or `interface` value, because a realm token grants authority only while `cur.IsCurrent()` holds. Spell that out in one sentence, or readers avoid passing realms to `/p/` at all and lose the safe threading pattern.
