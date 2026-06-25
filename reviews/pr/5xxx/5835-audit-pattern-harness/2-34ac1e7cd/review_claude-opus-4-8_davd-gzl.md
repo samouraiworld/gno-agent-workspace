@@ -17,6 +17,23 @@ Local worktree: `git -C gno worktree add .worktrees/gno-review-5835 34ac1e7cd`
 
 The harness is a separate Go module: each `expected/<slice>.yaml` names a rule and a vulnerable/fixed fixture pair, and `internal/auditpattern` runs `gno test` on each fixture plus a line-based pattern rule, asserting the vulnerable side flags and the fixed side stays clean. The rules are deliberately heuristic (text, not AST), and `README.md` documents the known false-positive/negative classes honestly. The reference realm and the security-guide additions ([§5.8](https://github.com/gnolang/gno/blob/34ac1e7cd/docs/resources/gno-security-guide.md#L330) `OriginCaller`-as-auth, [§5.9](https://github.com/gnolang/gno/blob/34ac1e7cd/docs/resources/gno-security-guide.md#L376) raw text in `Render`) are the builder-facing payload; the storage docs reframe "prefer AVL" into "choose storage by access pattern." Round 2 adds an `AGENTS.md` Security section: a trigger table mapping seven vulnerability families to "what to look for," plus a pointer to run the harness against unfamiliar realm code. The PR is fully additive and touches no consensus, VM, or stdlib runtime code, so blast radius is confined to docs, examples, and a dev tool. The findings below are correctness defects in material whose whole value is being correct, not runtime risk.
 
+## Verification
+
+Ran each fixture's attacker case on 34ac1e7cd: the vulnerable side is exploitable and its fixed pair blocks the same attack. The eighth family, `render-map-iteration`, is forward-compat (gno map iteration is insertion-order deterministic today), so it has no live exploit to run.
+
+| Family | Vulnerable case run | Fixed pair |
+|---|---|---|
+| reference realm admin guard | a middle realm that cross-calls `SetMessage`/`TransferAdmin` is rejected | only a direct admin passes |
+| `current-guard` | dropping `IsCurrent()` lets a forged token whose `IsCurrent()` is false pass the address check | guard rejects it |
+| `payment-user-call` | `IsUser()` accepts an ephemeral `/e/<addr>/run` realm | `IsUserCall()` rejects it |
+| `exported-pointer-leak` | external write through the returned `*Vault` sticks (`Balance` 10→9999) | returns a copy, write ignored (stays 10) |
+| `callback-param` | the caller-supplied `func` runs inside the privileged `Update` | no callback param to inject |
+| `render-markdown` | `Render("[x](javascript:evil)")` echoes the raw link | escaped to `\[x\]\(javascript:evil\)` |
+| `origin-caller-auth` | a middle realm (not owner) pauses via `OriginCaller()` | `cur.Previous().Address()` rejects it (`owner only`) |
+| `interface-realm-param` | the attacker impl receives a live realm token (`IsCurrent()==true`) | receives only an `address`, no capability |
+
+The realm token cannot be replayed or escalated: `cross(rlm)` accepts only while `rlm.IsCurrent()` holds, so `cross(cur.Previous())` panics `cross: rlm is not the current cur` ([uverse.go:344-348](https://github.com/gnolang/gno/blob/34ac1e7cd/gnovm/pkg/gnolang/uverse.go#L344-L348)). This bounds the `interface-realm-param`/`callback-param` leak to the live synchronous frame.
+
 ## Glossary
 
 - crossing function — a `.gno` function whose first parameter is `cur realm`; entered via `f(cross, ...)`, which shifts `PreviousRealm`.
