@@ -128,7 +128,10 @@ def convert_file(md: Path, dry_run: bool) -> tuple[int, int]:
             anchor = f"#L{lstart}-L{lend}"
         elif lstart:
             anchor = f"#L{lstart}"
-        github = f"https://github.com/gnolang/gno/blob/{sha}/{path}{anchor}"
+        # Rendered files (.md etc.) need ?plain=1 so the #L anchor lands in the
+        # source view; code files already show as source.
+        plain = "?plain=1" if anchor and path.endswith(".md") else ""
+        github = f"https://github.com/gnolang/gno/blob/{sha}/{path}{plain}{anchor}"
         link_count += 1
         return f"[{label}]({github}) · [↗]({local})"
 
