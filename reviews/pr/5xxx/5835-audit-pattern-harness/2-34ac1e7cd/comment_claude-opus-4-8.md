@@ -3,7 +3,7 @@ Event: REQUEST_CHANGES
 
 ## Body
 Verified on 34ac1e7cd:
-- The realm's admin guard rejects an intermediate realm that cross-calls `SetMessage`/`TransferAdmin`, so no confused-deputy path.
+- The realm's admin guard rejects a middle realm that cross-calls `SetMessage`/`TransferAdmin`.
 - Removing the `IsCurrent()` check from `current-guard/fixed` lets a forged realm whose `IsCurrent()` is false pass the address-only guard.
 - The vulnerable `IsUser()` payment guard accepts an ephemeral `/e/<addr>/run` realm that the fixed `IsUserCall()` guard rejects.
 
@@ -45,10 +45,10 @@ a.gno:7:41: undefined: runtime.OriginCaller (code=gnoTypeCheckError)
 </details>
 
 ## .github/workflows/ci-dir-misc.yml:24 [↗](../../../../../.worktrees/gno-review-5835/.github/workflows/ci-dir-misc.yml#L24)
-The `audit-pattern-harness` module is absent from this matrix, so its Go tests and `TestAgentPatternContract` never run in CI. The README, the guide, and AGENTS.md call these lessons executable, but nothing runs them, so a later edit to a rule or fixture silently breaks the contract. Add the module to the matrix with a gno toolchain on PATH so the `.gno` fixtures compile too.
+The `audit-pattern-harness` module is absent from this matrix, so its Go tests and `TestAgentPatternContract` never run in CI.
 
 ## misc/audit-pattern-harness/internal/auditpattern/run_test.go:189-203 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run_test.go#L189)
-`TestAgentPatternContract` checks only the hit count, never which line matched, and six of the eight rules have no location assertion anywhere. So a rule can be rewritten to flag a coincidental line and the suite stays green while it stops detecting its vulnerability. Assert the expected `{file, line}` per vulnerable fixture, not just the count.
+`TestAgentPatternContract` checks only the hit count, never which line matched, and six of the eight rules have no location assertion anywhere. So a rule can be rewritten to flag a coincidental line and the suite stays green while it stops detecting its vulnerability.
 
 <details><summary>repro</summary>
 
@@ -69,7 +69,7 @@ ok  	github.com/gnolang/gno/misc/audit-pattern-harness/internal/auditpattern	0.0
 </details>
 
 ## docs/resources/community-packages.md:3 [↗](../../../../../.worktrees/gno-review-5835/docs/resources/community-packages.md#L3)
-The page says packages under `examples/gno.land/p/...` may be deployed on public networks, then recommends seven that exist only under `examples/quarantined/`, one with a runnable import block. `examples/README.md` marks that subtree unshipped to genesis and unaudited, so a reader importing `gno.land/p/jeronimoalbi/bitset` will not find it on-chain. Label these quarantined and unaudited, or drop them.
+The page says packages under `examples/gno.land/p/...` may be deployed on public networks, then recommends seven that exist only under `examples/quarantined/`, one with a runnable import block. `examples/README.md` marks that subtree unshipped to genesis and unaudited, so a reader importing `gno.land/p/jeronimoalbi/bitset` will not find it on-chain.
 
 ## examples/gno.land/r/docs/security_patterns/security_patterns.gno:38 [↗](../../../../../.worktrees/gno-review-5835/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L38)
 Nit: `path` sits in a manual code span but uses inline-text escaping, so a backtick in `path` closes the span early. Not an injection. `md.InlineCode(path)` is the code-span-safe primitive.
