@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Ran the reference realm and seven of the eight harness families on 34ac1e7cd; each vulnerable case is exploitable and its fix blocks the same attack. The eighth, [render-map-iteration](https://github.com/gnolang/gno/blob/34ac1e7cd/misc/audit-pattern-harness/fixtures/render-map-iteration/vulnerable/leaderboard.gno), is forward-compat, not a live exploit.
+Ran the reference realm and the harness guards on 34ac1e7cd; each rejects the attacker case it claims to.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5835-audit-pattern-harness/2-34ac1e7cd/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
