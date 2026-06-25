@@ -77,5 +77,42 @@ The page says packages under `examples/gno.land/p/...` may be deployed on public
 ## misc/audit-pattern-harness/internal/auditpattern/run.go:166 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run.go#L166)
 Brace-depth tracking counts `{`/`}` inside strings and comments, so a `}` in a string flips a correctly guarded function to a false positive. [AGENTS.md](https://github.com/gnolang/gno/blob/34ac1e7cd/AGENTS.md#L98) now points agents at this harness for unfamiliar realm code, where braces-in-strings are routine. Stripping string and comment spans before counting fixes it; the substring matches and the five-scanners-to-two refactor are smaller items in the same engine.
 
+<details><summary>failing test</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 5835 -R gnolang/gno
+cd misc/audit-pattern-harness
+cat > internal/auditpattern/zz_brace_test.go <<'GO'
+package auditpattern
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+// Correctly guarded: cur.IsCurrent() before cur.Previous(). The "}" in a
+// string literal must not be read as the function's closing brace.
+func TestBraceInStringFalsePositive(t *testing.T) {
+	d := t.TempDir()
+	src := "package x\n\nfunc F(cur realm) {\n\tif !cur.IsCurrent() {\n\t\tpanic(\"no\")\n\t}\n\tmsg := \"}\"\n\t_ = cur.Previous()\n\t_ = msg\n}\n"
+	os.WriteFile(filepath.Join(d, "a.gno"), []byte(src), 0o644)
+	if hits, _ := RunRule("current_guard", d); len(hits) != 0 {
+		t.Fatalf("guarded function flagged: %+v", hits)
+	}
+}
+GO
+go test -run TestBraceInStringFalsePositive ./internal/auditpattern/
+rm internal/auditpattern/zz_brace_test.go
+```
+
+```
+--- FAIL: TestBraceInStringFalsePositive (0.00s)
+    guarded function flagged: [{File:a.gno Line:8 Text:_ = cur.Previous()}]
+FAIL
+```
+</details>
+
 ## misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno:4 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno#L4)
 The [interface-realm-param](https://github.com/gnolang/gno/blob/34ac1e7cd/misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno#L4) and [callback-param](https://github.com/gnolang/gno/blob/34ac1e7cd/misc/audit-pattern-harness/fixtures/callback-param/vulnerable/hooks.gno#L6) slices show the bad pattern, a realm handed to caller-supplied code, but not the safe one: threading `cur` through your own concrete `/p/` functions, which [daokit's interrealm-v2 port](https://github.com/samouraiworld/gnodaokit/pull/64) needs. The danger is specifically a caller-supplied `func` or `interface` value, because a realm token grants authority only while `cur.IsCurrent()` holds. Without one sentence saying that, a reader concludes never to pass a realm to `/p/`, which blocks the legitimate pattern.
