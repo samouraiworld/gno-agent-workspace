@@ -1,0 +1,27 @@
+# Review: PR #5653
+Event: COMMENT
+
+## Body
+Verified on f45cc5c88: the only non-test caller of the ctxFn-accepting [`BaseApp.Deliver`](https://github.com/gnolang/gno/blob/f45cc5c88/tm2/pkg/sdk/helpers.go#L61-L77) [↗](../../../../../.worktrees/gno-review-5653/tm2/pkg/sdk/helpers.go#L61-L77) is [`deliverGenesisTx`](https://github.com/gnolang/gno/blob/f45cc5c88/gno.land/pkg/gnoland/app.go#L812) [↗](../../../../../.worktrees/gno-review-5653/gno.land/pkg/gnoland/app.go#L812), so [`SkipSigVerificationKey`](https://github.com/gnolang/gno/blob/f45cc5c88/tm2/pkg/sdk/auth/ante.go#L194-L196) [↗](../../../../../.worktrees/gno-review-5653/tm2/pkg/sdk/auth/ante.go#L194-L196) cannot be reached by `DeliverTx` on the block path. Replacing the cached-txs `-ne` check with `-gt` in [`gen-genesis.sh`](https://github.com/gnolang/gno/blob/f45cc5c88/misc/deployments/test13.gno.land/gen-genesis.sh#L1511) [↗](../../../../../.worktrees/gno-review-5653/misc/deployments/test13.gno.land/gen-genesis.sh#L1511) accepts a complete cache whose final pre-halt blocks carried no txs, while the locked final genesis sha still rejects a truncated cache.
+
+Two items need an answer before merge. Has any validator other than you run `gen-genesis.sh` end-to-end and reproduced the locked final genesis sha `56f56e13…`, the only protection against a bad genesis at boot? And the 13 [`TMP`](https://github.com/gnolang/gno/blob/f45cc5c88/gno.land/pkg/gnoland/app.go#L740)-tagged commits ship production paths; map each to its final disposition in the PR body so the merged history is auditable.
+
+Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5653-test-13-hardfork-rc/2-f45cc5c88/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
+
+## gno.land/pkg/gnoland/app.go:769-793 [↗](../../../../../.worktrees/gno-review-5653/gno.land/pkg/gnoland/app.go#L769)
+The caller-swap patches rewrite `MsgCall.Caller` to the GovDAO multisig but leave `SignerInfo` on the original signer, and the [`SkipSigVerificationKey` continue](https://github.com/gnolang/gno/blob/f45cc5c88/tm2/pkg/sdk/auth/ante.go#L194-L196) [↗](../../../../../.worktrees/gno-review-5653/tm2/pkg/sdk/auth/ante.go#L194-L196) skips the whole signature loop. So a patched tx sets no pubkey on first use and does not increment the caller's sequence, while the force-set here still keys on the original `SignerInfo` address. The [`SkipSigVerificationKey` doc](https://github.com/gnolang/gno/blob/f45cc5c88/gno.land/pkg/gnoland/app.go#L734-L742) [↗](../../../../../.worktrees/gno-review-5653/gno.land/pkg/gnoland/app.go#L734-L742) covers only the body-invalidates-sig angle, so document the sequence and pubkey side effects next to the bypass.
+
+## misc/deployments/test13.gno.land/gen-genesis.sh:682-825 [↗](../../../../../.worktrees/gno-review-5653/misc/deployments/test13.gno.land/gen-genesis.sh#L682)
+`txn_dir_to_jsonl` assembles each patch line with jq, inlining `.gno` bodies into `tx.msg[0].package.files[0].body`, and nothing checks the AnnotatedTx shape until [`fork generate`](https://github.com/gnolang/gno/blob/f45cc5c88/contribs/gnogenesis/internal/fork/generate.go) [↗](../../../../../.worktrees/gno-review-5653/contribs/gnogenesis/internal/fork/generate.go) rejects a malformed line. A hand-edited `meta.json` is one mis-escaped quote from a line that fails opaquely at replay. Decode each line against the AnnotatedTx struct before `fork generate` so a malformed line fails at emit time.
+
+## contribs/gnogenesis/internal/fork/inspect.go:97 [↗](../../../../../.worktrees/gno-review-5653/contribs/gnogenesis/internal/fork/inspect.go#L97)
+A `Source` value not in `groups` falls into the "unannotated" bin silently. A typo in a future `Source` constant would disappear there. Warn on an unknown non-empty `Source` instead.
+
+## contribs/gnogenesis/internal/fork/inspect_test.go:1 [↗](../../../../../.worktrees/gno-review-5653/contribs/gnogenesis/internal/fork/inspect_test.go#L1)
+The report-shape tests pass, but no test runs a real `fork generate` output through `inspect` and checks the per-`Source` counts against what was assembled. This regresses silently if the `Source` annotation order changes, for example moving `annotateSource(_, SourceBase)` past the `applyPatchTxs` call. Add a generate→inspect round-trip over a tiny fixture.
+
+## contribs/gnogenesis/internal/fork/patch_txs_test.go:1 [↗](../../../../../.worktrees/gno-review-5653/contribs/gnogenesis/internal/fork/patch_txs_test.go#L1)
+The match/swap logic is unit-tested, but nothing runs `fork generate --patch-txs` against a base genesis plus a historical stream and asserts the output carries `Source=patched` and `OriginalTx`, then replays under `fork test`. The full generate→deliverGenesisTx→ante chain has no in-tree coverage. Add a round-trip test that patches one tx in a small genesis.
+
+## tm2/pkg/sdk/auth/ante_test.go:542-580 [↗](../../../../../.worktrees/gno-review-5653/tm2/pkg/sdk/auth/ante_test.go#L542)
+`TestAnteHandlerSkipSigVerificationKey` covers the positive case but nothing pins that a non-genesis path cannot set the key. The boundary is structural today, so document the threat model on the [`SkipSigVerificationKey` type](https://github.com/gnolang/gno/blob/f45cc5c88/tm2/pkg/sdk/auth/ante.go#L487-L496) [↗](../../../../../.worktrees/gno-review-5653/tm2/pkg/sdk/auth/ante.go#L487-L496), or refuse the bypass when the block height is non-zero.
