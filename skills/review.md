@@ -36,6 +36,8 @@ done < /tmp/open_nondraft.txt
 
 Exclude PRs titled `WIP*` and dependabot PRs (`app/dependabot`) unless the user explicitly includes them. Confirm the final list with the user before reviewing more than one PR, then process via parallel dispatch.
 
+When "review all" also covers already-reviewed PRs whose head advanced (re-review of updated PRs), keep only those whose change since the last reviewed sha is real PR content, not a base-only master merge: compare patch-ids per the *Re-review rounds* gate; drop patch-id-equal base-only moves. Also drop any PR the reviewer already APPROVED on GitHub (`gh api repos/gnolang/gno/pulls/<num>/reviews --jq '[.[]|select(.user.login=="<reviewer>")]|last|.state'` = `APPROVED`) — don't re-review approved work.
+
 ## Parallel dispatch (multi-PR runs)
 
 When `$ARGUMENTS` contains more than one PR, dispatch one Agent per PR in a single message (multiple `Agent` calls in one response). Use `subagent_type: general-purpose` with this prompt per subagent:
