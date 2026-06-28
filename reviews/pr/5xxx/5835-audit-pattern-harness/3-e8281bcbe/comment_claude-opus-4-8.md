@@ -2,11 +2,9 @@
 Event: COMMENT
 
 ## Body
-Ran the gno-compiling contract against the worktree on e8281bcbe: all eight fixed fixtures compile and all eight vulnerable fixtures flag.
+Verified on e8281bcbe: gutting a rule to match a coincidental import line is now caught by the contract test, and the brace-in-string false positive is gone.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5835-audit-pattern-harness/3-e8281bcbe/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
-
-The `audit-pattern-harness` module is still absent from the [`ci-dir-misc.yml` matrix](https://github.com/gnolang/gno/blob/e8281bcbe/.github/workflows/ci-dir-misc.yml#L24), so its Go tests and [`TestAgentPatternContract`](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/internal/auditpattern/run_test.go#L184) never run in CI. Add it to the matrix, with a gno toolchain on the job so the compile gate runs too.
 
 ## misc/audit-pattern-harness/internal/auditpattern/run_test.go:257-262 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run_test.go#L257)
 The new marker check ties each vulnerable hit to a loose substring like `*` or `realm`, but never to a file and line. A rule can still be rewritten to flag a different marker-bearing line and the suite stays green while it stops detecting its vulnerability. Record the expected file and line per vulnerable fixture and assert the hit content, not just the count and a substring.
@@ -145,7 +143,7 @@ FAIL
 </details>
 
 ## misc/audit-pattern-harness/internal/auditpattern/run.go:267 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run.go#L267)
-`origin_caller_auth` flags every `OriginCaller()` read, including a benign `emit("actor", unsafe.OriginCaller().String())` with no comparison and no auth. `exported_pointer_leak` flags an idiomatic `func NewVault() *Vault` constructor yet misses a receiver-method getter `func (r *Registry) GetVault() *Vault`. Two of these have no [README "Known limitations"](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/README.md?plain=1#L87) entry, so tighten the heuristics or extend the caveats.
+`origin_caller_auth` flags every `OriginCaller()` read, including a benign `emit("actor", unsafe.OriginCaller().String())` with no comparison and no auth. `exported_pointer_leak` flags an idiomatic `func NewVault() *Vault` constructor that returns a fresh allocation. Neither rule has a [README "Known limitations"](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/README.md?plain=1#L87) entry, so tighten the heuristics or extend the caveats.
 
 <details><summary>repro</summary>
 
@@ -178,28 +176,24 @@ func TestConstructorFP(t *testing.T) {
 	t.Logf("exported_pointer_leak constructor hits: %+v", mustRun(t, "exported_pointer_leak", write(t, src)))
 }
 
-func TestReceiverGetterFN(t *testing.T) {
-	src := "package x\n\ntype Vault struct{ B int }\ntype Registry struct{ v *Vault }\n\nfunc (r *Registry) GetVault() *Vault {\n\treturn r.v\n}\n"
-	t.Logf("exported_pointer_leak receiver-getter hits (0 = missed): %+v", mustRun(t, "exported_pointer_leak", write(t, src)))
-}
-
 func mustRun(t *testing.T, rule, dir string) []Hit { h, _ := RunRule(rule, dir); return h }
 GO
-go test -count=1 -v -run 'TestOriginCallerBenignFP|TestConstructorFP|TestReceiverGetterFN' ./internal/auditpattern/
+go test -count=1 -v -run 'TestOriginCallerBenignFP|TestConstructorFP' ./internal/auditpattern/
 rm internal/auditpattern/zz_fpfn_test.go
 ```
 
 ```
     origin_caller_auth benign-read hits: [{File:a.gno Line:6 Text:emit("actor", unsafe.OriginCaller().String())}]
     exported_pointer_leak constructor hits: [{File:a.gno Line:5 Text:func NewVault() *Vault {}]
-    exported_pointer_leak receiver-getter hits (0 = missed): []
 ```
 </details>
 
 ## misc/audit-pattern-harness/internal/auditpattern/run.go:146 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run.go#L146)
 The five scanners collapse into two shapes: a guard-before-use scan (`currentGuardHits`, [`paymentUserCallHits`](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/internal/auditpattern/run.go#L225)) and a block-scoped scan (`renderMarkdownEscapeHits`, `interfaceRealmParamHits`, `renderMapIterationHits`). The block-scoped three also repeat the `codeLines`/`orig` pairing line for line.
 
-## misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno:4 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno#L4)
+## SKIP misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno:4 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno#L4)
+Posted in round 2 (https://github.com/gnolang/gno/pull/5835#discussion_r3475424457); the author accepted it ("not done yet ... I'll add it to the security guide alongside the callback/interface families"). Not reposting.
+
 The [interface-realm-param](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/fixtures/interface-realm-param/vulnerable/hook.gno#L4) and [callback-param](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/fixtures/callback-param/vulnerable/hooks.gno#L6) fixtures show only the bad pattern, never the safe one of threading `cur` through your own concrete `/p/` functions, which [daokit's interrealm-v2 port](https://github.com/samouraiworld/gnodaokit/pull/64) needs. The danger is a caller-supplied `func` or `interface` value, since a realm token grants authority only while `cur.IsCurrent()` holds. Without one sentence saying so, readers avoid passing realms to `/p/` entirely and lose the safe threading pattern.
 
 Repros run at e8281bcbe.
