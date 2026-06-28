@@ -73,6 +73,9 @@ rm internal/auditpattern/zz_lineshift_test.go
 ```
 </details>
 
+## AGENTS.md:98 [↗](../../../../../.worktrees/gno-review-5835/AGENTS.md#L98)
+This line tells agents to run the harness against unfamiliar realm code, but [`cmd/auditpattern`](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/cmd/auditpattern/main.go#L19) only runs the bundled `expected/*.yaml` records against their own fixtures, and the one function that scans a directory, [`RunRule`](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/internal/auditpattern/run.go#L123), sits in an internal package. An agent following this line has no entry point to scan arbitrary code. A `scan <dir>` mode emitting hits as JSON, with no want-count and no `gno test` gate, would back the instruction.
+
 ## examples/gno.land/r/docs/security_patterns/security_patterns.gno:38 [↗](../../../../../.worktrees/gno-review-5835/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L38)
 A backtick in `path` closes the manual code span, and `path` reaches `Render` as arbitrary bytes. Backslash-escaping does not help, since a backslash is literal inside a code span. [`md.InlineCode(path)`](https://github.com/gnolang/gno/blob/e8281bcbe/examples/gno.land/p/moul/md/md.gno#L214) is the safe primitive.
 
