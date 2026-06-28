@@ -1,0 +1,46 @@
+# Run: from a gno checkout:
+# gh pr checkout 5737 -R gnolang/gno && git checkout ccb6c94ad
+# curl -fsSL -o gno.land/pkg/integration/testdata/cyclic_3node_persist.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5737-defer-nil-receiver-panic/2-ccb6c94ad/tests/cyclic_3node_persist.txtar
+# go test -v -run 'TestTestdata/cyclic_3node_persist$' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/cyclic_3node_persist.txtar
+
+# A 3-node embedded-interface cycle (a->b->c->a) bound lazily and persisted must
+# still detect the cycle on reload (the seen-set keys on the reloaded operand
+# pointer, not an adjacent-repeat check) — terminate with the fatal panic, not
+# hang. Confirms cycle detection survives serialization across distinct nodes.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/myr -pkgpath gno.land/r/test/myr -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/myr -func Bind -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+! gnokey maketx call -pkgpath gno.land/r/test/myr -func CallLater -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stderr 'cyclic embedded interface in method-value dispatch'
+
+-- myr/gnomod.toml --
+module = "gno.land/r/test/myr"
+gno = "0.9"
+
+-- myr/myr.gno --
+package myr
+
+type IG interface{ Get() int }
+type Box struct{ IG }
+
+var a, b, c *Box
+var G func() int
+
+func Bind(cur realm) {
+	a, b, c = &Box{}, &Box{}, &Box{}
+	a.IG = b
+	b.IG = c
+	c.IG = a
+	var o IG = a
+	G = o.Get
+}
+
+func CallLater(cur realm) int { return G() }
