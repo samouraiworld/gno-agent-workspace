@@ -30,6 +30,49 @@ ok  	github.com/gnolang/gno/misc/audit-pattern-harness/internal/auditpattern	0.0
 ```
 </details>
 
+## misc/audit-pattern-harness/internal/auditpattern/run.go:433-443 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run.go#L433)
+On code that is not already gofmt-clean, the reported `file:line` points at the wrong line and the shown text is not what is in the file. The matchers read the line number and text from `format.Source(data)`, the gofmt-reformatted buffer, not the on-disk source, and gofmt collapses blank-line runs, so a `.Previous()` on on-disk line 6 is reported at line 4. [AGENTS.md](https://github.com/gnolang/gno/blob/e8281bcbe/AGENTS.md?plain=1#L98) sends agents to run this harness on unfamiliar realm code, which is rarely gofmt-clean.
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 5835 -R gnolang/gno
+cd misc/audit-pattern-harness
+cat > internal/auditpattern/zz_lineshift_test.go <<'GO'
+package auditpattern
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestLineShift(t *testing.T) {
+	d := t.TempDir()
+	// On disk ".Previous()" is line 6; gofmt collapses the blank-line run above it.
+	src := "package x\n\n\n\nfunc F(cur realm) {\n\t_ = cur.Previous()\n}\n"
+	os.WriteFile(filepath.Join(d, "a.gno"), []byte(src), 0o644)
+	onDisk := 0
+	for i, l := range strings.Split(src, "\n") {
+		if strings.Contains(l, ".Previous()") {
+			onDisk = i + 1
+		}
+	}
+	h, _ := RunRule("current_guard", d)
+	t.Logf("on-disk line=%d reported Hit.Line=%d Hit.Text=%q", onDisk, h[0].Line, h[0].Text)
+}
+GO
+go test -count=1 -v -run TestLineShift ./internal/auditpattern/
+rm internal/auditpattern/zz_lineshift_test.go
+```
+
+```
+    on-disk line=6 reported Hit.Line=4 Hit.Text="_ = cur.Previous()"
+```
+</details>
+
 ## examples/gno.land/r/docs/security_patterns/security_patterns.gno:38 [↗](../../../../../.worktrees/gno-review-5835/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L38)
 A backtick in `path` closes the manual code span, and `path` reaches `Render` as arbitrary bytes. Backslash-escaping does not help, since a backslash is literal inside a code span. [`md.InlineCode(path)`](https://github.com/gnolang/gno/blob/e8281bcbe/examples/gno.land/p/moul/md/md.gno#L214) is the safe primitive.
 
@@ -99,7 +142,7 @@ FAIL
 </details>
 
 ## misc/audit-pattern-harness/internal/auditpattern/run.go:267 [↗](../../../../../.worktrees/gno-review-5835/misc/audit-pattern-harness/internal/auditpattern/run.go#L267)
-`origin_caller_auth` flags every `OriginCaller()` read, including a benign `emit("actor", unsafe.OriginCaller().String())` with no comparison and no auth. `exported_pointer_leak` flags an idiomatic `func NewVault() *Vault` constructor yet misses a receiver-method getter `func (r *Registry) GetVault() *Vault`, because [the check](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/internal/auditpattern/run.go#L332) wants a capital right after `func `. Two of these have no [README "Known limitations"](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/README.md?plain=1#L87) entry. Tighten the heuristics or extend the caveats.
+`origin_caller_auth` flags every `OriginCaller()` read, including a benign `emit("actor", unsafe.OriginCaller().String())` with no comparison and no auth. `exported_pointer_leak` flags an idiomatic `func NewVault() *Vault` constructor yet misses a receiver-method getter `func (r *Registry) GetVault() *Vault`. Two of these have no [README "Known limitations"](https://github.com/gnolang/gno/blob/e8281bcbe/misc/audit-pattern-harness/README.md?plain=1#L87) entry, so tighten the heuristics or extend the caveats.
 
 <details><summary>repro</summary>
 
