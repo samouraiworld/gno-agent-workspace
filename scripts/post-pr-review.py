@@ -314,7 +314,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("pr", type=int)
     ap.add_argument("comment_md")
-    ap.add_argument("--repo", default="gnolang/gno")
+    ap.add_argument("--repo", default=None,
+                    help="OWNER/NAME; inferred from the comment path when "
+                         "omitted (onboarding-bot reviews -> "
+                         "samouraiworld/gno-onboarding-bot, else gnolang/gno)")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the JSON payload without posting")
     ap.add_argument("--skip-invalid", action="store_true",
@@ -322,6 +325,11 @@ def main():
     ap.add_argument("--approve", action="store_true",
                     help="required to post an APPROVE review (human-confirmed)")
     args = ap.parse_args()
+
+    if args.repo is None:
+        args.repo = ("samouraiworld/gno-onboarding-bot"
+                     if "reviews/onboarding-bot/" in args.comment_md
+                     else "gnolang/gno")
 
     with open(args.comment_md) as f:
         text = f.read()
