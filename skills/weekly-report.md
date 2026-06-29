@@ -40,7 +40,7 @@ A PR can have multiple prefixes, ordered: `⚠️ 🆕 ✅ 📥 🚫 💥`. `�
 |-------|---------|--------|
 | ⚠️ | High priority | `context.md` priority is `high` |
 | 🆕 | New this week | PR's `createdAt` ≥ window start date (the report period's Monday) |
-| ✅ | Approved by core team | ≥1 core approver in `reviewStats.approvers` AND (`reviewDecision: APPROVED` OR stale CR per stale-rule) |
+| ✅ | Approved by a merger | ≥1 approver from the **Mergers** list in `reviewStats.approvers` AND (`reviewDecision: APPROVED` OR stale CR per stale-rule) |
 | 📥 | Waiting for first review | `review/triage-pending` label |
 | 🚫 | Don't merge | `don't merge` label |
 | 💥 | Merge conflict | `mergeable: "CONFLICTING"` |
@@ -99,11 +99,13 @@ ls -d reports/weekly/*/ | sort -r | grep -v "/$END_DATE/$" | head -1
 
 Previous `context.md` is for carry-forward priorities/manual notes only — not for 🆕. If the previous directory is more than 7 days before `END_DATE`, flag it to the user before producing the report.
 
+Also read the previous `report.md` **⭐ Highlight** block: it is the default source for the new report's Highlight section (see step 4). Do not rebuild the Highlight from `context.md`.
+
 ### 3. Build new context.md
 
 List **every open PR**. Line syntax: `` <number> [highlight|high|medium|low]: [note] - `<title>` ``
 
-- Priority optional (default: `medium`). `highlight` → Highlight section, `high` → ⚠️ emoji.
+- Priority optional (default: `medium`). `high` → ⚠️ emoji. (`highlight` may still tag a line for bookkeeping, but the report's Highlight section comes from the previous `report.md`, not from here — see step 4.)
 - Note optional, kept short. Appears in parentheses in report.
 - Title suffix (`` - `<title>` ``) always appended for readability.
 
@@ -131,7 +133,6 @@ Use `context.md` + JSON data. Content categories (2-8) omitted if empty; all oth
 
 ```markdown
 Verified by:
-- [ ]  Amoz
 - [ ]  David
 - [ ]  Ghost
 - [ ]  Lours
@@ -144,7 +145,7 @@ Verified by:
 
 From DD/MM to DD/MM  **: Samourai crew**
 
-> ⚠️ High priority · 🆕 New this week · ✅ Approved by core team · 📥 Waiting for first review · 🚫 Don't merge · 💥 Merge conflict
+> ⚠️ High priority · 🆕 New this week · ✅ Approved by a merger · 📥 Waiting for first review · 🚫 Don't merge · 💥 Merge conflict
 
 ## Gno Core (/gnolang/gno)
 
@@ -211,6 +212,7 @@ From DD/MM to DD/MM  **: Samourai crew**
 - AI ❌ PRs are routed to the **In Progress — Not approved by AI** subsection (see "AI review routing"); drafts go to **In Progress — Draft**. No per-line AI marker is rendered.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - **In Progress subsections** (**Not approved by AI**, **Draft**) order by emoji tier ⚠️ → ✅ → plain → 💥 → 🚫 (each line assigned to its highest tier). Within each tier: fixes → features → chores, older first.
+- **Highlight section:** default to the previous `report.md`'s **⭐ Highlight** block verbatim, not `context.md`. Refresh each entry's emoji prefixes from current JSON and drop entries whose PR/issue is no longer open; keep manually-curated entries (issues, advisories, extra PRs). `context.md` `highlight:` lines are not a source for this section.
 - Highlight entries may use free-text formatting.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
 - Do NOT fabricate PRs.

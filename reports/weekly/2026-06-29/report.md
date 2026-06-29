@@ -1,10 +1,9 @@
 Verified by:
 
-- [ ]  Amoz
-- [ ]  David
+- [x]  David
 - [ ]  Ghost
-- [ ]  Lours
-- [ ]  Mikecito
+- [x]  Lours
+- [x]  Mikecito
 - [ ]  zôÖma
 
 **Quick Intro Context:**
@@ -13,22 +12,18 @@ Verified by:
 
 From 22/06 to 29/06  **: Samourai crew**
 
-> ⚠️ High priority · 🆕 New this week · ✅ Approved by core team · 📥 Waiting for first review · 🚫 Don't merge · 💥 Merge conflict
+> ⚠️ High priority · 🆕 New this week · ✅ Approved by a merger · 📥 Waiting for first review · 🚫 Don't merge · 💥 Merge conflict
 
 ## Gno Core (/gnolang/gno)
 
 **⭐ Highlight**
 
-- ✅ **fix(tm2): use separate mutex on ABCI queries client** - https://github.com/gnolang/gno/pull/5431 - Villaquiranm. Fix some feedback from Morgan
+- ✅ **fix(tm2): use separate mutex on ABCI queries client** - https://github.com/gnolang/gno/pull/5431 - Villaquiranm
 - ✅ **test(misc/e2e): add gnovm audit and e2e regression scripts** - https://github.com/gnolang/gno/pull/5663 - louis14448
+- ✅ **refactor(gnovm): stream print/println & panic formatting through a buffered metered writer** - https://github.com/gnolang/gno/pull/5641 - omarsy
 - **fix(gnovm): meter gas correctly for switch case** - https://github.com/gnolang/gno/pull/5217 - davd-gzl
 - **docs: add new `r/docs/...` examples** - https://github.com/gnolang/gno/pull/5016 - davd-gzl
-- 💥 **refactor(gnovm): stream print/println & panic formatting through a buffered metered writer** - https://github.com/gnolang/gno/pull/5641 - omarsy (In progress)
-- **[UX-9] Developer journey data & builder insights** - https://github.com/gnolang/gno/issues/5467 - Miguel : added a new comment and demo about the charts we should show on builder insights. Please take a look
-- fix(gnovm): ignore blank fields in struct equality and map keys - https://github.com/gnolang/gno/pull/5784 - omarsy
 - fix(gnovm): respect Unicode range in 64-bit integer-to-string conversions - https://github.com/gnolang/gno/pull/5807 - omarsy
-- https://github.com/gnolang/gno/security/advisories/GHSA-288g-9j7f-gh9v - omarsy
-- https://github.com/gnolang/gno/security/advisories/GHSA-7q6h-h9fq-967h - omarsy
 
 ---
 
@@ -45,6 +40,7 @@ From 22/06 to 29/06  **: Samourai crew**
 
 **⚙️ PR Waiting for review (GnoVM / TM2)**
 
+- fix(gnovm): ignore blank fields in struct equality and map keys - https://github.com/gnolang/gno/pull/5784 - omarsy
 - fix(gnovm): Add missing checks - https://github.com/gnolang/gno/pull/4886 - davd-gzl
 - fix(gnolang): allow indirect cur-call through a local func variable - https://github.com/gnolang/gno/pull/5689 - omarsy
 - fix(preprocess): using iota outside constant declaration - https://github.com/gnolang/gno/pull/5822 - Villaquiranm
@@ -55,7 +51,7 @@ From 22/06 to 29/06  **: Samourai crew**
 - 🆕 📥 fix(gnovm): fold -0 to +0 for float call args - https://github.com/gnolang/gno/pull/5864 - davd-gzl
 - 🆕 📥 feat(gnovm): replace cockroachdb/apd -> math/big.Rat (breaking) - https://github.com/gnolang/gno/pull/5867 - Villaquiranm
 - 📥 💥 fix(gnovm/stdlibs/strings): keep invalid UTF-8 bytes in Split, add tests - https://github.com/gnolang/gno/pull/5749 - davd-gzl
-- 💥 feat(gnovm): skip print/println in production discard-output mode - https://github.com/gnolang/gno/pull/5206 - omarsy (AI: needs discussion)
+- 💥 feat(gnovm): skip print/println in production discard-output mode - https://github.com/gnolang/gno/pull/5206 - omarsy
 - 📥 💥 feat(bank): `TotalCoin` - track total supply of a denom - https://github.com/gnolang/gno/pull/5230 - davd-gzl
 - 💥 feat(tm2): add transfer event for bank ops - https://github.com/gnolang/gno/pull/5361 - mvallenet
 - 💥 feat(validators): add attributes to validator event emissions - https://github.com/gnolang/gno/pull/5366 - mvallenet
@@ -76,7 +72,7 @@ From 22/06 to 29/06  **: Samourai crew**
 - ✅ fix(avl): add missing checks in avl package - https://github.com/gnolang/gno/pull/4908 - davd-gzl
 - ✅ 💥 feat(example/bptree): simplify `Get` to return `nil` as "no value" - https://github.com/gnolang/gno/pull/5644 - davd-gzl
 - feat(grc20reg): implement pagination - https://github.com/gnolang/gno/pull/5069 - davd-gzl
-- 📥 feat(example): add `r/sys/security` dashboard realm - https://github.com/gnolang/gno/pull/5354 - davd-gzl (AI: needs discussion)
+- 📥 feat(example): add `r/sys/security` dashboard realm - https://github.com/gnolang/gno/pull/5354 - davd-gzl
 
 ---
 
@@ -146,6 +142,8 @@ From 22/06 to 29/06  **: Samourai crew**
 - docs(builders): consolidate and clean up builder documentation - https://github.com/gnolang/gno/pull/5656 - davd-gzl
 - test(gnovm): pin nil-map delete semantics (follow-up to #5196) - https://github.com/gnolang/gno/pull/5808 - omarsy
 - docs(gnovm): simplify zero-sized pointer equality docs - https://github.com/gnolang/gno/pull/5836 - davd-gzl
+- https://github.com/gnolang/gno/security/advisories/GHSA-7q6h-h9fq-967h - omarsy
+- https://github.com/gnolang/gno-ghsa-288g-9j7f-gh9v/pull/1 - omarsy
 
 ---
 
