@@ -1,6 +1,6 @@
 **Conflicting PRs to rebase (no activity for +1 week)**
 
-Please rebase, or move to draft if paused. Recurrent conflicts are not listed.
+Please rebase, or move to draft if paused. Expected conflicts (auto-regenerated files) are not listed.
 
 - #5258 fix(tm2/rpc): validate WebSocket origin using CORSAllowedOrigins config - davd-gzl - https://github.com/gnolang/gno/pull/5258
 - #5206 feat(gnovm): skip print/println in production discard-output mode - omarsy - https://github.com/gnolang/gno/pull/5206
