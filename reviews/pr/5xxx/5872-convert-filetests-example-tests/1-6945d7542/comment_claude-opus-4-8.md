@@ -1,4 +1,5 @@
 # Review: PR #5872
+Posted: https://github.com/gnolang/gno/pull/5872#pullrequestreview-4603160063
 Event: REQUEST_CHANGES
 
 ## Body
@@ -6,7 +7,7 @@ The permissions [README.md](https://github.com/gnolang/gno/blob/6945d7542/exampl
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5872-convert-filetests-example-tests/1-6945d7542/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## examples/gno.land/p/moul/md/example_test.gno:68-72 [↗](../../../../../.worktrees/gno-review-5872/examples/gno.land/p/moul/md/example_test.gno#L68)
+## examples/gno.land/p/moul/md/example_test.gno:68-72 [↗](../../../../../.worktrees/gno-review-5872/examples/gno.land/p/moul/md/example_test.gno#L68) [posted](https://github.com/gnolang/gno/pull/5872#discussion_r3501087547)
 `ExampleBlocks` never runs: `// This is a paragraph.` sits above `// Output:`, so the runner finds no output directive and skips execution, leaving `Blockquote` untested. Make `// Output:` the first line of the final comment group and assert the full output.
 
 <details><summary>repro</summary>
