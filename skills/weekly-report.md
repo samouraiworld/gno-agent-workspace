@@ -64,7 +64,7 @@ Derivation per open PR `<n>`: find `reviews/pr/<bucket>/<n>-<slug>/`, take the h
 
 A 💥 PR is one of two states:
 
-- **Recurrent** — conflicts on a mechanical / auto-regenerated subject (gas snapshots, `go.mod`/`go.sum`, generated files). Drop `💥`; flag via the `recurrent-conflict` token on the `context.md` note. In `report.md`: no `💥`, trailing ` (Recurrent conflict /!\ <subject>)` marker, ordered by remaining tier. No magnet overlap → not recurrent (keep `💥`). Token stale (PR no longer touches magnet) → drop token, restore `💥`. Confirm flags with user before generating.
+- **Recurrent** — conflicts on a mechanical / auto-regenerated subject (gas snapshots, `go.mod`/`go.sum`, generated files). Drop `💥`; flag via the `recurrent-conflict` token on the `context.md` note. In `report.md`: no `💥`, trailing ` (expected conflict: <subject>)` marker, ordered by remaining tier. No magnet overlap → not recurrent (keep `💥`). Token stale (PR no longer touches magnet) → drop token, restore `💥`. Confirm flags with user before generating.
 - **Stale** — conflicting + `updatedAt` older than 7 days before end-date + not recurrent + not draft. Goes in Discord ping (step 6).
 
 **Subject detection.** Intersect the PR's changed files with the master hot-file set:
@@ -231,7 +231,7 @@ From DD/MM to DD/MM  **: Samourai crew**
 - Sections separated by `---`. Headers **bold** (not `##`), except `## Gno Core (/gnolang/gno)`.
 - PR lines: `- <emoji prefixes> <title> - <url> - <author> <(context note)> <🤖 AI marker>`
 - Context notes in parentheses after author. Don't duplicate emoji-derived status.
-- A PR whose `context.md` note carries `recurrent-conflict` drops `💥` and gets a trailing ` (Recurrent conflict /!\ <subject>)` after author/notes, `<subject>` = detected tag (see "Conflict tracking & Discord ping"). Order by remaining emoji tier, not the conflict group.
+- A PR whose `context.md` note carries `recurrent-conflict` drops `💥` and gets a trailing ` (expected conflict: <subject>)` after author/notes, `<subject>` = detected tag (see "Conflict tracking & Discord ping"). Order by remaining emoji tier, not the conflict group.
 - AI ❌ PRs are routed to the **In Progress — Not approved by AI** subsection (see "AI review routing"); drafts go to **In Progress — Draft**. No per-line AI marker is rendered.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - **In Progress subsections** (**Not approved by AI**, **Draft**) order by emoji tier ⚠️ → ✅ → plain → 💥 → 🚫 (each line assigned to its highest tier). Within each tier: fixes → features → chores, older first.
