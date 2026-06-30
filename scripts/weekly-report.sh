@@ -109,10 +109,10 @@ for repo in $REPOS; do
   for member in $TEAM_MEMBERS; do
     MEMBER_FILE="$TEMP_DIR/member_open.json"
     gh pr list --repo "$repo" --author "$member" --state open \
-      --json number,title,author,labels,createdAt,url,isDraft,reviewRequests,reviewDecision,body,mergeable \
+      --json number,title,author,labels,createdAt,updatedAt,url,isDraft,reviewRequests,reviewDecision,body,mergeable \
       --limit 200 2>/dev/null \
       | jq '[.[] | {
-          number, title, url, createdAt, isDraft, reviewDecision,
+          number, title, url, createdAt, updatedAt, isDraft, reviewDecision,
           author: .author.login,
           labels: [.labels[].name],
           reviewRequests: [.reviewRequests[] | .login // .slug // .name],
