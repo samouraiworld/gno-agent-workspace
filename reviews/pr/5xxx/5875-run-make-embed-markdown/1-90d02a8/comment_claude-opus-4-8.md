@@ -1,4 +1,4 @@
-# Review: PR #5875
+# Review: PR [#5875](https://github.com/gnolang/gno/pull/5875)
 Event: APPROVE
 
 ## Body

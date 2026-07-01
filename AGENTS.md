@@ -20,7 +20,7 @@ When asked to **review all** (e.g. "review all", "review all non-reviewed recent
 
 When asked for a **parallel**, **red-team / blue-team**, or **deeper** review of a single PR (or "review and loop until perfect"), read and follow `skills/review.md` — see its "Deep mode" section.
 
-When the user says **post** pointing at a `comment_<model>.md` draft (open file or path in the message), that is one-shot approval: run `./scripts/post-pr-review.py <number> <path>` directly, without reading the draft or the review file. The PR number is the `<number>-<slug>/` segment of the path. If the script refuses an APPROVE event, get the user's explicit confirmation of the approval, then re-run with `--approve`. If it reports invalid anchors, follow the "GitHub review draft" section of `skills/review.md`. When the draft already carries a `Posted:` line, the script rewrites the posted review in place (body and `[posted]`-linked inline comments); no `--approve`, the event doesn't change. After a successful post, commit and push the script-updated draft: `review: PR #<number> posted (<event>)`.
+When the user says **post** pointing at a `comment_<model>.md` draft (open file or path in the message), that is one-shot approval: run `./scripts/post-pr-review.py <number> <path>` directly, without reading the draft or the review file. The PR number is the `<number>-<slug>/` segment of the path. If the script refuses an APPROVE event, get the user's explicit confirmation of the approval, then re-run with `--approve`. If it reports invalid anchors, follow the "GitHub review draft" section of `skills/review.md`. When the draft already carries a `Posted:` line, the script rewrites the posted review in place (body and `[posted]`-linked inline comments); no `--approve`, the event doesn't change. After a successful post, commit and push the script-updated draft: `review: PR <number> posted (<event>)`.
 
 ## Fix Issue
 
@@ -43,7 +43,7 @@ When writing or editing gno docs (`docs/resources/*.md`, READMEs), code comments
 - **Always read `gno/AGENTS.md`** at the start of any task involving the gno repository. It contains project-specific conventions, build instructions, and coding guidelines that must be followed.
 - **Never write into the `gno/` submodule in-place.** Any task that modifies files under `gno/` — code, docs, READMEs, anything — happens inside a worktree at `.worktrees/gno-<slug>/`. See `skills/fix-issue.md` for the worktree-creation procedure. Docs/README work is not an exception: "small" is not a reason to skip a worktree.
 - **Never push to gnolang/gno** for review purposes. Pushing to a fork of gnolang/gno is acceptable for specific cases (e.g. cherry-picks).
-- After writing a review, commit and push to this repo only: `git add reviews/ docs/glossary.md && git commit -m "review: PR #<number>" && git push`.
+- After writing a review, commit and push to this repo only: `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`. No bare `#<number>` in the subject: it autolinks to this repo, not gnolang/gno.
 - **Every `scripts/*.sh` carries the NOT AUDITED line as line 2**, right after the shebang: `# NOT AUDITED — AI-generated tooling. Review before executing in any privileged context.` then a `#` separator. Never on adversarial test files under `reviews/.../tests/`.
 
 ## Authoring skills, prompts, and these instruction files

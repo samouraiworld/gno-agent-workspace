@@ -176,7 +176,7 @@ When the PR contains `.gno` code, write an equivalent Go test to verify behavior
 Verdict first, then narrative, then findings. Maximize signal per line. Strip articles, hedging, filler. No emoji. One block per PR, in this exact format:
 
 ```markdown
-# PR #<number>: <title>
+# PR [#<number>](https://github.com/gnolang/gno/pull/<number>): <title>
 
 URL: https://github.com/gnolang/gno/pull/<number>
 Author: <author> | Base: <base> | Files: <count> | +<add> -<del>
@@ -248,6 +248,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 
 Format rules:
 - Priority tags in plain English (`[bug can come back invisibly]`, not `[invariant decay risk]`).
+- No bare `#<number>` in any text GitHub renders inside this repo (review/comment H1, commit subject): it autolinks to `samouraiworld/gno-agent-workspace#<number>`, the wrong repo. Link it (`[#<number>](pr-url)`) or drop the `#` (commit subjects).
 - Prose in `<details>` by default; labeled sub-bullets only for findings with a tangible repro.
 - No Test Results section. A review-worthy test failure becomes a Critical or Warning; otherwise silence.
 - Anchor numbers to budgets ("13s = multiple block-production budgets").
@@ -281,7 +282,7 @@ Rules:
 - Empty categories: "None". Never fabricate.
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Large PRs (>20 files): summarize by area first, then deep-dive critical paths.
-- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: run `./scripts/build-indexes.sh`, then `git add reviews/ docs/glossary.md && git commit -m "review: PR #<number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only. Multi-PR runs: the parent commits once (`review: PRs #<a> and #<b>`); subagents never commit or push.
+- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: run `./scripts/build-indexes.sh`, then `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only. Multi-PR runs: the parent commits once (`review: PRs <a> and <b>`); subagents never commit or push.
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
 - New findings surfaced after the initial draft (a follow-up question, a deeper dig) are folded into the review file and `comment_<model>.md`, verified with a real run, and committed/pushed in the same turn automatically — never ask whether to add them. Posting still waits for the literal `post`.
 - Never push to gnolang/gno.
@@ -314,7 +315,7 @@ Auto-SKIP duplicates: when another reviewer already raised a finding (PR review 
 Format:
 
 ```markdown
-# Review: PR #<number>
+# Review: PR [#<number>](https://github.com/gnolang/gno/pull/<number>)
 Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 ## Body

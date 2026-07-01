@@ -24,7 +24,7 @@ REVIEWS = ROOT / "reviews" / "pr"
 OUT = ROOT / "index.html"
 
 VERDICT_RE = re.compile(r"\*\*Verdict:\s*([A-Z][A-Z ]*[A-Z])")
-TITLE_RE = re.compile(r"^#\s*PR\s*#\d+:\s*(.+)$", re.M)
+TITLE_RE = re.compile(r"^#\s*PR\s+.*?#\d+.*?:\s+(.+)$", re.M)
 
 
 def verdict_class(verdict: str) -> str:

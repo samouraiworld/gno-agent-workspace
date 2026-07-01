@@ -1,4 +1,4 @@
-# PR #5875: chore(docs): Run make embed_markdown
+# PR [#5875](https://github.com/gnolang/gno/pull/5875): chore(docs): Run make embed_markdown
 
 URL: https://github.com/gnolang/gno/pull/5875
 Author: jefft0 | Base: master | Files: 10 | +10 -10
