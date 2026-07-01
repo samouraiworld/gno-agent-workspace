@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-The math extension renders into the markdown pipeline behind every realm and board page, and writes its output straight to the page, bypassing the safe writer that [`handler_http.go:315`](https://github.com/gnolang/gno/blob/df4af7fd1/gno.land/pkg/gnoweb/handler_http.go#L315) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/handler_http.go#L315) assumes sanitizes realm HTML, so escaping has to cover both the serializer and the error fallback. Verified on df4af7fd1: adversarial LaTeX emits raw `<script>` and `onclick=` through the default goldmark config; `go test -race` flags concurrent writes to the one converter shared across requests; nested `\sqrt` expands 56KB of input to 128MB of output with no bound.
+The math extension renders into the markdown pipeline behind every realm and board page, and writes its output to the page unescaped, though [`handler_http.go:315`](https://github.com/gnolang/gno/blob/df4af7fd1/gno.land/pkg/gnoweb/handler_http.go#L315) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/handler_http.go#L315) assumes `RenderRealm` returns sanitized HTML, so escaping has to cover both the serializer and the error fallback. Verified on df4af7fd1: adversarial LaTeX emits raw `<script>` and `onclick=` through the default goldmark config; `go test -race` flags concurrent writes to the one converter shared across requests; nested `\sqrt` expands 56KB of input to 128MB of output with no bound.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/4xxx/4879-gnoweb-math-extension/1-df4af7fd1/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
@@ -86,7 +86,7 @@ The `</span>` closes the wrapper and `<script>alert(1)</script>` is live HTML.
 </details>
 
 ## gno.land/pkg/gnoweb/markdown/ext_math.go:192-204 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L192)
-The block parser opens a math block on any line starting with `\` or `$` and returns a node even when no delimiter matched, so the whole line is consumed and rendered as an empty `<math>` with its text dropped. Lines like `\alpha …`, escaped `\_`, or `$100 is the price` silently vanish. Fix: return `nil` from `Open` when no valid math region was found.
+The block parser opens a math block on any line starting with `\` or `$` and returns a node even when no delimiter matched, so the whole line is consumed and rendered as an empty `<math>` with its text dropped. Lines like `\alpha …`, escaped `\_`, or `$100 is the price` silently vanish. Fix: a line that isn't a complete math expression should render as its literal text, not be swallowed.
 
 <details><summary>repro</summary>
 
