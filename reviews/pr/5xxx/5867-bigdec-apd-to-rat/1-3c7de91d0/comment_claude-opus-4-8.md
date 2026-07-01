@@ -1,4 +1,5 @@
 # Review: PR #5867
+Posted: https://github.com/gnolang/gno/pull/5867#pullrequestreview-4610487669
 Event: REQUEST_CHANGES
 
 ## Body
@@ -6,7 +7,7 @@ Verified on 3c7de91d0: a 17-line package of repeated integer-valued constant fol
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5867-bigdec-apd-to-rat/1-3c7de91d0/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gnovm/pkg/gnolang/op_binary.go:803 [↗](../../../../../.worktrees/gno-review-5867/gnovm/pkg/gnolang/op_binary.go#L803)
+## gnovm/pkg/gnolang/op_binary.go:803 [↗](../../../../../.worktrees/gno-review-5867/gnovm/pkg/gnolang/op_binary.go#L803) [posted](https://github.com/gnolang/gno/pull/5867#discussion_r3507150834)
 `ratGuard` checks `r.Denom().BitLen()` but never the numerator, so an integer-valued `big.Rat` keeps `Denom() == 1` and passes unbounded. Repeated squaring of such a constant doubles the numerator each step, and folding runs on a gasless machine, so a roughly 20-line package allocates gigabytes at `AddPkg` preprocess. Bound the numerator the way the denominator already is.
 
 <details><summary>repro</summary>
@@ -41,8 +42,8 @@ ok
 ```
 </details>
 
-## gnovm/tests/files/const63.gno:5 [↗](../../../../../.worktrees/gno-review-5867/gnovm/tests/files/const63.gno#L5)
+## gnovm/tests/files/const63.gno:5 [↗](../../../../../.worktrees/gno-review-5867/gnovm/tests/files/const63.gno#L5) [posted](https://github.com/gnolang/gno/pull/5867#discussion_r3507150847)
 The comment points at `go run _verify/const63_go/main.go`, but the PR adds no such file, so the Go cross-check it names cannot be run. Drop the reference or add the file.
 
-## gnovm/pkg/gnolang/values_conversions.go:1390 [↗](../../../../../.worktrees/gno-review-5867/gnovm/pkg/gnolang/values_conversions.go#L1390)
+## gnovm/pkg/gnolang/values_conversions.go:1390 [↗](../../../../../.worktrees/gno-review-5867/gnovm/pkg/gnolang/values_conversions.go#L1390) [posted](https://github.com/gnolang/gno/pull/5867#discussion_r3507150853)
 The error prints the rational form, so a value written as `1.2` is reported as `6/5 not an exact integer`, which is harder to trace back to the source than the decimal. Rendering the decimal form would match what the user wrote.
