@@ -126,7 +126,7 @@ The line text is gone; the output is an empty math element.
 </details>
 
 ## gno.land/pkg/gnoweb/markdown/ext_math.go:261-265 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L261)
-The converter is built once per renderer and shared across all requests, but each conversion mutates its fields, so concurrent page views data-race on it (`go test -race` confirms). Fix: build the converter per render, or use the stateless `InlineStyle`/`DisplayStyle`.
+The converter is built once per renderer and shared across all requests, but each conversion mutates its fields, so concurrent page views data-race on it. Fix: build the converter per render, or use the stateless `InlineStyle`/`DisplayStyle`.
 
 <details><summary>repro</summary>
 
