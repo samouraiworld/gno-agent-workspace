@@ -1,4 +1,5 @@
 # Review: PR #4879
+Posted: https://github.com/gnolang/gno/pull/4879#pullrequestreview-4616808005
 Event: REQUEST_CHANGES
 
 ## Body
@@ -6,7 +7,7 @@ The math extension renders into the markdown pipeline behind every realm and boa
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/4xxx/4879-gnoweb-math-extension/1-df4af7fd1/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go:144-165 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go#L144)
+## gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go:144-165 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go#L144) [posted](https://github.com/gnolang/gno/pull/4879#discussion_r3512473180)
 The serializer writes element text and attribute values without HTML-escaping, so `\text{</math><script>…}` and `\class{x" onclick="…}{y}` inject live script and event handlers into any rendered page. Fix: HTML-escape `n.Text` and attribute values in `MMLNode.Write`.
 
 <details><summary>repro</summary>
@@ -49,7 +50,7 @@ OUT: <p> <math ...> <semantics> <mrow> <mi class="x" onclick="alert(1)">y</mi> <
 The in-content `</math><script>` and the injected `onclick` attribute appear verbatim in the page DOM.
 </details>
 
-## gno.land/pkg/gnoweb/markdown/ext_math.go:294-304 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L294)
+## gno.land/pkg/gnoweb/markdown/ext_math.go:294-304 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L294) [posted](https://github.com/gnolang/gno/pull/4879#discussion_r3512473193)
 On a conversion error the renderer writes the raw LaTeX into the wrapper unescaped, and a mismatched delimiter triggers it: `$\begin{matrix}</span><script>…$` runs the script. This is a separate sink, so fixing the serializer does not close it. Fix: HTML-escape `tex` in both fallback branches.
 
 <details><summary>repro</summary>
@@ -85,7 +86,7 @@ rm gno.land/pkg/gnoweb/markdown/fallback_repro_test.go
 The `</span>` closes the wrapper and `<script>alert(1)</script>` is live HTML.
 </details>
 
-## gno.land/pkg/gnoweb/markdown/ext_math.go:192-204 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L192)
+## gno.land/pkg/gnoweb/markdown/ext_math.go:192-204 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L192) [posted](https://github.com/gnolang/gno/pull/4879#discussion_r3512473201)
 The block parser opens a math block on any line starting with `\` or `$` and returns a node even when no delimiter matched, so the whole line is consumed and rendered as an empty `<math>` with its text dropped. Lines like `\alpha …`, escaped `\_`, or `$100 is the price` silently vanish. Fix: a line that isn't a complete math expression should render as its literal text, not be swallowed.
 
 <details><summary>repro</summary>
@@ -125,7 +126,7 @@ OUT: <math ...> <semantics> <none></none> <annotation encoding="application/x-te
 The line text is gone; the output is an empty math element.
 </details>
 
-## gno.land/pkg/gnoweb/markdown/ext_math.go:261-265 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L261)
+## gno.land/pkg/gnoweb/markdown/ext_math.go:261-265 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L261) [posted](https://github.com/gnolang/gno/pull/4879#discussion_r3512473209)
 The converter is built once per renderer and shared across all requests, but each conversion mutates its fields, so concurrent page views data-race on it. Fix: build the converter per render, or use the stateless `InlineStyle`/`DisplayStyle`.
 
 <details><summary>repro</summary>
@@ -173,7 +174,7 @@ FAIL
 ```
 </details>
 
-## gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go:129-179 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go#L129)
+## gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go:129-179 [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go#L129) [posted](https://github.com/gnolang/gno/pull/4879#discussion_r3512473212)
 Rendered output grows quadratically with nesting depth and nothing caps it: 56KB of nested `\sqrt` produces 128MB, and ~200KB OOM-kills the gnoweb process. Fix: cap the input length and/or output size per math block.
 
 <details><summary>repro</summary>
