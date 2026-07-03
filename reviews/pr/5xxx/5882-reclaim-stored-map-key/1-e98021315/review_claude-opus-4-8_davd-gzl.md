@@ -10,7 +10,7 @@ Local worktree: `git -C gno worktree add .worktrees/gno-review-5882 e98021315`
 **Verdict: APPROVE** — minimal, correct fix; red→green verified, generalizes to struct keys, single caller, no new defect.
 
 ## Summary
-The `delete` builtin removed a map entry, then detached the wrong object: it marked the caller's argument key (`itv`), not the distinct stored key object the map holds (an `iv.Copy` child created at insertion). The stored key kept `RefCount == 1`, was never marked deleted, and was never removed from the store, so a `[1]int`-keyed realm leaked ~213 bytes per add/delete cycle (a 2-int struct key leaks ~252), and the storage deposit was never refunded. The value side already used the stored value and was correct. The fix has `MapValue.DeleteForKey` return the stored key it removed; the builtin marks that key's object in `DidUpdate`. Deterministic; primitive keys have no separate object, so they were and remain unaffected.
+The `delete` builtin removed a map entry, then detached the wrong object: it marked the caller's argument key (`itv`), not the distinct stored key object the map holds (an `iv.Copy` child created at insertion). The stored key kept `RefCount == 1`, was never marked deleted, and was never removed from the store, so a `[1]int`-keyed realm leaked ~213 bytes per add/delete cycle (a 2-int struct key leaks ~252), and the storage deposit was never refunded. The value side already used the stored value and was correct. The fix has `MapValue.DeleteForKey` return the stored key it removed; the builtin marks that key's object in `DidUpdate`. Deterministic. The leak is specific to array and struct keys, which insertion deep-copies into a distinct object the map owns; primitive keys have no separate object, and pointer keys share the pointee with the caller, so `GetFirstObject` on the old argument key already resolved to the right object. Both were and remain unaffected.
 
 ## Glossary
 - storage deposit: per-realm refundable charge for on-chain storage, released in proportion to the byte delta on removal.
@@ -31,7 +31,7 @@ None.
 - `gnovm/tests/files/zrealm_map5.gno` — the regression golden covers only an array (`[1]int`) key; struct and pointer keys are not asserted.
   <details><summary>details</summary>
 
-  The fix is type-agnostic: `GetFirstObject` returns the array/struct value directly or loads a pointer's base, so one code path serves all object-key shapes. A struct-keyed delete reclaims the key identically (verified: `d[...:8](-252)` emitted for a `struct{A,B int}` key), so the array test is representative and the gap is low-risk. A second golden with a struct key would lock the general case. Not posted.
+  The fix is type-agnostic: `GetFirstObject` returns the array/struct value directly, so one code path serves both value-composite key shapes. Verified behaviorally: a `struct{A,B int}` key reclaims identically (`d[...:8](-252)`); deleting an entry whose array-key value is also held through another variable leaves that outside copy readable and reclaims only the map's private copy (`d[...:9](-213)`, `keep[0]` still 1); a pointer key emits no key deletion because the pointee is shared and only decremented. The array golden is representative and the gap is low-risk. A second golden with a struct key would lock the general case. Not posted.
   </details>
 
 ## Suggestions
