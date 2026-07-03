@@ -7,7 +7,7 @@ Looks good. Verified on e98021315: reverting to mark the argument key instead of
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5882-reclaim-stored-map-key/1-e98021315/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## gnovm/pkg/gnolang/values.go:828-840 [↗](../../../../../.worktrees/gno-review-5882/gnovm/pkg/gnolang/values.go#L828)
-DeleteForKey already takes the machine, so it could mark the removed key deleted itself instead of returning it for the builtin to mark. Was keeping it a pure container op and consolidating the realm bookkeeping in the builtin a deliberate split?
+DeleteForKey has the machine and could mark the removed key itself instead of returning it for the builtin. Deliberate split to keep it a pure container op?
 
 ## gnovm/tests/files/zrealm_map5.gno:1 [↗](../../../../../.worktrees/gno-review-5882/gnovm/tests/files/zrealm_map5.gno#L1)
 Missing test: a struct key, which runs the same value-composite reclaim path the array-key golden covers.
