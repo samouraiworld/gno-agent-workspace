@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Verified on ee9f7e0b0: booted the eval handler and drove each cap. A 2 MiB body, a 100 KiB expression, and a 2000-byte pkg_path each return 400, and a 64 KiB expression still passes. The suite runs none of these paths.
+Verified on ee9f7e0b0. A 2 MiB body, a 100 KiB expression, and a 2000-byte pkg_path each return 400. A 64 KiB expression still passes. The suite covers none of these paths.
 
 On the sizes you asked about: 1024 and 64 KiB are safely generous. Real pkg paths run to a few dozen bytes and expressions are short function calls, so both leave large headroom while still bounding what reaches the RPC node.
 
@@ -69,5 +69,5 @@ rm gno.land/pkg/gnoweb/feature/playground/caps_verify_test.go
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5897-serveeval-json-size-cap/1-ee9f7e0b0/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## gno.land/pkg/gnoweb/feature/playground/handler.go:225 [↗](../../../../../.worktrees/gno-review-5897/gno.land/pkg/gnoweb/feature/playground/handler.go#L225)
-The body cap, the pkg_path cap, and the expression cap add no test, though the [`TestHandlerPlaygroundEval`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L100-L141) table just above tests every other eval case and the file already covers the fork cap and the decompression bomb. Without a test a later edit can relax or invert a cap and CI stays green. The three cases in the repro above are exactly the assertions to add.
+The body, pkg_path, and expression caps add no test, though the [`TestHandlerPlaygroundEval`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L100-L141) table just above covers every other eval case and the file tests the fork cap and the decompression bomb. Without one, a later edit can relax or invert a cap and CI stays green. The three repro cases are the assertions to add.
 </content>
