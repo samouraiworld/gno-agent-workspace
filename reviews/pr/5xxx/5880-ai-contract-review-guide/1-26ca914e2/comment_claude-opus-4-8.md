@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Looks good. The seven checks faithfully distill `gno-security-guide.md` §5, and the cited symbols all exist and behave as shown. Verified on 26ca914e289cdd917c0c19909bd40d6edd35ce49: a bare `var savedRealm realm` runs clean, and storing a live realm into it panics at transaction finalize, not attach.
+The seven checks distill `gno-security-guide.md` §5; I checked each WRONG/RIGHT pair against that guide and the VM, and every cited symbol resolves. Repro ran on 26ca914e289cdd917c0c19909bd40d6edd35ce49.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5880-ai-contract-review-guide/1-26ca914e2/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
@@ -45,5 +45,5 @@ ok  	github.com/gnolang/gno/gnovm/pkg/gnolang
 The relationship table lists `misc/audit-pattern-harness/`, which is not on master. It ships in the still-open #5835. If this merges first, the row points at a path that does not exist yet.
 
 ## docs/resources/gno-ai-contract-review.md:80-82 [↗](../../../../../.worktrees/gno-review-5880/docs/resources/gno-ai-contract-review.md#L80)
-Check 1 makes `if !cur.IsCurrent()` the standard before reading caller identity, but this `Save` example reads `cur.Previous().Address()` without it. A reader copying it gets an unguarded caller read that contradicts Check 1. Add the guard here, or note in Check 1 that it is needed only when the realm value is caller-passed rather than the live `cur`.
+Check 1 makes `if !cur.IsCurrent()` the standard before reading caller identity, but this `Save` example reads `cur.Previous().Address()` without it. A reader copying it gets an unguarded caller read that contradicts Check 1. Either add the guard here or note in Check 1 that it applies only when the realm is caller-passed, not the live `cur`.
 </content>
