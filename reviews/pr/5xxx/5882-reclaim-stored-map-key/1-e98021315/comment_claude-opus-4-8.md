@@ -10,9 +10,9 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/revi
 DeleteForKey already takes the machine, so it could mark the removed key deleted itself instead of returning it for the builtin to mark. Was keeping it a pure container op and consolidating the realm bookkeeping in the builtin a deliberate split?
 
 ## gnovm/tests/files/zrealm_map5.gno:1 [↗](../../../../../.worktrees/gno-review-5882/gnovm/tests/files/zrealm_map5.gno#L1)
-The regression golden covers only an array key. A struct key runs the same value-composite reclaim path, so a companion golden locks the general case.
+Missing test: a struct key, which runs the same value-composite reclaim path the array-key golden covers.
 
-<details><summary>test</summary>
+<details><summary>test cases</summary>
 
 ```go
 // PKGPATH: gno.land/r/test
