@@ -8,3 +8,32 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/revi
 
 ## gnovm/pkg/gnolang/values.go:828-840 [↗](../../../../../.worktrees/gno-review-5882/gnovm/pkg/gnolang/values.go#L828)
 DeleteForKey already takes the machine, so it could mark the removed key deleted itself instead of returning it for the builtin to mark. Was keeping it a pure container op and consolidating the realm bookkeeping in the builtin a deliberate split?
+
+## gnovm/tests/files/zrealm_map5.gno:1 [↗](../../../../../.worktrees/gno-review-5882/gnovm/tests/files/zrealm_map5.gno#L1)
+The regression golden covers only an array key. A struct key runs the same value-composite reclaim path, so a companion golden locks the general case.
+
+<details><summary>test</summary>
+
+```go
+// PKGPATH: gno.land/r/test
+package test
+
+type Key struct{ A, B int }
+
+var m map[Key]int
+
+func init() {
+	m = map[Key]int{Key{1, 2}: 10, Key{3, 4}: 20}
+}
+
+func main(cur realm) {
+	delete(m, Key{1, 2})
+	println("len:", len(m))
+}
+
+// Output:
+// len: 1
+```
+
+Its `// Realm:` golden ends with `d[...:8](-252)`, the reclaimed struct key. The full file with golden, ready to drop in as `gnovm/tests/files/zrealm_map6.gno`: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5882-reclaim-stored-map-key/1-e98021315/tests/zrealm_map6.gno
+</details>

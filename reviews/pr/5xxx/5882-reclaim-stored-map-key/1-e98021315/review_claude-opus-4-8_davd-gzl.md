@@ -28,10 +28,10 @@ None.
 None.
 
 ## Missing Tests
-- `gnovm/tests/files/zrealm_map5.gno` — the regression golden covers only an array (`[1]int`) key; struct and pointer keys are not asserted.
+- **[struct key path unasserted]** [`gnovm/tests/files/zrealm_map5.gno`](https://github.com/gnolang/gno/blob/e98021315/gnovm/tests/files/zrealm_map5.gno) · [↗](../../../../../.worktrees/gno-review-5882/gnovm/tests/files/zrealm_map5.gno) — the regression golden covers only an array (`[1]int`) key; the struct key path is not asserted.
   <details><summary>details</summary>
 
-  The fix is type-agnostic: `GetFirstObject` returns the array/struct value directly, so one code path serves both value-composite key shapes. Verified behaviorally: a `struct{A,B int}` key reclaims identically (`d[...:8](-252)`); deleting an entry whose array-key value is also held through another variable leaves that outside copy readable and reclaims only the map's private copy (`d[...:9](-213)`, `keep[0]` still 1); a pointer key emits no key deletion because the pointee is shared and only decremented. The array golden is representative and the gap is low-risk. A second golden with a struct key would lock the general case. Not posted.
+  The fix is type-agnostic: `GetFirstObject` returns the array/struct value directly, so one code path serves both value-composite key shapes. Verified behaviorally: a `struct{A,B int}` key reclaims identically (`d[...:8](-252)`); deleting an entry whose array-key value is also held through another variable leaves that outside copy readable and reclaims only the map's private copy (`d[...:9](-213)`, `keep[0]` still 1); a pointer key emits no key deletion because the pointee is shared and only decremented. The array golden is representative and the gap is low-risk. A companion struct-key golden that locks the general case is ready to add at [`tests/zrealm_map6.gno`](tests/zrealm_map6.gno) (red→green verified: repointing the key marking at the argument key drops the `d[...:8](-252)` line); it ships in comment.md for the author to paste.
   </details>
 
 ## Suggestions
