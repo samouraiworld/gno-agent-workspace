@@ -4,6 +4,7 @@ Shared vocabulary for gnolang/gno review and reporting, loaded by `skills/review
 
 - addpkg: the transaction (`maketx addpkg`) that uploads a package or realm to the chain.
 - Allocator: VM component tracking memory allocation and charging allocation gas; `fallbackAllocator` is the global, effectively-unbounded (`MaxInt64` budget) instance for pure-function or no-Machine paths.
+- Amino: gno's deterministic serialization codec (`tm2/pkg/amino`) for on-chain object state, genesis, and RPC; unlike `encoding/json` it honors `,omitempty` on struct-typed fields, so stripping the tag changes JSON output.
 - app hash: the per-block commitment to application state (the multistore's Merkle root), agreed in consensus; two honest nodes computing different app hashes for the same block halts the chain.
 - banker: stdlib API (package `chain/banker`, interface `banker.Banker`, constructed via `banker.NewBanker`) for issuing, sending, and burning coins from a realm.
 - block: a GnoVM scope frame (`Block`, `values.go`). A runtime block is one execution scope (a call frame or an if/for/range/switch/block scope), created per execution and pushed onto `Machine.Blocks`; distinct from a static block (`StaticBlock`, owned by a `BlockNode`, one per source node) and from file/package blocks (long-lived, referenced by `FuncValue.Parent` and persisted). Runtime blocks die when popped because closures capture heap items, not blocks.
