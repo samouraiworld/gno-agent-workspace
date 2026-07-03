@@ -1,73 +1,40 @@
 # Review: PR [#5897](https://github.com/gnolang/gno/pull/5897)
+Posted: https://github.com/gnolang/gno/pull/5897#pullrequestreview-4627000703
 Event: APPROVE
 
 ## Body
-Verified on ee9f7e0b0. A 2 MiB body, a 100 KiB expression, and a 2000-byte pkg_path each return 400. A 64 KiB expression still passes. The suite covers none of these paths.
+Verified on ee9f7e0b0: each cap rejects the oversized input it guards, and an expression at the 64 KiB limit still passes. The suite covers none of these paths.
 
-On the sizes you asked about: 1024 and 64 KiB are safely generous. Real pkg paths run to a few dozen bytes and expressions are short function calls, so both leave large headroom while still bounding what reaches the RPC node.
-
-<details><summary>repro</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 5897 -R gnolang/gno
-cat > gno.land/pkg/gnoweb/feature/playground/caps_verify_test.go <<'EOF'
-package playground
-
-import (
-	"bytes"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
-)
-
-func TestCapsVerify(t *testing.T) {
-	h := New(Deps{
-		Client:  &stubClient{evalResult: []byte("ok")},
-		Logger:  discardLogger(),
-		Domain:  "gno.land",
-		Remote:  "http://localhost:26657",
-		ChainId: "test",
-	})
-	handler := h.EvalHandler()
-	post := func(body string) *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodPost, "/_/api/eval", bytes.NewBufferString(body))
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
-		return rr
-	}
-	for _, c := range []struct{ name, body string }{
-		{"body 2MiB", fmt.Sprintf(`{"pkg_path":"r/x","expression":"%s"}`, strings.Repeat("a", 2<<20))},
-		{"expr 100KiB", fmt.Sprintf(`{"pkg_path":"r/x","expression":"%s"}`, strings.Repeat("a", 100*1024))},
-		{"pkgpath 2000", fmt.Sprintf(`{"pkg_path":"%s","expression":"R()"}`, strings.Repeat("a", 2000))},
-	} {
-		if rr := post(c.body); rr.Code != http.StatusBadRequest {
-			t.Errorf("%s: got %d, want 400", c.name, rr.Code)
-		} else {
-			t.Logf("%s -> 400 %s", c.name, strings.TrimSpace(rr.Body.String()))
-		}
-	}
-	if rr := post(fmt.Sprintf(`{"pkg_path":"r/x","expression":"%s"}`, strings.Repeat("a", 64*1024))); rr.Code != http.StatusOK {
-		t.Errorf("expr==64KiB: got %d, want 200", rr.Code)
-	}
-}
-EOF
-go test ./gno.land/pkg/gnoweb/feature/playground/ -run TestCapsVerify -v
-rm gno.land/pkg/gnoweb/feature/playground/caps_verify_test.go
-```
-
-```
-    caps_verify_test.go:35: body 2MiB -> 400 {"error":"invalid request body"}
-    caps_verify_test.go:35: expr 100KiB -> 400 {"error":"pkg_path or expression is too long"}
-    caps_verify_test.go:35: pkgpath 2000 -> 400 {"error":"pkg_path or expression is too long"}
---- PASS: TestCapsVerify
-```
-</details>
+The sizes you asked about are fine: real pkg paths are dozens of bytes and expressions are short calls, so 1024 and 64 KiB leave plenty of headroom.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5897-serveeval-json-size-cap/1-ee9f7e0b0/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gno.land/pkg/gnoweb/feature/playground/handler.go:225 [↗](../../../../../.worktrees/gno-review-5897/gno.land/pkg/gnoweb/feature/playground/handler.go#L225)
-The body, pkg_path, and expression caps add no test, though the [`TestHandlerPlaygroundEval`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L100-L141) table just above covers every other eval case and the file tests the fork cap and the decompression bomb. Without one, a later edit can relax or invert a cap and CI stays green. The three repro cases are the assertions to add.
-</content>
+## gno.land/pkg/gnoweb/feature/playground/handler.go:225 [↗](../../../../../.worktrees/gno-review-5897/gno.land/pkg/gnoweb/feature/playground/handler.go#L225) [posted](https://github.com/gnolang/gno/pull/5897#discussion_r3520928469)
+Missing test: the three new caps have no coverage. Add to [`TestHandlerPlaygroundEval`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L100-L141):
+
+<details><summary>test cases</summary>
+
+```go
+{
+	name:       "oversized body",
+	method:     http.MethodPost,
+	body:       `{"pkg_path":"r/x","expression":"` + strings.Repeat("a", maxEvalBodyBytes+1) + `"}`,
+	wantStatus: http.StatusBadRequest,
+	wantError:  "invalid request body",
+},
+{
+	name:       "oversized pkg_path",
+	method:     http.MethodPost,
+	body:       `{"pkg_path":"` + strings.Repeat("a", maxEvalPkgPathLen+1) + `","expression":"Render(\"\")"}`,
+	wantStatus: http.StatusBadRequest,
+	wantError:  "too long",
+},
+{
+	name:       "oversized expression",
+	method:     http.MethodPost,
+	body:       `{"pkg_path":"r/x","expression":"` + strings.Repeat("a", maxEvalExpressionLen+1) + `"}`,
+	wantStatus: http.StatusBadRequest,
+	wantError:  "too long",
+},
+```
+</details>

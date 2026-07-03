@@ -41,7 +41,33 @@ None.
 - **[a guard with no test can be silently dropped or inverted later]** `gno.land/pkg/gnoweb/feature/playground/handler.go:225` — the body cap, the `pkg_path` cap, and the `expression` cap add no test case.
   <details><summary>details</summary>
 
-  [`TestHandlerPlaygroundEval`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L100-L141) · [↗](../../../../../.worktrees/gno-review-5897/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L100) is a table right above the changed code with cases for valid, missing-field, invalid-JSON, and wrong-method, and the same file already tests the fork cap ([`handler_test.go:350`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L350) · [↗](../../../../../.worktrees/gno-review-5897/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L350)) and the decompression bomb ([`handler_test.go:278`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L278) · [↗](../../../../../.worktrees/gno-review-5897/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L278)). Adding three rows (oversized body, oversized `pkg_path`, oversized `expression`) matches the file's own convention of testing every guard and pins the caps so a later edit can't quietly relax them. The [Behavior verified](#behavior-verified) table above is exactly the assertions to encode. Fix: add the three cases to the existing table.
+  [`TestHandlerPlaygroundEval`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L100-L141) · [↗](../../../../../.worktrees/gno-review-5897/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L100) tests every other eval case, and the same file tests the fork cap ([`handler_test.go:350`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L350) · [↗](../../../../../.worktrees/gno-review-5897/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L350)) and the decompression bomb ([`handler_test.go:278`](https://github.com/gnolang/gno/blob/ee9f7e0b0/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L278) · [↗](../../../../../.worktrees/gno-review-5897/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L278)), but none of the three new caps. Add three rows to the table, keyed off the constants:
+
+  ```go
+  {
+  	name:       "oversized body",
+  	method:     http.MethodPost,
+  	body:       `{"pkg_path":"r/x","expression":"` + strings.Repeat("a", maxEvalBodyBytes+1) + `"}`,
+  	wantStatus: http.StatusBadRequest,
+  	wantError:  "invalid request body",
+  },
+  {
+  	name:       "oversized pkg_path",
+  	method:     http.MethodPost,
+  	body:       `{"pkg_path":"` + strings.Repeat("a", maxEvalPkgPathLen+1) + `","expression":"Render(\"\")"}`,
+  	wantStatus: http.StatusBadRequest,
+  	wantError:  "too long",
+  },
+  {
+  	name:       "oversized expression",
+  	method:     http.MethodPost,
+  	body:       `{"pkg_path":"r/x","expression":"` + strings.Repeat("a", maxEvalExpressionLen+1) + `"}`,
+  	wantStatus: http.StatusBadRequest,
+  	wantError:  "too long",
+  },
+  ```
+
+  All three subtests pass on ee9f7e0b0 when added to the table.
   </details>
 
 ## Suggestions
@@ -53,4 +79,3 @@ None.
 
 ## Open questions
 - The PR body asks whether 1024 (`pkg_path`) and 64 KiB (`expression`) are good sizes. They are safely generous: real pkg paths run to a few dozen bytes and expressions are short function calls, so both caps leave large headroom while still bounding the forward to the RPC node. Answered in the comment Body rather than posted as a finding.
-</content>
