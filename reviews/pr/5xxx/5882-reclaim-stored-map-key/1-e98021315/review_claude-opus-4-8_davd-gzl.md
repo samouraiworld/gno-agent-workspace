@@ -35,7 +35,11 @@ None.
   </details>
 
 ## Suggestions
-None.
+- [design: where the realm bookkeeping lives] [`values.go:828-840`](https://github.com/gnolang/gno/blob/e98021315/gnovm/pkg/gnolang/values.go#L828-L840) · [↗](../../../../../.worktrees/gno-review-5882/gnovm/pkg/gnolang/values.go#L828) — `DeleteForKey` returns the removed key for the builtin to mark, mirroring `GetValueForKey` returning the value; consider whether the key's `DidUpdate` belongs inside `DeleteForKey` instead.
+  <details><summary>details</summary>
+
+  The builtin marks both the key object and the value object via `DidUpdate` at [`uverse.go:1021-1028`](https://github.com/gnolang/gno/blob/e98021315/gnovm/pkg/gnolang/uverse.go#L1021-L1028), keeping realm bookkeeping in one place while `MapValue` methods stay pure container ops. `DeleteForKey` already takes `m *Machine` and `m.Realm.DidUpdate` is nil-safe, so it could mark the key itself; that would consolidate the key path but split it from the value-side marking. Either shape is fine. Posted as a question so the author can confirm the layering was deliberate.
+  </details>
 
 ## Open questions
 - Reassignment of an existing object key (`m[k] = v2` with a fresh equal key, `GetPointerForKey` `mli.Key = key` at [`values.go:791`](https://github.com/gnolang/gno/blob/e98021315/gnovm/pkg/gnolang/values.go#L791)) already reclaims the old key object and creates the new one (verified: finalize emits `d[...:8]` + `c[...:10]`), so it does not share this leak. No action; confirms the fix's scope is the delete path only.
