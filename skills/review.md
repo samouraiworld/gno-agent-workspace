@@ -132,9 +132,11 @@ Verify every finding against the actual file before including it — never from 
 
 For a PR that touches gno code (the GnoVM, stdlibs, or `.gno` packages and realms), load `skills/invariant-catalog.md`, walk every class against the diff, and confirm coverage before writing the Output. Skip for docs- or tooling-only PRs with no gno-code change.
 
-### (Optional) Write adversarial tests
+### Write tests for test-shaped findings
 
 When findings suggest fragile or under-tested code, write edge-case tests, run them, report failures. Save to `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/tests/`.
+
+When a finding's fix is a test the author should add, ship the test, not a description. Write it under `tests/`, assert the post-fix state, run it (red→green when it also proves a bug), and embed it in the comment.md finding to paste in. Fill a filetest golden by seeding the `// Realm:` directive with a placeholder line, then running `go test -run 'TestFiles/<name>.gno$' -update-golden-tests .` from `gnovm/pkg/gnolang/`; an empty `// Realm:` is stripped, not populated. A test-shaped finding that never reaches comment.md may stay prose.
 
 Each test file starts with, before the `package` line, a `/* Run: ... */` block with exact repro commands (use `/* */`, not `//` per line).
 
@@ -231,7 +233,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 - **[<priority tag>]** `file:line` — <one-line TL;DR of the missing scenario>
   <details><summary>details</summary>
 
-  <Why the gap matters, the edge case, link to adversarial test if written.>
+  <Why the gap matters, the edge case, then the ready-to-add test that closes it; write and link the `tests/` artifact.>
   </details>
 
 ## Suggestions
@@ -339,6 +341,7 @@ Rules:
 - Verify every anchor by reading those lines in the worktree before drafting; the anchor must cover exactly the lines the sentence talks about.
 - Append a local IDE link to each anchor header: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space.
 - Inline comment visible text = the finding's TL;DR from the review file with no severity tag (no `Nit` / `Optional` / `blocking` prefix), the bracketed plain-English priority tag dropped. Hard cap 1-3 visible sentences. No headers, no bold. Plain English, essentials only: the problem and why it matters — short sentences, no stacked technical clauses, no symbol-chain walkthroughs; the reader must get it in one pass. Cut scenario-painting: keep the fact and the stake. Don't re-prove the claim in the visible text: mechanism detail, secondary evidence, and source enumerations belong in the repro block or the full review, not inline. If a repro or the review carries the proof, the visible text asserts the claim in one clause. Before: "It's fine here because the parent dir is already 700, but a half-sentence saying the parent dir is the real guard would stop a reader who relocates the socket from relying on a perm that can silently not apply." After: "The real guard is the 700 parent dir; say so, or a reader who relocates the socket loses the protection." Lead with the specific gap (the shape that slips past, the line that breaks); never open by explaining what the author's own code does ("the guard measures how far each type can expand"). Assume the author knows their own mechanism. Never restate what the PR does or claims, inline included — the author wrote it; state the gap directly, never "the property the PR is about" / "what the PR claims". Same plain register in any prose comments inside a repro block (txtar header comments included): state the shape and the gap, not a tutorial. Default to no fix: state the problem and stop, the author figures out the remedy. Add a fix sentence only when the remedy is genuinely non-obvious and changes what the author would do, and then name the desired outcome, never the implementation path or an internal symbol ("reject those too", not "call `evalStaticTypeOf` and branch on the `Func` field"). Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
+- A missing-test finding opens its visible text with `Missing test:`, then names the uncovered scenario in one clause. It carries the ready-to-add cases in a collapsed `<details><summary>test cases</summary>` block in the file's own test style: the full filetest or table rows when short, or the source plus a dual link to the large `tests/` golden. Paste-ready as-is.
 - State findings as facts ("X hangs forever"), not questions. A genuine question is one terse line, posted only if the answer changes the verdict or the author's next action.
 - Post only comments that change what the author does: fix, decide, or answer. A finding whose details end "no change needed" / "flagging for whoever touches this next" stays in the review file and never reaches comment.md.
 - Never explain routine fixes the author would do anyway (merge master, regenerate assets, re-run a flaky job). A red CI check with a routine cause gets one short Body line ("not a code problem"), no instructions, no repro; detail it only when the cause is non-obvious or changes what the author must do.
