@@ -1,9 +1,9 @@
 /* Run: from a gno checkout:
 gh pr checkout 5882 -R gnolang/gno && git checkout e98021315
-curl -fsSL -o gnovm/tests/files/zrealm_map7.gno \
-  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5882-reclaim-stored-map-key/1-e98021315/tests/zrealm_map7.gno
-go test -v -run 'TestFiles/zrealm_map7.gno$' ./gnovm/pkg/gnolang/
-rm gnovm/tests/files/zrealm_map7.gno
+curl -fsSL -o gnovm/tests/files/zrealm_map6.gno \
+  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5882-reclaim-stored-map-key/1-e98021315/tests/zrealm_map6.gno
+go test -v -run 'TestFiles/zrealm_map6.gno$' ./gnovm/pkg/gnolang/
+rm gnovm/tests/files/zrealm_map6.gno
 */
 
 // PKGPATH: gno.land/r/test
