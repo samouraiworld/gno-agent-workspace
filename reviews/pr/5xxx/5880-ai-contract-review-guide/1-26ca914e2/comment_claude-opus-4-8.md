@@ -4,6 +4,8 @@ Event: REQUEST_CHANGES
 ## Body
 These checklist findings share one root cause: the Review Checklist restates the Quick Checks it summarizes, and each restatement drifts. Some lines are narrower than the check, so they pass code the check calls WRONG; one is broader than the source, so it flags patterns the guide blesses. Verified on 26ca914e2: a `/p/`-typed-pointer callback writes victim state where an `/r/`-declared parameter type is blocked by readonly taint, and a bare `var savedRealm realm` runs clean while assigning a live realm panics only at transaction finalize.
 
+The relationship table's `misc/audit-pattern-harness/` row ships with #5835; merge that before this so the path resolves.
+
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5880-ai-contract-review-guide/1-26ca914e2/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## docs/resources/gno-ai-contract-review.md:48-56 [↗](../../../../../.worktrees/gno-review-5880/docs/resources/gno-ai-contract-review.md#L48)
