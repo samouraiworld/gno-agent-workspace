@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-The reference is accurate: every flag and query endpoint I checked matches `tm2/pkg/crypto/keys/client` and `gno.land/pkg/sdk/vm/handler.go`. Running `make generate` in `docs/` regenerates `misc/docs/sidebar.json` and clears the red `docs` check; the two stale nav slugs and the red check share that root cause.
+The reference is accurate: every flag and query endpoint I checked matches `tm2/pkg/crypto/keys/client` and `gno.land/pkg/sdk/vm/handler.go`. Running `make generate` in `docs/` regenerates `misc/docs/sidebar.json` and clears the red `docs` check; the two stale nav slugs and the red check share that root cause. I applied all the fixes below locally and re-ran the `docs` gate: `make generate -B` swaps the two dead slugs and is idempotent, `make lint` reports no issues. The linter does not check cross-file heading anchors, so I resolved the repointed link separately; `./gnokey-reference.md#airgapped-signing` lands on the `Airgapped signing` heading.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5873-rewrite-gnokey-guide-reference/1-66552ff7a/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
@@ -16,4 +16,4 @@ The testnet URL cell `` `https://``rpc.<testN>...` `` breaks the anti-autolink s
 "Calling `Deposit` on the `wugnot` realm to wrap `1000ugnot`." has no main verb. Fold it into the surrounding sentence or make it a full one.
 
 ## docs/builders/getting-started.md:369 [↗](../../../../../.worktrees/gno-review-5873/docs/builders/getting-started.md#L369)
-The link text reads "`addpkg` in Interact with gnokey" but the target is now the page titled "gnokey command reference". The same stale "Interacting with gnokey" label survives in the query-state-api, rpc-clients, gas-fees, glossary, gno-packages, storage-deposit, realms, and example-boards repoints. Links resolve; only the label is stale.
+The link text reads "`addpkg` in Interact with gnokey" but the target is now the page titled "gnokey command reference". The same stale label sits over reference-page targets in query-state-api.md:6 and :210, rpc-clients.md:29, and gno-packages.md:49. Links resolve; only the label is stale.

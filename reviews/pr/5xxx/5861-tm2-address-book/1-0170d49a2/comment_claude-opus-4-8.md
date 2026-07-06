@@ -11,6 +11,25 @@ Re-adding a peer already in the store refreshes its `LastSeen` in memory but nev
 
 Missing test: eviction order survives a restart when a peer is re-discovered.
 
+<details><summary>fix</summary>
+
+Set `dirty` and bump `generation` unconditionally in `AddPeers`, so a `LastSeen` refresh persists:
+
+```diff
+ 		key := addr.String()
+-		if _, exists := s.peers[key]; !exists {
+-			s.dirty = true
+-			s.generation++
+-		}
++		s.dirty = true
++		s.generation++
+
+ 		s.peers[key] = &knownAddress{Addr: addr, LastSeen: time.Now()}
+```
+
+`TestStore_ReAdd_PersistsLastSeen` flips red to green and the discovery and config suites stay clean under `-race`.
+</details>
+
 <details><summary>test cases</summary>
 
 Fails red at 0170d49a2, passes once a `LastSeen` refresh marks the store dirty:
@@ -62,5 +81,29 @@ func persistedLastSeen(t *testing.T, path, addr string) int64 {
 ## tm2/pkg/p2p/discovery/store.go:235-243 [↗](../../../../../.worktrees/gno-review-5861/tm2/pkg/p2p/discovery/store.go#L235)
 A second corrupt-file load overwrites the `<file>.corrupt` backup written by the first, losing the earlier copy. A timestamp or counter suffix on the backup name keeps both.
 
+<details><summary>fix</summary>
+
+Timestamp the backup path so each corrupt load keeps its own copy:
+
+```diff
+-		corruptPath := s.filePath + ".corrupt"
++		// Timestamp the backup so a later corrupt load does not overwrite an
++		// earlier one.
++		corruptPath := fmt.Sprintf("%s.%d.corrupt", s.filePath, time.Now().UnixNano())
+```
+
+`TestStore_Load_CorruptFileTreatedAsEmpty` now globs `<file>.*.corrupt`; the suite passes under `-race`.
+</details>
+
 ## tm2/pkg/p2p/config/config.go:17 [↗](../../../../../.worktrees/gno-review-5861/tm2/pkg/p2p/config/config.go#L17)
 `defaultAddrBookPath` is only read, never reassigned, so a `const` fits and removes it as a mutable package global.
+
+<details><summary>fix</summary>
+
+```diff
+-var defaultAddrBookPath = "config/addrbook.json"
++const defaultAddrBookPath = "config/addrbook.json"
+```
+
+`go build` and `go test ./tm2/pkg/p2p/config/...` both pass.
+</details>

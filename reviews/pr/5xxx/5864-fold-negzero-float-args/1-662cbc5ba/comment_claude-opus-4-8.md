@@ -2,12 +2,22 @@
 Event: COMMENT
 
 ## Body
-The negative-zero fold is correct. Verified on 662cbc5ba through a live `maketx call` that `-0.0`, `-0`, and the float32-underflow `-1e-50` reach a realm with the sign bit cleared. Verified that reverting the fold restores the negative zero. The same live path still accepts `NaN` and `Inf`; see the inline note on convert.go:204.
+Verified on 662cbc5ba with a live `maketx call`: `-0.0`, `-0`, and the float32-underflow `-1e-50` reach a realm with the sign bit cleared, and reverting the fold restores the negative zero.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5864-fold-negzero-float-args/1-662cbc5ba/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## gno.land/pkg/sdk/vm/convert.go:204-224 [↗](../../../../../.worktrees/gno-review-5864/gno.land/pkg/sdk/vm/convert.go#L204)
 `NaN`, `Inf`, `-Inf`, and `Infinity` parse through and reach realm code as real floats, since the fold only touches zero. [#5221](https://github.com/gnolang/gno/pull/5221) rejected them for the determinism reason this fold shares. Reject them here too, or say why admitting them is acceptable while folding `-0` is not.
+
+```go
+// after ParseFloat, before the -0 fold
+if math.IsNaN(f64) {
+	panic(fmt.Sprintf("float%d does not accept NaN", precision))
+}
+if math.IsInf(f64, 0) {
+	panic(fmt.Sprintf("float%d does not accept Inf", precision))
+}
+```
 
 <details><summary>repro</summary>
 
@@ -79,4 +89,4 @@ func ClassF64(cur realm, x float64) string {
 </details>
 
 ## gno.land/pkg/sdk/vm/convert.go:219-221 [↗](../../../../../.worktrees/gno-review-5864/gno.land/pkg/sdk/vm/convert.go#L219)
-`if f64 == 0 { f64 = 0 }` reads as a no-op; the sign-bit clear lives only in the comment. Write the zero case so the code shows it clears the sign, instead of relying on the reader trusting the comment.
+`if f64 == 0 { f64 = 0 }` reads as a no-op; the sign-bit clear lives only in the comment. Write the zero case so the code shows it clears the sign, for example `f64 = math.Copysign(0, 1)`.
