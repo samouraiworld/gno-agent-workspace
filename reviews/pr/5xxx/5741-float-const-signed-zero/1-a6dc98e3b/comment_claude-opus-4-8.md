@@ -4,6 +4,8 @@ Event: REQUEST_CHANGES
 ## Body
 Verified on a6dc98e3b against a side-by-side Go run: constant underflow yields +0, runtime underflow keeps -0, both matching Go.
 
+Related: [#5864](https://github.com/gnolang/gno/pull/5864) applies the same -0 to +0 fold to MsgCall float args in `convertFloat`, the maketx entry point this PR leaves untouched.
+
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5741-float-const-signed-zero/1-a6dc98e3b/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## gnovm/pkg/gnolang/values_conversions.go:1020-1025 [↗](../../../../../.worktrees/gno-review-5741/gnovm/pkg/gnolang/values_conversions.go#L1020)
