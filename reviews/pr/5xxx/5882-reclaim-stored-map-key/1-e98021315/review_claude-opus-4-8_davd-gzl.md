@@ -28,17 +28,17 @@ None.
 None.
 
 ## Missing Tests
-- **[struct key path unasserted]** [`gnovm/tests/files/zrealm_map5.gno`](https://github.com/gnolang/gno/blob/e98021315/gnovm/tests/files/zrealm_map5.gno) · [↗](../../../../../.worktrees/gno-review-5882/gnovm/tests/files/zrealm_map5.gno) — the regression golden covers only an array (`[1]int`) key; the struct key path is not asserted.
+- **[over-reclaim unasserted — not posted]** [`gnovm/tests/files/zrealm_map5.gno`](https://github.com/gnolang/gno/blob/e98021315/gnovm/tests/files/zrealm_map5.gno) · [↗](../../../../../.worktrees/gno-review-5882/gnovm/tests/files/zrealm_map5.gno) — no golden asserts that delete reclaims only the map's own key copy when the key value is also held through another reference. Dropped from the posted comment: the guard property comes from map copy semantics, not this fix's delta, so it is a general regression guard rather than coverage of the change.
   <details><summary>details</summary>
 
-  The fix is type-agnostic: `GetFirstObject` returns the array/struct value directly, so one code path serves both value-composite key shapes. Two ready-to-add goldens ship in comment.md for the author to paste, both red→green verified (repointing the key marking at the argument key drops the reclaim): [`tests/zrealm_map6.gno`](tests/zrealm_map6.gno) covers a `struct{A,B int}` key (`d[...:8](-252)`), and [`tests/zrealm_map7.gno`](tests/zrealm_map7.gno) is the over-reclaim guard where the array key value is also held through another variable, so delete reclaims only the map's own copy (`d[...:9](-213)`) and the escaped copy stays readable. A pointer key emits no key deletion because the pointee is shared and only decremented; its golden does not move with this fix, so it stays a note, not a shipped test.
+  A ready-to-add golden stays drafted at [`tests/zrealm_map6.gno`](tests/zrealm_map6.gno), red→green verified (repointing the key marking at the argument key drops the reclaim): it holds the array key value through another variable, so delete reclaims only the map's own copy (`d[...:9](-213)`) and the escaped copy stays readable. A struct-key golden was drafted and dropped as redundant: the fix is type-agnostic, `GetFirstObject` returns the array/struct value directly, so map5's array golden already pins that path. A pointer key emits no key deletion because the pointee is shared and only decremented; its golden does not move with this fix, so it stays a note, not a shipped test.
   </details>
 
 ## Suggestions
 - [design: where the realm bookkeeping lives] [`values.go:828-840`](https://github.com/gnolang/gno/blob/e98021315/gnovm/pkg/gnolang/values.go#L828-L840) · [↗](../../../../../.worktrees/gno-review-5882/gnovm/pkg/gnolang/values.go#L828) — `DeleteForKey` returns the removed key for the builtin to mark, mirroring `GetValueForKey` returning the value; consider whether the key's `DidUpdate` belongs inside `DeleteForKey` instead.
   <details><summary>details</summary>
 
-  The builtin marks both the key object and the value object via `DidUpdate` at [`uverse.go:1021-1028`](https://github.com/gnolang/gno/blob/e98021315/gnovm/pkg/gnolang/uverse.go#L1021-L1028), keeping realm bookkeeping in one place while `MapValue` methods stay pure container ops. `DeleteForKey` already takes `m *Machine` and `m.Realm.DidUpdate` is nil-safe, so it could mark the key itself; that would consolidate the key path but split it from the value-side marking. Either shape is fine. Posted as a question so the author can confirm the layering was deliberate.
+  The builtin marks both the key object and the value object via `DidUpdate` at [`uverse.go:1021-1028`](https://github.com/gnolang/gno/blob/e98021315/gnovm/pkg/gnolang/uverse.go#L1021-L1028), keeping realm bookkeeping in one place while `MapValue` methods only mutate the container itself. `DeleteForKey` already takes `m *Machine` and `m.Realm.DidUpdate` is nil-safe, so it could mark the key itself; that would consolidate the key path but split it from the value-side marking. Either shape is fine. Posted as a question so the author can confirm the layering was deliberate.
   </details>
 
 ## Open questions
