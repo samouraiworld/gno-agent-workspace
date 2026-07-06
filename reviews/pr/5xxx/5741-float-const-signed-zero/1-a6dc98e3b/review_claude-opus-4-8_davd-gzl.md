@@ -23,7 +23,7 @@ Constant vs runtime, verified against real Go on the same inputs:
 | `float32(1e39)` (const overflow) | compile error | compile error |
 | `float32(-1e39)` (const overflow) | compile error | **`-Inf`** |
 
-Last row is the finding; everything else matches Go.
+Last row is the finding; everything else matches Go. The full float9 matrix run under real Go prints the same eight lines as the gno golden ([float9_parity.go](tests/float9_parity.go)), and all four overflow cases are compile errors in Go while gno rejects three and folds only the typed-negative one to `-Inf`.
 
 ## Glossary
 - signed zero: IEEE keeps `+0`/`-0`; Go constants do not, so a constant zero is always `+0`.
