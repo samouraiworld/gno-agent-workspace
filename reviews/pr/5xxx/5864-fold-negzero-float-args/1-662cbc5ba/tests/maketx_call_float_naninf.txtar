@@ -1,0 +1,77 @@
+# Run: from a gno checkout:
+# gh pr checkout 5864 -R gnolang/gno
+# curl -fsSL -o gno.land/pkg/integration/testdata/maketx_call_float_naninf.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5864-fold-negzero-float-args/1-662cbc5ba/tests/maketx_call_float_naninf.txtar
+# go test -run 'TestTestdata/maketx_call_float_naninf' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/maketx_call_float_naninf.txtar
+#
+# convertFloat parses MsgCall float args with apd.NewFromString + strconv.ParseFloat, which accept "NaN"/"Inf"/"-Inf".
+# At 662cbc5ba the fold only clears the -0 sign bit, so NaN and Inf reach realm code as real NaN/Inf float values,
+# which no Gno source constant can express (1.0/0.0 and 1e400 are compile errors). Rejecting them makes the arg path
+# admit exactly the float values a Gno literal can. The negzero cases pass at 662cbc5ba; the NaN/Inf cases fail until rejection lands.
+
+loadpkg gno.land/r/test/floatargs $WORK/realm
+
+gnoland start
+
+# -0.0 folds to +0 with the sign bit cleared (PR 5864, passes at 662cbc5ba).
+gnokey maketx call -pkgpath gno.land/r/test/floatargs -func SignF64 -args '-0.0' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("false" string)'
+
+gnokey maketx call -pkgpath gno.land/r/test/floatargs -func SignF32 -args '-0.0' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("false" string)'
+
+# float32 underflow of a nonzero literal folds too.
+gnokey maketx call -pkgpath gno.land/r/test/floatargs -func SignF32 -args '-1e-50' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '("false" string)'
+
+# NaN must be rejected at parse time (fails at 662cbc5ba: currently accepted).
+! gnokey maketx call -pkgpath gno.land/r/test/floatargs -func ClassF64 -args 'NaN' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'float64 does not accept NaN'
+
+! gnokey maketx call -pkgpath gno.land/r/test/floatargs -func ClassF32 -args 'NaN' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'float32 does not accept NaN'
+
+# Inf and -Inf must be rejected too (fail at 662cbc5ba: currently accepted).
+! gnokey maketx call -pkgpath gno.land/r/test/floatargs -func ClassF64 -args 'Inf' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'float64 does not accept Inf'
+
+! gnokey maketx call -pkgpath gno.land/r/test/floatargs -func ClassF64 -args '-Inf' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'float64 does not accept Inf'
+
+-- realm/realm.gno --
+package floatargs
+
+import (
+	"math"
+	"strconv"
+)
+
+func SignF64(cur realm, x float64) string {
+	return strconv.FormatBool(math.Signbit(x))
+}
+
+func SignF32(cur realm, x float32) string {
+	return strconv.FormatBool(math.Signbit(float64(x)))
+}
+
+func ClassF64(cur realm, x float64) string {
+	if math.IsNaN(x) {
+		return "NaN"
+	}
+	if math.IsInf(x, 0) {
+		return "Inf"
+	}
+	return "finite"
+}
+
+func ClassF32(cur realm, x float32) string {
+	f := float64(x)
+	if math.IsNaN(f) {
+		return "NaN"
+	}
+	if math.IsInf(f, 0) {
+		return "Inf"
+	}
+	return "finite"
+}
