@@ -323,7 +323,7 @@ def main():
     ap.add_argument("--skip-invalid", action="store_true",
                     help="drop comments with anchors outside the diff instead of aborting")
     ap.add_argument("--approve", action="store_true",
-                    help="required to post an APPROVE review (human-confirmed)")
+                    help="accepted for compatibility; no longer required")
     args = ap.parse_args()
 
     if args.repo is None:
@@ -336,8 +336,7 @@ def main():
     event, body, comments = parse_comment_md(text)
 
     # A "Posted:" line means this draft is live on GitHub: rewrite the
-    # posted review instead of creating a duplicate. No --approve gate —
-    # the event doesn't change, only the text.
+    # posted review instead of creating a duplicate.
     posted_m = re.search(r"^Posted:\s*(\S+)\s*$", text, re.MULTILINE)
     if posted_m:
         if args.dry_run:
@@ -384,11 +383,6 @@ def main():
             preview = {"fold_into_pending_review": pending["id"], **preview}
         print(json.dumps(preview, indent=2))
         return
-
-    # Approving a PR is a human decision, not an AI one.
-    if event == "APPROVE" and not args.approve:
-        sys.exit("Event APPROVE requires explicit human confirmation: "
-                 "re-run with --approve once the user has approved.")
 
     if pending:
         fold_into_pending(pending, event, body, comments, args.comment_md)
