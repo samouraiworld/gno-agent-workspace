@@ -1,4 +1,5 @@
 # Review: PR [#5741](https://github.com/gnolang/gno/pull/5741)
+Posted: https://github.com/gnolang/gno/pull/5741#pullrequestreview-4637298706
 Event: REQUEST_CHANGES
 
 ## Body
@@ -8,7 +9,7 @@ Related: [#5864](https://github.com/gnolang/gno/pull/5864) applies the same -0 t
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5741-float-const-signed-zero/1-a6dc98e3b/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gnovm/pkg/gnolang/values_conversions.go:1020-1025 [↗](../../../../../.worktrees/gno-review-5741/gnovm/pkg/gnolang/values_conversions.go#L1020)
+## gnovm/pkg/gnolang/values_conversions.go:1020-1025 [↗](../../../../../.worktrees/gno-review-5741/gnovm/pkg/gnolang/values_conversions.go#L1020) [posted](https://github.com/gnolang/gno/pull/5741#discussion_r3530051131)
 A negative typed constant that overflows float32, like `float32(-1e39)`, narrows to `-Inf` instead of a compile error. Go and gno's go/types checker both reject it, but the VM does not. The narrowing check only tests the upper bound, so reject values below `-MaxFloat32` too.
 
 <details><summary>repro</summary>
