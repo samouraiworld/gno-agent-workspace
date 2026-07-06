@@ -7,7 +7,7 @@ Local worktree: `git -C gno worktree add .worktrees/gno-review-5880 26ca914e2`
 
 **TL;DR:** Adds `docs/resources/gno-ai-contract-review.md`, a 115-line checklist telling an AI agent the seven highest-yield security bugs to look for when reviewing Gno realm code. It is a short, copy-paste distillation of the longer `gno-security-guide.md`, meant to be applied inline without running tooling.
 
-**Verdict: APPROVE** — every one of the seven checks is a faithful, technically-correct distillation of `gno-security-guide.md` §5, and all cited symbols (`IsCurrent`, `Previous`, `IsUserCall`, `grc20.IsCanonicalTeller`) exist and behave as shown. Three doc-accuracy nits only: the Check 6 panic timing is mislabeled, the harness path is not yet in the tree, and the `IsCurrent()` guard that Check 1 prescribes is dropped from later examples.
+**Verdict: APPROVE** — every one of the seven checks is a faithful, technically-correct distillation of `gno-security-guide.md` §5, and all cited symbols (`IsCurrent`, `Previous`, `IsUserCall`, `grc20.IsCanonicalTeller`) exist and behave as shown. Two doc-accuracy nits: the Check 6 panic timing is mislabeled, and the `IsCurrent()` guard that Check 1 prescribes is dropped from Check 6's example. One merge-order note only (the harness path lands with #5835), folded into the comment Body rather than posted inline.
 
 ## Summary
 The file maps one-to-one onto §5.1-5.7 of `gno-security-guide.md`: caller identity via `cur realm` (§5.6), `IsUserCall()` for payment guards (§5.5), no exported pointers to mutable state (§5.1), no caller-supplied callbacks under realm authority (§5.3), canonical-type assertion on interface params (§5.4), no stored `realm` values (§5.7), and unexported `/p/`-embedded callback iterators (§5.2). I verified each WRONG/RIGHT pair against the VM and the source guide. The security substance is correct. Findings are documentation polish, not security errors.
@@ -34,11 +34,6 @@ None.
 None (docs-only).
 
 ## Suggestions
-- **[reference points at a path not in the tree]** [`gno-ai-contract-review.md:113`](https://github.com/gnolang/gno/blob/26ca914e2/docs/resources/gno-ai-contract-review.md?plain=1#L113) · [↗](../../../../../.worktrees/gno-review-5880/docs/resources/gno-ai-contract-review.md#L113) — the relationship table lists `misc/audit-pattern-harness/`, which does not exist on master. It ships in the still-open [#5835](https://github.com/gnolang/gno/pull/5835), acknowledged in the PR body. If this merges first, the row points at nothing. Fix: land after #5835, or mark the row as pending.
-  <details><summary>details</summary>
-
-  `grep -rn audit-pattern-harness docs/` returns only this new file; no existing doc references it, and the directory is absent from the master worktree. Not a broken hyperlink (the cell is plain text), but a reader who looks for the path finds nothing until #5835 lands.
-  </details>
 - **[Check 1 prescribes a guard Check 6's example drops]** [`gno-ai-contract-review.md:80-82`](https://github.com/gnolang/gno/blob/26ca914e2/docs/resources/gno-ai-contract-review.md?plain=1#L80-L82) · [↗](../../../../../.worktrees/gno-review-5880/docs/resources/gno-ai-contract-review.md#L80) — Check 1 makes `if !cur.IsCurrent() { panic(...) }` the standard before reading caller identity, but Check 6's RIGHT example reads `cur.Previous().Address()` in `Save` without it.
   <details><summary>details</summary>
 
@@ -46,6 +41,4 @@ None (docs-only).
   </details>
 
 ## Open questions
-None.
-</content>
-</invoke>
+- The relationship table lists `misc/audit-pattern-harness/` ([`gno-ai-contract-review.md:113`](https://github.com/gnolang/gno/blob/26ca914e2/docs/resources/gno-ai-contract-review.md?plain=1#L113)), absent from master; it ships in [#5835](https://github.com/gnolang/gno/pull/5835). Author says #5835 merges first, so the path will resolve. Not posted as an inline change request; a one-line merge-order note goes in the comment.md Body instead.

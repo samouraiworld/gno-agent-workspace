@@ -25,7 +25,7 @@ Local worktree: `git -C gno worktree add .worktrees/gno-review-5864 662cbc5ba`
 - malleability: two distinct byte encodings of one logical value, letting a tx be re-signed or replayed in a variant form. Here `-0` and `+0` are the same number with different bits.
 
 ## Fix
-`convertFloat` gains a zero-fold at [convert.go:216-221](https://github.com/gnolang/gno/blob/662cbc5ba/gno.land/pkg/sdk/vm/convert.go#L216-L221) · [↗](../../../../../.worktrees/gno-review-5864/gno.land/pkg/sdk/vm/convert.go#L216-L221): after parsing, `if f64 == 0 { f64 = 0 }` reassigns the `+0` constant, overwriting the sign bit. The single call site is [keeper.go:894](https://github.com/gnolang/gno/blob/662cbc5ba/gno.land/pkg/sdk/vm/keeper.go#L894) · [↗](../../../../../.worktrees/gno-review-5864/gno.land/pkg/sdk/vm/keeper.go#L894), shared by both the MsgCall execution path and the `vm/qeval` query path, so both are covered.
+`convertFloat` gains a zero-fold at [convert.go:216-221](https://github.com/gnolang/gno/blob/662cbc5ba/gno.land/pkg/sdk/vm/convert.go#L216-L221) · [↗](../../../../../.worktrees/gno-review-5864/gno.land/pkg/sdk/vm/convert.go#L216-L221): after parsing, `if f64 == 0 { f64 = 0 }` reassigns the `+0` constant to overwrite the sign bit. The single call site is [keeper.go:894](https://github.com/gnolang/gno/blob/662cbc5ba/gno.land/pkg/sdk/vm/keeper.go#L894) · [↗](../../../../../.worktrees/gno-review-5864/gno.land/pkg/sdk/vm/keeper.go#L894), shared by both the MsgCall execution path and the `vm/qeval` query path, so both are covered. Two changes are proposed below and verified in the worktree: rewrite the zero case as `f64 = math.Copysign(0, 1)` so the sign-clear is on the code, not the comment (Nit), and reject `NaN`/`Inf` on the same path as [#5221](https://github.com/gnolang/gno/pull/5221) did (Warning).
 
 ## Critical (must fix)
 None.
@@ -35,16 +35,41 @@ None.
   <details><summary>details</summary>
 
   `apd.NewFromString` plus `strconv.ParseFloat` accept `"NaN"`, `"Inf"`, `"-Inf"`, and `"Infinity"`, and the fold only touches zero, so these reach realm code as real NaN/Inf floats. This is the same class the `-0` fix addresses: a Go source literal cannot produce `NaN` or `Inf` (`1.0/0.0` is a compile error, `1e400` overflows the constant), just as it cannot produce `-0`. The parse itself is deterministic (one NaN bit pattern), so this is not a consensus break, but it lets a MsgCall argument carry a value unreachable from source, which [#5221](https://github.com/gnolang/gno/pull/5221) closed for the stated determinism/malleability reason. Verified live: `maketx call ... -args 'NaN'` returns `("NaN" string)` from a realm that classifies its argument. Fix: reject `NaN` and `Inf` in `convertFloat`, or state in the PR why admitting them is acceptable while folding `-0` is not.
+
+  Proposed fix, verified in the worktree (rejection wording matches [#5221](https://github.com/gnolang/gno/pull/5221)):
+
+  ```go
+  // in convertFloat, after ParseFloat, before the -0 fold
+  if math.IsNaN(f64) {
+      panic(fmt.Sprintf("float%d does not accept NaN", precision))
+  }
+  if math.IsInf(f64, 0) {
+      panic(fmt.Sprintf("float%d does not accept Inf", precision))
+  }
+  ```
+
+  Verified: with the guard applied, `maketx call ... -args 'NaN'|'Inf'|'-Inf'` is rejected with `float64 does not accept NaN`/`Inf` on the real MsgCall path, while `-0.0`/`-0`/`-1e-50` still fold to `+0`. Because admitting or rejecting `NaN`/`Inf` is a visible behavior change, this stays the reviewer's proposal; the verdict holds at NEEDS DISCUSSION until the author decides the scope.
   </details>
 
 ## Nits
-- `gno.land/pkg/sdk/vm/convert.go:219-221` — `if f64 == 0 { f64 = 0 }` reads as a no-op; the sign-bit-clearing effect lives entirely in the comment. Confirmed behaviorally: the reassignment does clear the sign bit under optimization. An equivalent that shows intent in the code, e.g. `f64 += 0` guarded the same way or `math.Copysign(0, 1)`, would not depend on the reader trusting the comment. Left as a nit since the comment is present and accurate.
+- `gno.land/pkg/sdk/vm/convert.go:219-221` — `if f64 == 0 { f64 = 0 }` reads as a no-op; the sign-bit-clearing effect lives entirely in the comment. Write the zero case so the code shows it clears the sign. Proposed and verified in the worktree: `f64 = math.Copysign(0, 1)`. Verified: `math.Copysign(0, 1)` yields bits `0x0000000000000000`, the exact value Go's `-0.0` literal folds to, and clears the sign bit on a parsed `-0` (`0x8000...` to `0x0000...`); the intent is now on the code, not the comment.
 
 ## Missing Tests
 - **[NaN/Inf admission is untested either way]** `gno.land/pkg/sdk/vm/convert_test.go` — No test pins whether `NaN`/`Inf` args are accepted or rejected, so the scope decision behind this PR is invisible to the suite.
   <details><summary>details</summary>
 
-  The new `TestConvertFloatNegativeZeroFolded` covers the `-0` fold well, but nothing asserts the `NaN`/`Inf` behavior, so whichever way the Warning is resolved, the suite is silent on it. A txtar through the real MsgCall path documents both the fold (passes now) and the NaN/Inf rejection (fails now, passes once rejection lands): [`maketx_call_float_naninf.txtar`](../../../../../.worktrees/gno-review-5864/reviews/pr/5xxx/5864-fold-negzero-float-args/1-662cbc5ba/tests/maketx_call_float_naninf.txtar). If the decision is to keep admitting `NaN`/`Inf`, invert those four assertions to lock the accept behavior instead. See the finding's [test cases](comment_claude-opus-4-8.md).
+  The new `TestConvertFloatNegativeZeroFolded` covers the `-0` fold well, but nothing asserts the `NaN`/`Inf` behavior, so whichever way the Warning is resolved, the suite is silent on it. A txtar through the real MsgCall path documents both the fold and the NaN/Inf rejection: [`maketx_call_float_naninf.txtar`](../../../../../.worktrees/gno-review-5864/reviews/pr/5xxx/5864-fold-negzero-float-args/1-662cbc5ba/tests/maketx_call_float_naninf.txtar). If the decision is to keep admitting `NaN`/`Inf`, invert those four assertions to lock the accept behavior instead. See the finding's [test cases](comment_claude-opus-4-8.md).
+
+  Verified with the proposed rejection applied: a table-driven Go test asserting the six NaN/Inf reject cases and the txtar both pass. Table added in the worktree as `TestConvertFloatRejectsNaNInf`:
+
+  ```go
+  {"float64 NaN", "NaN", gnolang.Float64Type, "float64 does not accept NaN"},
+  {"float32 NaN", "NaN", gnolang.Float32Type, "float32 does not accept NaN"},
+  {"float64 Inf", "Inf", gnolang.Float64Type, "float64 does not accept Inf"},
+  {"float32 Inf", "Inf", gnolang.Float32Type, "float32 does not accept Inf"},
+  {"float64 -Inf", "-Inf", gnolang.Float64Type, "float64 does not accept Inf"},
+  {"float32 -Inf", "-Inf", gnolang.Float32Type, "float32 does not accept Inf"},
+  ```
   </details>
 
 ## Suggestions

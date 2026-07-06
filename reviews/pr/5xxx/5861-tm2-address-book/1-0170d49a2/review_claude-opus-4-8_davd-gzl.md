@@ -27,11 +27,27 @@ None.
   <details><summary>details</summary>
 
   `AddPeers` sets `s.dirty = true` and bumps `generation` only inside the `if _, exists := s.peers[key]; !exists` branch. Updating an existing peer's `LastSeen` at [`store.go:115`](https://github.com/gnolang/gno/blob/0170d49a2/tm2/pkg/p2p/discovery/store.go#L115) · [↗](../../../../../.worktrees/gno-review-5861/tm2/pkg/p2p/discovery/store.go#L115) leaves `dirty` unchanged, so the next `Save` is a no-op and the persisted timestamp stays frozen at first-seen. Eviction sorts oldest-`LastSeen` first at [`store.go:207-209`](https://github.com/gnolang/gno/blob/0170d49a2/tm2/pkg/p2p/discovery/store.go#L207-L209) · [↗](../../../../../.worktrees/gno-review-5861/tm2/pkg/p2p/discovery/store.go#L207-L209), and `load` restores the frozen timestamps, so across restarts an actively re-discovered peer with an old first-seen time is evicted before a dead peer first seen more recently. This undermines the feature's goal of keeping good peers. Confirmed with a red test: `store_lastseen_persist_test.go`. Fix: mark the store dirty (and bump generation) whenever `LastSeen` changes, not only on first insert.
+
+  Fix applied in the review worktree:
+
+  ```diff
+  		key := addr.String()
+  -		if _, exists := s.peers[key]; !exists {
+  -			s.dirty = true
+  -			s.generation++
+  -		}
+  +		s.dirty = true
+  +		s.generation++
+
+  		s.peers[key] = &knownAddress{Addr: addr, LastSeen: time.Now()}
+  ```
+
+  Verified: the ported `TestStore_ReAdd_PersistsLastSeen` flips from red to green (persisted `LastSeen` advances from `1783324794` to a later value across the re-add), and `go test -race ./tm2/pkg/p2p/discovery/... ./tm2/pkg/p2p/config/...` stays clean.
   </details>
 
 ## Nits
 - `store.go:207-209` — Eviction uses `sort.Slice` (not stable) and `LastSeen` is persisted at one-second Unix granularity, so among peers sharing a second the dropped ones are arbitrary. Off-chain path, no consensus impact; only affects which of several same-second peers survive.
-- `store.go:235-243` — A second corrupt-file load overwrites the `<file>.corrupt` backup from the first, losing the earlier copy. Rare, but a suffix or timestamp on the backup name would preserve both.
+- `store.go:235-243` — A second corrupt-file load overwrites the `<file>.corrupt` backup from the first, losing the earlier copy. Rare, but a suffix or timestamp on the backup name would preserve both. Fixed in the worktree: the backup path is now `fmt.Sprintf("%s.%d.corrupt", s.filePath, time.Now().UnixNano())`, so each corrupt load keeps its own copy. The PR's own `TestStore_Load_CorruptFileTreatedAsEmpty` was updated to glob `<file>.*.corrupt` for the backup; the suite passes under `-race`.
 
 ## Missing Tests
 - **[eviction order survives a restart]** `store.go:110-113` — No test asserts that a re-discovered peer's refreshed `LastSeen` is persisted, which is exactly the gap in the Warning above.
@@ -44,7 +60,7 @@ None.
 - `config/config.go:17` — `defaultAddrBookPath` is a package-level `var` but is only read, never reassigned. A `const` documents the intent and removes it as a mutable global.
   <details><summary>details</summary>
 
-  It is read at [`config.go:76`](https://github.com/gnolang/gno/blob/0170d49a2/tm2/pkg/p2p/config/config.go#L76) · [↗](../../../../../.worktrees/gno-review-5861/tm2/pkg/p2p/config/config.go#L76) and [`config.go:108`](https://github.com/gnolang/gno/blob/0170d49a2/tm2/pkg/p2p/config/config.go#L108) · [↗](../../../../../.worktrees/gno-review-5861/tm2/pkg/p2p/config/config.go#L108) and never written. A string `const` is the natural fit.
+  It is read at [`config.go:76`](https://github.com/gnolang/gno/blob/0170d49a2/tm2/pkg/p2p/config/config.go#L76) · [↗](../../../../../.worktrees/gno-review-5861/tm2/pkg/p2p/config/config.go#L76) and [`config.go:108`](https://github.com/gnolang/gno/blob/0170d49a2/tm2/pkg/p2p/config/config.go#L108) · [↗](../../../../../.worktrees/gno-review-5861/tm2/pkg/p2p/config/config.go#L108) and never written. A string `const` is the natural fit. Applied in the worktree: `var defaultAddrBookPath = ...` becomes `const defaultAddrBookPath = ...`; `go build` and `go test ./tm2/pkg/p2p/config/...` both pass.
   </details>
 
 ## Open questions
@@ -64,3 +80,5 @@ Verified on 0170d49a2:
 - `go test -race -count=1 ./tm2/pkg/p2p/discovery/... ./tm2/pkg/p2p/config/...` passes; the store's concurrent add+flush test exercises the mutex under `-race`.
 - The LastSeen-not-persisted Warning reproduces: `store_lastseen_persist_test.go` fails red at this head (persisted `LastSeen` unchanged after a re-add one second later).
 - Self-address filter is wired correctly: `makeNodeInfo` populates `nodeInfo.NetAddress` with the node's real ID before `NewStore` receives it, so `NetAddress.Same` (dial-string or ID match) filters the node's own address on both add and load.
+
+All three actionable findings (the LastSeen-persist Warning, the corrupt-backup Nit, the `const` Suggestion) were fixed in the review worktree and re-verified: `go test -race -count=1 ./tm2/pkg/p2p/discovery/... ./tm2/pkg/p2p/config/...` passes, and the ported `TestStore_ReAdd_PersistsLastSeen` now goes green.
