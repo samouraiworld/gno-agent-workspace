@@ -1,53 +1,57 @@
 /* Run: from a gno checkout:
 gh pr checkout 5882 -R gnolang/gno && git checkout e98021315
-curl -fsSL -o gnovm/tests/files/zrealm_map6.gno \
-  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5882-reclaim-stored-map-key/1-e98021315/tests/zrealm_map6.gno
-go test -v -run 'TestFiles/zrealm_map6.gno$' ./gnovm/pkg/gnolang/
-rm gnovm/tests/files/zrealm_map6.gno
+curl -fsSL -o gnovm/tests/files/zrealm_map7.gno \
+  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5882-reclaim-stored-map-key/1-e98021315/tests/zrealm_map7.gno
+go test -v -run 'TestFiles/zrealm_map7.gno$' ./gnovm/pkg/gnolang/
+rm gnovm/tests/files/zrealm_map7.gno
 */
 
 // PKGPATH: gno.land/r/test
 package test
 
-// Companion to zrealm_map5 with a struct key instead of an array: delete()
-// must reclaim the stored struct key object, emitted as d[...:8](-252) in the
-// finalize diff. Repointing the delete builtin's DidUpdate at the argument key
-// instead of the stored key drops that d[...] line and the key object leaks.
-type Key struct {
-	A, B int
-}
-
-var m map[Key]int
+// Over-reclaim guard: the array key value is also held through keep, so the map
+// holds its own copy. delete() reclaims exactly the map's copy, emitted as
+// d[...:9](-213), and keep stays readable. Repointing the delete builtin's
+// DidUpdate at the argument key drops that d[...] line.
+var m map[[1]int]int
+var keep *[1]int
 
 func init() {
-	m = map[Key]int{Key{1, 2}: 10, Key{3, 4}: 20}
+	k := [1]int{1}
+	m = map[[1]int]int{k: 10, [1]int{2}: 20}
+	keep = &k
 }
 
 func main(cur realm) {
-	delete(m, Key{1, 2})
-	println("len:", len(m))
+	delete(m, [1]int{1})
+	println("len:", len(m), "keep:", keep[0])
 }
 
 // Output:
-// len: 1
+// len: 1 keep: 1
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[08ada09dee16d791fd406d629fe29bb0ed084a30:7](-193)=
-//     @@ -1,26 +1,6 @@
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:8](-202)=
+//     @@ -1,31 +1,6 @@
 //      {
 //          "List": {
 //              "List": [
 //     -            {
 //     -                "Key": {
 //     -                    "T": {
-//     -                        "@type": "/gno.RefType",
-//     -                        "ID": "gno.land/r/test.Key"
+//     -                        "@type": "/gno.ArrayType",
+//     -                        "Elt": {
+//     -                            "@type": "/gno.PrimitiveType",
+//     -                            "value": "32"
+//     -                        },
+//     -                        "Len": "1",
+//     -                        "Vrd": false
 //     -                    },
 //     -                    "V": {
 //     -                        "@type": "/gno.RefValue",
-//     -                        "Hash": "dff81de12fa6de5e1a87f1a9345b7c7940191026",
-//     -                        "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:8"
+//     -                        "Hash": "8717c5e34966ab9eb407bea8dfe18bb110808738",
+//     -                        "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:9"
 //     -                    }
 //     -                },
 //     -                "Value": {
@@ -61,12 +65,12 @@ func main(cur realm) {
 //                  {
 //                      "Key": {
 //                          "T": {
-//     @@ -46,7 +26,7 @@
+//     @@ -56,7 +31,7 @@
 //          "ObjectInfo": {
-//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:7",
-//              "LastObjectSize": "572",
+//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:8",
+//              "LastObjectSize": "591",
 //     -        "ModTime": "0",
-//     +        "ModTime": "9",
+//     +        "ModTime": "12",
 //              "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "RefCount": "1"
 //          }
@@ -74,29 +78,29 @@ func main(cur realm) {
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3",
-//              "LastObjectSize": "384",
-//     -        "ModTime": "6",
-//     +        "ModTime": "9",
+//              "LastObjectSize": "393",
+//     -        "ModTime": "7",
+//     +        "ModTime": "12",
 //              "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          },
-//     @@ -20,7 +20,7 @@
+//     @@ -25,7 +25,7 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "600699518290c08fd94287112f802d54a8f55da4",
-//     +            "Hash": "fdd11570a7e689ba76ce972aea2fabde0dbe53b9",
-//                  "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//     -            "Hash": "d9326ed7b65c4b60a65c827a7d11c40383191c56",
+//     +            "Hash": "c51972ffb1aee4538d6efd11bca218a7a05197cc",
+//                  "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:8"
 //              }
 //          }
 // u[08ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
-//     @@ -46,7 +46,7 @@
+//     @@ -34,7 +34,7 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "56c243e61c568b133bc30f2ab99b8d9ddea15cec",
-//     +                "Hash": "962d51977810c5055f54f51b8f11a557701d61c5",
+//     -                "Hash": "c80703c1f683e89085cb4548878fa9a985e85eec",
+//     +                "Hash": "856189ab775a5091e8cec1690cb2a9aa9e900325",
 //                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                  }
 //              },
-// d[08ada09dee16d791fd406d629fe29bb0ed084a30:8](-252)
+// d[08ada09dee16d791fd406d629fe29bb0ed084a30:9](-213)
