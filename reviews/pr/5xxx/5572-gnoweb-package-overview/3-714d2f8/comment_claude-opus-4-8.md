@@ -1,12 +1,13 @@
 # Review: PR #5572
-Event: APPROVE
+Posted: https://github.com/gnolang/gno/pull/5572#pullrequestreview-4636992803
+Event: COMMENT
 
 ## Body
 Solid work. Verified on 714d2f8 against a live node: the `$source` overview renders, and its symbol links deep-link to the correct source file and line.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5572-gnoweb-package-overview/3-714d2f8/review_claude-opus-4-8_davd-gzl.md [↗](./review_claude-opus-4-8_davd-gzl.md)
 
-## gno.land/pkg/gnoweb/components/overview_build.go:41-48 [↗](../../../../../.worktrees/gno-review-5572/gno.land/pkg/gnoweb/components/overview_build.go#L41)
+## gno.land/pkg/gnoweb/components/overview_build.go:41-48 [↗](../../../../../.worktrees/gno-review-5572/gno.land/pkg/gnoweb/components/overview_build.go#L41) [posted](https://github.com/gnolang/gno/pull/5572#discussion_r3529819491)
 The Code stats sidebar counts unexported types, consts and vars, but the page lists only exported symbols, so the counts don't match what's shown. On `/r/gnoland/blog$source` the sidebar shows "Vars 3" while no Variables section renders, because all three are unexported. Count only exported declarations in computeStats, matching the filter the render path already applies.
 
 <details><summary>repro</summary>
@@ -51,11 +52,11 @@ FAIL	github.com/gnolang/gno/gno.land/pkg/gnoweb/components	0.0Xs
 ```
 </details>
 
-## gno.land/pkg/gnoweb/handler_http.go:585-601 [↗](../../../../../.worktrees/gno-review-5572/gno.land/pkg/gnoweb/handler_http.go#L585)
-The README-then-`.gno`-then-first-file fallback in `GetSourceView` is unreachable: the only caller routes here when the path is a file or the `file` query is set, so `fileName` is always assigned first. The PR removed the tests that covered it but kept the code. Drop the dead branch, or restore a caller path that reaches `GetSourceView` with no file.
+## gno.land/pkg/gnoweb/handler_http.go:310-314 [↗](../../../../../.worktrees/gno-review-5572/gno.land/pkg/gnoweb/handler_http.go#L310) [posted](https://github.com/gnolang/gno/pull/5572#discussion_r3529819500)
+This guard sends the no-file case to `GetOverviewView`, so `GetSourceView` is now only ever entered with a file set. Its README-then-`.gno`-then-first-file fallback (the `else` at 590-600) is now unreachable, and the PR removed the tests that covered it but kept the code. Drop the dead branch, or restore a caller path that reaches `GetSourceView` with no file.
 
-## gno.land/pkg/gnoweb/handler_http.go:849-851 [↗](../../../../../.worktrees/gno-review-5572/gno.land/pkg/gnoweb/handler_http.go#L849)
+## gno.land/pkg/gnoweb/handler_http.go:849-851 [↗](../../../../../.worktrees/gno-review-5572/gno.land/pkg/gnoweb/handler_http.go#L849) [posted](https://github.com/gnolang/gno/pull/5572#discussion_r3529819508)
 The README goroutine discards `renderReadme`'s error with `readme, _ = ...`. That is the right degraded behavior, since a missing or failed README should not fail the whole page, but nothing at the call site says so. A one-line comment would stop a future reader from turning it into a hard error.
 
-## gno.land/pkg/gnoweb/handler_http.go:855 [↗](../../../../../.worktrees/gno-review-5572/gno.land/pkg/gnoweb/handler_http.go#L855)
+## gno.land/pkg/gnoweb/handler_http.go:855 [↗](../../../../../.worktrees/gno-review-5572/gno.land/pkg/gnoweb/handler_http.go#L855) [posted](https://github.com/gnolang/gno/pull/5572#discussion_r3529819514)
 Subdirectories come from `ListPaths(..., 50)` and are then filtered to direct children. A package with more than 50 descendant paths whose direct children sort late could have some children silently dropped from the Directories section. Note the cap in a comment, or raise it to the 1000 that `GetPathsListView` already uses.
