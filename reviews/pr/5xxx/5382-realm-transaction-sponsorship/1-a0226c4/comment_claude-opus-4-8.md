@@ -12,7 +12,7 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/revi
 In a SponsorStorage tx this pays every realm's freed-storage deposit refund to the PayStorage sponsor (`psi.RealmAddr`), while the no-sponsor branch just below routes refunds to `ctx.TxCaller()`. So a realm that sponsors storage also collects the deposit refunds for any storage the tx frees, including storage a user or an unrelated realm funded in an earlier tx. Route freed-storage refunds to the tx caller, as the no-sponsor path and pre-PR gno both do.
 
 ## gno.land/pkg/gnoland/app.go:287 [↗](../../../../../.worktrees/gno-review-5382/gno.land/pkg/gnoland/app.go#L287)
-This grow-without-PayStorage rejection only runs in the endTxHook, which fires in DeliverTx alone, so a SponsorStorage 0-fee tx that grows storage without calling PayStorage passes CheckTx admission and only fails at block time. The PayGas-not-called check in `runTx` (`baseapp.go:983`) runs in every mode and is caught at admission; this one should move there too.
+This grow-without-PayStorage rejection only runs in the endTxHook, which fires in DeliverTx alone, so a SponsorStorage 0-fee tx that grows storage without calling PayStorage passes CheckTx admission and fails only at block time. Any user can get one admitted, so each executes to completion and burns up to the credit window of validator compute for free before failing. The PayGas-not-called check in `runTx` (`baseapp.go:983`) runs in every mode and is caught at admission; this one should move there too.
 
 <details><summary>repro</summary>
 
@@ -73,6 +73,9 @@ The tx is included at HEIGHT 3, the message succeeds, ~1.4M gas is spent, then t
 
 ## gno.land/pkg/sdk/vm/keeper.go:1989 [↗](../../../../../.worktrees/gno-review-5382/gno.land/pkg/sdk/vm/keeper.go#L1989)
 The `depositAmt <= 0 → DefaultDeposit` fallback is unreachable (both callers pass `maxBudget > 0`), and if it were reached it would disable the budget cap and charge the sponsor up to `DefaultDeposit`. Assert `maxBudget > 0` instead of falling back silently.
+
+## gno.land/pkg/sdk/vm/keeper.go:1800 [↗](../../../../../.worktrees/gno-review-5382/gno.land/pkg/sdk/vm/keeper.go#L1800)
+The doc comment on this newly-exported `ProcessStorageDeposit` says it charges and refunds the caller, but under sponsorship the caller is the PayStorage realm, and for restricted denoms the refund goes to `StorageFeeCollector`. Update the comment to state who actually pays and receives now that it is public API.
 
 ## gnovm/stdlibs/chain/runtime/paygas.go:9 [↗](../../../../../.worktrees/gno-review-5382/gnovm/stdlibs/chain/runtime/paygas.go#L9)
 Missing test: patch coverage is ~21% and the natives are exercised only through txtar, leaving several money/consensus branches without a focused Go test.
