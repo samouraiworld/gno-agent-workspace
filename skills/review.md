@@ -1,6 +1,6 @@
 ---
 name: gno-review
-description: Adversarial review of one or more Gno PRs. Takes space-separated PR numbers, outputs severity-grouped findings per PR plus a comment_<model>.md GitHub review draft, posted after user approval. Supports a deep multi-angle mode (red-team / blue-team / correctness lenses plus a critic pass) for a single PR that warrants extra scrutiny.
+description: Adversarial review of one or more Gno PRs. Takes space-separated PR numbers, outputs severity-grouped findings per PR plus a comment_<model>.md GitHub review draft, posted after user approval. Supports a deep multi-angle mode (red-team / blue-team / correctness lenses plus a critic pass) for a single PR that warrants extra scrutiny, and "review all" batch runs over open non-reviewed PRs.
 argument-hint: <pr-number> [pr-number...]
 ---
 
@@ -38,11 +38,13 @@ Exclude PRs titled `WIP*` and dependabot PRs (`app/dependabot`) unless the user 
 
 When "review all" also covers already-reviewed PRs whose head advanced (re-review of updated PRs), keep only those whose change since the last reviewed sha is real PR content, not a base-only master merge: compare patch-ids per the *Re-review rounds* gate; drop patch-id-equal base-only moves. Also drop any PR the reviewer already APPROVED on GitHub (`gh api repos/gnolang/gno/pulls/<num>/reviews --jq '[.[]|select(.user.login=="<reviewer>")]|last|.state'` = `APPROVED`) — don't re-review approved work.
 
+Batch runs write `reviews/BATCH_STATUS.md` before dispatch and update it as agents return: the user-confirmed scope, dropped PRs grouped by reason (head-unchanged, already APPROVED, patch-id-equal base-only move, WIP, dependabot), the final set as a table (PR, head sha, last reviewed sha and next round for re-reviews, worktree path, review dir), and the resume/finalize steps. Commit it with the batch.
+
 ## Parallel dispatch (multi-PR runs)
 
-When `$ARGUMENTS` contains more than one PR, dispatch one Agent per PR in a single message (multiple `Agent` calls in one response). Use `subagent_type: general-purpose` with this prompt per subagent:
+When `$ARGUMENTS` contains more than one PR, the parent first creates each PR's worktree and checks out the PR (per *Fetch & understand*); subagents never run `worktree add` or `gh pr checkout`. Then dispatch one Agent per PR in a single message (multiple `Agent` calls in one response). Use `subagent_type: general-purpose` with this prompt per subagent:
 
-> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Follow every step in that file — fetch, worktree, diff, comments, CI, deep read, write the review file, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
+> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). The worktree already exists at `<worktree-path>` with the PR checked out — never `worktree add` or `gh pr checkout`. Follow every other step in that file — diff, comments, CI, deep read, write the review file, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
 Do not sequence the agents. After all return, the parent runs `./scripts/build-indexes.sh` once, then a single `git add reviews/ docs/glossary.md && git commit && git push` covering all reviews.
 
@@ -66,7 +68,7 @@ Trigger: the user asks for a **parallel**, **red-team / blue-team**, or **deeper
 
 5. **Claim-verification gate (parallel).** Before drafting `comment_<model>.md`, dispatch one agent over the synthesized review plus worktree: extract every falsifiable claim — behavioral ("FormatFloat prints X"), structural ("only caller is keeper.go:678"), numeric ("bits = 0x7FF8…") — and for each run a check in the worktree designed to falsify it. It returns only claims that fail or can't be verified. Re-read those against the code, drop or fix, then finalize. Scope to facts only, never severity, verdict, or design judgment. Distinct from the critic pass: this asks "is each stated fact true", not "is the severity right".
 
-6. **Output.** Continue with the normal *Output*, `comment_<model>.md`, and push flow. In the metadata line, append the model intensity to the model name: `Model: <model> (<intensity>)`, e.g. `(low)`, `(xhigh)`, `(max)`; ask the user if the intensity is not known. The commit message may suffix `(deep)`.
+6. **Output.** Continue with the normal *Output*, `comment_<model>.md`, and push flow. In the metadata line, append the model intensity and mode to the model name: `Model: <model> (<intensity>, deep)`, e.g. `(xhigh, deep)`; ask the user if the intensity is not known. Deep mode over a commit an earlier round already reviewed opens a new round directory `<n+1>-<same-sha>`; its round note names the mode and the prior verdict it confirms or overturns. The commit message may suffix `(deep)`.
 
 ## For each PR
 
@@ -105,6 +107,9 @@ git diff $(git merge-base origin/master <new-sha>) <new-sha> | git patch-id --st
 
 - **Patch-ids equal** (base-only move): do NOT re-author. Run `./scripts/reanchor-round.py <number> <new-sha>` (re-runs this gate, copies the latest round's `.md` files into `<n+1>-<new-sha>/`, rewrites sha references, remaps line anchors, flags unmappable ones). Fix flagged anchors from the worktree, add a one-line round note at the top of the review file (head advanced, PR content unchanged, anchors re-cut, verdict unchanged), regenerate indexes, commit. Skip the rest of the workflow; `overview.html` untouched.
 - **Patch-ids differ**: full re-review round, focused on what changed since `<old-sha>`.
+- **`<old-sha>` unreachable (GC'd)**: skip the gate, run a full round, and read the change as the diff against the merge-base with master; note the fallback in the round note.
+
+Every full re-review round opens with a round-note paragraph between the metadata block and the TL;DR: `Round <n>.` — head movement and shape (rebase, +N commits), what changed in the PR, prior-round findings resolved or carried.
 
 ### Run tests
 
@@ -113,7 +118,7 @@ git diff $(git merge-base origin/master <new-sha>) <new-sha> | git patch-id --st
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
 - Example-package tests on a branch that also modifies a stdlib: run `gno test` with `GNOROOT=<worktree-root>`, else new stdlib symbols fail preprocessing (`name X not declared`).
 - Record pass/fail per affected package.
-- PRs changing runtime behavior of a server or tool (`contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`): boot it from the PR worktree and exercise the changed behavior live (gnodev + `curl` for gnoweb; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader/tooling changes). Record what was verified live in the review file. Unit tests alone are not sufficient verification for these PRs. PRs not touching those dirs (tests/docs-only) skip the live boot.
+- PRs changing runtime behavior of a server or tool (`contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`): boot it from the PR worktree and exercise the changed behavior live (gnodev + `curl` for gnoweb; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader/tooling changes). Record what was verified live in the review file's Verified section. Unit tests alone are not sufficient verification for these PRs. PRs not touching those dirs (tests/docs-only) skip the live boot.
 
 ### Review the diff
 
@@ -186,7 +191,7 @@ Reviewed by: <GitHub username> | Model: <model used> | Commit: <short-sha> (<sta
 Local worktree: `git -C gno worktree add .worktrees/gno-review-<number> <short-sha>`
 Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/<thousand>xxx/<number>-<short-slug>/overview.html) · [↗](../overview.html) <— include this line only when the PR directory has an overview.html>
 
-`<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since`. Recomputed by `scripts/convert-review-links.py` on every run.
+<Round note — re-review and same-commit deep rounds only. Re-review: "Round <n>. Head advanced <old-sha> → <new-sha> (<shape>): <what changed>; <prior findings resolved / carried>." Same-commit deep round: "Round <n> (deep — same commit <sha> round <n-1> reviewed): <prior verdict confirmed / overturned>.">
 
 **TL;DR:** <1-2 plain-language sentences: what this PR is about and does, for a reader with zero context. No jargon, no findings, no decision. Concrete examples go in the Examples section, never piled into the TL;DR. Always include, even on re-reviews.>
 
@@ -243,12 +248,16 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
   <Rationale.>
   </details>
 
+## Verified
+<Optional; standard in deep mode and for live-boot PRs. One bullet per runtime check CI does not show — the claim, then the evidence, dual-linked: revert-proofs, cross-language parity, byte-identical encodings, live-boot behavior. Never "tests pass". A final bullet may list the tests run green at the reviewed sha. The comment.md Body pin draws its at-most-three checks from here.>
+
 ## Open questions
 <Optional. Thoughts the reviewer should see but that are not posted to the PR: deferred-scope follow-ups, extensions, design musings. One terse line each, ending with why it wasn't posted.>
 
 ```
 
 Format rules:
+- `<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since`; recomputed by `scripts/convert-review-links.py` on every run.
 - Priority tags in plain English (`[bug can come back invisibly]`, not `[invariant decay risk]`).
 - No bare `#<number>` in any text GitHub renders inside this repo (review/comment H1, commit subject): it autolinks to `samouraiworld/gno-agent-workspace#<number>`, the wrong repo. Link it (`[#<number>](pr-url)`) or drop the `#` (commit subjects).
 - Prose in `<details>` by default; labeled sub-bullets only for findings with a tangible repro.
@@ -267,7 +276,7 @@ Format rules:
 
 Calibration:
 - No target finding count. Stop when the diff is read in full and blast radius mapped.
-- The review's verification claims (the Fix section's "Verified on `<sha>`:" line, the Summary) follow the same rule as comment.md: only what CI does not show. Revert-proofs, behavior/Go parity, exercised edge cases, a new code path CI skips. Never "`go test ...` passes", "lint clean", "build green".
+- The review's verification claims (the Verified section, the Summary) follow the same rule as comment.md: only what CI does not show. Revert-proofs, behavior/Go parity, exercised edge cases, a new code path CI skips. Never "`go test ...` passes", "lint clean", "build green".
 - Severity is binary. Warnings = a maintainer could plausibly block (correctness, security, decay, missing invariant). Nits = style, polish, optional. Borderline → Nit.
 - Map the full call graph before claiming dead / redundant / unused. Grep every caller.
 - Never flag contribution-policy compliance (AGENTS.md ADR requirement, commit conventions). Findings cover the code only.
@@ -275,7 +284,7 @@ Calibration:
 - Gain-gate deferred-scope and extension questions. Deliberately scoped-out items go in Open questions; they reach comment.md only when there's a concrete risk or a decision the author must make in this PR.
 
 Rules:
-- One file per review: `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/review_<model>_<reviewer>.md` (e.g. `reviews/pr/5xxx/5405-fix-banker-overflow/1-a1b2c3f/review_claude-sonnet-4_davd-gzl.md`). `<short-slug>`: 3-4 words from the PR title, lowercase, hyphenated. `<n>`: review round number (check existing directories). `<model>`: lowercase, hyphenated. `<reviewer>`: `gh api user --jq '.login'`. Hash = PR branch HEAD. Reviews of the same commit share the directory. Pre-existing rounds may lack the `review_` prefix.
+- One file per review: `reviews/pr/<thousand>xxx/<number>-<short-slug>/<n>-<short-commit-hash>/review_<model>_<reviewer>.md` (e.g. `reviews/pr/5xxx/5405-fix-banker-overflow/1-a1b2c3f/review_claude-sonnet-4_davd-gzl.md`). `<short-slug>`: 3-4 words from the PR title, lowercase, hyphenated. `<n>`: review round number (check existing directories). `<model>`: lowercase, hyphenated. `<reviewer>`: `gh api user --jq '.login'`. Hash = PR branch HEAD. Reviews of the same commit in the same mode share the directory; a deep round over an already-reviewed commit gets a new `<n+1>-<same-sha>` directory. Pre-existing rounds may lack the `review_` prefix.
 - Every finding: one-line TL;DR with priority tag, plus a `<details>` block (prose by default, per the format above). The TL;DR stands alone — no "see below", no hedging. Trivial nits may omit `<details>`.
 - The TL;DR plus the details' final "Fix:" sentence is the canonical finding text: comment.md copies it verbatim. Write it to work as a PR inline comment as-is; if it doesn't, rewrite it here first, then copy.
 - Minimal bold. Reserve it for the rare phrase that must stand out.
@@ -321,7 +330,7 @@ Format:
 Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 ## Body
-<One-line assessment folding in the repro pin ("verified on <short-sha>"). Anchored findings never appear here in any form: no bullets, no prose recap, no "(inline)" pointer, no count ("four doc nits inline"). No PR re-description, no list of what the PR does or what passed, no review-process narration ("re-review", "cross-check round"), no restating thread state the author already knows (maintainer holds, prior verdicts). Only findings or questions without a file:line anchor get a bullet here, one sentence each: gap, then fix. When clean: "Looks good. Verified on <short-sha>: <CI-invisible check>." and nothing else. <CI-invisible check> is a runtime check you actually ran that the test suite does not and cannot cover: reverting the fix reproduces the bug, output matches Go across the boundary table, a behavior-preserving move returns identical data, an e2e path the harness can't assert. Static-analysis reasoning (call-site reads, idempotency arguments) and anything a unit test already asserts never go in the Body, even folded into a "verified" line: tests carry that proof. When nothing runtime-only was checked, the Body carries no verification line at all. Name at most three checks, the strongest ones, each as a claim, not its test matrix — no parenthetical lists of tested values or shapes; the full check inventory stays in the review file. State each check as an action and its result ("verdicts match the Go compiler", "reverting the fix reproduces the bug"), never as a characterization of the change ("a real correctness gain", "not just error wording"). Never vouch for the code with a bare adjective ("the auth content is sound", "the fix is correct") or a bare absence ("no auth defect found"); state the checks or locate the findings ("every finding is in the docs, not the auth path"). Prefer one plain claim covering all the checks ("ran the realm and both guards; each rejects the attacker case it claims to") over a jargon-dense enumeration; list one per line only when synthesis drops something load-bearing, never a prose run-on. Name the revert as the concrete edit a reader can picture ("removing the line that sets `ATTR_IFACE_CMP`"), never a noun-phrase shorthand ("reverting the `ATTR_IFACE_CMP` set"). Replace vague labels ("the boundary", "the case the code could have broken") with the actual code element, and tie cause to effect in one chain ("it reads the operand types before `checkOrConvertType` rewrites them, so X still panics") so the claim lands in one pass.>
+<One-line assessment folding in the verification pin ("verified on <short-sha>"), then one-sentence bullets for unanchored findings and questions only — per the Body rules below. When clean: "Looks good. Verified on <short-sha>: <CI-invisible check>." and nothing else.>
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<review-file-path> [↗](review_<model>_<reviewer>.md)
 
@@ -334,15 +343,32 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<rev
 </details>
 ```
 
+Body rules:
+- The Body has three jobs: cross-cutting synthesis the per-line comments can't carry (shared root cause, why the chosen layer is wrong), unanchored findings and questions (one sentence each: gap, then fix), and the CI-invisible verification pin. Anything else is cut.
+- Anchored findings never appear in any form: no bullets, no prose recap, no "(inline)" pointer, no count ("four doc nits inline"). Zero duplication with the inline comments; unanchored findings and questions live in the Body only.
+- No PR re-description, no list of what the PR does or what passed, no review-process narration ("re-review", "cross-check round"), no restating thread state the author already knows (maintainer holds, prior verdicts, merge-order notes).
+- A CI-invisible check is a runtime check actually run that the test suite does not and cannot cover: reverting the fix reproduces the bug, output matches Go across the boundary table, a behavior-preserving move returns identical data, an e2e path the harness can't assert. Static-analysis reasoning (call-site reads, idempotency arguments) and anything a unit test already asserts never appear, even folded into a "verified" line: tests carry that proof. Nothing runtime-only checked → no verification line at all.
+- Name at most three checks, the strongest ones, each as a claim, not its test matrix — no parenthetical lists of tested values or shapes; the full check inventory stays in the review file's Verified section. Prefer one plain claim covering all the checks ("ran the realm and both guards; each rejects the attacker case it claims to") over a jargon-dense enumeration; list one per line only when synthesis drops something load-bearing, never a prose run-on.
+- State each check as an action and its result ("verdicts match the Go compiler", "reverting the fix reproduces the bug"), never as a characterization of the change ("a real correctness gain", "not just error wording"). Never vouch for the code with a bare adjective ("the auth content is sound", "the fix is correct") or a bare absence ("no auth defect found"); state the checks or locate the findings ("every finding is in the docs, not the auth path").
+- Name the revert as the concrete edit a reader can picture ("removing the line that sets `ATTR_IFACE_CMP`"), never a noun-phrase shorthand ("reverting the `ATTR_IFACE_CMP` set"). Replace vague labels ("the boundary", "the case the code could have broken") with the actual code element, and tie cause to effect in one chain ("it reads the operand types before `checkOrConvertType` rewrites them, so X still panics") so the claim lands in one pass.
+- A Body check that asserts a runtime property a committed test could assert becomes that test (ship it per the missing-test rule), not Body prose. The Body keeps only checks no committed test can carry, e.g. a revert-proof: the negative direction of a shipped golden.
+- Pin repros with a "Repros run at <short-sha>." line at the end of the Body. When the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on <short-sha>").
+
 Rules:
 - Visible prose (Body and every inline comment) follows `skills/writing-style.md`: short sentences one idea each, no em-dashes, no parentheticals, no bold; no severity tag at all (`Nit` / `Optional` / `blocking` all dropped), state the problem directly; state the problem, not the fix.
 - `Event:` maps from the verdict: APPROVE → APPROVE, REQUEST CHANGES → REQUEST_CHANGES, NEEDS DISCUSSION and CLOSE → COMMENT. The `Event:` line is the verdict; Body never restates it (no "Changes needed." opener) and goes straight to substance.
 - One `## <path>:<line>` section per finding with a file:line, all severities. Ranges: `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Unanchored findings and questions go at the end of Body.
 - Verify every anchor by reading those lines in the worktree before drafting; the anchor must cover exactly the lines the sentence talks about.
 - Append a local IDE link to each anchor header: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space.
-- Inline comment visible text = the finding's TL;DR from the review file with no severity tag (no `Nit` / `Optional` / `blocking` prefix), the bracketed plain-English priority tag dropped. Hard cap 1-3 visible sentences. No headers, no bold. Plain English, essentials only: the problem and why it matters — short sentences, no stacked technical clauses, no symbol-chain walkthroughs; the reader must get it in one pass. Cut scenario-painting: keep the fact and the stake. Don't re-prove the claim in the visible text: mechanism detail, secondary evidence, and source enumerations belong in the repro block or the full review, not inline. If a repro or the review carries the proof, the visible text asserts the claim in one clause. Before: "It's fine here because the parent dir is already 700, but a half-sentence saying the parent dir is the real guard would stop a reader who relocates the socket from relying on a perm that can silently not apply." After: "The real guard is the 700 parent dir; say so, or a reader who relocates the socket loses the protection." Lead with the specific gap (the shape that slips past, the line that breaks); never open by explaining what the author's own code does ("the guard measures how far each type can expand"). Assume the author knows their own mechanism. Never restate what the PR does or claims, inline included — the author wrote it; state the gap directly, never "the property the PR is about" / "what the PR claims". Same plain register in any prose comments inside a repro block (txtar header comments included): state the shape and the gap, not a tutorial. Default to no fix: state the problem and stop, the author figures out the remedy. Add a fix sentence only when the remedy is genuinely non-obvious and changes what the author would do, and then name the desired outcome, never the implementation path or an internal symbol ("reject those too", not "call `evalStaticTypeOf` and branch on the `Func` field"). Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
+- Inline comment visible text = the finding's TL;DR from the review file with no severity tag (no `Nit` / `Optional` / `blocking` prefix), the bracketed plain-English priority tag dropped. Hard cap 1-3 visible sentences. No headers, no bold.
+- Plain English, essentials only: the problem and why it matters — short sentences, no stacked technical clauses, no symbol-chain walkthroughs; the reader must get it in one pass. Cut scenario-painting: keep the fact and the stake.
+- Don't re-prove the claim in the visible text: mechanism detail, secondary evidence, and source enumerations belong in the repro block or the full review, not inline. If a repro or the review carries the proof, the visible text asserts the claim in one clause. Before: "It's fine here because the parent dir is already 700, but a half-sentence saying the parent dir is the real guard would stop a reader who relocates the socket from relying on a perm that can silently not apply." After: "The real guard is the 700 parent dir; say so, or a reader who relocates the socket loses the protection."
+- Lead with the specific gap (the shape that slips past, the line that breaks); never open by explaining what the author's own code does ("the guard measures how far each type can expand"). Assume the author knows their own mechanism. Never restate what the PR does or claims, inline included — the author wrote it; state the gap directly, never "the property the PR is about" / "what the PR claims". Same plain register in any prose comments inside a repro block (txtar header comments included): state the shape and the gap, not a tutorial.
+- Default to no fix: state the problem and stop, the author figures out the remedy. Add a fix sentence only when the remedy is genuinely non-obvious and changes what the author would do, and then name the desired outcome, never the implementation path or an internal symbol ("reject those too", not "call `evalStaticTypeOf` and branch on the `Func` field"). Never a fix sentence whose remedy the problem statement already implies ("the doc comment describes the wrong function" needs no "rewrite it").
+- A latent-risk finding (correct today, breaks for a future caller) states the current safety in one clause ("no current caller passes filetests, so it is latent") and stops.
+- Lowercase a source document's emphasis caps (WRONG/RIGHT) when quoted in prose; caps survive only inside code spans.
+- Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
 - A missing-test finding opens its visible text with `Missing test:`, then names the uncovered scenario in one clause. It carries the ready-to-add cases in a collapsed `<details><summary>test cases</summary>` block in the file's own test style: the full filetest or table rows when short, or the source plus a dual link to the large `tests/` golden. Paste-ready as-is.
-- A Body verification check that asserts a runtime property a committed test could assert becomes that test (ship it per the missing-test rule), not Body prose. The Body keeps only checks no committed test can carry, e.g. a revert-proof: the negative direction of a shipped golden.
 - State findings as facts ("X hangs forever"), not questions. A genuine question is one terse line, posted only if the answer changes the verdict or the author's next action.
 - A design or layering question is two sentences at most: the alternative in one clause, then whether the current choice was deliberate. State the alternative, never re-explain the author's mechanism. Example: `DeleteForKey has the machine and could mark the removed key itself instead of returning it. Deliberate split to keep it a pure container op?`
 - Post only comments that change what the author does: fix, decide, or answer. A finding whose details end "no change needed" / "flagging for whoever touches this next" stays in the review file and never reaches comment.md. Severity never gates this: a Nit or Suggestion that asks for a concrete modification (a wording fix, a corrected value, a dropped line) gets its own anchored comment.md section like any Warning. The discriminator is "should the author change something," not the severity band.
@@ -350,14 +376,11 @@ Rules:
 - Every file or test referenced by name (visible text or repro `<details>`) gets the dual link: GitHub blob URL at the reviewed sha + ` · [↗](<local worktree path>)`. Every behavioral claim links the line that proves it, dual-link form, not just claims that name a symbol. The "Full review:" line gets a relative `↗`. The upload script strips every `[↗](...)` link at post time.
 - Repro blocks: same rules as review repros — start with `gh pr checkout`, runnable from a fresh gnolang/gno clone, zero local paths, actually run, output included.
 - Repro placement: line-specific repros stay with their inline comment; suite/PR-wide repros go in a Body `<details>` block, inline comments point to it.
-- Zero duplication between Body and inline comments. Anchored findings are inline only; unanchored findings/questions are Body only.
-- The Body adds value or it's cut. Never restate what the PR does or how it works, even folded into a "verified" line, the author wrote it and already knows. The Body's only jobs: the cross-cutting synthesis the per-line comments can't carry (shared root cause, why the chosen layer is wrong), unanchored findings, and the CI-invisible verification pin.
 - Update comment.md whenever the review or findings change (new PR commits, new round, re-run repros, format changes). It never lags the review file.
 - Port carried findings to a new round verbatim: only shas, repro URLs, and anchors that no longer point at the right lines change. No round-relative phrasing ("again", "still"): unposted drafts were never seen by the author.
 - A finding the user SKIPped in a prior round stays SKIPped when ported forward, as long as it still applies: carry the `## SKIP` marker into the new round's comment.md with a one-line note (`Skipped in round <n>; keeping it skipped.`), never silently re-promote it to a posted comment. The user un-SKIPs it explicitly or it stays skipped.
 - When the PR head advanced past the reviewed commit: diff `<reviewed-sha>..<head>`, drop fixed findings, re-run remaining repros on the new head, re-verify every anchor against the current diff before posting.
 - Before regenerating comment.md, read the existing file and preserve every `SKIP` marker whose finding still exists.
-- Pin repros with a "Repros run at <short-sha>." line at the end of the Body. When the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on <short-sha>").
 - Write every reviewed-commit sha in comment.md prose (the `Verified on <sha>` / `reproduced on <sha>` pin, `Repros run at <sha>`) as a bare sha, no backticks and no markdown link. GitHub auto-links a bare commit sha in a gnolang/gno comment and gives it the native commit hovercard; backticks or a `[...](commit-url)` wrapper suppress the hovercard. The review file keeps its own shas as-is (rendered in our repo, where a bare gno sha wouldn't resolve; its file-line links are already clickable).
 - Attempt a repro for every Critical and Warning before drafting. Findings without a run proof are worded as observations, never "I ran X". Behavioral repros only — for source-visible facts, cite the anchor and drop the repro block. A repro whose only output is the PR's own test passing (`--- PASS`) shows nothing CI doesn't, so drop it.
 - Link to the full review inside an inline comment only when the details block is not enough.
@@ -381,7 +404,7 @@ Final check — verify each line of the draft before handing it over:
 2. The Full review line is a `blob/` (not `tree/`) URL ending with `[↗](review_<model>_<reviewer>.md)`.
 3. Body names at most three checks, each a runtime check the tests don't/can't cover (no static-analysis reasoning, no test-covered claim), none CI-visible, and neither recaps nor counts anchored findings.
 4. No repro block whose output is only a passing run.
-5. Every inline comment is at most 3 sentences and asks for a fix, a decision, or an answer.
-6. The whole draft conforms to `skills/writing-style.md`: Body goes straight to substance with no verdict restating the `Event:` line, no em-dashes, no parentheticals, no bold, no severity tags (`Nit` / `Optional` / `blocking` all dropped), problem-not-fix, and every named file, symbol, PR, issue, or package carries a link. Fix any deviation before handing over.
+5. Every inline comment is at most 3 sentences, asks for a fix, a decision, or an answer, and carries no fix sentence whose remedy its problem statement already implies.
+6. The whole draft conforms to `skills/writing-style.md`: Body goes straight to substance with no verdict restating the `Event:` line, no em-dashes, no parentheticals, no bold, no severity tags (`Nit` / `Optional` / `blocking` all dropped), no imported emphasis caps, problem-not-fix, and every named file, symbol, PR, issue, or package carries a link. Fix any deviation before handing over.
 
 Then dispatch one `Agent` (`subagent_type: general-purpose`) to recheck concision. Hand it the comment.md path, the worktree path, and the visible-text rules above; ask only whether any Body line or inline comment can be shorter or clearer without dropping fact, stake, or fix, returning a per-section verdict with the proposed rewrite. Apply the rewrites that hold against the cited lines; discard the rest. Re-run this recheck on every regeneration of comment.md.
