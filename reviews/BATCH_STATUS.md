@@ -1,58 +1,53 @@
-# Review-all batch — status (started 2026-06-27)
+# Review-all batch — status (started 2026-07-07)
 
-Scope: `review all` + re-review every open PR whose head moved with **real PR-content change** since last review (base-only master merges excluded via patch-id). **Exclude any PR davd-gzl already APPROVED on GitHub** (no point re-reviewing approved work).
+Scope chosen by user: **3 fresh + refresh re-reviews**. Fresh = open non-draft PRs never reviewed. Re-review = already-reviewed open PRs whose head moved with real PR-content change since last review (base-only master merges dropped via patch-id, already-APPROVED-by-davd-gzl dropped).
 
-All worktrees pre-created at the current PR head under `.worktrees/gno-review-<num>` (detached). **Re-verify heads before resuming** — PRs may have moved again. Nothing posted.
+Model: claude-opus-4-8. Reviewer: davd-gzl. Nothing posted. Normal (non-deep) flow for all.
 
-## DONE this run (drafts written + pushed, not posted)
-| PR | verdict | round dir |
-|----|---------|-----------|
-| 5653 | NEEDS DISCUSSION | reviews/pr/5xxx/5653-test-13-hardfork-rc/2-f45cc5c88/ |
-| 5598 | REQUEST CHANGES | reviews/pr/5xxx/5598-examples-commondao-fixes/3-0b6b302d2/ |
-| 5069 | APPROVE | reviews/pr/5xxx/5069-grc20reg-pagination/2-0a87d3d9d/ |
-| 5117 | APPROVE (redundant — already approved on GitHub) | reviews/pr/5xxx/5117-multisig-docs-default-sorting/2-bff5572db/ |
-| 5504 | APPROVE (redundant — already approved on GitHub) | reviews/pr/5xxx/5504-royalty-bps-eip2981/2-6d6ab81a5/ |
+## Dropped
+- 81 head-unchanged since last review.
+- 12 already APPROVED by davd-gzl on GitHub: 5048 5068 5134 5361 5431 5559 5645 5757 5766 5775 5825 5896.
+- 4 base-only master-merge (patch-id equal): 4908 5020 5123 5754.
+- WIP: 5721 5376 5263 5223 4949. Dependabot: 5905 5904 5869.
 
-## EXCLUDED — davd-gzl already APPROVED on GitHub (do NOT re-review)
-5117, 5134, 5431, 5504, 5522, 5559, 5645, 5692, 5722, 5766, 5830
+## Final set — 27 PRs (all worktrees pre-created at head; agents must NOT worktree-add / gh pr checkout)
 
-## EXCLUDED — base-only master-merge (patch-id equal, no content change)
-4908, 5020, 5123, 5641, 5754, 5790, 5821, 5822
+### Fresh (3) — first review, round 1
+| PR | head | worktree | dir |
+|----|------|----------|-----|
+| 5885 | de0910ee2 | .worktrees/gno-review-5885 | reviews/pr/5xxx/5885-code-submission-policy-param |
+| 5907 | fba248c95 | .worktrees/gno-review-5907 | reviews/pr/5xxx/5907-prevent-token-path-overwrite |
+| 5908 | 288cdb044 | .worktrees/gno-review-5908 | reviews/pr/5xxx/5908-decouple-token-id-symbol |
 
-## PENDING (19) — important first. One agent per PR per skills/review.md (re-review; new=first review)
-Cols: PR · mode · review dir · next round · last-reviewed sha · current head (verify!) · note
+### Re-review (24)
+| PR | head | last sha | next round | worktree | dir |
+|----|------|----------|-----------|----------|-----|
+| 5016 | 73942a7ab | 877a57bd8 | r3 | .worktrees/gno-review-5016 | reviews/pr/5xxx/5016-rdocs-additions |
+| 5217 | c762e0be5 | 16b633c   | r2 | .worktrees/gno-review-5217 | reviews/pr/5xxx/5217-type-switch-gas-metering |
+| 5258 | c8b2138a8 | 554a7546  | r2 | .worktrees/gno-review-5258 | reviews/pr/5xxx/5258-validate-ws-origin |
+| 5406 | a3b5a3463 | bf988dd   | r2 | .worktrees/gno-review-5406 | reviews/pr/5xxx/5406-comment-gas-metering |
+| 5421 | 13124c534 | 339469041 | r2 | .worktrees/gno-review-5421 | reviews/pr/5xxx/5421-builtin-playground-2 |
+| 5531 | 7199a6789 | 3c8f3dbab (GC'd, diff vs merge-base) | r2 | .worktrees/gno-review-5531 | reviews/pr/5xxx/5531-ci-release-build-cache |
+| 5585 | f05026d1a | 5ae68a81  | r3 | .worktrees/gno-review-5585 | reviews/pr/5xxx/5585-heading-anchor-clickable |
+| 5598 | 747610fee | 0b6b302d2 | r4 | .worktrees/gno-review-5598 | reviews/pr/5xxx/5598-examples-commondao-fixes |
+| 5646 | 6076e2f11 | 9a51c19   | r2 | .worktrees/gno-review-5646 | reviews/pr/5xxx/5646-bigint-bigdec-compare-gas |
+| 5654 | c4f35e987 | f59deca8  | r2 | .worktrees/gno-review-5654 | reviews/pr/5xxx/5654-validators-v3-allow-list |
+| 5676 | 51b992076 | 63c55f963 | r2 | .worktrees/gno-review-5676 | reviews/pr/5xxx/5676-bytes-cut-clone-helpers |
+| 5679 | 30af6c37f | 3ac5cda   | r2 | .worktrees/gno-review-5679 | reviews/pr/5xxx/5679-encoding-ascii85-pem |
+| 5709 | 752e8c272 | 37db202e (GC'd, diff vs merge-base) | r2 | .worktrees/gno-review-5709 | reviews/pr/5xxx/5709-ledger-stored-pubkey-check |
+| 5732 | b6b3e5d42 | d716c5286 | r2 | .worktrees/gno-review-5732 | reviews/pr/5xxx/5732-typedruntimeerror-runtime-errors |
+| 5737 | 0019dc436 | ccb6c94ad | r3 | .worktrees/gno-review-5737 | reviews/pr/5xxx/5737-defer-nil-receiver-panic |
+| 5741 | 84c1c30dd | a6dc98e3b | r2 | .worktrees/gno-review-5741 | reviews/pr/5xxx/5741-float-const-signed-zero |
+| 5749 | 16cf24a2d | 1d2a53f5f | r2 | .worktrees/gno-review-5749 | reviews/pr/5xxx/5749-strings-split-invalid-utf8 |
+| 5756 | f9121247a | d940e681b | r2 | .worktrees/gno-review-5756 | reviews/pr/5xxx/5756-add-memberstorage-subpackage |
+| 5826 | c1942b74c | 088ce87   | r2 | .worktrees/gno-review-5826 | reviews/pr/5xxx/5826-typecheck-fanout-dos |
+| 5840 | 9da3635c4 | 3e4fca768 | r2 | .worktrees/gno-review-5840 | reviews/pr/5xxx/5840-vesting-account-poc |
+| 5843 | 03d2585bb | fbeeb60fa | r2 | .worktrees/gno-review-5843 | reviews/pr/5xxx/5843-tmkms-quickstart-secure |
+| 5864 | 2c6396d90 | 662cbc5ba | r2 | .worktrees/gno-review-5864-h | reviews/pr/5xxx/5864-fold-negzero-float-args |
+| 5867 | 07d4ad373 | 3c7de91d0 | r2 | .worktrees/gno-review-5867 | reviews/pr/5xxx/5867-bigdec-apd-to-rat |
+| 5873 | eb829bec3 | 66552ff7a | r2 | .worktrees/gno-review-5873-h | reviews/pr/5xxx/5873-rewrite-gnokey-guide-reference |
 
-### Deep / important (6)
-- 5835 · DEEP · reviews/pr/5xxx/5835-audit-pattern-harness · r3 · 34ac1e7cd · e8281bcbe · **USER TOP PRIORITY**
-- 5737 · DEEP · reviews/pr/5xxx/5737-defer-nil-receiver-panic · r2 · 4c57c37e4 · ccb6c94ad · davd-gzl had CHANGES_REQUESTED
-- 5739 · DEEP · reviews/pr/5xxx/5739-preserve-embedded-alias-name · r2 · 155f1a7 · 216e8aee3 · CHANGES_REQUESTED
-- 5728 · DEEP · reviews/pr/5xxx/5728-grc721-private-ledger-teller · r2 · c463023cb · eac94f444
-- 5576 · DEEP · reviews/pr/5xxx/5576-deterministic-testing-b · r2 · ca2efcf92 · 79c02d050
-- 5813 · DEEP · reviews/pr/5xxx/5813-recycle-blocks-machine-pool · r2 · 697316b4c · becc5fa87
-
-### Normal re-review (12)
-- 5763 · reviews/pr/5xxx/5763-unsealed-declaredtype-mutual-recursion · r2 · 61fc396e4 · 093c32be0 · CHANGES_REQUESTED
-- 4885 · reviews/pr/4xxx/4885-correctly-reuse-count-string · r2 · e9199dc9e · ff05ec11f
-- 5016 · reviews/pr/5xxx/5016-rdocs-additions · r3 · 877a57bd8 · 12a7129f3 · docs
-- 5406 · reviews/pr/5xxx/5406-comment-gas-metering · r2 · bf988dd · a3b5a3463
-- 5585 · reviews/pr/5xxx/5585-heading-anchor-clickable · r3 · 5ae68a81 · 19d7a8245
-- 5646 · reviews/pr/5xxx/5646-bigint-bigdec-compare-gas · r2 · 9a51c19 · 6076e2f11
-- 5654 · reviews/pr/5xxx/5654-validators-v3-allow-list · r2 · f59deca8 · c4f35e987
-- 5676 · reviews/pr/5xxx/5676-bytes-cut-clone-helpers · r2 · 63c55f963 · 1c5f15202
-- 5709 · reviews/pr/5xxx/5709-ledger-stored-pubkey-check · r2 · 37db202e (old sha may be GC'd; diff vs merge-base) · 752e8c272
-- 5732 · reviews/pr/5xxx/5732-typedruntimeerror-runtime-errors · r2 · d716c5286 · 6a00ff7f4
-- 5756 · reviews/pr/5xxx/5756-add-memberstorage-subpackage · r2 · d940e681b · 8b3329332
-- 5840 · reviews/pr/5xxx/5840-vesting-account-poc · r2 · 3e4fca768 · f9b7547f6
-
-### New (1)
-- 5861 · NEW (first review, round 1) · reviews/pr/5xxx/5861-<slug> · head 18955cb84 · feat(tm2): implement address book
-
-## Resume procedure
-1. `git -C gno fetch origin master`. Per pending PR, re-check current head vs above; if moved, re-cut its worktree to the new head.
-2. Dispatch one `general-purpose` Agent per PR (re-review flow; deep block for the 6 deep). Worktrees exist — agents must NOT `git worktree add` / `gh pr checkout`.
-3. After all return: `./scripts/build-indexes.sh`, then one commit `review: review-all batch (cont.)` + push.
-4. Posting waits for the literal `post` per PR.
-
-## Per-PR agent prompt template (re-review)
-> Run skills/review.md on PR <num> (<url>). RE-REVIEW, head advanced. Worktree .worktrees/gno-review-<num> already at head <new> — do NOT worktree add / gh pr checkout. Prior rounds under <dir>, last sha <old>; patch-ids confirm content changed, full round focused on <old>..HEAD. Carry valid findings verbatim, drop fixed, add delta findings. Write round <next> at <dir>/<next>-<new>/ : review_claude-opus-4-8_davd-gzl.md + comment_claude-opus-4-8.md. Model claude-opus-4-8, reviewer davd-gzl. Do NOT commit/push/build-indexes/post. Report path + verdict + one-paragraph summary.
-> DEEP add: follow the Deep mode section; red-team/blue-team/correctness lenses as distinct in-context passes, plus critic + claim-verification gate; do not spawn sub-agents.
+## Resume / finalize
+1. Dispatch one general-purpose Agent per PR (normal re-review flow; NEW for the 3 fresh). Worktrees exist; agents must NOT worktree-add / gh pr checkout / commit / push / build-indexes / post.
+2. After all return: `./scripts/build-indexes.sh`, then one commit `review: review-all batch 2026-07-07` + push.
+3. Posting waits for the literal `post` per PR.
