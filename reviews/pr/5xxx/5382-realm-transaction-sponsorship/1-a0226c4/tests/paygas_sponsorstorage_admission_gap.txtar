@@ -1,0 +1,60 @@
+# Run: from a gno checkout:
+# gh pr checkout 5382 -R gnolang/gno && git checkout a0226c4
+# curl -fsSL -o gno.land/pkg/integration/testdata/paygas_sponsorstorage_admission_gap.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5382-realm-transaction-sponsorship/1-a0226c4/tests/paygas_sponsorstorage_admission_gap.txtar
+# go test -v -run 'TestTestdata/paygas_sponsorstorage_admission_gap$' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/paygas_sponsorstorage_admission_gap.txtar
+#
+# A SponsorStorage 0-fee tx that calls PayGas and grows storage but never calls
+# PayStorage is admitted by CheckTx and only rejected at DeliverTx: the
+# grew-without-PayStorage check lives in the endTxHook (app.go), which runs in
+# DeliverTx alone, unlike the PayGas-not-called check (baseapp.go runTx, all modes).
+# At a0226c4 the tx reaches HEIGHT 3, the message succeeds, ~1.4M gas is burned,
+# then the tx fails ("unauthorized error") — proving mempool admission passed.
+# When fixed (enforcing the check in CheckExecute too), broadcast is rejected
+# before block inclusion.
+
+## load package
+loadpkg gno.land/r/test/ss_payer $WORK/payer
+
+## create user1 for signing
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+## start a new node
+gnoland start
+
+## fund payer realm
+gnokey maketx send -send 10000000ugnot -to g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## sign the SponsorStorage tx (0 fee, PayGas called, storage grown, NO PayStorage)
+gnokey sign -tx-path $WORK/grow.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
+stdout 'Tx successfully signed'
+
+## broadcast: the tx reaches DeliverTx and fails there, proving it passed CheckTx
+## admission. HEIGHT>0 and GAS USED>0 show block inclusion and wasted gas.
+! gnokey broadcast $WORK/grow.tx -quiet=false
+stdout 'HEIGHT:     3'
+stdout 'GAS USED:'
+stderr 'deliver transaction failed'
+stderr 'unauthorized error'
+
+-- payer/gnomod.toml --
+module = "ss_payer"
+gno = "0.9"
+
+-- payer/payer.gno --
+package ss_payer
+
+import "chain/runtime"
+
+var data []string
+
+func Grow(cur realm) string {
+	runtime.PayGas(5000000)
+	data = append(data, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+	return "grown"
+}
+
+-- grow.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Grow","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot","sponsor_storage":true},"signatures":null,"memo":""}

@@ -5,6 +5,7 @@ Shared vocabulary for gnolang/gno review and reporting, loaded by `skills/review
 - addpkg: the transaction (`maketx addpkg`) that uploads a package or realm to the chain.
 - Allocator: VM component tracking memory allocation and charging allocation gas; `fallbackAllocator` is the global, effectively-unbounded (`MaxInt64` budget) instance for pure-function or no-Machine paths.
 - Amino: gno's deterministic serialization codec (`tm2/pkg/amino`) for on-chain object state, genesis, and RPC; unlike `encoding/json` it honors `,omitempty` on struct-typed fields, so stripping the tag changes JSON output.
+- ante handler: the pre-execution stage (`tm2/pkg/sdk/auth/ante.go`) that runs for every tx before its messages: it verifies signatures, checks and increments the account sequence, enforces gas-wanted bounds and mempool fee minimums, and deducts the fee; its writes (notably the sequence increment) survive even a failed tx.
 - app hash: the per-block commitment to application state (the multistore's Merkle root), agreed in consensus; two honest nodes computing different app hashes for the same block halts the chain.
 - banker: stdlib API (package `chain/banker`, interface `banker.Banker`, constructed via `banker.NewBanker`) for issuing, sending, and burning coins from a realm.
 - bigdec: the VM's arbitrary-precision decimal (`BigdecValue`, wrapping `apd.Decimal`) that backs an untyped float constant before it is typed; `ConvertUntypedBigdecTo` narrows it to `float32`/`float64` in constant space.
