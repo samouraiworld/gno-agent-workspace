@@ -1,0 +1,53 @@
+# Run: from a gno checkout:
+# gh pr checkout 5732 -R gnolang/gno && git checkout b6b3e5d42
+# curl -fsSL -o gno.land/pkg/integration/testdata/recover_runtimeerror_persist.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5732-typedruntimeerror-runtime-errors/2-b6b3e5d42/tests/recover_runtimeerror_persist.txtar
+# go test ./gno.land/pkg/integration/ -run 'TestTestdata/recover_runtimeerror_persist' -v
+# rm gno.land/pkg/integration/testdata/recover_runtimeerror_persist.txtar
+#
+# A realm recovers a VM runtime panic as error and persists it in a global.
+# Tx1 stores the .runtimeError value; tx2 reads it in a later block, exercising
+# serialization + deserialization of the new uverse type across tx boundaries.
+# recover26.gno proves recover().(error) inside one VM run; this proves the
+# recovered value survives the store round-trip.
+
+loadpkg gno.land/r/test/rerr $WORK/rerr
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/rerr -func TriggerAndStore -gas-fee 1000000ugnot -gas-wanted 4100000 -chainid=tendermint_test user1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/rerr -func Read -gas-fee 1000000ugnot -gas-wanted 4100000 -chainid=tendermint_test user1
+stdout 'runtime error: division by zero'
+stdout OK!
+
+-- rerr/gnomod.toml --
+module = "gno.land/r/test/rerr"
+gno = "0.9"
+
+-- rerr/rerr.gno --
+package rerr
+
+var stored error
+
+func TriggerAndStore(cur realm) {
+	defer func() {
+		r := recover()
+		if e, ok := r.(error); ok {
+			stored = e
+		}
+	}()
+	a, b := 1, 0
+	_ = a / b
+}
+
+func Read(cur realm) string {
+	if stored == nil {
+		return "nil"
+	}
+	return stored.Error()
+}

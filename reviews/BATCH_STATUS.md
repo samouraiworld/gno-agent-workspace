@@ -1,53 +1,64 @@
-# Review-all batch — status (started 2026-07-07)
+# Review-all batch — status (started 2026-07-07, recovered after session crash)
 
-Scope chosen by user: **3 fresh + refresh re-reviews**. Fresh = open non-draft PRs never reviewed. Re-review = already-reviewed open PRs whose head moved with real PR-content change since last review (base-only master merges dropped via patch-id, already-APPROVED-by-davd-gzl dropped).
+Scope: 3 fresh + refresh re-reviews. User later said **drop clean (last-verdict-APPROVE) re-reviews**. Model claude-opus-4-8, reviewer davd-gzl. Normal flow. Nothing posted.
 
-Model: claude-opus-4-8. Reviewer: davd-gzl. Nothing posted. Normal (non-deep) flow for all.
+## Set split (27 candidates → keep 16, drop 11)
 
-## Dropped
-- 81 head-unchanged since last review.
-- 12 already APPROVED by davd-gzl on GitHub: 5048 5068 5134 5361 5431 5559 5645 5757 5766 5775 5825 5896.
-- 4 base-only master-merge (patch-id equal): 4908 5020 5123 5754.
-- WIP: 5721 5376 5263 5223 4949. Dependabot: 5905 5904 5869.
+DROP — last review verdict APPROVE (clean), do NOT re-run:
+5016 5217 5258 5531 5585 5646 5676 5679 5709 5737 5749
 
-## Final set — 27 PRs (all worktrees pre-created at head; agents must NOT worktree-add / gh pr checkout)
+KEEP (16): fresh 5885 5907 5908; re-reviews 5406 5421 5598 5654 5732 5741 5756 5826 5840 5843 5864 5867 5873
 
-### Fresh (3) — first review, round 1
-| PR | head | worktree | dir |
-|----|------|----------|-----|
-| 5885 | de0910ee2 | .worktrees/gno-review-5885 | reviews/pr/5xxx/5885-code-submission-policy-param |
-| 5907 | fba248c95 | .worktrees/gno-review-5907 | reviews/pr/5xxx/5907-prevent-token-path-overwrite |
-| 5908 | 288cdb044 | .worktrees/gno-review-5908 | reviews/pr/5xxx/5908-decouple-token-id-symbol |
+## Disk state after crash
+DONE (both review+comment landed):
+- KEEP: 5907, 5908, 5873
+- DROP (already landed, leave as-is): 5258, 5531, 5709, 5749
+PARTIAL/EMPTY on DROP (ignore, dropped): 5679 (review only)
 
-### Re-review (24)
-| PR | head | last sha | next round | worktree | dir |
-|----|------|----------|-----------|----------|-----|
-| 5016 | 73942a7ab | 877a57bd8 | r3 | .worktrees/gno-review-5016 | reviews/pr/5xxx/5016-rdocs-additions |
-| 5217 | c762e0be5 | 16b633c   | r2 | .worktrees/gno-review-5217 | reviews/pr/5xxx/5217-type-switch-gas-metering |
-| 5258 | c8b2138a8 | 554a7546  | r2 | .worktrees/gno-review-5258 | reviews/pr/5xxx/5258-validate-ws-origin |
-| 5406 | a3b5a3463 | bf988dd   | r2 | .worktrees/gno-review-5406 | reviews/pr/5xxx/5406-comment-gas-metering |
-| 5421 | 13124c534 | 339469041 | r2 | .worktrees/gno-review-5421 | reviews/pr/5xxx/5421-builtin-playground-2 |
-| 5531 | 7199a6789 | 3c8f3dbab (GC'd, diff vs merge-base) | r2 | .worktrees/gno-review-5531 | reviews/pr/5xxx/5531-ci-release-build-cache |
-| 5585 | f05026d1a | 5ae68a81  | r3 | .worktrees/gno-review-5585 | reviews/pr/5xxx/5585-heading-anchor-clickable |
-| 5598 | 747610fee | 0b6b302d2 | r4 | .worktrees/gno-review-5598 | reviews/pr/5xxx/5598-examples-commondao-fixes |
-| 5646 | 6076e2f11 | 9a51c19   | r2 | .worktrees/gno-review-5646 | reviews/pr/5xxx/5646-bigint-bigdec-compare-gas |
-| 5654 | c4f35e987 | f59deca8  | r2 | .worktrees/gno-review-5654 | reviews/pr/5xxx/5654-validators-v3-allow-list |
-| 5676 | 51b992076 | 63c55f963 | r2 | .worktrees/gno-review-5676 | reviews/pr/5xxx/5676-bytes-cut-clone-helpers |
-| 5679 | 30af6c37f | 3ac5cda   | r2 | .worktrees/gno-review-5679 | reviews/pr/5xxx/5679-encoding-ascii85-pem |
-| 5709 | 752e8c272 | 37db202e (GC'd, diff vs merge-base) | r2 | .worktrees/gno-review-5709 | reviews/pr/5xxx/5709-ledger-stored-pubkey-check |
-| 5732 | b6b3e5d42 | d716c5286 | r2 | .worktrees/gno-review-5732 | reviews/pr/5xxx/5732-typedruntimeerror-runtime-errors |
-| 5737 | 0019dc436 | ccb6c94ad | r3 | .worktrees/gno-review-5737 | reviews/pr/5xxx/5737-defer-nil-receiver-panic |
-| 5741 | 84c1c30dd | a6dc98e3b | r2 | .worktrees/gno-review-5741 | reviews/pr/5xxx/5741-float-const-signed-zero |
-| 5749 | 16cf24a2d | 1d2a53f5f | r2 | .worktrees/gno-review-5749 | reviews/pr/5xxx/5749-strings-split-invalid-utf8 |
-| 5756 | f9121247a | d940e681b | r2 | .worktrees/gno-review-5756 | reviews/pr/5xxx/5756-add-memberstorage-subpackage |
-| 5826 | c1942b74c | 088ce87   | r2 | .worktrees/gno-review-5826 | reviews/pr/5xxx/5826-typecheck-fanout-dos |
-| 5840 | 9da3635c4 | 3e4fca768 | r2 | .worktrees/gno-review-5840 | reviews/pr/5xxx/5840-vesting-account-poc |
-| 5843 | 03d2585bb | fbeeb60fa | r2 | .worktrees/gno-review-5843 | reviews/pr/5xxx/5843-tmkms-quickstart-secure |
-| 5864 | 2c6396d90 | 662cbc5ba | r2 | .worktrees/gno-review-5864-h | reviews/pr/5xxx/5864-fold-negzero-float-args |
-| 5867 | 07d4ad373 | 3c7de91d0 | r2 | .worktrees/gno-review-5867 | reviews/pr/5xxx/5867-bigdec-apd-to-rat |
-| 5873 | eb829bec3 | 66552ff7a | r2 | .worktrees/gno-review-5873-h | reviews/pr/5xxx/5873-rewrite-gnokey-guide-reference |
+RE-DISPATCHED now (13 keep-set incomplete), agent IDs:
+| PR | agent |
+|----|-------|
+| 5885 | a0d4d41172440976d |
+| 5406 | a711963d5c0cd72e0 |
+| 5421 | ac73ab80618ec13bd |
+| 5598 | aa792a51a7fc75128 |
+| 5654 | aad13c2c9d38cd430 |
+| 5732 | aee03301e3aa50011 |
+| 5741 | a23f6cbc395ef388e |
+| 5756 | a10643f5d21e14f90 |
+| 5826 | a3eb3af8db0a5ab7a |
+| 5840 | ac9714e006581d7c9 |
+| 5843 | a86989857ef8af6bf |
+| 5864 | a9faf325b36202dad (worktree gno-review-5864-h) |
+| 5867 | a9dc1a0c5296be32c |
 
-## Resume / finalize
-1. Dispatch one general-purpose Agent per PR (normal re-review flow; NEW for the 3 fresh). Worktrees exist; agents must NOT worktree-add / gh pr checkout / commit / push / build-indexes / post.
-2. After all return: `./scripts/build-indexes.sh`, then one commit `review: review-all batch 2026-07-07` + push.
-3. Posting waits for the literal `post` per PR.
+## Round dirs (KEEP set)
+5885 reviews/pr/5xxx/5885-code-submission-policy-param/1-de0910ee2
+5907 reviews/pr/5xxx/5907-prevent-token-path-overwrite/1-fba248c95
+5908 reviews/pr/5xxx/5908-decouple-token-id-symbol/1-288cdb044
+5406 reviews/pr/5xxx/5406-comment-gas-metering/2-a3b5a3463
+5421 reviews/pr/5xxx/5421-builtin-playground-2/2-13124c534
+5598 reviews/pr/5xxx/5598-examples-commondao-fixes/4-747610fee
+5654 reviews/pr/5xxx/5654-validators-v3-allow-list/2-c4f35e987
+5732 reviews/pr/5xxx/5732-typedruntimeerror-runtime-errors/2-b6b3e5d42
+5741 reviews/pr/5xxx/5741-float-const-signed-zero/2-84c1c30dd
+5756 reviews/pr/5xxx/5756-add-memberstorage-subpackage/2-f9121247a
+5826 reviews/pr/5xxx/5826-typecheck-fanout-dos/2-c1942b74c
+5840 reviews/pr/5xxx/5840-vesting-account-poc/2-9da3635c4
+5843 reviews/pr/5xxx/5843-tmkms-quickstart-secure/2-03d2585bb
+5864 reviews/pr/5xxx/5864-fold-negzero-float-args/2-2c6396d90
+5867 reviews/pr/5xxx/5867-bigdec-apd-to-rat/2-07d4ad373
+5873 reviews/pr/5xxx/5873-rewrite-gnokey-guide-reference/2-eb829bec3
+
+## ROLLING DISPATCH, cap 4 (crashes + session limit)
+DONE both files (12): 5907 5908 5873 5885 5421 5406 5598 5741 5732 5756 5654 5843.
+IN FLIGHT (4, last batch): 5826(a24685eaf87105f7a) 5840(a04d0839e96200d9a) 5864(ab626eed1eb15df3c) 5867(aa37a5323834bc304).
+QUEUE: none. All 16 keep-set dispatched.
+Worktrees clean at head, swept. 5864 uses .worktrees/gno-review-5864-h. Redispatch prompt = normal re-review flow, delete scratch test files. Round dirs listed above.
+Prior sha per pending: 5826 088ce87 (RC), 5840 3e4fca768 (ND), 5843 fbeeb60fa (RC), 5864 662cbc5ba (ND), 5867 3c7de91d0 (RC).
+
+## Finalize — USER SAID "then push" (authorized single final push after batch completes)
+1. Verify each keep-set PR wrote review+comment.
+2. Sweep stray scratch test files from worktrees (e.g. zz_*_scratch, zz_csp_scratch_test.go in gno-review-5885).
+3. `./scripts/build-indexes.sh`, then `git add reviews/ docs/glossary.md && git commit -m "review: review-all batch 2026-07-07" && git push`.
+4. Posting waits for literal `post` per PR.
