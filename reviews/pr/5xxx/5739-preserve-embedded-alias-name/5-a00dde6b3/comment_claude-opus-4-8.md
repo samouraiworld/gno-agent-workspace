@@ -1,21 +1,49 @@
 # Review: PR #5739
-Event: COMMENT
+Posted: https://github.com/gnolang/gno/pull/5739#pullrequestreview-4604057569
+Event: APPROVE
 
 ## Body
 Verified at a00dde6b3.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5739-preserve-embedded-alias-name/5-a00dde6b3/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gnovm/pkg/gnolang/types.go:1062-1077 [↗](../../../../../.worktrees/gno-review-5739/gnovm/pkg/gnolang/types.go#L1062)
-Selecting an unexported method resolves by source order, so `interface{ ifaceext.Sec; sec() int }` rejects `x.sec()` from main while listing the own `sec()` first compiles. Go binds `x.sec()` to main's own `sec` either way. Minor: it over-rejects rather than grants access, and no concrete type can satisfy the interface.
+## gnovm/pkg/gnolang/types.go:1062-1077 [↗](../../../../../.worktrees/gno-review-5739/gnovm/pkg/gnolang/types.go#L1062) [posted](https://github.com/gnolang/gno/pull/5739#discussion_r3543375014)
+Minor: The loop returns on the first entry named `sec`, so the result depends on method order. Unexported identity is package-scoped, so `ifaceext.sec` and `main.sec` are two different methods with the same name. In `interface{ ifaceext.Sec; sec() int }` the embedded `ifaceext.sec` comes first, fails the origin gate, and `x.sec()` from main is rejected; put the own `sec()` first and it compiles. Go accepts both orders. 
 
 <details><summary>repro</summary>
 
 ```bash
 # from a local clone of gnolang/gno:
 gh pr checkout 5739 -R gnolang/gno
-curl -fsSL -o gnovm/tests/files/iface_embed_sel_order.gno \
-  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5739-preserve-embedded-alias-name/5-a00dde6b3/tests/iface_embed_sel_order.gno
+cat > gnovm/tests/files/iface_embed_sel_order.gno <<'EOF'
+package main
+
+import "filetests/extern/ifaceext"
+
+// embed-first: foreign sealed ifaceext.sec listed before main's own sec.
+func selEmbedFirst(x interface {
+	ifaceext.Sec
+	sec() int
+}) int {
+	return x.sec()
+}
+
+// own-first: main's own sec listed before the foreign embed (compiles today).
+func selOwnFirst(x interface {
+	sec() int
+	ifaceext.Sec
+}) int {
+	return x.sec()
+}
+
+func main() {
+	_, _ = selEmbedFirst, selOwnFirst
+	println("ok")
+}
+
+// Output:
+// ok
+EOF
 go test -v -run 'TestFiles/iface_embed_sel_order.gno$' ./gnovm/pkg/gnolang/
 rm gnovm/tests/files/iface_embed_sel_order.gno
 ```
