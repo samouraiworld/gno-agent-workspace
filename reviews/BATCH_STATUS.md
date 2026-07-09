@@ -1,64 +1,66 @@
-# Review-all batch — status (started 2026-07-07, recovered after session crash)
+# Review-all batch — status (started 2026-07-09)
 
-Scope: 3 fresh + refresh re-reviews. User later said **drop clean (last-verdict-APPROVE) re-reviews**. Model claude-opus-4-8, reviewer davd-gzl. Normal flow. Nothing posted.
+Scope: 7 fresh reviews, no re-reviews. User confirmed "All 7". Model claude-opus-4-8, reviewer davd-gzl. Normal flow (not deep). Nothing posted.
 
-## Set split (27 candidates → keep 16, drop 11)
+## Set split (14 candidates → keep 7, drop 7)
 
-DROP — last review verdict APPROVE (clean), do NOT re-run:
-5016 5217 5258 5531 5585 5646 5676 5679 5709 5737 5749
+DROP — dependabot (`app/dependabot`):
+5869 5905 5914
 
-KEEP (16): fresh 5885 5907 5908; re-reviews 5406 5421 5598 5654 5732 5741 5756 5826 5840 5843 5864 5867 5873
+DROP — `WIP`-titled:
+4949 5223 5263 5721
 
-## Disk state after crash
-DONE (both review+comment landed):
-- KEEP: 5907, 5908, 5873
-- DROP (already landed, leave as-is): 5258, 5531, 5709, 5749
-PARTIAL/EMPTY on DROP (ignore, dropped): 5679 (review only)
+KEEP (7, all fresh — absent from `reviews/pr/`):
+5888 5890 5891 5892 5893 5911 5917
 
-RE-DISPATCHED now (13 keep-set incomplete), agent IDs:
-| PR | agent |
-|----|-------|
-| 5885 | a0d4d41172440976d |
-| 5406 | a711963d5c0cd72e0 |
-| 5421 | ac73ab80618ec13bd |
-| 5598 | aa792a51a7fc75128 |
-| 5654 | aad13c2c9d38cd430 |
-| 5732 | aee03301e3aa50011 |
-| 5741 | a23f6cbc395ef388e |
-| 5756 | a10643f5d21e14f90 |
-| 5826 | a3eb3af8db0a5ab7a |
-| 5840 | ac9714e006581d7c9 |
-| 5843 | a86989857ef8af6bf |
-| 5864 | a9faf325b36202dad (worktree gno-review-5864-h) |
-| 5867 | a9dc1a0c5296be32c |
+No re-reviews in this batch, so the head-unchanged, patch-id-equal base-only move, and already-APPROVED drop reasons do not apply.
 
-## Round dirs (KEEP set)
-5885 reviews/pr/5xxx/5885-code-submission-policy-param/1-de0910ee2
-5907 reviews/pr/5xxx/5907-prevent-token-path-overwrite/1-fba248c95
-5908 reviews/pr/5xxx/5908-decouple-token-id-symbol/1-288cdb044
-5406 reviews/pr/5xxx/5406-comment-gas-metering/2-a3b5a3463
-5421 reviews/pr/5xxx/5421-builtin-playground-2/2-13124c534
-5598 reviews/pr/5xxx/5598-examples-commondao-fixes/4-747610fee
-5654 reviews/pr/5xxx/5654-validators-v3-allow-list/2-c4f35e987
-5732 reviews/pr/5xxx/5732-typedruntimeerror-runtime-errors/2-b6b3e5d42
-5741 reviews/pr/5xxx/5741-float-const-signed-zero/2-84c1c30dd
-5756 reviews/pr/5xxx/5756-add-memberstorage-subpackage/2-f9121247a
-5826 reviews/pr/5xxx/5826-typecheck-fanout-dos/2-c1942b74c
-5840 reviews/pr/5xxx/5840-vesting-account-poc/2-9da3635c4
-5843 reviews/pr/5xxx/5843-tmkms-quickstart-secure/2-03d2585bb
-5864 reviews/pr/5xxx/5864-fold-negzero-float-args/2-2c6396d90
-5867 reviews/pr/5xxx/5867-bigdec-apd-to-rat/2-07d4ad373
-5873 reviews/pr/5xxx/5873-rewrite-gnokey-guide-reference/2-eb829bec3
+## Final set
 
-## ROLLING DISPATCH, cap 4 (crashes + session limit)
-DONE both files (12): 5907 5908 5873 5885 5421 5406 5598 5741 5732 5756 5654 5843.
-IN FLIGHT (4, last batch): 5826(a24685eaf87105f7a) 5840(a04d0839e96200d9a) 5864(ab626eed1eb15df3c) 5867(aa37a5323834bc304).
-QUEUE: none. All 16 keep-set dispatched.
-Worktrees clean at head, swept. 5864 uses .worktrees/gno-review-5864-h. Redispatch prompt = normal re-review flow, delete scratch test files. Round dirs listed above.
-Prior sha per pending: 5826 088ce87 (RC), 5840 3e4fca768 (ND), 5843 fbeeb60fa (RC), 5864 662cbc5ba (ND), 5867 3c7de91d0 (RC).
+Base `origin/master` = `be3a5ade9`. Every worktree was created fresh and checked out at the PR head; each local head sha matches the GitHub `headRefOid`.
 
-## Finalize — USER SAID "then push" (authorized single final push after batch completes)
-1. Verify each keep-set PR wrote review+comment.
-2. Sweep stray scratch test files from worktrees (e.g. zz_*_scratch, zz_csp_scratch_test.go in gno-review-5885).
-3. `./scripts/build-indexes.sh`, then `git add reviews/ docs/glossary.md && git commit -m "review: review-all batch 2026-07-07" && git push`.
-4. Posting waits for literal `post` per PR.
+| PR | Author | Size | Head sha | Base | Worktree | Review dir |
+|----|--------|------|----------|------|----------|------------|
+| [5911](https://github.com/gnolang/gno/pull/5911) | notJoon | +15/-3, 2f | `6c20a2f7b` | master | `.worktrees/gno-review-5911` | `reviews/pr/5xxx/5911-enforce-max-slug-length/1-6c20a2f7b/` |
+| [5917](https://github.com/gnolang/gno/pull/5917) | aeddi | +311/-0, 4f | `c8a5a2f2a` | master | `.worktrees/gno-review-5917` | `reviews/pr/5xxx/5917-govdao-test13-scripts/1-c8a5a2f2a/` |
+| [5888](https://github.com/gnolang/gno/pull/5888) | moul | +940/-2, 12f | `b8818eb8e` | master | `.worktrees/gno-review-5888` | `reviews/pr/5xxx/5888-inert-package-storage-oracle/1-b8818eb8e/` |
+| [5891](https://github.com/gnolang/gno/pull/5891) | jaekwon | +507/-22, 11f | `057894796` | master | `.worktrees/gno-review-5891` | `reviews/pr/5xxx/5891-split-mempackage-prod-test/1-057894796/` |
+| [5892](https://github.com/gnolang/gno/pull/5892) | jaekwon | +218/-58, 31f | `d2f3d1337` | `pr1-mempackage-split` (PR 5891) | `.worktrees/gno-review-5892` | `reviews/pr/5xxx/5892-meter-preprocess-gas/1-d2f3d1337/` |
+| [5893](https://github.com/gnolang/gno/pull/5893) | jaekwon | +829/-132, 43f | `131c5fccb` | master | `.worktrees/gno-review-5893` | `reviews/pr/5xxx/5893-deterministic-typecheck-verdict/1-131c5fccb/` |
+| [5890](https://github.com/gnolang/gno/pull/5890) | jaekwon | +2632/-232, 50f | `8a115c8ca` | master | `.worktrees/gno-review-5890` | `reviews/pr/5xxx/5890-realm-sub-subrealm-identities/1-8a115c8ca/` |
+
+Stacking: 5892 targets 5891's branch, so its `gh pr diff` carries only pr2's own changes. 5888, 5890, 5891, and 5893 each diff against master.
+
+## Dispatch
+
+One `general-purpose` agent per PR, all in one message, per `skills/review.md` *Parallel dispatch*. The parent created every worktree and ran `gh pr checkout`; subagents never do. Subagents write `review_claude-opus-4-8_davd-gzl.md` and `comment_claude-opus-4-8.md`, and do not commit, push, regenerate indexes, or post.
+
+## Results — all 7 returned
+
+| PR | Verdict | Inline comments | Headline |
+|----|---------|-----------------|----------|
+| 5911 | APPROVE | 1 | `maxSlugLen = 128` has no unit comment though the limit is applied in bytes |
+| 5917 | APPROVE | 2 + Body question | stale comment, missing `lock-transfer` command; sibling singular scripts emit a stale 3-arg builder call |
+| 5888 | REQUEST_CHANGES | 7 | `EnablePackage` skips storage deposit, skips the gnomod gates, and runs init as the approver |
+| 5891 | APPROVE | 0 | mempackage split verified lossless and deterministic |
+| 5892 | APPROVE | 0 | gas charge revert-proofed at 1250 × 84 bytes |
+| 5893 | APPROVE | 0 | `GoVersion` pin revert-proofed; error text off the hashed path |
+| 5890 | APPROVE | 0 | banker caller-drain fix revert-proofed; sub-minting unforgeable |
+
+5888's three Warnings were independently re-verified by the parent against `gno.land/pkg/sdk/vm/keeper.go` at `b8818eb8e`: `processStorageDeposit` is called at `:783`, `:1014`, `:1229` but never inside `EnablePackage` (`:803-858`); the release path panics at `:1917` when `rlm.Storage < released` and divides by `rlm.Storage` at `:1935`; `EnablePackage` runs no `gnomod.ParseMemPackage` gate; `OriginCaller` is set to `msg.Approver.Bech32()` at `:831`.
+
+All seven worktrees are clean, with no scratch files left behind.
+
+## Finalize (parent)
+
+1. ~~Verify each PR wrote both a review file and a comment draft.~~ Done, all 14 files present.
+2. ~~Sweep stray scratch test files from the worktrees.~~ Done, all clean.
+3. `./scripts/build-indexes.sh` once.
+4. `git add reviews/ docs/glossary.md && git commit -m "review: review-all batch 2026-07-09" && git push`
+5. Hand back a link to each PR's `comment_claude-opus-4-8.md`. Posting waits for the literal `post`.
+
+Nothing has been posted to GitHub.
+
+## Resume
+
+If the session dies mid-batch: check which review dirs above hold both `review_*.md` and `comment_*.md`, and re-dispatch only the incomplete ones. The worktrees already exist at the shas in the table; do not re-create them.
