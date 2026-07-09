@@ -22,8 +22,6 @@ gh repo fork gnolang/gno --remote-only --remote-name fork
 ```
 Never push to `origin` (gnolang/gno). Push only to the user's fork `davd-gzl` (alias `fork`); every other remote is another contributor's fork, never a push target. Read `git remote -v` in full, never truncated.
 
-When working on the fork, always pull from `origin` (upstream master) first, then run the command.
-
 ---
 
 ## `fix`
