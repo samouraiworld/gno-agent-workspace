@@ -359,36 +359,65 @@ Body rules:
 - A Body check that asserts a runtime property a committed test could assert becomes that test (ship it per the missing-test rule), not Body prose. The Body keeps only checks no committed test can carry, e.g. a revert-proof: the negative direction of a shipped golden.
 - Pin repros with a "Repros run at <short-sha>." line at the end of the Body. When the sha still matches the PR head at drafting time, fold it into the opener instead ("reproduced on <short-sha>").
 
-Rules:
+General rules:
 - Visible prose (Body and every inline comment) follows `skills/writing-style.md`: short sentences one idea each, no em-dashes, no parentheticals, no bold; state the problem directly; state the problem, not the fix.
 - `Event:` maps from the verdict: APPROVE → APPROVE, REQUEST CHANGES → REQUEST_CHANGES, NEEDS DISCUSSION and CLOSE → COMMENT. The `Event:` line is the verdict; Body never restates it (no "Changes needed." opener) and goes straight to substance.
-- One `## <path>:<line>` section per finding with a file:line, all severities. Ranges: `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Unanchored findings and questions go at the end of Body.
-- Verify every anchor by reading those lines in the worktree before drafting; the anchor must cover exactly the lines the sentence talks about.
-- Append a local IDE link to each anchor header: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space.
-- Inline comment visible text opens with the finding's severity band from the review file, as a `Critical:` / `Nit:` / `Suggestion:` prefix, then the finding's TL;DR. Warnings carry no prefix: they open directly with the TL;DR. The bracketed plain-English priority tag is dropped. A missing-test finding uses its `Missing test:` opener instead. Hard cap 1-3 visible sentences. No headers, no bold.
+- Post only comments that change what the author does: fix, decide, or answer. A finding whose details end "no change needed" / "flagging for whoever touches this next" stays in the review file and never reaches comment.md. Severity never gates this: a Nit or Suggestion that asks for a concrete modification (a wording fix, a corrected value, a dropped line) gets its own anchored comment.md section like any Warning. The discriminator is "should the author change something," not the severity band.
+- Never explain routine fixes the author would do anyway (merge master, regenerate assets, re-run a flaky job). A red CI check with a routine cause gets one short Body line ("not a code problem"), no instructions, no repro; detail it only when the cause is non-obvious or changes what the author must do.
+
+### Building each inline comment
+
+Walk these steps, in order, for every finding:
+
+1. **Anchor.** One `## <path>:<line>` section per finding, all severities; ranges `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Read those exact lines in the worktree first; the anchor must cover exactly the lines the sentence talks about. Append the local IDE link: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space.
+2. **Opener.** `Critical:` / `Nit:` / `Suggestion:` prefix matching the review file's severity band, then the TL;DR. A Warning gets NO prefix: it opens directly with the TL;DR. A missing-test finding opens `Missing test:` plus the uncovered scenario in one clause. The bracketed plain-English priority tag is dropped everywhere.
+3. **Sentences.** Hard cap 1-3 visible sentences (code blocks and `<details>` don't count; no headers, no bold). Order: the gap and its stake first, evidence second, fix sentence last. Count the sentences before moving on; over 3 → cut evidence, not the gap.
+4. **Fix sentence.** Default to none: state the problem and stop. Add one only when the remedy is genuinely non-obvious and changes what the author would do; name the desired outcome, never the implementation path or an internal symbol ("reject those too", not "call `evalStaticTypeOf` and branch on the `Func` field"). Never a fix sentence whose remedy the problem statement already implies ("the doc comment describes the wrong function" needs no "rewrite it").
+5. **Links.** Every file or test referenced by name, and every behavioral claim, gets the dual link (see Links below).
+6. **Repro.** Critical and Warning findings get a collapsed repro block when the claim is behavioral (see Repros below).
+
+Example (a Nit; a Warning would start directly at "this says"):
+
+```markdown
+## docs/resources/gno-example.md:42 [↗](../../../../../.worktrees/gno-review-1234/docs/resources/gno-example.md#L42)
+Nit: this says `Tree.Size` is a field, but [`Size` is a method](https://github.com/gnolang/gno/blob/ab12cd34e/examples/gno.land/p/nt/avl/v0/tree.gno#L37) · [↗](../../../../../.worktrees/gno-review-1234/examples/gno.land/p/nt/avl/v0/tree.gno#L37). Write `Size()`.
+```
+
+### Visible-text style
+
 - Plain English, essentials only: the problem and why it matters — short sentences, no stacked technical clauses, no symbol-chain walkthroughs; the reader must get it in one pass. Cut scenario-painting: keep the fact and the stake.
 - Don't re-prove the claim in the visible text: mechanism detail, secondary evidence, and source enumerations belong in the repro block or the full review, not inline. If a repro or the review carries the proof, the visible text asserts the claim in one clause. Before: "It's fine here because the parent dir is already 700, but a half-sentence saying the parent dir is the real guard would stop a reader who relocates the socket from relying on a perm that can silently not apply." After: "The real guard is the 700 parent dir; say so, or a reader who relocates the socket loses the protection."
 - Lead with the specific gap (the shape that slips past, the line that breaks); never open by explaining what the author's own code does ("the guard measures how far each type can expand"). Assume the author knows their own mechanism. Never restate what the PR does or claims, inline included — the author wrote it; state the gap directly, never "the property the PR is about" / "what the PR claims". Same plain register in any prose comments inside a repro block (txtar header comments included): state the shape and the gap, not a tutorial.
-- Default to no fix: state the problem and stop, the author figures out the remedy. Add a fix sentence only when the remedy is genuinely non-obvious and changes what the author would do, and then name the desired outcome, never the implementation path or an internal symbol ("reject those too", not "call `evalStaticTypeOf` and branch on the `Func` field"). Never a fix sentence whose remedy the problem statement already implies ("the doc comment describes the wrong function" needs no "rewrite it").
 - A latent-risk finding (correct today, breaks for a future caller) states the current safety in one clause ("no current caller passes filetests, so it is latent") and stops.
 - Lowercase a source document's emphasis caps (WRONG/RIGHT) when quoted in prose; caps survive only inside code spans.
-- Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
-- A missing-test finding opens its visible text with `Missing test:`, then names the uncovered scenario in one clause. It carries the ready-to-add cases in a collapsed `<details><summary>test cases</summary>` block in the file's own test style: the full filetest or table rows when short, or the source plus a dual link to the large `tests/` golden. Paste-ready as-is.
 - State findings as facts ("X hangs forever"), not questions. A genuine question is one terse line, posted only if the answer changes the verdict or the author's next action.
 - A design or layering question is two sentences at most: the alternative in one clause, then whether the current choice was deliberate. State the alternative, never re-explain the author's mechanism. Example: `DeleteForKey has the machine and could mark the removed key itself instead of returning it. Deliberate split to keep it a pure container op?`
-- Post only comments that change what the author does: fix, decide, or answer. A finding whose details end "no change needed" / "flagging for whoever touches this next" stays in the review file and never reaches comment.md. Severity never gates this: a Nit or Suggestion that asks for a concrete modification (a wording fix, a corrected value, a dropped line) gets its own anchored comment.md section like any Warning. The discriminator is "should the author change something," not the severity band.
-- Never explain routine fixes the author would do anyway (merge master, regenerate assets, re-run a flaky job). A red CI check with a routine cause gets one short Body line ("not a code problem"), no instructions, no repro; detail it only when the cause is non-obvious or changes what the author must do.
+- Link to the full review inside an inline comment only when the details block is not enough.
+
+### Links
+
 - Every file or test referenced by name (visible text or repro `<details>`) gets the dual link: GitHub blob URL at the reviewed sha + ` · [↗](<local worktree path>)`. Every behavioral claim links the line that proves it, dual-link form, not just claims that name a symbol. The "Full review:" line gets a relative `↗`. The upload script strips every `[↗](...)` link at post time.
-- Repro blocks: same rules as review repros — start with `gh pr checkout`, runnable from a fresh gnolang/gno clone, zero local paths, actually run, output included.
+- A blob link into a rendered file (`.md`, anything GitHub renders rather than shows as source) puts `?plain=1` before the `#L` anchor, else the line anchor is lost: `.../guide.md?plain=1#L366`. Code files (`.go`, `.gno`, `.yml`, `.txtar`) don't take it; worktree `↗` links never take it.
+- Write every reviewed-commit sha in comment.md prose (the `Verified on <sha>` / `reproduced on <sha>` pin, `Repros run at <sha>`) as a bare sha, no backticks and no markdown link. GitHub auto-links a bare commit sha in a gnolang/gno comment and gives it the native commit hovercard; backticks or a `[...](commit-url)` wrapper suppress the hovercard. The review file keeps its own shas as-is (rendered in our repo, where a bare gno sha wouldn't resolve; its file-line links are already clickable).
+
+### Repros
+
+- Attempt a repro for every Critical and Warning before drafting. Findings without a run proof are worded as observations, never "I ran X". Behavioral repros only — for source-visible facts, cite the anchor and drop the repro block. A repro whose only output is the PR's own test passing (`--- PASS`) shows nothing CI doesn't, so drop it.
+- Repro command + observed output go in a collapsed `<details><summary>repro</summary>` block. A repro lives in exactly one file: comment.md owns it for findings anchored there; the review file states the observed result and links it (`[repro](comment_<model>.md)`); only findings that never reach comment.md keep their repro in the review file.
 - Repro placement: line-specific repros stay with their inline comment; suite/PR-wide repros go in a Body `<details>` block, inline comments point to it.
+- Repro blocks: same rules as review repros — start with `gh pr checkout`, runnable from a fresh gnolang/gno clone, zero local paths, actually run, output included.
+- A missing-test finding carries the ready-to-add cases in a collapsed `<details><summary>test cases</summary>` block in the file's own test style: the full filetest or table rows when short, or the source plus a dual link to the large `tests/` golden. Paste-ready as-is.
+
+### Rounds & regeneration
+
 - Update comment.md whenever the review or findings change (new PR commits, new round, re-run repros, format changes). It never lags the review file.
 - Port carried findings to a new round verbatim: only shas, repro URLs, and anchors that no longer point at the right lines change. No round-relative phrasing ("again", "still"): unposted drafts were never seen by the author.
 - A finding the user SKIPped in a prior round stays SKIPped when ported forward, as long as it still applies: carry the `## SKIP` marker into the new round's comment.md with a one-line note (`Skipped in round <n>; keeping it skipped.`), never silently re-promote it to a posted comment. The user un-SKIPs it explicitly or it stays skipped.
 - When the PR head advanced past the reviewed commit: diff `<reviewed-sha>..<head>`, drop fixed findings, re-run remaining repros on the new head, re-verify every anchor against the current diff before posting.
 - Before regenerating comment.md, read the existing file and preserve every `SKIP` marker whose finding still exists.
-- Write every reviewed-commit sha in comment.md prose (the `Verified on <sha>` / `reproduced on <sha>` pin, `Repros run at <sha>`) as a bare sha, no backticks and no markdown link. GitHub auto-links a bare commit sha in a gnolang/gno comment and gives it the native commit hovercard; backticks or a `[...](commit-url)` wrapper suppress the hovercard. The review file keeps its own shas as-is (rendered in our repo, where a bare gno sha wouldn't resolve; its file-line links are already clickable).
-- Attempt a repro for every Critical and Warning before drafting. Findings without a run proof are worded as observations, never "I ran X". Behavioral repros only — for source-visible facts, cite the anchor and drop the repro block. A repro whose only output is the PR's own test passing (`--- PASS`) shows nothing CI doesn't, so drop it.
-- Link to the full review inside an inline comment only when the details block is not enough.
+
+### Posting
+
 - Never post without explicit user approval in the current turn: the literal word "post" (or "upload"). "push" authorizes git push only and never covers posting.
 - Same gate for mutating posted content (editing or deleting a posted comment, re-posting): update the local draft first, show the user the exact new text, and touch GitHub only after they approve it in the current turn — even when the change itself was requested.
 - APPROVE is a human decision: state the verdict and wait for the user to confirm the approval itself — a generic "post it" covers REQUEST_CHANGES/COMMENT only. Then run the script with `--approve` (it refuses APPROVE without the flag).
