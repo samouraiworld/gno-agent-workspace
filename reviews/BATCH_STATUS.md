@@ -35,17 +35,25 @@ Every worktree was created fresh from `origin/master` and checked out at the PR 
 
 One `general-purpose` agent per PR, all in one message, per `skills/review.md` *Parallel dispatch*. The parent created every worktree and ran `gh pr checkout`; subagents never do. Subagents write `review_claude-opus-4-8_davd-gzl.md` and `comment_claude-opus-4-8.md`, and do not commit, push, regenerate indexes, or post.
 
-## Results
+## Results — all 7 returned
 
 | PR | Verdict | Inline comments | Headline |
 |----|---------|-----------------|----------|
-| 5933 | pending | | |
-| 5928 | pending | | |
-| 5924 | pending | | |
-| 5921 | pending | | |
-| 5920 | pending | | |
-| 5916 | pending | | |
-| 5721 | pending | | |
+| 5933 | APPROVE | 0 | decode-over-defaults replaces `mergo.Merge`; revert-proofed against the PR's own tests |
+| 5928 | APPROVE | 2 | no test round-trips an emitted tx through ValidateBasic; the fee help understates an N-row CSV as 1 ugnot |
+| 5924 | APPROVE | 2 | the `fork test` replay guard has no end-to-end test; the "Txs processed" line counts source-failed txs |
+| 5921 | APPROVE | 1 | doc comment overstates which interface type-set elements are syntactically undetectable |
+| 5920 | APPROVE | 1 | stale loop comment; the `_` skip itself is correct and load-bearing |
+| 5916 | NEEDS DISCUSSION | 1 | consensus-breaking on empty blocks; the relaxed `gasUsed < 0` guard ships untested |
+| 5721 | APPROVE | 3 | interface-satisfaction ambiguity reports "missing method" where the direct selector says "ambiguous" |
+
+Parent re-verification of the only non-APPROVE (5916), against `tm2/pkg/sdk/auth/` at `7e6955997`: `UpdateGasPrice` is `keeper.go:361`, its relaxed guard `if gasUsed < 0` is `keeper.go:370`, and the only `UpdateGasPrice` in any `_test.go` is the empty stub `gno.land/pkg/gnoland/mock_test.go:221`, so the real method is untested. Anchors in all seven drafts validate against the PR diff (`post-pr-review.py --dry-run`, exit 0).
+
+The 5928 subagent was reported stopped without a completion record, but had already written all three artifacts; they were verified on disk rather than re-run.
+
+## Posted
+
+5920's review was posted (APPROVE) in commit `393cbe94f`. The other six are drafted only. Posting waits for the literal `post`.
 
 ## Finalize (parent)
 
