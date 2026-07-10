@@ -1,4 +1,5 @@
 # Review: PR [#5867](https://github.com/gnolang/gno/pull/5867)
+Posted: https://github.com/gnolang/gno/pull/5867#pullrequestreview-4672487955
 Event: REQUEST_CHANGES
 
 ## Body
@@ -10,7 +11,7 @@ The red `build` check is not a code problem.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5867-bigdec-apd-to-rat/3-7817f6e1d/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gnovm/pkg/gnolang/op_binary.go:809-816 [↗](../../../../../.worktrees/gno-review-5867/gnovm/pkg/gnolang/op_binary.go#L809)
+## gnovm/pkg/gnolang/op_binary.go:809-816 [↗](../../../../../.worktrees/gno-review-5867/gnovm/pkg/gnolang/op_binary.go#L809) [posted](https://github.com/gnolang/gno/pull/5867#discussion_r3559803620)
 Critical: untyped float constants past roughly 1e±1233 panic at preprocess, where Go evaluates them. Past its own [4096-bit threshold](https://github.com/golang/go/blob/go1.25.0/src/go/constant/value.go#L351), `go/constant` [switches the constant](https://github.com/golang/go/blob/go1.25.0/src/go/constant/value.go#L328-L345) to a [512-bit](https://github.com/golang/go/blob/go1.25.0/src/go/constant/value.go#L69) [`big.Float`](https://pkg.go.dev/math/big#Float) rather than rejecting it. Related: [#5740](https://github.com/gnolang/gno/pull/5740).
 
 <details><summary>repro</summary>
@@ -42,7 +43,7 @@ panic: constant expression result too large: numerator exceeds 4096 bits [recove
 ```
 </details>
 
-## gnovm/pkg/gnolang/values_conversions.go:1458-1466 [↗](../../../../../.worktrees/gno-review-5867/gnovm/pkg/gnolang/values_conversions.go#L1458)
+## gnovm/pkg/gnolang/values_conversions.go:1458-1466 [↗](../../../../../.worktrees/gno-review-5867/gnovm/pkg/gnolang/values_conversions.go#L1458) [posted](https://github.com/gnolang/gno/pull/5867#discussion_r3559803633)
 Critical: `posZero` runs on the float64 before the narrowing, so a constant that underflows only at float32 width stores -0. `var f32 float32 = -1e-50` is -0 here and +0 on master. The `var float32: +0` line of [`float9.gno`](https://github.com/gnolang/gno/blob/7817f6e1d/gnovm/tests/files/float9.gno#L23) · [↗](../../../../../.worktrees/gno-review-5867/gnovm/tests/files/float9.gno#L23) asserts this but never runs, because the size guard rejects line 9 first.
 
 <details><summary>repro</summary>
