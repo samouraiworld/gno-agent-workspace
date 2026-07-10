@@ -231,8 +231,8 @@ Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/
 If another reviewer already raised a finding, attribute in the TL;DR before the tag: `- **[parse-time O(N²)]** [@thehowl](review-url) file:line — TL;DR`.
 
 ## Nits
-- `file:line` — <one-line TL;DR>
-  <Omit `<details>` for trivial nits.>
+- **[<priority tag, plain-English>]** `file:line` — <one-line TL;DR>
+  <Omit the tag and `<details>` for a trivial nit carrying no distinct risk.>
 
 ## Missing Tests
 - **[<priority tag>]** `file:line` — <one-line TL;DR of the missing scenario>
@@ -242,7 +242,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
   </details>
 
 ## Suggestions
-- `file:line` — <one-line TL;DR>
+- **[<priority tag, plain-English>]** `file:line` — <one-line TL;DR>
   <details><summary>details</summary>
 
   <Rationale.>
@@ -258,7 +258,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 
 Format rules:
 - `<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since`; recomputed by `scripts/convert-review-links.py` on every run.
-- Priority tags in plain English (`[bug can come back invisibly]`, not `[invariant decay risk]`).
+- Every finding line carries a plain-English priority tag, in every severity section, so the tag naming stays uniform across a review (`[bug can come back invisibly]`, not `[invariant decay risk]`). Only a trivial nit with no distinct risk drops it.
 - No bare `#<number>` in any text GitHub renders inside this repo (review/comment H1, commit subject): it autolinks to `samouraiworld/gno-agent-workspace#<number>`, the wrong repo. Link it (`[#<number>](pr-url)`) or drop the `#` (commit subjects).
 - Prose in `<details>` by default; labeled sub-bullets only for findings with a tangible repro.
 - No Test Results section. A review-worthy test failure becomes a Critical or Warning; otherwise silence.
