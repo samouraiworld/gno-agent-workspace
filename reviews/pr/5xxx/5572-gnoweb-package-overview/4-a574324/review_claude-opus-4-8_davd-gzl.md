@@ -5,6 +5,8 @@ Author: alexiscolin | Base: master | Files: 33 | +3044 -120
 Reviewed by: davd-gzl | Model: claude-opus-4-8 (deep) | Commit: `a574324` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5572 a574324`
 
+Superseded: PR merged as [`d2869dce`](https://github.com/gnolang/gno/commit/d2869dcebf5ec5d54b4f671f5f761d9d220485f5) on 2026-07-10, from head `3e6b2485`. This round reviewed `a574324`, two commits earlier, so it was never posted. Of its findings, the type-alias Warning was fixed before merge (`typeDecl` now renders the full declaration); the license Warning, the missing subpackage tests, and every Nit and Suggestion still hold on master and are addressed in the follow-up branch `fix/gnoweb-overview-followup`.
+
 Round 4 (deep). Head advanced `714d2f8` → `a574324` (master merge plus one commit): the type card's `data-name` now folds in its method names. All four round-3 findings are resolved in the merge commit's own changes: `computeStats` counts only exported types/consts/vars, the unreachable `GetSourceView` fallback is gone, the subpackage `ListPaths` cap is 1000, and the discarded README error carries a comment. The round-3 missing test also landed. Three other reviewers' findings are fixed too: doubled BUG notes, signature-before-doc ordering, and the symbol filter that could not match methods.
 
 **TL;DR:** Opening `/r/<pkg>$source` used to drop you into the first source file. This PR makes it a pkg.go.dev-style landing page instead: package doc, README, the exported functions, types, constants and variables (each deep-linking to its exact source line), imports, files, subdirectories, and a sidebar with code stats and a detected license.

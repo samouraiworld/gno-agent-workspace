@@ -1,6 +1,8 @@
 # Review: PR [#5572](https://github.com/gnolang/gno/pull/5572)
 Event: APPROVE
 
+DO NOT POST. The PR merged as d2869dce on 2026-07-10, from head 3e6b2485, before this draft was ready. The surviving findings move to the follow-up branch instead.
+
 ## Body
 Reproduced on a574324. Verified against a live node: the overview renders, its symbol links land on the exact declaration lines in the source view, and the sidebar counts match the sections shown.
 
