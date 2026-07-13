@@ -1,0 +1,50 @@
+/* Add this subtest inside TestGenesis_Verify in
+contribs/gnogenesis/internal/verify/verify_test.go, then from a gno checkout:
+gh pr checkout 5944 -R gnolang/gno
+cd contribs/gnogenesis
+go test -run 'TestGenesis_Verify/skip_signature_check_still_runs_later_checks' ./internal/verify/
+
+Guards the "-skip-signature-check skips only the signature loop" contract:
+green as shipped; red if the skip ever short-circuits execVerify (e.g. the
+continue becomes return nil), because the post-loop valoper coverage check
+would then be skipped. Uses the existing getValidTestGenesis helper. */
+
+t.Run("skip signature check still runs later checks", func(t *testing.T) {
+	// -skip-signature-check skips only the per-tx signature loop.
+	// Post-loop checks still run: a hardfork genesis with an uncovered
+	// validator and a placeholder-signature tx is rejected for the
+	// coverage gap even with the flag set.
+	t.Parallel()
+
+	tempFile, cleanup := testutils.NewTestFile(t)
+	t.Cleanup(cleanup)
+
+	g := getValidTestGenesis()
+
+	sender := ed25519.GenPrivKey()
+	tx := std.Tx{
+		Msgs: []std.Msg{bank.MsgSend{
+			FromAddress: sender.PubKey().Address(),
+			ToAddress:   sender.PubKey().Address(),
+			Amount:      std.NewCoins(std.NewCoin("ugnot", 10)),
+		}},
+		Fee: std.Fee{GasWanted: 1000000, GasFee: std.NewCoin("ugnot", 20)},
+	}
+	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+
+	state := g.AppState.(gnoland.GnoGenesisState)
+	state.PastChainIDs = []string{"old-chain"}
+	state.Txs = []gnoland.TxWithMetadata{{Tx: tx}}
+	g.AppState = state
+
+	require.NoError(t, g.SaveAs(tempFile.Name()))
+
+	cmd := NewVerifyCmd(commands.NewTestIO())
+	args := []string{
+		"--genesis-path", tempFile.Name(),
+		"--skip-signature-check",
+	}
+
+	cmdErr := cmd.ParseAndRun(context.Background(), args)
+	assert.ErrorIs(t, cmdErr, errUncoveredGenesisValidator)
+})

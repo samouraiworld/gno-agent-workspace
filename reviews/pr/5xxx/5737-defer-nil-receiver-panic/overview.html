@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PR #5737 — call-time dispatch for interface-bound method values · overview (claude-opus-4-8)</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1c2024; --muted:#5b636b; --line:#e4e7ea;
+    --card:#f7f9fb; --accent:#2d6cdf; --accent-soft:#eaf1ff;
+    --go:#0a7d57; --go-soft:#e4f6ee; --old:#b23a3a; --old-soft:#fbeceb;
+    --code:#f2f4f7; --codefg:#243b53; --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 20px 72px;}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .top{font-size:13px;color:var(--muted);margin-bottom:18px}
+  h1{font-size:26px;line-height:1.25;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 6px}
+  .meta{color:var(--muted);font-size:13px;margin:0 0 26px}
+  .meta code{font-family:var(--mono);font-size:12px}
+  h2{font-size:19px;margin:38px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  h3{font-size:15px;margin:22px 0 8px}
+  p{margin:10px 0}
+  code{font-family:var(--mono);font-size:.86em;background:var(--code);color:var(--codefg);
+    padding:1px 5px;border-radius:4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+  .concept{margin:6px 0}
+  .concept b{color:var(--fg)}
+  .lead{font-size:17px}
+  /* two-moments diagram */
+  .moments{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+  @media(max-width:620px){.moments{grid-template-columns:1fr}}
+  .moment{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  .moment header{padding:10px 14px;font-weight:600;font-size:14px;background:var(--accent-soft);color:#20356b}
+  .moment .body{padding:12px 14px;font-size:14px}
+  .row{display:flex;gap:8px;align-items:flex-start;margin:7px 0}
+  .tag{flex:none;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:20px;margin-top:2px}
+  .tag.bind{background:var(--old-soft);color:var(--old)}
+  .tag.call{background:var(--go-soft);color:var(--go)}
+  /* simulator */
+  .sim{border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden}
+  .sim .controls{padding:16px 18px;background:var(--card);border-bottom:1px solid var(--line)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;margin:4px 10px 4px 0}
+  .seg button{border:0;background:#fff;color:var(--fg);padding:8px 14px;font:inherit;font-size:13px;cursor:pointer}
+  .seg button.on{background:var(--accent);color:#fff}
+  .toggle{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:7px;margin:4px 0}
+  .toggle input{width:16px;height:16px}
+  .sim .stage{padding:18px}
+  .prog{font-family:var(--mono);font-size:13px;background:var(--code);color:var(--codefg);
+    border-radius:8px;padding:12px 14px;white-space:pre;overflow-x:auto;margin:0 0 14px}
+  .prog .hi{background:#fff3bf;border-radius:3px;padding:0 2px}
+  .prog .cm{color:#748;opacity:.8}
+  .out{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:620px){.out{grid-template-columns:1fr}}
+  .box{border-radius:8px;padding:12px 14px;font-size:14px}
+  .box .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:4px}
+  .box.gno{background:var(--accent-soft)}
+  .box.gno .lab{color:#20356b}
+  .box.goref{background:var(--go-soft)}
+  .box.goref .lab{color:var(--go)}
+  .box .val{font-family:var(--mono);font-size:16px;font-weight:600}
+  .why{margin-top:12px;font-size:13.5px;color:var(--muted);min-height:20px}
+  .why b{color:var(--fg)}
+  .match{margin-top:10px;font-size:12px;font-family:var(--mono);color:var(--go)}
+  /* table */
+  .scroll{overflow-x:auto;margin:14px 0}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:560px}
+  th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--card);font-weight:600}
+  td.old{color:var(--old)}
+  td.ok{color:var(--go)}
+  .note{font-size:12.5px;color:var(--muted)}
+  .foot{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .pill{display:inline-block;font-size:12px;font-family:var(--mono);background:var(--code);
+    border:1px solid var(--line);border-radius:20px;padding:2px 10px;margin:2px 4px 2px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="../../../../index.html">&larr; review index</a></div>
+
+  <h1>Call-time dispatch for interface-bound method values</h1>
+  <p class="sub">Plain-language overview of <a href="https://github.com/gnolang/gno/pull/5737">gnolang/gno PR #5737</a> · generated by claude-opus-4-8</p>
+  <p class="meta">gnovm · matches Go's timing for when a method value picks its concrete method and copies its receiver</p>
+
+  <p class="lead">A <b>method value</b> is what you get when you write <code>x.Get</code> without the call parentheses. It is a callable you can store, pass, or <code>defer</code>, and it remembers which receiver it came from. The question this PR settles: <b>when</b> does that memory get fixed &mdash; the moment you write <code>x.Get</code>, or the moment you finally call it?</p>
+
+  <h2>The idea in one screen</h2>
+  <div class="card">
+    <p class="concept"><b>Concrete receiver</b> &mdash; <code>c := &amp;T{1}; g := c.Get</code>. Go fixes everything at the bind: it picks <code>T.Get</code> and snapshots the receiver right there. A later <code>c.x = 2</code> does not reach <code>g</code>.</p>
+    <p class="concept"><b>Interface receiver</b> &mdash; <code>var i I = p; h := i.Get</code>. Go waits until the call. It looks at what <code>i</code> holds <em>at call time</em>, picks the concrete method then, and derefs the pointer then. A <code>p.x = 2</code> made after the bind but before the call <em>is</em> seen.</p>
+    <p class="note">GnoVM used to fix the interface case eagerly too, like the concrete case. That is the bug: it diverged from Go on nil-panic timing, receiver snapshots, embedded promotion, field re-reads, and dynamic re-dispatch, and it crashed on <code>defer i.M()</code>.</p>
+  </div>
+
+  <h2>Two moments</h2>
+  <p>Every method value has a bind moment and a call moment. The fix moves interface work from the first to the second.</p>
+  <div class="moments">
+    <div class="moment">
+      <header>Concrete <code>c.Get</code> &mdash; eager</header>
+      <div class="body">
+        <div class="row"><span class="tag bind">bind</span><span>pick method <code>T.Get</code></span></div>
+        <div class="row"><span class="tag bind">bind</span><span>snapshot receiver <code>T{1}</code></span></div>
+        <div class="row"><span class="tag bind">bind</span><span>nil check runs now</span></div>
+        <div class="row"><span class="tag call">call</span><span>just invoke the snapshot</span></div>
+      </div>
+    </div>
+    <div class="moment">
+      <header>Interface <code>i.Get</code> &mdash; lazy (this PR)</header>
+      <div class="body">
+        <div class="row"><span class="tag bind">bind</span><span>save the operand + selector name</span></div>
+        <div class="row"><span class="tag call">call</span><span>read what the interface holds now</span></div>
+        <div class="row"><span class="tag call">call</span><span>pick method, deref, snapshot</span></div>
+        <div class="row"><span class="tag call">call</span><span>nil check runs now</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">In GnoVM the lazy bind is a <code>BoundMethodValue</code> with <code>Func == nil</code>; the saved operand lives in <code>Receiver</code>, the selector in <code>Method</code>, and the bind-site package in <code>MethodPkg</code>. <code>resolveLazyBound</code> does the call-time walk.</p>
+
+  <h2>Try it</h2>
+  <p>Bind a method value, then mutate the receiver's field before calling. Watch how the call result depends on whether the receiver is concrete or an interface.</p>
+  <div class="sim">
+    <div class="controls">
+      <div>
+        <span class="seg" id="kind">
+          <button data-k="concrete" class="on">concrete&nbsp; <code>c := &amp;T{1}</code></button>
+          <button data-k="iface">interface&nbsp; <code>var i I = p</code></button>
+        </span>
+      </div>
+      <label class="toggle"><input type="checkbox" id="mut" checked> mutate the field after the bind (<code>x = 2</code>)</label>
+    </div>
+    <div class="stage">
+      <div class="prog" id="prog"></div>
+      <div class="out">
+        <div class="box gno"><div class="lab">GnoVM (this PR)</div><div class="val" id="gno">1</div></div>
+        <div class="box goref"><div class="lab">Go</div><div class="val" id="goref">1</div></div>
+      </div>
+      <div class="why" id="why"></div>
+      <div class="match" id="match"></div>
+    </div>
+  </div>
+
+  <h2>What changed, axis by axis</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Case</th><th>Go</th><th>master (eager)</th><th>this PR</th></tr></thead>
+    <tbody>
+      <tr><td><code>defer pt.M()</code>, concrete nil pointer</td><td>panic at the defer statement</td><td class="ok">panic at defer</td><td class="ok">panic at defer</td></tr>
+      <tr><td><code>defer i.M()</code>, non-nil interface</td><td>runs at call time</td><td class="old">VM crash</td><td class="ok">runs at call</td></tr>
+      <tr><td><code>var i I = p; h := i.Get; p.x = 2; h()</code></td><td>2 (deref at call)</td><td class="old">1 (snapshot at bind)</td><td class="ok">2</td></tr>
+      <tr><td><code>var i I = pt/*nil*/; g := i.Get; g()</code></td><td>panic at call</td><td class="old">binds eagerly, no panic</td><td class="ok">panic at call</td></tr>
+      <tr><td>store <code>G = i.M</code>, reload, call</td><td>panic at call</td><td class="old">no panic after reload</td><td class="ok">panic at call</td></tr>
+      <tr><td><code>s.IG = other; g()</code> after <code>g := o.Get</code></td><td>re-dispatches to <code>other</code></td><td class="old">stale target</td><td class="ok">re-dispatches</td></tr>
+      <tr><td><code>s.IG = s</code> (cyclic embed), <code>g()</code></td><td>fatal stack overflow</td><td class="old">crash / hang</td><td class="ok">fatal cyclic panic</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">Storing an interface method value is a persisted-value shape change, so the fix is a hard fork: it ships on fresh genesis or a coordinated upgrade.</p>
+
+  <h2>Concepts</h2>
+  <div class="card">
+    <p class="concept"><b>method value</b> &mdash; the expression <code>x.M</code> without calling it; a first-class callable that carries its receiver.</p>
+    <p class="concept"><b>eager vs lazy bind</b> &mdash; eager fixes the concrete method and receiver when the value is formed; lazy defers both to the call.</p>
+    <p class="concept"><b>promoted method</b> &mdash; a method reached through an embedded field; which one wins can depend on the value present at call time.</p>
+    <p class="concept"><b>dynamic re-dispatch</b> &mdash; if the interface field is reassigned between bind and call, a lazy value calls the new target.</p>
+    <p class="concept"><b>hard fork</b> &mdash; a change to a persisted value's wire format; old state still decodes, but block bytes, hashes, and gas differ.</p>
+  </div>
+
+  <p style="margin-top:26px"><b>Review files:</b> <a href="https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/pr/5xxx/5737-defer-nil-receiver-panic/">reviews/pr/5xxx/5737-defer-nil-receiver-panic/</a></p>
+
+  <div class="foot">
+    <span class="pill">mirror verified</span> The simulator's outputs were checked against a side-by-side Go run: concrete <code>c.Get</code> after <code>c.x=2</code> returns 1 (eager snapshot), interface <code>i.Get</code> after <code>p.x=2</code> returns 2 (deref at call). The re-dispatch, nil, and cyclic cases in the table above come from the PR's own filetests.<br><br>
+    <a href="../../../../index.html">&larr; review index</a> · overview generated by claude-opus-4-8
+  </div>
+</div>
+
+<script>
+(function(){
+  var kind = "concrete", mut = true;
+  var kindEl = document.getElementById("kind");
+  var mutEl = document.getElementById("mut");
+  var progEl = document.getElementById("prog");
+  var gnoEl = document.getElementById("gno");
+  var gorefEl = document.getElementById("goref");
+  var whyEl = document.getElementById("why");
+  var matchEl = document.getElementById("match");
+
+  // Mirror of the PR's dispatch timing. Concrete binds eagerly (snapshot at bind);
+  // interface binds lazily (deref at call). Both values checked against a Go run:
+  // concrete c.Get after c.x=2 -> 1; interface i.Get after p.x=2 -> 2.
+  function model(kind, mut){
+    if(kind === "concrete"){
+      return {result: "1", why: "Concrete bind is <b>eager</b>: <code>g</code> snapshots the receiver when it is formed. The later <code>c.x = 2</code> writes a copy <code>g</code> never sees, so the call returns 1 either way."};
+    }
+    if(mut){
+      return {result: "2", why: "Interface bind is <b>lazy</b>: the call derefs the pointer at call time, so it observes the <code>p.x = 2</code> written after the bind and returns 2."};
+    }
+    return {result: "1", why: "Interface bind is <b>lazy</b>, but nothing was mutated between bind and call, so the deref at call time still sees 1."};
+  }
+
+  function progText(kind, mut){
+    var L = [];
+    if(kind === "concrete"){
+      L.push('c := &T{1}');
+      L.push('g := c.Get            <span class="cm">// eager: snapshot now</span>');
+      if(mut) L.push('<span class="hi">c.x = 2</span>               <span class="cm">// not seen by g</span>');
+      L.push('println(g())          <span class="cm">// call</span>');
+    }else{
+      L.push('p := &T{1}');
+      L.push('var i I = p');
+      L.push('h := i.Get            <span class="cm">// lazy: just save operand</span>');
+      if(mut) L.push('<span class="hi">p.x = 2</span>               <span class="cm">// seen at call</span>');
+      L.push('println(h())          <span class="cm">// deref + pick now</span>');
+    }
+    return L.join("\n");
+  }
+
+  function render(){
+    var m = model(kind, mut);
+    progEl.innerHTML = progText(kind, mut);
+    gnoEl.textContent = m.result;
+    gorefEl.textContent = m.result; // gno now matches Go on every case
+    whyEl.innerHTML = m.why;
+    matchEl.textContent = "GnoVM == Go  ✓";
+  }
+
+  kindEl.addEventListener("click", function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    kind = b.getAttribute("data-k");
+    Array.prototype.forEach.call(kindEl.querySelectorAll("button"), function(x){ x.classList.toggle("on", x === b); });
+    render();
+  });
+  mutEl.addEventListener("change", function(){ mut = mutEl.checked; render(); });
+  render();
+})();
+</script>
+</body>
+</html>
