@@ -1,16 +1,15 @@
 # Review: PR [#5907](https://github.com/gnolang/gno/pull/5907)
+Posted: https://github.com/gnolang/gno/pull/5907#pullrequestreview-4705969385
 Event: APPROVE
 
 ## Body
-Looks good. The nil, cross-realm, and duplicate guards each reject before the registry write.
+This should be rebased on https://github.com/gnolang/gno/pull/5908.
 
-Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5907-prevent-token-path-overwrite/2-e580292e4/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
+## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:43 [↗](../../../../../.worktrees/gno-review-5907/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L43) [posted](https://github.com/gnolang/gno/pull/5907#discussion_r3588887917)
+Nit: the event emits `slug`, but it is not part of the key anymore.
 
-## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:43 [↗](../../../../../.worktrees/gno-review-5907/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L43)
-Nit: the event emits `slug`, but the key is built from the symbol, not `slug`. An indexer that rebuilds the key as `pkgpath + slug` gets a nonexistent entry. Drop `slug`, or document that it is emitted but not part of the key.
-
-## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:24 [↗](../../../../../.worktrees/gno-review-5907/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L24)
-Missing test: the `if token == nil` guard has no coverage. Without it a nil token aborts inside `GetSymbol` on a nil pointer instead of with `grc20reg: nil token`.
+## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:24 [↗](../../../../../.worktrees/gno-review-5907/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L24) [posted](https://github.com/gnolang/gno/pull/5907#discussion_r3588887923)
+Missing test: nothing covers the `if token == nil` guard.
 
 <details><summary>test cases</summary>
 
@@ -26,5 +25,5 @@ func TestRegisterRejectsNilToken(cur realm, t *testing.T) {
 Passes with the guard, fails without it.
 </details>
 
-## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:33 [↗](../../../../../.worktrees/gno-review-5907/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L33)
-Nit: registering from a realm other than the token's own panics `token ID mismatch`, which reads like an internal bug, not a usage error. A message like "register from the token's own realm" would be clearer.
+## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:33 [↗](../../../../../.worktrees/gno-review-5907/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L33) [posted](https://github.com/gnolang/gno/pull/5907#discussion_r3588887925)
+Nit: a wrong-realm registration panics `token ID mismatch`, which reads like an internal bug. A clearer message would name the rule: register from the token's own realm.
