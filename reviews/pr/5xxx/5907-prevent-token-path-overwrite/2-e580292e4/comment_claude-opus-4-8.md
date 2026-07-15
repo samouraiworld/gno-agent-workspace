@@ -2,15 +2,15 @@
 Event: APPROVE
 
 ## Body
-Looks good. The symbol-derived key and the nil, cross-realm, and duplicate guards hold, and each guard runs before the single registry write.
+Looks good. The nil, cross-realm, and duplicate guards each reject before the registry write.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5907-prevent-token-path-overwrite/2-e580292e4/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:43 [↗](../../../../../.worktrees/gno-review-5907/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L43)
-Nit: the event emits `slug`, but `slug` is not part of the registry key. Callers pass one, like [`grc20factory`](https://github.com/gnolang/gno/blob/e580292e4/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L51) with the symbol or [`tokenhub`](https://github.com/gnolang/gno/blob/e580292e4/examples/quarantined/gno.land/r/matijamarjanovic/tokenhub/tokenhub.gno#L34) with a user slug, so an indexer that rebuilds the key from `pkgpath + slug` resolves to no entry. Drop `slug` from the event, or document that it is validated and emitted but never keyed.
+Nit: the event emits `slug`, but the key is built from the symbol, not `slug`. An indexer that rebuilds the key as `pkgpath + slug` gets a nonexistent entry. Drop `slug`, or document that it is emitted but not part of the key.
 
 ## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:24 [↗](../../../../../.worktrees/gno-review-5907/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L24)
-Missing test: the new `if token == nil` guard has no coverage, and removing it degrades the reject from `grc20reg: nil token` to an opaque `value method ...grc20.Token.GetSymbol called using nil *Token pointer` abort.
+Missing test: the `if token == nil` guard has no coverage. Without it a nil token aborts inside `GetSymbol` on a nil pointer instead of with `grc20reg: nil token`.
 
 <details><summary>test cases</summary>
 
@@ -23,8 +23,8 @@ func TestRegisterRejectsNilToken(cur realm, t *testing.T) {
 }
 ```
 
-Passes on the head, aborts with the opaque `GetSymbol` message when the guard is removed.
+Passes with the guard, fails without it.
 </details>
 
 ## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:33 [↗](../../../../../.worktrees/gno-review-5907/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L33)
-Nit: registering from the wrong realm, or a direct EOA call with an empty `PkgPath`, panics `token ID mismatch`, which reads like a broken internal invariant rather than a usage error. A message naming the constraint, register from the token's own realm, would orient a realm author faster.
+Nit: registering from a realm other than the token's own panics `token ID mismatch`, which reads like an internal bug, not a usage error. A message like "register from the token's own realm" would be clearer.
