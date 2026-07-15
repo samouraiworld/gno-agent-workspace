@@ -44,7 +44,7 @@ When writing or editing gno docs (`docs/resources/*.md`, READMEs), code comments
 - **Never write into the `gno/` submodule in-place.** Any task that modifies files under `gno/` — code, docs, READMEs, anything — happens inside a worktree at `.worktrees/gno-<slug>/`. See `skills/fix-issue.md` for the worktree-creation procedure. Docs/README work is not an exception: "small" is not a reason to skip a worktree.
 - **Never push to gnolang/gno** for review purposes. Pushing to a fork of gnolang/gno is acceptable for specific cases (e.g. cherry-picks).
 - **When working on the fork, always pull from `origin` (upstream master) first, then run the command.**
-- After writing a review, commit and push to this repo only: `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`. No bare `#<number>` in the subject: it autolinks to this repo, not gnolang/gno.
+- After writing a review, commit and push to this repo only: `git add reviews/ docs/glossary.md index.html && git commit -m "review: PR <number>" && git push`. `build-indexes.sh` rewrites the root `index.html`, so stage it too. No bare `#<number>` in the subject: it autolinks to this repo, not gnolang/gno.
 - **Every `scripts/*.sh` carries the NOT AUDITED line as line 2**, right after the shebang: `# NOT AUDITED — AI-generated tooling. Review before executing in any privileged context.` then a `#` separator. Never on adversarial test files under `reviews/.../tests/`.
 
 ## Authoring skills, prompts, and these instruction files
