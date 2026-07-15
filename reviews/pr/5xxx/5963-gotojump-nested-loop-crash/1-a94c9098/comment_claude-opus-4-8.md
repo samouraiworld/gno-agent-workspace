@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-Verified on a94c90986: re-adding the deleted second truncation reproduces the slice bounds out of range [:-1] crash, and output matches go run byte-for-byte across for, range, and switch-clause frame crossings for 3- to 6-deep nesting.
+Verified on a94c90986. Re-adding the deleted second truncation reproduces the slice bounds out of range [:-1] crash. Output matches go run byte-for-byte across for, range, and switch-clause frame crossings for 3- to 6-deep nesting.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5963-gotojump-nested-loop-crash/1-a94c9098/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
