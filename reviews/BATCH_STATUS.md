@@ -1,67 +1,54 @@
-# Review-all batch — status (started 2026-07-10)
+# Deep-review batch — status (started 2026-07-16)
 
-Scope: 7 fresh reviews, no re-reviews. User confirmed "All 7". Model claude-opus-4-8, reviewer davd-gzl. Normal flow (not deep). Nothing posted.
+Scope: Jae's six most recent merges. User asked for the latest merge and confirmed "All 6 recent Jae merges" when the scope was ambiguous. Model claude-opus-4-8, reviewer davd-gzl. Deep mode on every PR (parallel lens agents, one critic round, claim-verification gate). Nothing posted.
 
-## Set split (14 candidates → keep 7, drop 7)
-
-DROP — dependabot (`app/dependabot`):
-5869 5905 5914
-
-DROP — `WIP`-titled:
-4949 5223 5263 5922
-
-KEEP (7, all fresh — absent from `reviews/pr/`):
-5721 5916 5920 5921 5924 5928 5933
-
-No re-reviews in this batch, so the head-unchanged, patch-id-equal base-only move, and already-APPROVED drop reasons do not apply.
-
-5721 was dropped as `WIP`-titled in the 2026-07-09 batch; its title no longer carries the prefix, so it is in scope now.
+All six are already merged. Each is reviewed at its PR head on its own merits; the merged status is stated in each round note and does not soften any verdict.
 
 ## Final set
 
-Every worktree was created fresh from `origin/master` and checked out at the PR head.
+| PR | Size | Head sha | Merged as | Round | Worktree | Review dir |
+|----|------|----------|-----------|-------|----------|------------|
+| [5890](https://github.com/gnolang/gno/pull/5890) | +2662/-232, 50f | `b940037d1` | `5b989cad5` | 2 (round 1 at `8a115c8ca`) | `.worktrees/gno-review-5890` | `reviews/pr/5xxx/5890-realm-sub-subrealm-identities/2-b940037d1/` |
+| [5891](https://github.com/gnolang/gno/pull/5891) | +509/-24, 10f | `82e5cb868` | `af23ea2ae` | 2 (round 1 at `057894796`) | `.worktrees/gno-review-5891` | `reviews/pr/5xxx/5891-split-mempackage-prod-test/2-82e5cb868/` |
+| [5892](https://github.com/gnolang/gno/pull/5892) | +242/-60, 32f | `03ab3eea2` | `412ab1962` | 2 (round 1 at `d2f3d1337`) | `.worktrees/gno-review-5892` | `reviews/pr/5xxx/5892-meter-preprocess-gas/2-03ab3eea2/` |
+| [5893](https://github.com/gnolang/gno/pull/5893) | +117/-65, 9f | `7fc5ec06a` | `9bfc0a4bb` | 2 (round 1 at `131c5fccb`, APPROVE) | `.worktrees/gno-review-5893` | `reviews/pr/5xxx/5893-deterministic-typecheck-verdict/2-7fc5ec06a/` |
+| [5937](https://github.com/gnolang/gno/pull/5937) | +1490/-295, 49f | `b79972d22` | `dc305b6d6` | 1 (new) | `.worktrees/gno-review-5937` | `reviews/pr/5xxx/5937-bptree-clean-tree-fast-index/1-b79972d22/` |
+| [5938](https://github.com/gnolang/gno/pull/5938) | +426/-100, 20f | `27c5ece7e` | `1e2e00e2f` | 1 (new) | `.worktrees/gno-review-5938` | `reviews/pr/5xxx/5938-mount-bptree-fast-index/1-27c5ece7e/` |
 
-| PR | Author | Size | Head sha | Worktree | Review dir |
-|----|--------|------|----------|----------|------------|
-| [5933](https://github.com/gnolang/gno/pull/5933) | aeddi | +300/-69, 25f | `61f762f9b` | `.worktrees/gno-review-5933` | `reviews/pr/5xxx/5933-honor-explicit-zero-config/1-61f762f9b/` |
-| [5928](https://github.com/gnolang/gno/pull/5928) | aeddi | +92/-20, 4f | `cf7fb56bd` | `.worktrees/gno-review-5928` | `reviews/pr/5xxx/5928-fork-valoper-seed-payable/1-cf7fb56bd/` |
-| [5924](https://github.com/gnolang/gno/pull/5924) | aeddi | +83/-0, 3f | `f79f1ae62` | `.worktrees/gno-review-5924` | `reviews/pr/5xxx/5924-surface-genesis-replay-failures/1-f79f1ae62/` |
-| [5921](https://github.com/gnolang/gno/pull/5921) | ltzmaxwell | +168/-0, 4f | `6bcdde7e3` | `.worktrees/gno-review-5921` | `reviews/pr/5xxx/5921-reject-generics-syntax/1-6bcdde7e3/` |
-| [5920](https://github.com/gnolang/gno/pull/5920) | ltzmaxwell | +21/-1, 2f | `3732be8d3` | `.worktrees/gno-review-5920` | `reviews/pr/5xxx/5920-typecheck-blank-func-decls/1-3732be8d3/` |
-| [5916](https://github.com/gnolang/gno/pull/5916) | moul | +69/-15, 2f | `7e6955997` | `.worktrees/gno-review-5916` | `reviews/pr/5xxx/5916-symmetric-gas-price-decay/1-7e6955997/` |
-| [5721](https://github.com/gnolang/gno/pull/5721) | ltzmaxwell | +612/-218, 12f | `16d5227b9` | `.worktrees/gno-review-5721` | `reviews/pr/5xxx/5721-shallowest-match-embedded-lookup/1-16d5227b9/` |
+## Dropped
+
+None. The user named all six, so the head-unchanged, already-APPROVED, and patch-id-equal base-only drops were not applied. The patch-id gate still runs on 5890, 5891, 5892, and 5893, but only to characterize head movement in each round note; no round is reanchored.
+
+## Head movement
+
+5890, 5891, 5892, and 5893 all advanced past their round-1 shas, so each gets a full round 2 rather than a reanchor.
+
+`7fc5ec06a` (5893) is a merge of master. `git show 7fc5ec06a --cc` prints zero hunks, so the merge authored no conflict-resolution content. Master now carries 5891 (`af23ea2ae`) and 5892 (`412ab1962`), so 5893's diff against master is finally its own nine files, and round 1's scope note about the stacked trio is obsolete.
 
 ## Dispatch
 
-One `general-purpose` agent per PR, all in one message, per `skills/review.md` *Parallel dispatch*. The parent created every worktree and ran `gh pr checkout`; subagents never do. Subagents write `review_claude-opus-4-8_davd-gzl.md` and `comment_claude-opus-4-8.md`, and do not commit, push, regenerate indexes, or post.
+One `general-purpose` coordinator per PR, all in one message. Each runs deep mode and dispatches its own lens agents. The parent created every worktree and checked out every PR head; subagents never run `worktree add`, `gh pr checkout`, or any branch switch. Subagents write `review_claude-opus-4-8_davd-gzl.md` and `comment_claude-opus-4-8.md`, and do not commit, push, regenerate indexes, or post.
 
-## Results — all 7 returned
+## Results
 
-| PR | Verdict | Inline comments | Headline |
-|----|---------|-----------------|----------|
-| 5933 | APPROVE | 0 | decode-over-defaults replaces `mergo.Merge`; revert-proofed against the PR's own tests |
-| 5928 | APPROVE | 2 | no test round-trips an emitted tx through ValidateBasic; the fee help understates an N-row CSV as 1 ugnot |
-| 5924 | APPROVE | 2 | the `fork test` replay guard has no end-to-end test; the "Txs processed" line counts source-failed txs |
-| 5921 | APPROVE | 1 | doc comment overstates which interface type-set elements are syntactically undetectable |
-| 5920 | APPROVE | 1 | stale loop comment; the `_` skip itself is correct and load-bearing |
-| 5916 | NEEDS DISCUSSION | 1 | consensus-breaking on empty blocks; the relaxed `gasUsed < 0` guard ships untested |
-| 5721 | APPROVE | 3 | interface-satisfaction ambiguity reports "missing method" where the direct selector says "ambiguous" |
-
-Parent re-verification of the only non-APPROVE (5916), against `tm2/pkg/sdk/auth/` at `7e6955997`: `UpdateGasPrice` is `keeper.go:361`, its relaxed guard `if gasUsed < 0` is `keeper.go:370`, and the only `UpdateGasPrice` in any `_test.go` is the empty stub `gno.land/pkg/gnoland/mock_test.go:221`, so the real method is untested. Anchors in all seven drafts validate against the PR diff (`post-pr-review.py --dry-run`, exit 0).
-
-The 5928 subagent was reported stopped without a completion record, but had already written all three artifacts; they were verified on disk rather than re-run.
-
-## Posted
-
-5920's review was posted (APPROVE) in commit `393cbe94f`. The other six are drafted only. Posting waits for the literal `post`.
+| PR | Verdict | Headline |
+|----|---------|----------|
+| 5890 | pending | |
+| 5891 | pending | |
+| 5892 | pending | |
+| 5893 | pending | |
+| 5937 | pending | |
+| 5938 | pending | |
 
 ## Finalize (parent)
 
 1. Verify each PR wrote both a review file and a comment draft.
-2. Sweep stray scratch test files from the worktrees.
-3. `./scripts/build-indexes.sh` once.
-4. `git add reviews/ docs/glossary.md && git commit -m "review: review-all batch 2026-07-10" && git push`
-5. Hand back a link to each PR's `comment_claude-opus-4-8.md`. Posting waits for the literal `post`.
+2. Re-verify every surviving finding against the cited lines; never trust an agent summary alone.
+3. Validate anchors with `post-pr-review.py --dry-run` per draft.
+4. Sweep stray scratch test files from the worktrees.
+5. `./scripts/build-indexes.sh` once.
+6. `git add reviews/ docs/glossary.md index.html && git commit -m "review: deep batch of Jae's six recent merges" && git push`
+7. Hand back a link to each PR's `comment_claude-opus-4-8.md`. Posting waits for the literal `post`.
 
 Nothing has been posted to GitHub.
 

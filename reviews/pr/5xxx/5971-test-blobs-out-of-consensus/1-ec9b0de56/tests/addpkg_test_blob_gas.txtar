@@ -1,0 +1,46 @@
+# Run: from a gno checkout:
+# gh pr checkout 5971 -R gnolang/gno && git checkout ec9b0de56
+# curl -fsSL -o gno.land/pkg/integration/testdata/addpkg_test_blob_gas.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5971-test-blobs-out-of-consensus/1-ec9b0de56/tests/addpkg_test_blob_gas.txtar
+# go test -v -run 'TestTestdata/addpkg_test_blob_gas' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/addpkg_test_blob_gas.txtar
+
+# A package's test files are stored as a pkg:<path>#allbutprod blob, separately
+# from its production blob, and the destination store decides how that write is
+# priced: baseStore charges a flat cost, iavlStore charges by tree depth. Both
+# pins hold at ec9b0de56.
+# Routing the blob to iavlStore moves the withtest pin to 15679062, a 223600
+# difference; notest is unaffected either way, since a package with no test files
+# writes no #allbutprod blob at all.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/notest -pkgpath gno.land/p/demo/notest -gas-fee 1000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+2480573'
+gnokey maketx addpkg -pkgdir $WORK/withtest -pkgpath gno.land/p/demo/withtest -gas-fee 1000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+15455462'
+
+-- notest/gnomod.toml --
+module = "gno.land/p/demo/notest"
+gno = "0.9"
+-- notest/lib.gno --
+package notest
+
+func Hi() string { return "hi" }
+-- withtest/gnomod.toml --
+module = "gno.land/p/demo/withtest"
+gno = "0.9"
+-- withtest/lib.gno --
+package withtest
+
+func Hi() string { return "hi" }
+-- withtest/lib_test.gno --
+package withtest
+
+import "testing"
+
+func TestHi(t *testing.T) {
+	if Hi() != "hi" {
+		t.Fatal("bad")
+	}
+}

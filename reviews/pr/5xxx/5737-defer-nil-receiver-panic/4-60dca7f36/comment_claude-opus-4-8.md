@@ -54,6 +54,45 @@ Data: unexpected type with id gno.land/r/test/lt[gno.land/r/test/lt/lt.gno:6:1-1
 ```
 </details>
 
+## gnovm/tests/files/method_nil_value_bind.gno:1-5 [↗](../../../../../.worktrees/gno-review-5737/gnovm/tests/files/method_nil_value_bind.gno#L1-L5)
+Nit: this says a concrete `defer pt.M()` on a nil `pt` defers its nil-deref panic to call time and returns 1, but the concrete bind [derefs eagerly](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/pkg/gnolang/values.go#L1971-L1977) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/values.go#L1971-L1977), so it returns 0. The wording predates the split between the concrete and interface timings, and the file only exercises the interface case, so no test catches it.
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 5737 -R gnolang/gno
+
+cat > /tmp/row1.gno <<'EOF'
+package main
+
+type T struct{ x int }
+
+func (T) M() {}
+
+var pt *T
+
+func concrete() (r int) {
+	defer func() { recover() }()
+	defer pt.M()
+	r = 1
+	return
+}
+
+func main() { println("concrete", concrete()) }
+EOF
+go run ./gnovm/cmd/gno run /tmp/row1.gno
+cp /tmp/row1.gno /tmp/row1.go && go run /tmp/row1.go
+rm /tmp/row1.gno /tmp/row1.go
+```
+
+```
+concrete 0      # gno at 60dca7f36
+concrete 0      # real Go, go1.26.5
+```
+The comment claims 1. Both are eager.
+</details>
+
 ## gnovm/tests/files/method_iface_cyclic_value.gno:1 [↗](../../../../../.worktrees/gno-review-5737/gnovm/tests/files/method_iface_cyclic_value.gno)
 Missing test: the struct-carried cycle is pinned only by an in-memory filetest. The existing [`method_iface_cyclic_persist.txtar`](https://github.com/gnolang/gno/blob/60dca7f36/gno.land/pkg/integration/testdata/method_iface_cyclic_persist.txtar) · [↗](../../../../../.worktrees/gno-review-5737/gno.land/pkg/integration/testdata/method_iface_cyclic_persist.txtar) covers the pointer cycle `s.IG = s`, so no test guards that the struct-carried shape still terminates after a store round-trip.
 

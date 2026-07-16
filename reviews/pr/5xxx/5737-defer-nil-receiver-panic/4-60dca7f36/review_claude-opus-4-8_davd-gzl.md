@@ -10,7 +10,7 @@ Round 4. Head advanced `c26e69ed9` → `60dca7f36`, +3 commits, no rebase. The d
 
 **TL;DR:** A method value formed through an interface, like `g := i.M` or `defer i.M()`, used to be wired up the instant you wrote it. Go instead waits until the call to pick the concrete method and copy the receiver. This makes GnoVM wait too, so nil-panic timing, receiver snapshots, embedded promotion, and dynamic re-dispatch all match Go, and two interface-method-value VM crashes are fixed.
 
-**Verdict: APPROVE** — the three findings in this round's delta each close the gap they were raised for, confirmed by running the code rather than reading it. The carried local-type persistence regression stays non-blocking: it rides a pre-existing limitation that master's eager bind happened to dodge, and it is [@omarsy](https://github.com/gnolang/gno/pull/5737#discussion_r3513857885)'s open question to the author, not a new one.
+**Verdict: APPROVE** — the three findings in this round's delta each close the gap they were raised for, confirmed by running the code rather than reading it, and every row of round 1's posted `CHANGES_REQUESTED` table now matches Go. Posting this round also clears that stale blocker, which is the last thing holding the PR after @omarsy's 2026-07-16 approval. The carried local-type persistence regression stays non-blocking: it rides a pre-existing limitation that master's eager bind happened to dodge, and it is [@omarsy](https://github.com/gnolang/gno/pull/5737#discussion_r3513857885)'s open question to the author, not a new one.
 
 ## Summary
 
@@ -27,6 +27,18 @@ This round adds no VM logic. It closes three consumer-side gaps that the eager�
 ## Fix
 
 `typedRuntimeError` builds a value of the VM's [`.runtimeError` type](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/pkg/gnolang/uverse.go#L35-L41) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/uverse.go#L35-L41), which carries an [`Error()` method](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/pkg/gnolang/uverse.go#L569) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/uverse.go#L569), where `typedString` builds a bare `StringType` ([values.go:3015-3019](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/pkg/gnolang/values.go#L3015-L3019) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/values.go#L3015-L3019)). The `VPSubrefField` guard was the only nil-deref site in `getPointerToFromTV` still on the string form; its two siblings at [values.go:1957](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/pkg/gnolang/values.go#L1957) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/values.go#L1957) and [values.go:1986](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/pkg/gnolang/values.go#L1986) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/values.go#L1986) already used the error form. In the walker, the load-bearing constraint is that no signature exists to render: the bind holds a selector name and an operand, and the concrete `*FuncValue` only materializes inside the call.
+
+## Round-1 posted verdict: status
+
+The only review davd-gzl has posted on this PR is round 1's `CHANGES_REQUESTED` (2026-06-17, at `4c57c37e4`); rounds 2-4 stayed local. That verdict is still the posted state, and all three rows of its regression table now hold at `60dca7f36`:
+
+| receiver form | Go | round 1 (`4c57c37e4`) | head (`60dca7f36`) |
+|---|---|---|---|
+| `defer pt.M()` concrete | eager, `f()` = 0 | call-time, = 1 | eager, = 0 |
+| `defer i.M()` interface | call-time, = 1 | call-time, = 1 | call-time, = 1 |
+| `G=i.M`; persist; `G()` | panic | no panic | panic |
+
+The round-1 blocker was that `nilReceiverPanic` was read at the single `VPDerefValMethod` site, too late to tell a concrete `*T` from an unwrapped interface. That flag no longer exists: the decision moved to the bind site, where `VPInterface` binds lazily and `VPDerefValMethod` derefs eagerly, which is where round 1 asked for it. The ADR round 1 asked for is at [`gnovm/adr/pr5737_nil_value_method_panic_timing.md`](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/adr/pr5737_nil_value_method_panic_timing.md). Rows 1 and 2 verified by running the same program under gno and go1.26.5; row 3 is pinned by [`method_nil_value_persist.txtar`](https://github.com/gnolang/gno/blob/60dca7f36/gno.land/pkg/integration/testdata/method_nil_value_persist.txtar) · [↗](../../../../../.worktrees/gno-review-5737/gno.land/pkg/integration/testdata/method_nil_value_persist.txtar), green at head.
 
 ## Round-3 findings: status
 
@@ -50,6 +62,12 @@ None.
   </details>
 
 ## Nits
+
+- **[stale comment describes the rejected design]** [`method_nil_value_bind.gno:1-5`](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/tests/files/method_nil_value_bind.gno#L1-L5) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/tests/files/method_nil_value_bind.gno#L1-L5) — the header says a concrete `defer pt.M()` on a nil `pt` defers its panic to call time and returns 1; it panics eagerly and returns 0.
+  <details><summary>details</summary>
+
+  The comment is verbatim from `73d25b560`, the first commit, when the `nilReceiverPanic` flag deferred both the concrete and the interface case. The redesign split them: `VPDerefValMethod` now derefs eagerly for a concrete bind ([values.go:1971-1977](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/pkg/gnolang/values.go#L1971-L1977) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/values.go#L1971-L1977)), which is the whole point of the round-1 objection. Confirmed behaviorally: the same program returns `concrete 0` on both go1.26.5 and gno at `60dca7f36`, against the 1 the comment claims. The file only exercises the interface case, so no test contradicts the comment and it will outlive anyone who reads it. Fix: drop the `defer pt.M()` / `pt itself is nil` parentheticals, or state that the concrete case panics at the bind.
+  </details>
 
 - [`walker.go:500`](https://github.com/gnolang/gno/blob/60dca7f36/gno.land/pkg/gnoweb/feature/state/walker.go#L500) · [↗](../../../../../.worktrees/gno-review-5737/gno.land/pkg/gnoweb/feature/state/walker.go#L500) — the lazy branch renders `func Get()` for a method whose real signature is `func() int`, so the displayed result type is dropped. Confirmed behaviorally: the live state page for a persisted `G = i.Get` over `func (T) Get() int` shows `func Get()`. The resolved-bind path shows the true signature via `funcSignature(fv.Type)`, so the two disagree on the same value. No cheap fix exists in the walker (the signature lives behind a store lookup the walker doesn't do), and this mirrors `decodeFuncInline`'s own name-only fallback at [walker.go:710-711](https://github.com/gnolang/gno/blob/60dca7f36/gno.land/pkg/gnoweb/feature/state/walker.go#L710-L711) · [↗](../../../../../.worktrees/gno-review-5737/gno.land/pkg/gnoweb/feature/state/walker.go#L710-L711); flagging for whoever touches the walker next.
 - [`machine.go:1410`](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/pkg/gnolang/machine.go#L1410) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/machine.go#L1410) — `OpCPULazyBoundResolve` (529) and [`OpCPUSelectorInterface`](https://github.com/gnolang/gno/blob/60dca7f36/gnovm/pkg/gnolang/machine.go#L1471) · [↗](../../../../../.worktrees/gno-review-5737/gnovm/pkg/gnolang/machine.go#L1471) (276) are ratio-scaled, not measured on the gas-table reference hardware; the in-code TODO documents the methodology and defers direct measurement to the next HW refresh. Consensus-affecting per interface call, but on the same footing as other ratio-scaled table entries; flagging for whoever refreshes the gas table.

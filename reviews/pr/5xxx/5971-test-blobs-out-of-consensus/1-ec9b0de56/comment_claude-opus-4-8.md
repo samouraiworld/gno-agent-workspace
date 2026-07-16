@@ -1,4 +1,5 @@
 # Review: PR [#5971](https://github.com/gnolang/gno/pull/5971)
+Posted: https://github.com/gnolang/gno/pull/5971#pullrequestreview-4715985857
 Event: APPROVE
 
 ## Body
@@ -8,65 +9,48 @@ No golden pins addpkg gas for a package shipping a test file. [`addpkg_import_te
 
 <details><summary>test cases</summary>
 
-```go
-// gno.land/pkg/sdk/vm/addpkg_test_blob_gas_test.go
-package vm
+```
+# gno.land/pkg/integration/testdata/addpkg_test_blob_gas.txtar
+# notest and withtest share production code; only withtest ships a test file.
+# Routing the blob to iavlStore moves the withtest pin by 223600; notest holds.
 
-import (
-	"testing"
+gnoland start
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
-	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/stretchr/testify/require"
-)
+gnokey maketx addpkg -pkgdir $WORK/notest -pkgpath gno.land/p/demo/notest -gas-fee 1000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+2480573'
+gnokey maketx addpkg -pkgdir $WORK/withtest -pkgpath gno.land/p/demo/withtest -gas-fee 1000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+15455462'
 
-// expectedAddPkgWithTestBlobGas pins DeliverTx gas for deploying a package that
-// ships a test file. Deploying the same package without the test file writes no
-// #allbutprod blob and is unaffected by the store move.
-const expectedAddPkgWithTestBlobGas = int64(21680911)
+-- notest/gnomod.toml --
+module = "gno.land/p/demo/notest"
+gno = "0.9"
+-- notest/lib.gno --
+package notest
 
-func TestAddPkgWithTestBlobGas(t *testing.T) {
-	env := setupTestEnv()
-	// A non-genesis block: genesis uses an infinite gas meter.
-	ctx := env.ctx.WithBlockHeader(&bft.Header{Height: int64(1)}).WithMode(sdk.RunTxModeDeliver)
+func Hi() string { return "hi" }
+-- withtest/gnomod.toml --
+module = "gno.land/p/demo/withtest"
+gno = "0.9"
+-- withtest/lib.gno --
+package withtest
 
-	addr := crypto.AddressFromPreimage([]byte("test1"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
-	env.acck.SetAccount(ctx, acc)
-	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(100000000)))
+func Hi() string { return "hi" }
+-- withtest/lib_test.gno --
+package withtest
 
-	const pkgPath = "gno.land/r/hellotest"
-	files := []*std.MemFile{
-		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
-		{Name: "hello.gno", Body: "package hellotest\n\nfunc Echo() string { return \"hello world\" }\n"},
-		{Name: "hello_test.gno", Body: "package hellotest\n\nimport \"testing\"\n\nfunc TestEcho(t *testing.T) {\n\tif Echo() != \"hello world\" {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"},
+import "testing"
+
+func TestHi(t *testing.T) {
+	if Hi() != "hi" {
+		t.Fatal("bad")
 	}
-	msg := NewMsgAddPackage(addr, pkgPath, files)
-	fee := std.NewFee(50000000, std.MustParseCoin(ugnot.ValueString(1)))
-	tx := std.NewTx([]std.Msg{msg}, fee, []std.Signature{}, "")
-
-	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
-	gctx, _ = gctx.CacheContext()
-	gctx = env.vmh.vm.MakeGnoTransactionStore(gctx)
-
-	res := env.vmh.Process(gctx, tx.GetMsgs()[0])
-	require.True(t, res.IsOK(), "addpkg must succeed: %v", res)
-
-	require.Equal(t, expectedAddPkgWithTestBlobGas, gctx.GasMeter().GasConsumed(),
-		"addpkg gas for a package shipping a test file moved; the #allbutprod blob's "+
-			"store write is metered by its destination store, so this is consensus-affecting")
 }
 ```
 </details>
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5971-test-blobs-out-of-consensus/1-ec9b0de56/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gnovm/adr/pr5971_test_blobs_out_of_consensus.md:91-92 [↗](../../../../../.worktrees/gno-review-5971/gnovm/adr/pr5971_test_blobs_out_of_consensus.md#L91-L92)
+## gnovm/adr/pr5971_test_blobs_out_of_consensus.md:91-92 [↗](../../../../../.worktrees/gno-review-5971/gnovm/adr/pr5971_test_blobs_out_of_consensus.md#L91-L92) [posted](https://github.com/gnolang/gno/pull/5971#discussion_r3597421696)
 Nit: per-tx gas accounting does change. Deploys shipping a test file get 223,600 gas cheaper: encode gas is unchanged, but [`cacheStore.Set`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L186-L196) also prices the blob's write by its destination store, and `baseStore` charges flat where `iavlStore` charged depth-scaled. The repricing itself is fine, only this sentence needs to go.
 
 <details><summary>repro</summary>
@@ -153,7 +137,7 @@ GAS with_test_file=false -> 3771428
 </details>
 
 
-## gnovm/pkg/gnolang/store.go:1271 [↗](../../../../../.worktrees/gno-review-5971/gnovm/pkg/gnolang/store.go#L1271)
+## gnovm/pkg/gnolang/store.go:1271 [↗](../../../../../.worktrees/gno-review-5971/gnovm/pkg/gnolang/store.go#L1271) [posted](https://github.com/gnolang/gno/pull/5971#discussion_r3597421700)
 Missing test: nothing lists paths with base and iavl as one store. The only two callers, [`TestFindByPrefix`](https://github.com/gnolang/gno/blob/ec9b0de56/gnovm/pkg/gnolang/store_test.go#L163) and [`TestFindByPrefixDeDupesSplitPackages`](https://github.com/gnolang/gno/blob/ec9b0de56/gnovm/pkg/gnolang/store_test.go#L250), both build two distinct backends, so this branch never runs.
 
 <details><summary>test cases</summary>
@@ -195,5 +179,5 @@ func TestFindByPrefixSameStoreBackend(t *testing.T) {
 ```
 </details>
 
-## config/addrbook.json:1 [↗](../../../../../.worktrees/gno-review-5971/config/addrbook.json#L1)
+## config/addrbook.json:1 [↗](../../../../../.worktrees/gno-review-5971/config/addrbook.json#L1) [posted](https://github.com/gnolang/gno/pull/5971#discussion_r3597421708)
 Stray node artifact, unrelated to the store change.
