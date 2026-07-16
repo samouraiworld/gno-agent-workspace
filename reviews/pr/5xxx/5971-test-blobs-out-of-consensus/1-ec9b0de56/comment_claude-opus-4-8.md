@@ -1,5 +1,5 @@
 # Review: PR [#5971](https://github.com/gnolang/gno/pull/5971)
-Event: REQUEST_CHANGES
+Event: APPROVE
 
 ## Body
 Verified on ec9b0de56: appending a test function to `gnovm/stdlibs/chain/address_test.gno` leaves `TestAppHashCrossrealm38` at its pinned value. Changing the line that writes the blob to `ds.baseStore` back to `ds.iavlStore` restores master's own `058910b2…`, and that same test edit then moves the hash. So the new pin is the blob move and nothing else.
@@ -7,7 +7,7 @@ Verified on ec9b0de56: appending a test function to `gnovm/stdlibs/chain/address
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5971-test-blobs-out-of-consensus/1-ec9b0de56/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## gnovm/pkg/gnolang/store.go:1026 [↗](../../../../../.worktrees/gno-review-5971/gnovm/pkg/gnolang/store.go#L1026)
-Sending the blob to `baseStore` also drops a flat 223,600 gas off deploying any package that ships a test file, so the consensus impact is not app-hash-only. The write is metered by its destination: [`cacheStore.Set`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L186-L196) charges depth-scaled gas behind [`bptree`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/bptree/store.go#L46), which implements [`DepthEstimator`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L79-L80), and a flat cost behind `dbadapter`, which does not. Under [the default depth params](https://github.com/gnolang/gno/blob/ec9b0de56/gno.land/pkg/sdk/vm/params.go#L40-L42) that is `2.0×ReadCostFlat + 5.4×WriteCostFlat` against a bare `WriteCostFlat`, so the per-byte term cancels and the delta is a constant no matter how large the test files are.
+Nit: deploying a package that ships a test file gets a flat 223,600 gas cheaper, so "per-tx gas accounting is unchanged" does not hold and should not carry into the ADR. The blob's store write is priced by its destination: [`cacheStore.Set`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L186-L196) charges [the default](https://github.com/gnolang/gno/blob/ec9b0de56/gno.land/pkg/sdk/vm/params.go#L40-L42) `2.0×ReadCostFlat + 5.4×WriteCostFlat` behind [`bptree`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/bptree/store.go#L46), which implements [`DepthEstimator`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L79-L80), against a bare `WriteCostFlat` behind `dbadapter`, which does not. The repricing is defensible and rides the same declared break as the app-hash move, so this is about the claim, not the number.
 
 <details><summary>repro</summary>
 
@@ -93,7 +93,7 @@ GAS with_test_file=false -> 3771428
 </details>
 
 ## gno.land/pkg/sdk/vm/gas_test.go:333 [↗](../../../../../.worktrees/gno-review-5971/gno.land/pkg/sdk/vm/gas_test.go#L333)
-Missing test: no golden deploys a package that ships a test file, the one shape whose gas this changes. [`setupAddPkg`](https://github.com/gnolang/gno/blob/ec9b0de56/gno.land/pkg/sdk/vm/gas_test.go#L333-L374) builds `gnomod.toml` plus one `.gno` file, so no `#allbutprod` blob is written, and [`addpkg_import_testdep_gas.txtar`](https://github.com/gnolang/gno/blob/ec9b0de56/gno.land/pkg/integration/testdata/addpkg_import_testdep_gas.txtar) carries a `_test.gno` but pins equal gas across two importers, not the deploy's own cost. Nothing holds the 223,600-gas delta.
+Missing test: no golden deploys a package that ships a test file, the one shape whose gas this changes. [`setupAddPkg`](https://github.com/gnolang/gno/blob/ec9b0de56/gno.land/pkg/sdk/vm/gas_test.go#L333-L374) builds `gnomod.toml` plus one `.gno` file, so no `#allbutprod` blob is written, and [`addpkg_import_testdep_gas.txtar`](https://github.com/gnolang/gno/blob/ec9b0de56/gno.land/pkg/integration/testdata/addpkg_import_testdep_gas.txtar) carries a `_test.gno` but pins equal gas across two importers, not the deploy's own cost. The gap predates this PR, so the case below is offered rather than owed.
 
 <details><summary>test cases</summary>
 
