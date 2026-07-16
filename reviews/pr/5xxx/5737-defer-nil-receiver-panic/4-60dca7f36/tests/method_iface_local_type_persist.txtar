@@ -1,0 +1,48 @@
+# Run: from a gno checkout:
+# gh pr checkout 5737 -R gnolang/gno && git checkout 60dca7f36
+# curl -fsSL -o gno.land/pkg/integration/testdata/method_iface_local_type_persist.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5737-defer-nil-receiver-panic/4-60dca7f36/tests/method_iface_local_type_persist.txtar
+# go test -run 'TestTestdata/method_iface_local_type_persist' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/method_iface_local_type_persist.txtar
+#
+# Bind G = i.Get where i has a function-LOCAL type S{T{7}}, persist G, then reload
+# and call it in a later tx. The lazy bind saves the operand of type S; the call
+# re-derives the trail on S, but a function-local type's TypeID is never written to
+# the type store, so GetType panics "unexpected type with id ...S". Master eager-bound
+# the promoted package-level receiver T{7} and returned (7 int) on reload.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/lt -pkgpath gno.land/r/test/lt -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/lt -func Bind -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# later tx reloads G and calls it
+! gnokey maketx call -pkgpath gno.land/r/test/lt -func Call -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stderr 'unexpected type with id'          # IS:     regression — local type not persisted, reload panics
+# stdout '(7 int)'                         # SHOULD: parity with master's eager bind
+
+-- lt/gnomod.toml --
+module = "gno.land/r/test/lt"
+gno = "0.9"
+
+-- lt/lt.gno --
+package lt
+
+type T struct{ x int }
+
+func (t T) Get() int { return t.x }
+
+type I interface{ Get() int }
+
+var G func() int
+
+func Bind(cur realm) {
+	type S struct{ T }
+	var i I = S{T{7}}
+	G = i.Get
+}
+
+func Call(cur realm) int { return G() }

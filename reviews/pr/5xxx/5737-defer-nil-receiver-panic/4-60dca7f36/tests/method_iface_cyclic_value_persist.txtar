@@ -1,0 +1,49 @@
+# Run: from a gno checkout:
+# gh pr checkout 5737 -R gnolang/gno && git checkout 60dca7f36
+# curl -fsSL -o gno.land/pkg/integration/testdata/method_iface_cyclic_value_persist.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5737-defer-nil-receiver-panic/4-60dca7f36/tests/method_iface_cyclic_value_persist.txtar
+# go test -run 'TestTestdata/method_iface_cyclic_value_persist' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/method_iface_cyclic_value_persist.txtar
+#
+# Persisted variant of the struct-value-carried cycle (method_iface_cyclic_value.gno is
+# in-memory only). Store s.IG = W{s} plus the lazy bind, then reach it through the
+# unbounded qrender path — the exact non-gas-metered path a hang would stall. The reload
+# keeps *StructValue identity cache-stable, so the seen-set fires the fatal cyclic panic
+# instead of looping forever.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/cyc -pkgpath gno.land/r/test/cyc -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/cyc -func Bind -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+! gnokey query vm/qrender --data 'gno.land/r/test/cyc:'
+stdout 'cyclic embedded interface'
+
+-- cyc/gnomod.toml --
+module = "gno.land/r/test/cyc"
+gno = "0.9"
+
+-- cyc/cyc.gno --
+package cyc
+
+import "strconv"
+
+type IG interface{ Get() int }
+
+type Box struct{ IG }
+
+type W struct{ *Box }
+
+var G func() int
+
+func Bind(cur realm) {
+	s := &Box{}
+	s.IG = W{s}
+	var o IG = s
+	G = o.Get
+}
+
+func Render(path string) string { return strconv.Itoa(G()) }
