@@ -1,0 +1,54 @@
+/* Run: from a gno checkout, append this function to
+gnovm/pkg/gnolang/store_test.go (it reuses readRecordingStore + backendObjectKey
+from that file and the PR), then:
+gh pr checkout 5902 -R gnolang/gno
+go test -v -run 'TestLazyFileBlocksSkipEarlierFiles$' ./gnovm/pkg/gnolang/
+*/
+// Complements TestLazyFileBlocksSkipUnusedStoreReads, which only ever touches
+// the first FNames entry: here the called function lives in the LAST file, so
+// the assertion proves the earlier files' blocks are not read either. Guards
+// against a regression that eagerly materializes FBlocks[0].
+func TestLazyFileBlocksSkipEarlierFiles(t *testing.T) {
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	st := NewStore(nil, tm2Store, tm2Store)
+
+	wrapped := tm2Store.CacheWrap()
+	txSt := st.BeginTransaction(wrapped, wrapped, nil, nil)
+	m := NewMachineWithOptions(MachineOptions{PkgPath: "gno.land/r/lazyread2", Store: txSt, Output: io.Discard})
+	m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd, Name: "lazyread2", Path: "gno.land/r/lazyread2",
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: GenGnoModLatest("gno.land/r/lazyread2")},
+			{Name: "a.gno", Body: "package lazyread2\nfunc FA() int { return 1 }"},
+			{Name: "b.gno", Body: "package lazyread2\nfunc FB() int { return 2 }"},
+			{Name: "c.gno", Body: "package lazyread2\ntype T struct{}\nfunc (T) MC() int { return 9 }\nfunc FC() int { return T{}.MC() }"},
+		},
+	}, true)
+	txSt.Write()
+	wrapped.Write()
+
+	spy := &readRecordingStore{Store: tm2Store.CacheWrap(), reads: map[string]int{}}
+	txSt2 := st.BeginTransaction(spy, spy, nil, nil)
+	pv := txSt2.GetPackage("gno.land/r/lazyread2", false)
+	require.NotNil(t, pv)
+	require.Len(t, pv.FNames, 3)
+
+	blockKey := map[string]string{}
+	for i, fname := range pv.FNames {
+		ref, ok := pv.FBlocks[i].(RefValue)
+		require.True(t, ok)
+		blockKey[fname] = backendObjectKey(ref.ObjectID)
+	}
+
+	m2 := NewMachineWithOptions(MachineOptions{PkgPath: "gno.land/r/lazyread2", Store: txSt2, Output: io.Discard})
+	m2.SetActivePackage(pv)
+	res := m2.Eval(m2.MustParseExpr("FC()")) // last file
+	require.Len(t, res, 1)
+	assert.Equal(t, int64(9), res[0].GetInt())
+
+	assert.Positive(t, spy.reads[blockKey["c.gno"]], "called file c.gno must be read")
+	assert.Zero(t, spy.reads[blockKey["a.gno"]], "unused first file a.gno must not be read")
+	assert.Zero(t, spy.reads[blockKey["b.gno"]], "unused file b.gno must not be read")
+	assert.Len(t, pv.fBlocksMap, 1)
+}
