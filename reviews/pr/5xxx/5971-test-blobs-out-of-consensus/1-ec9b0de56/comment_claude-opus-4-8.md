@@ -7,9 +7,19 @@ Verified on ec9b0de56: appending a test function to `gnovm/stdlibs/chain/address
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5971-test-blobs-out-of-consensus/1-ec9b0de56/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## gnovm/pkg/gnolang/store.go:1026 [↗](../../../../../.worktrees/gno-review-5971/gnovm/pkg/gnolang/store.go#L1026)
-Sending the blob to `baseStore` also drops 223,600 gas off deploying any package that ships a test file, so the consensus impact is not app-hash-only. The write is metered by its destination: [`cacheStore.Set`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L186-L196) charges depth-scaled gas behind [`bptree`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/bptree/store.go#L46), which implements [`DepthEstimator`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L79-L80), and a flat cost behind `dbadapter`, which does not. The amino-encode gas inside [`setMemPackageBlob`](https://github.com/gnolang/gno/blob/ec9b0de56/gnovm/pkg/gnolang/store.go#L1049-L1056) is unchanged, but it is not the only charge on the path.
+Sending the blob to `baseStore` also drops a flat 223,600 gas off deploying any package that ships a test file, so the consensus impact is not app-hash-only. The write is metered by its destination: [`cacheStore.Set`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L186-L196) charges depth-scaled gas behind [`bptree`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/bptree/store.go#L46), which implements [`DepthEstimator`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L79-L80), and a flat cost behind `dbadapter`, which does not. Under [the default depth params](https://github.com/gnolang/gno/blob/ec9b0de56/gno.land/pkg/sdk/vm/params.go#L40-L42) that is `2.0×ReadCostFlat + 5.4×WriteCostFlat` against a bare `WriteCostFlat`, so the per-byte term cancels and the delta is a constant no matter how large the test files are.
 
 <details><summary>repro</summary>
+
+The amino-encode gas inside [`setMemPackageBlob`](https://github.com/gnolang/gno/blob/ec9b0de56/gnovm/pkg/gnolang/store.go#L1049-L1056) is length-driven and unchanged, but it is not the only charge on the path. Closed form, with [`ReadCostFlat` 59,000 and `WriteCostFlat` 24,000](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/types/gas.go#L404-L407):
+
+```
+depth (bptree)    = 2.0×59,000 + 5.4×24,000 + 14×len = 247,600 + 14×len
+flat  (dbadapter) =              1.0×24,000 + 14×len =  24,000 + 14×len
+delta                                                = 223,600, for any len
+```
+
+Under `-tags gastrace` the sole `Set` on `pkg:gno.land/r/hellotest#allbutprod` charges 26,926 (`info=depth=false`) at head and 250,526 (`info=depth=true`) when routed back. The tx-level measurement:
 
 ```bash
 # from a local clone of gnolang/gno:

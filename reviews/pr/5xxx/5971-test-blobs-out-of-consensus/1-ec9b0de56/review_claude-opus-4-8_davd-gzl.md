@@ -38,6 +38,14 @@ Measured at ec9b0de56 with the only variable being the sibling blob's destinatio
 | prod + `_test.gno` | 21,680,911 | 21,904,511 | **−223,600** (−1.0%) |
 | prod only, no test file | 3,771,428 | 3,771,428 | 0 |
 
+The whole tx-level delta is one `Set`, per the `-tags gastrace` trace of the sibling key:
+
+| `Set` on `pkg:gno.land/r/hellotest#allbutprod` | gas | trace `info` |
+|---|---|---|
+| → `baseStore`, flat `WillSet` | 26,926 | `depth=false` |
+| → `iavlStore`, `DepthSet` | 250,526 | `depth=true` |
+| difference | **223,600** | |
+
 | genesis app hash | value |
 |---|---|
 | PR head, unmodified | `4ffebf22…` (pinned, passes) |
@@ -52,7 +60,19 @@ None.
 - **[undisclosed consensus-relevant gas change]** `gnovm/pkg/gnolang/store.go:1026` — routing the test blob to `baseStore` also drops 223,600 gas off deploying any package that ships a test file; the PR states per-tx gas accounting is unchanged.
   <details><summary>details</summary>
 
-  The two backends meter writes differently. [`cacheStore.Set`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L186-L196) · [↗](../../../../../.worktrees/gno-review-5971/tm2/pkg/store/cache/store.go#L186-L196) charges depth-scaled `DepthSet` gas when its parent implements [`DepthEstimator`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L79-L80) · [↗](../../../../../.worktrees/gno-review-5971/tm2/pkg/store/cache/store.go#L79-L80), and a flat `WillSet` otherwise. [`bptree`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/bptree/store.go#L46) · [↗](../../../../../.worktrees/gno-review-5971/tm2/pkg/store/bptree/store.go#L46) implements it and backs `iavlStore`; `dbadapter` does not and backs `baseStore`. So the blob's write moves from depth-metered to flat. The amino-encode gas charged inside [`setMemPackageBlob`](https://github.com/gnolang/gno/blob/ec9b0de56/gnovm/pkg/gnolang/store.go#L1049-L1056) · [↗](../../../../../.worktrees/gno-review-5971/gnovm/pkg/gnolang/store.go#L1049-L1056) is length-driven and genuinely unchanged, but it is not the only charge on that path. Measured: 21,904,511 → 21,680,911 for a package with a `_test.gno`, and byte-identical gas for the same package without one, so the blob write is the whole delta. Every gas golden in the tree deploys packages without test files, which is why nothing went red. The change is defensible on its merits, since a `dbadapter` write really does no tree traversal, and it rides an already-consensus-breaking PR. Fix: state the gas shift alongside the app-hash shift, so it is not read as hash-only.
+  The two backends meter writes differently. [`cacheStore.Set`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L186-L196) · [↗](../../../../../.worktrees/gno-review-5971/tm2/pkg/store/cache/store.go#L186-L196) charges depth-scaled `DepthSet` gas when its parent implements [`DepthEstimator`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L79-L80) · [↗](../../../../../.worktrees/gno-review-5971/tm2/pkg/store/cache/store.go#L79-L80), and a flat `WillSet` otherwise. [`bptree`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/bptree/store.go#L46) · [↗](../../../../../.worktrees/gno-review-5971/tm2/pkg/store/bptree/store.go#L46) implements it and backs `iavlStore`; `dbadapter` does not and backs `baseStore`. So the blob's write moves from depth-metered to flat. The amino-encode gas charged inside [`setMemPackageBlob`](https://github.com/gnolang/gno/blob/ec9b0de56/gnovm/pkg/gnolang/store.go#L1049-L1056) · [↗](../../../../../.worktrees/gno-review-5971/gnovm/pkg/gnolang/store.go#L1049-L1056) is length-driven and genuinely unchanged, but it is not the only charge on that path.
+
+  The delta is closed-form, not an estimate. With [`ReadCostFlat` 59,000 and `WriteCostFlat` 24,000](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/types/gas.go#L404-L407) · [↗](../../../../../.worktrees/gno-review-5971/tm2/pkg/store/types/gas.go#L404-L407) and the default VM depths [`minSetReadDepth100Default` 200, `minWriteDepth100Default` 540](https://github.com/gnolang/gno/blob/ec9b0de56/gno.land/pkg/sdk/vm/params.go#L40-L42) · [↗](../../../../../.worktrees/gno-review-5971/gno.land/pkg/sdk/vm/params.go#L40-L42):
+
+  ```
+  depth (bptree)    = 2.0×59,000 + 5.4×24,000 + 14×len   = 247,600 + 14×len
+  flat  (dbadapter) =              1.0×24,000 + 14×len   =  24,000 + 14×len
+  delta                                                  = 223,600, for any len
+  ```
+
+  Two consequences. The `WriteCostPerByte × len` term is identical on both sides and cancels, so the delta does not scale with test-file size: a 200-byte `_test.gno` and a 200KB one each save exactly 223,600. And it does not track tree size either, because [`DefaultParams`](https://github.com/gnolang/gno/blob/ec9b0de56/gno.land/pkg/sdk/vm/params.go#L93-L98) · [↗](../../../../../.worktrees/gno-review-5971/gno.land/pkg/sdk/vm/params.go#L93-L98) sets `FixedSetReadDepth100`/`FixedWriteDepth100` to the same 200/540 and [`effectiveSetReadDepth100`](https://github.com/gnolang/gno/blob/ec9b0de56/tm2/pkg/store/cache/store.go#L105-L114) · [↗](../../../../../.worktrees/gno-review-5971/tm2/pkg/store/cache/store.go#L105-L114) returns the Fixed override when non-zero, so `expectedDepth100(tree.Size())` is never consulted. 223,600 is a hard per-package constant.
+
+  Confirmed against the gas trace (`-tags gastrace`): the sole `Set` on `pkg:gno.land/r/hellotest#allbutprod` charges 26,926 with `info=depth=false` at head and 250,526 with `info=depth=true` when routed back, and 250,526 − 26,926 = 223,600 accounts for the whole 21,904,511 → 21,680,911 tx-level move. The same package without a `_test.gno` is byte-identical either way. Every gas golden in the tree deploys packages without test files, which is why nothing went red. The change is defensible on its merits, since a `dbadapter` write really does no tree traversal, and it rides an already-consensus-breaking PR. Fix: state the gas shift alongside the app-hash shift, so it is not read as hash-only.
   </details>
 
 - **[stray artifact in the diff]** `config/addrbook.json:1` — a node runtime file committed with the fix; it is the only tracked file under `config/` and nothing ignores it.
