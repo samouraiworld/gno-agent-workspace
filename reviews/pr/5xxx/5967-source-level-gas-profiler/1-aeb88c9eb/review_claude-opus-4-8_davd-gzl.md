@@ -1,0 +1,56 @@
+# PR [#5967](https://github.com/gnolang/gno/pull/5967): feat(gnovm): source-level gas profiler ("gas pprof")
+
+URL: https://github.com/gnolang/gno/pull/5967
+Author: omarsy | Base: master | Files: 41 | +3103 -53
+Reviewed by: davd-gzl | Model: claude-opus-4-8 (high, deep) | Commit: aeb88c9eb (latest)
+Local worktree: `git -C gno worktree add .worktrees/gno-review-5967 aeb88c9eb`
+
+**TL;DR:** Adds a tool that shows where a gno transaction's gas went, function by function, in your own gno source. It reads the gas the VM already charges, attributes each charge to the gno function that caused it, and writes a standard pprof file you open with `go tool pprof` (top functions, flame graphs, per-line). It is off by default, and when on it never changes the gas charged or the execution result.
+
+**Verdict: APPROVE** — clean, well-tested, observation-only; only two optional Suggestions (a dev-node CLI footgun, a debug-only invariant assert) and a handful of no-change nits.
+
+## Summary
+A `GasMeter` decorator reads every gas charge (CPU, alloc, store I/O, amino, refunds) and an incremental call-tree cursor, driven by the machine's frame push/pop, attributes each charge to the current gno function; the tree is emitted as a multi-dimension pprof profile. Two surfaces drive it: `gno test -gasprofile=<file>` (unit tests and filetests) and a dev-only `.app/profiletx` ABCI query reachable via `gnokey maketx -profile`, `gnoclient.ProfileTx`, and gnodev. The engine is a new self-contained package (`gnovm/pkg/gasprof`, stdlib + `tm2/pkg/store` only, no import cycle). The consensus gas path is untouched when profiling is off: the machine hooks are `nil`-guarded and short-circuit before evaluating `IsCall()`, so a validator `DeliverTx` runs byte-identically to master.
+
+## Verified
+- **Reconciliation holds exactly (empirical).** Ran `gno test -gasprofile` on `p/onbloc/uint256`; the per-dimension sums reconcile with no slack: `cpu 259154350 + alloc 16811222 + store 21047752 + other 0 = 297013324 = total_gas`, and `refund_gas` is a separate index (0 here), never netted into the total. Matches the PR's `cpu+alloc+store+other == total` claim.
+- **The hand-rolled protobuf is a valid pprof.** `go tool pprof` accepts the gzipped output: `-top` ranks functions, `-traces` prints correct leaf-first call stacks (`root → testing.RunTest → tRunner → …`), and `-list umulHop -source_path=…` resolves the function to its source line with correct per-function gas. Field numbers and the `getLoc` Function/Location/Line linkage were checked against `profile.proto`; the package's own conformance test decodes a produced profile with `github.com/google/pprof/profile`.
+- **Observation-only on-chain.** On the tx path the machine uses `SetGasProfilerCursor`, which drives the cursor only and touches no meter or allocator; the gas-mutating `AttachGasProfiler` (which can re-route alloc gas) is called only on the `gno test` surface, never on-chain. `TestVMKeeperGasProfile_observationOnly` asserts identical `GasConsumed()` with and without the profiler.
+- **Dev-only gating is airtight.** `EnableGasProfiler` is set true only by gnodev and the integration harness; the `gnoland` node command leaves it at its zero value `false`, and `WithGasProfile` is reachable only behind that flag. A production validator can never register `.app/profiletx`, so `getGasProfiler(ctx)` is `nil` on every consensus `DeliverTx` and no profiler ever attaches.
+- **Cursor exactness across unwinds.** Only seven sites mutate `m.Frames`; the cursor tracks the `IsCall` (i.e. `Func != nil`) subset and is changed only by `Enter`/`Pop` (per-frame, same `IsCall` guard) and `SyncDepth` (bulk revive truncation), plus `Reset` at teardown. `GotoJump` and `PopUntilLastCallFrame` truncate only non-call loop frames; panic/defer/recover unwind through `PopFrame`, so the cursor stays exact. Even a hypothetical desync can only mis-attribute, never panic (`record` reads `stack[len-1]`, always ≥ root) and never change gas.
+- **`(ante)` booked once.** `MakeGnoTransactionStore` snapshots pre-install gas into a synthetic `(ante)` node and wraps the meter exactly once per tx (it runs from the single `beginTxHook`); the genesis/stdlib call sites carry no profiler, so there is no second wrap or double-book.
+- **Dimension table complete.** Every gas descriptor that reaches a wrapped meter is classified: cpu (`CPUCycles`, `GC`, `parsing`, `ComputeMapKey`, `stream output`, `AddPackagePreprocess`, `RunPreprocess`), alloc (`memory allocation`), store (`ReadFlat`, `ReadPerByte`, `WriteFlat`, `Delete`, `IterNextFlat`, `ValuePerByte`, `Depth{ReadFlat,Set,Delete}`, `AminoEncode/DecodePerByte`). The two store descriptors absent from the table, `Has` and `WritePerByte`, are dead constants never passed to `ConsumeGas`, so no store gas silently falls to `other`.
+- **`Simulate` change is backward-compatible.** `Simulate` gained a variadic `...ContextFn`; it is a concrete `*BaseApp` method with no interface to satisfy and one real implementation, so the signature change ripples nowhere. `nil` fns are skipped, and the ctxFn is passed only on the Simulate path (the profiler meter never reaches Deliver/Check).
+- **The ante.go change is comment-only.** Zero non-comment lines were added; it corrects a stale claim to say simulation is metered (bounded by `GasWanted`), which is what the ante actually does past the genesis block.
+- Green at `aeb88c9eb`: `gnovm/pkg/gasprof`, `gnovm/pkg/gnolang -run GasProf` (incl. `-race`), `gnovm/pkg/test`, `gno.land/pkg/sdk/vm -run GasProfile`, `gno.land/pkg/gnoland -run gasProfile`, `gno.land/pkg/gnoclient -run Profile`, `tm2/pkg/sdk -run 'Simulate|ProfileTx'`, `tm2/pkg/crypto/keys/client -run Profile`, and the `gasprofile.txtar` / `maketx_gasprofile.txtar` integration tests.
+
+## Critical (must fix)
+None.
+
+## Warnings (should fix)
+None.
+
+## Suggestions
+- **[dev-run silently not broadcast]** [`tm2/pkg/crypto/keys/client/maketx.go:385`](https://github.com/gnolang/gno/blob/aeb88c9eb/tm2/pkg/crypto/keys/client/maketx.go#L385) · [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/crypto/keys/client/maketx.go#L385) — `-profile` with `-broadcast` writes the profile and returns before broadcasting, exit 0.
+  <details><summary>details</summary>
+
+  `ShouldSign()` is true when either flag is set, and `ExecSignAndBroadcast` takes the `if cfg.Profile != ""` branch and `return nil` before `SignAndBroadcastHandler`. `Validate()` checks only `Simulate`, so nothing rejects the combination. Against a real node this is harmless: `.app/profiletx` is off there, so `ProfileTx` errors loudly and nothing is sent. Against a dev node the intended broadcast is dropped with a success exit, though the command does print `gas profile written to …`. There is precedent for a mode flag overriding the default `broadcast`: `-simulate only` also skips the real send. Fix: reject `Profile != "" && Broadcast` in `Validate()`, or note on stderr that `-broadcast` is ignored under `-profile`.
+  </details>
+- **[invariant can decay invisibly]** [`gnovm/pkg/gasprof/gasprof.go:135`](https://github.com/gnolang/gno/blob/aeb88c9eb/gnovm/pkg/gasprof/gasprof.go#L135) · [↗](../../../../../.worktrees/gno-review-5967/gnovm/pkg/gasprof/gasprof.go#L135) — no debug assert ties the cursor depth to the machine's call-frame count.
+  <details><summary>details</summary>
+
+  The cursor-exactness invariant (`len(stack) == numGasCallFrames()+1`) is load-bearing but self-healing on failure: a desync never panics and never breaks reconciliation (the tree sum is unchanged, gas just lands on the wrong node), so no test would catch it. A future refactor that adds a frame-truncation path bypassing `Enter`/`Pop`/`SyncDepth` would mis-attribute silently. A `if debug { … }` assert at the `Enter`/`Pop` hooks ([`machine.go:2461`](https://github.com/gnolang/gno/blob/aeb88c9eb/gnovm/pkg/gnolang/machine.go#L2461) · [↗](../../../../../.worktrees/gno-review-5967/gnovm/pkg/gnolang/machine.go#L2461)) comparing the two would make such a regression fail loudly. Current code is correct; this is hardening.
+  </details>
+
+## Nits
+- **[comment precision]** [`tm2/pkg/sdk/auth/ante.go:514`](https://github.com/gnolang/gno/blob/aeb88c9eb/tm2/pkg/sdk/auth/ante.go#L514) · [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/sdk/auth/ante.go#L514) — "simulation is still metered" is true past the genesis block, but the pre-first-commit `Simulate` fallback runs at height 0 and hits the infinite-meter branch. The comment's own "only genesis" carve-out already covers it (height 0 is genesis), so no change needed; not posted.
+- **[discarded RPC on error]** [`tm2/pkg/crypto/keys/client/maketx.go:294`](https://github.com/gnolang/gno/blob/aeb88c9eb/tm2/pkg/crypto/keys/client/maketx.go#L294) · [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/crypto/keys/client/maketx.go#L294) — the consensus-max-gas goroutine now launches before `signTx`, so a sign-setup failure (bad key, locked keybase) fires one `fetchConsensusMaxGas` RPC whose result is discarded. Buffered channel, no leak; the happy-path broadcast is byte-identical. No change needed; not posted.
+- **[documented edge]** [`gnovm/pkg/gasprof/gasprof.go:205`](https://github.com/gnolang/gno/blob/aeb88c9eb/gnovm/pkg/gasprof/gasprof.go#L205) · [↗](../../../../../.worktrees/gno-review-5967/gnovm/pkg/gasprof/gasprof.go#L205) — `ConsumeGas` records before delegating, so on the one path where `amount` differs from the applied delta (int64 overflow, which panics before mutating) the profile over-counts by one charge. Requires ~9.2e18 gas, terminal and unreachable; already noted in the code comment. No change needed; not posted.
+- **[test-only output]** [`gnovm/pkg/gasprof/gasprof.go:281`](https://github.com/gnolang/gno/blob/aeb88c9eb/gnovm/pkg/gasprof/gasprof.go#L281) · [↗](../../../../../.worktrees/gno-review-5967/gnovm/pkg/gasprof/gasprof.go#L281) — `flatTotal()` (gross − refund) can go net-negative when a refund fires at a different cursor node than the original write, showing a negative folded stack. Only `WriteFolded` uses it, and `WriteFolded` is called only from tests; the shipped `WritePprof` emits per-dimension non-negative values with refund as its own index. No change needed; not posted.
+- **[attribution granularity]** [`gnovm/pkg/gnolang/machine.go:1526`](https://github.com/gnolang/gno/blob/aeb88c9eb/gnovm/pkg/gnolang/machine.go#L1526) · [↗](../../../../../.worktrees/gno-review-5967/gnovm/pkg/gnolang/machine.go#L1526) — two anonymous functions on the same source line share `pkg.(anonymous)`+file+line and merge into one profile node. A granularity limit, not a reconciliation or validity issue. No change needed; not posted.
+
+## Missing Tests
+- **[untested flag combo]** [`tm2/pkg/crypto/keys/client/maketx.go:385`](https://github.com/gnolang/gno/blob/aeb88c9eb/tm2/pkg/crypto/keys/client/maketx.go#L385) · [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/crypto/keys/client/maketx.go#L385) — no test exercises `-profile` together with `-broadcast`. Tied to the Suggestion above; a test asserting the chosen behavior (error, or profile-and-warn) would pin whichever resolution the author picks. Only worth adding alongside that fix.
+
+## Open questions
+None.
