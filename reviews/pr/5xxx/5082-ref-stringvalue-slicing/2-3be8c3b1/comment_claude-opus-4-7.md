@@ -200,9 +200,6 @@ func TestStringRefSizeAcrossAminoRoundTrip(t *testing.T) {
 ## gnovm/pkg/gnolang/values.go:92-95 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L92)
 Suggestion: the `ref` bool takes `StringValue` from 16 to 24 bytes, so every literal and concatenation pays for a field only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) sets. A separate ref type would avoid that: deliberate trade for the simpler struct?
 
-## gnovm/pkg/gnolang/values.go:97 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L97)
-Nit: the new doc comments lack terminating periods, from `NewStringValue` here through `UnmarshalAmino` at line 128.
-
 ## gnovm/pkg/gnolang/alloc_test.go:87 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc_test.go#L87)
 Nit: `_ = result.GetString()` here and `_ = s3.GetString()` at line 113 discard the value, so they assert nothing.
 

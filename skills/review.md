@@ -284,6 +284,7 @@ Calibration:
 - No target finding count. Stop when the diff is read in full and blast radius mapped.
 - The review's verification claims (the Verified section, the Summary) follow the same rule as comment.md: only what CI does not show. Revert-proofs, behavior/Go parity, exercised edge cases, a new code path CI skips. Never "`go test ...` passes", "lint clean", "build green".
 - Severity is binary. Warnings = a maintainer could plausibly block (correctness, security, decay, missing invariant). Nits = style, polish, optional. Borderline → Nit.
+- A cosmetic nit that no enabled linter enforces and that changes no meaning (doc-comment periods, comment wrapping, import order) stays in the review file and never reaches comment.md. Check the repo's linter config before flagging a style convention; `.github/golangci.yml` runs `default: none` with an explicit enable list. Record it in the review file with the config link and "not posted, no change needed".
 - Map the full call graph before claiming dead / redundant / unused. Grep every caller.
 - Never flag contribution-policy compliance (AGENTS.md ADR requirement, commit conventions). Findings cover the code only.
 - Never flag or critique the ADR — its wording, symbols it names, claims it makes. Don't reference "the ADR" or editorialize "as the ADR claims" anywhere; state behavior facts directly against the code by path. If the underlying code is wrong, the finding is about the code. When a code or test comment repeats a stale claim, anchor the finding on that comment.
