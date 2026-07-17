@@ -56,18 +56,40 @@ Parent verification of the two heaviest findings, run directly rather than taken
 
 Two agents self-corrected during their own citation audits, which is worth recording: 5892 withdrew a 20.2 gas/byte figure that was a pre-5891 baseline and re-grounded the finding on `ReadCostPerByte`; 5891 fixed four bad anchors and retracted a round-1 Suggestion whose premise came from trusting a doc comment its own review proves false.
 
-## Finalize (parent)
+## State at pause (2026-07-17)
 
-1. Verify each PR wrote both a review file and a comment draft.
-2. Re-verify every surviving finding against the cited lines; never trust an agent summary alone.
-3. Validate anchors with `post-pr-review.py --dry-run` per draft.
-4. Sweep stray scratch test files from the worktrees.
-5. `./scripts/build-indexes.sh` once.
-6. `git add reviews/ docs/glossary.md index.html && git commit -m "review: deep batch of Jae's six recent merges" && git push`
-7. Hand back a link to each PR's `comment_claude-opus-4-8.md`. Posting waits for the literal `post`.
+The review half is finished. All six PRs have `review_*.md` and `comment_*.md`; all six worktrees are clean; `build-indexes.sh` has been run.
 
-Nothing has been posted to GitHub.
+Blocked on one thing: commit `31b4c448e` ("review: PRs 5760, 5890-5893, 5937, 5938; 5082 GC claim retracted") was authored outside this batch and already swept these six review dirs into itself, together with a 5760 round-3 review and a 5082 retraction this batch never produced or verified. It is local only; `main` is ahead of `origin/main` by 1. The user is cutting that commit themselves. Nothing here was pushed, and nothing was posted to GitHub.
+
+Left staged on top of it, pending that cut: `index.html`, `reviews/BATCH_STATUS.md`, `reviews/README.md`, the 5082 round-2 file, 5891's and 5892's final review and comment (rewritten by resumed agents after `31b4c448e` captured an earlier state), and the 5938 review's ADR correction.
+
+Note for whoever re-commits: `31b4c448e`'s message says 5892 prices dependency bytes "~62x under". The final review says ~70x against `ReadCostPerByte` 17, after its citation audit withdrew an earlier figure as a stale pre-5891 baseline. Do not carry the 62x forward.
+
+## Next: fix PRs
+
+The goal is a fix PR per finding, each in its own worktree, reviewed until clean. Nothing is branched or written yet. Per `skills/fix-issue.md`: worktree at `.worktrees/gno-fix-<slug>` off `origin/master`, fork remote `fork` = `davd-gzl/gno`, never push to `origin`.
+
+Proposed grouping, not yet agreed with the user:
+
+| Fix | Source | Shape |
+|---|---|---|
+| Clear `ast.File.GoVersion` in `GoParseMemPackage` | 5893 Critical | Consensus fork; highest value, self-contained. Parent-verified red at `7fc5ec06a`. Tests already written in 5893's `tests/`. |
+| Immutable open: stop scanning, stop writing | 5937 + 5938 | One PR, two commits. `discoverVersions` seek first/last instead of full scan; `ensureFastIndex` early-return on `opts.Immutable` plus `constructStore` wrapping `params.db` when Immutable. Both parent-verified. |
+| Delete unreachable nil guard `machine.go:330-340` | 5892 Warning | Trivial deletion; parent-verified unreachable. |
+| `GetMemPackageAll` panics on `#` path | 5891 Warning | Check overlap first: open PR 5971 fixes it incidentally. |
+| pb3 removal vs stored block results | 5893 Warning | Migration/compat; needs its own look. |
+| 5890 banker + address fixes | 5890 | Four Warnings, likely one PR. |
+| Depth-gas repins | 5938 + 5937 | Consensus genesis defaults, needs a fingerprint append. Wants Jae's buy-in; may be an issue, not a PR. |
+| Fingerprint guard test | 5937 + 5938 | Test-only. |
+| Doc/comment nits | all six | One batch PR. |
+
+Unresolved before any gas fix: 5937 and 5938 disagree on absent-key GET pricing. 5937 calls it a Warning at `params.go:40`; 5938 deliberately left it an unposted Open question. Settle first.
 
 ## Resume
 
-If the session dies mid-batch: check which review dirs above hold both `review_*.md` and `comment_*.md`, and re-dispatch only the incomplete ones. The worktrees already exist at the shas in the table; do not re-create them.
+1. Confirm the user has cut `31b4c448e`, then re-commit the review artifacts.
+2. Agree the fix grouping above with the user before writing code; seven-plus PRs is a lot of surface and wants cutting down.
+3. Then per fix: worktree, implement, test, deep-review the fix itself until clean.
+
+If a session dies mid-batch: check which review dirs hold both `review_*.md` and `comment_*.md`, re-dispatch only the incomplete ones. The review worktrees already exist at the shas in the table; do not re-create them.

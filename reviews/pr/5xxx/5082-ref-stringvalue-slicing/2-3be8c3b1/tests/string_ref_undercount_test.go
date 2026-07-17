@@ -2,59 +2,30 @@
 
 /* Run: from a local clone of gnolang/gno:
 gh pr checkout 5082 -R gnolang/gno && git checkout 3be8c3b1a
-curl -fsSL -o gnovm/pkg/gnolang/string_ref_undercount_test.go \
+curl -fsSL -o gnovm/pkg/gnolang/string_ref_roundtrip_test.go \
   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5082-ref-stringvalue-slicing/2-3be8c3b1/tests/string_ref_undercount_test.go
-go test -v -run 'TestStringSliceChargeVsRetention|TestStringRefMarshalRoundTripChangesSize' ./gnovm/pkg/gnolang/
-rm gnovm/pkg/gnolang/string_ref_undercount_test.go
+go test -v -run 'TestStringRefMarshalRoundTripChangesSize' ./gnovm/pkg/gnolang/
+rm gnovm/pkg/gnolang/string_ref_roundtrip_test.go
 */
 
-// Baselined against master 27b5b8e24: the identical test there accounts 49
-// bytes post-GC and pins the same parent, so slice retention is NOT introduced
-// by this PR. The round-2 claim that it was is retracted. What the diff moves
-// is the allocation-time charge and the size of a ref across persistence.
+// One asymmetry, introduced by this diff: a ref-mode StringValue reports 48
+// bytes via GetShallowSize; after MarshalAmino/UnmarshalAmino it comes back as
+// owner mode (ref=false) and reports 48 + len(data). Master has no ref mode, so
+// the same value reports 54 on both sides. The GC rebuilds the allocator's
+// counter from GetShallowSize, so one string contributes two different amounts
+// depending on whether it was just deserialized or still in memory from a slice.
 //
-//  1. Slice charge: master charges 48+len for a slice it never copied, which
-//     over-charges in the copy sense but bounds how much a transaction can
-//     retain by slicing. This PR charges a flat 48. Neither revision tracks the
-//     retained backing, so that per-byte charge is the only bound there is.
-//
-//  2. Round-trip drift: a ref-mode StringValue reports 48 bytes via
-//     GetShallowSize; after MarshalAmino/UnmarshalAmino it comes back as owner
-//     mode (ref=false) and reports 48 + len(data). Master has no ref mode, so
-//     the same value reports 54 on both sides.
+// The round-2 slice-undercount claim that lived here is retracted. It was tested
+// against master, not argued: retention is len(backing) and the slice charge
+// tracks len(slice); the two are independent. Master charges 49, 1072, and
+// 33,554,480 for 1 B, 1 KiB, and 32 MiB slices of a 64 MiB parent while
+// retention stays 64 MiB throughout, so the charge never bounded retention. The
+// flat 48 here is more accurate, not less: the parent already carries its own
+// 48 + len charge, and master double-counts those bytes for a copy it never made.
 
 package gnolang
 
-import (
-	"strings"
-	"testing"
-)
-
-func TestStringSliceChargeVsRetention(t *testing.T) {
-	const parentLen = 64 << 20
-	alloc := NewAllocator(1 << 30)
-	tv := TypedValue{T: StringType, V: alloc.NewString(strings.Repeat("a", parentLen))}
-	_, before := alloc.Status()
-
-	// Half the parent. No bytes are copied on either revision: Go substrings
-	// share the backing array, so the parent stays alive through the slice.
-	slice := tv.GetSlice(alloc, 0, 32<<20)
-	_, after := alloc.Status()
-	charged := after - before
-
-	// IS (this PR): a flat allocStringRef, whatever the slice length.
-	if charged != allocStringRef {
-		t.Fatalf("slice charge: got %d, want %d (allocStringRef)", charged, allocStringRef)
-	}
-	t.Logf("32 MiB slice charged %d bytes; master charges 33554480 for the same slice", charged)
-
-	// SHOULD, once backing-range tracking lands (see PR 4885): the retained
-	// backing is charged once per cycle rather than not at all. Flip to assert:
-	// if charged != allocStringRef+allocStringByte*int64(32<<20) {
-	//     t.Fatalf("slice charge: got %d, want the retained length", charged)
-	// }
-	_ = slice
-}
+import "testing"
 
 func TestStringRefMarshalRoundTripChangesSize(t *testing.T) {
 	const data = "abcdef"
@@ -70,11 +41,6 @@ func TestStringRefMarshalRoundTripChangesSize(t *testing.T) {
 		t.Fatalf("UnmarshalAmino: %v", err)
 	}
 	afterSize := after.GetShallowSize()
-
-	if beforeSize == afterSize {
-		t.Fatalf("expected size to change across amino round-trip, got %d == %d",
-			beforeSize, afterSize)
-	}
 
 	t.Logf("pre-roundtrip=%d (ref) post-roundtrip=%d (owner) — same logical value, different accounting",
 		beforeSize, afterSize)

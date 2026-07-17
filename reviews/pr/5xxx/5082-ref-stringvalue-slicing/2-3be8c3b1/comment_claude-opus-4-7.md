@@ -39,59 +39,6 @@ Verified on 3be8c3b1: regenerating [`pb3_gen.go`](https://github.com/gnolang/gno
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5082-ref-stringvalue-slicing/2-3be8c3b1/claude-opus-4-7_davd-gzl.md · [↗](claude-opus-4-7_davd-gzl.md)
 
-## gnovm/pkg/gnolang/values.go:2234-2239 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2234)
-A 32 MiB slice of a 64 MiB parent is charged 48 bytes here, against 33,554,480 on master, and the slice keeps the whole parent alive either way. Nothing tracks the retained backing, so the per-byte charge is what currently bounds how much a transaction can retain by slicing, and dropping it leaves that unbounded.
-
-<details><summary>repro</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 5082 -R gnolang/gno
-cat > /tmp/zz_sc_test.go <<'EOF'
-package gnolang
-
-import (
-	"strings"
-	"testing"
-)
-
-func TestSliceChargeVsRetention(t *testing.T) {
-	const parentLen = 64 << 20
-	alloc := NewAllocator(1 << 30)
-	tv := TypedValue{T: StringType, V: alloc.NewString(strings.Repeat("a", parentLen))}
-	_, before := alloc.Status()
-
-	// Half the parent. No bytes are copied on either revision: Go substrings
-	// share the backing array, so the parent stays alive via the slice.
-	slice := tv.GetSlice(alloc, 0, 32<<20)
-	_, after := alloc.Status()
-
-	t.Logf("32 MiB slice of a 64 MiB parent: charged %d bytes", after-before)
-	_ = slice
-}
-EOF
-
-# on the PR head:
-cp /tmp/zz_sc_test.go gnovm/pkg/gnolang/zz_sc_test.go
-go test -v -run TestSliceChargeVsRetention ./gnovm/pkg/gnolang/
-rm gnovm/pkg/gnolang/zz_sc_test.go
-
-# the same test on master:
-git checkout origin/master
-cp /tmp/zz_sc_test.go gnovm/pkg/gnolang/zz_sc_test.go
-go test -v -run TestSliceChargeVsRetention ./gnovm/pkg/gnolang/
-rm gnovm/pkg/gnolang/zz_sc_test.go
-```
-
-```
-# PR head 3be8c3b1:
-    zz_sc_test.go:19: 32 MiB slice of a 64 MiB parent: charged 48 bytes
-
-# master 27b5b8e24:
-    zz_sc_test.go:19: 32 MiB slice of a 64 MiB parent: charged 33554480 bytes
-```
-</details>
-
 ## gnovm/pkg/gnolang/alloc.go:88-90 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L88)
 `allocStringRef` and [`allocString`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L86) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L86) are both `_allocHeap + 16`, but `StringValue` is a 24-byte struct now, so every string under-charges by 8 bytes. Unlike every other value type, it has no line in the [`init()` self-check](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L132-L151) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L132-L151) to catch the drift.
 
