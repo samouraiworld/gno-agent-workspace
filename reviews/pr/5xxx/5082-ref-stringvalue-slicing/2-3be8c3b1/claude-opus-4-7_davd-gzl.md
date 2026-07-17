@@ -5,13 +5,13 @@ Author: notJoon | Base: master | Files: 13 | +226 -24
 Reviewed by: davd-gzl | Model: claude-opus-4.7, rechecked with claude-opus-4.8 | Commit: `3be8c3b1` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5082 3be8c3b1`
 
-Verdict: REQUEST CHANGES — two concrete fixes, neither in the core change. The landed integration test [`stdlib_restart_compare`](https://github.com/gnolang/gno/blob/3be8c3b1/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar) · [↗](../../../../../.worktrees/gno-review-5082/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar) is red because the PR's own gas change left `EXACT_GAS` one unit stale, and [`gnovm/cmd/benchstore`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/cmd/benchstore/values.go#L44) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/cmd/benchstore/values.go#L44) no longer builds under `-tags=genproto2`. The slicing optimization itself is sound and more accurate than master; the rest is Suggestions and Nits.
+Verdict: REQUEST CHANGES — the landed integration test [`stdlib_restart_compare`](https://github.com/gnolang/gno/blob/3be8c3b1/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar) · [↗](../../../../../.worktrees/gno-review-5082/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar) is red because the PR's flat slice charge left `EXACT_GAS` one unit stale, [`gnovm/cmd/benchstore`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/cmd/benchstore/values.go#L44) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/cmd/benchstore/values.go#L44) no longer builds under `-tags=genproto2`, and the size constant for the new struct is 8 bytes stale with no drift guard, so string metering undercharges. The slicing optimization itself is sound and more accurate than master.
 
 ## Summary
 
 Replaces `type StringValue string` with `struct{data string; ref bool}` so string slicing charges a fixed `allocStringRef = 48` instead of `48 + len`. Owner mode (literals, concatenation, conversions) keeps the old `48 + len` cost; reference mode is set only by `GetSlice` for primitive strings ([`values.go:2233-2240`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240)). Amino persistence collapses both modes back to owner mode via new `MarshalAmino`/`UnmarshalAmino` plus a manual edit to the generated [`pb3_gen.go`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/pb3_gen.go#L245-L297) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/pb3_gen.go#L245-L297). Per-call savings cap at `len(slice)` bytes (`allocStringByte = 1`), so realistic gas wins are small; the win is bounded but real for hot paths that slice often.
 
-Since the [previous review](../1-534cee5b/claude-opus-4.6_davd-gzl.md) at `534cee5b` the only author commit is `3be8c3b1 "fix"`, which (a) adds the missing `allocStringRef` constant and (b) routes the generated amino marshal/unmarshal through the new `MarshalAmino`/`UnmarshalAmino` so the build/serialisation hole flagged in round 1 is closed. Of the deeper round-1 concerns, only struct-size growth survives, now as a Suggestion. The GC-accounting concern and the round-trip-drift concern are both retracted: a master baseline shows the retention is identical on master, and a trace shows the ref/owner size difference never reaches a gas path. See Verified.
+Since the [previous review](../1-534cee5b/claude-opus-4.6_davd-gzl.md) at `534cee5b` the only author commit is `3be8c3b1 "fix"`, which (a) adds the missing `allocStringRef` constant and (b) routes the generated amino marshal/unmarshal through the new `MarshalAmino`/`UnmarshalAmino` so the build/serialisation hole flagged in round 1 is closed. Of the deeper round-1 concerns, struct-size growth survives as a Warning: the size constant went stale and the drift guard was not extended to the new struct. The GC-accounting concern and the round-trip-drift concern are both retracted: a master baseline shows the retention is identical on master, and a trace shows the ref/owner size difference never reaches a gas path. See Verified.
 
 ## Glossary
 
@@ -51,6 +51,12 @@ Before: `StringValue("abc"[0:1])` flows through `alloc.NewString(...)` which cha
 
 ## Warnings (should fix)
 
+- **[stale alloc constant undercharges string metering; drift guard missing]** [`alloc.go:83-90`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L83-L90) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L83-L90) — `allocString`/`allocStringRef` are still the pre-PR `_allocHeap + 16`, but the struct is 24 bytes now, so both are 8 bytes low; the metering is wrong for every string.
+  <details><summary>details</summary>
+
+  The undercharge is uniform and deterministic (gas by 0-3 units per string through the `allocGas` log2 table, the memory-cap counter by a flat 8), so it does not diverge across nodes, but the fee constant is simply wrong against the codebase's own rule that it equal `unsafe.Sizeof`. The [`init()` self-check](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L132-L151) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L132-L151) exists to catch exactly this drift and guards every other struct-backed value type; `StringValue` has no line, so both the current gap and the next size change go uncaught. Fix: define `_allocStringValue = unsafe.Sizeof(StringValue{})`, use it for both constants, and add a `check(...)` line. (The remaining unchecked constants, Bigint/Bigdec/DataByte, are documented estimates, not struct layouts.)
+  </details>
+
 - **[latent build break behind the genproto2 tag]** [`gnovm/cmd/benchstore/values.go:44`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/cmd/benchstore/values.go#L44) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/cmd/benchstore/values.go#L44) — `gno.StringValue(s)` is no longer a valid conversion now that `StringValue` is a struct; the file is gated by `//go:build genproto2` so the default build and CI never compile it.
   <details><summary>details</summary>
 
@@ -81,12 +87,6 @@ Before: `StringValue("abc"[0:1])` flows through `alloc.NewString(...)` which cha
   </details>
 
 ## Suggestions
-
-- **[stale alloc constant + missing self-check]** [`alloc.go:83-90`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L83-L90) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L83-L90) — `allocString`/`allocStringRef` are still the pre-PR `_allocHeap + 16`, but the struct is 24 bytes now, so the fixed overhead is 8 bytes low in both modes.
-  <details><summary>details</summary>
-
-  The undercount is uniform across every string and deterministic on every node, so it is not a fee or consensus issue: it moves the memory-cap counter 8 bytes and gas by a couple of units per string (`allocGas` is a log2 table, so the effect is 0-3 gas, zero by len≈1 MB). The real gap is the [`init()` self-check](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L132-L151) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L132-L151): it guards the other struct-backed value types against exactly this drift and has no `StringValue` line. Fix: define `_allocStringValue = unsafe.Sizeof(StringValue{})`, use it for both constants, and add a `check(...)` line. (The remaining unchecked types, Bigint/Bigdec/DataByte, are documented estimates, not struct layouts.)
-  </details>
 
 - **[NewStringRef trusts an unenforced shared-backing precondition]** [`alloc.go:392-398`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L392-L398) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L392-L398) — reference mode charges a flat 48 and skips the per-byte cost because a slice shares its parent's backing; a fresh string passed in would be under-charged by its whole length.
   <details><summary>details</summary>
