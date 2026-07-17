@@ -21,10 +21,10 @@ Single-PR run, in order (multi-PR and batch runs wrap it via *Parallel dispatch*
 3. *Run tests*.
 4. *Review the diff*, including the *Invariant catalog* walk.
 5. *Write tests* for test-shaped findings; *Gno vs Go comparison* when `.gno` code changed.
-6. Write the review file (*Output*).
+6. Write the review file (*Output*); generate `overview.html` when the subject is complex (*PR overview*).
 7. Draft `comment_<model>.md` (*GitHub review draft*), run its *Final check* and QA agents.
 8. `./scripts/build-indexes.sh`, then one commit and push covering everything (pre-authorized; see *Rules*).
-9. Hand over: link each PR's `comment_<model>.md` draft, not only the review file. Post only on the literal `post`.
+9. Hand over: link each PR's `comment_<model>.md` draft, not only the review file, plus a "Decisions needed" list (borderline verdict, APPROVE confirmation, Open questions worth promoting) — one line each, omit when empty. Post only on the literal `post`.
 
 Run from the workspace root. After the review is finished, ask the user before opening the worktree in VSCode (`code <workspace-root>/.worktrees/gno-review-<number>`).
 
@@ -232,7 +232,7 @@ Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/
 
 **TL;DR:** <1-2 plain-language sentences: what this PR is about and does, for a reader with zero context. No jargon, no findings, no decision. Concrete examples go in the Examples section, never piled into the TL;DR. Always include, even on re-reviews.>
 
-**Verdict: APPROVE / REQUEST CHANGES / NEEDS DISCUSSION / CLOSE** — <one terse sentence: decision plus open concerns by name>. `CLOSE` only when the PR should not be merged at all (superseded, abandoned with no path forward, premise invalidated, wrong direction); cite the load-bearing reason in the same sentence.
+**Verdict: APPROVE / REQUEST CHANGES / NEEDS DISCUSSION / CLOSE** — <one terse sentence: decision plus open concerns by name> (<finding counts, nonzero bands only, e.g. "2 Critical, 1 Warning, 4 Nits">). `CLOSE` only when the PR should not be merged at all (superseded, abandoned with no path forward, premise invalidated, wrong direction); cite the load-bearing reason in the same sentence.
 
 ## Summary
 <2-4 dense sentences: the bug/feature, why it matters (anchor numbers — "20% of MaxTxBytes"), one-sentence shape of the fix. Jargon goes to Glossary.>
@@ -288,6 +288,9 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 ## Verified
 <Optional; standard in deep mode and for live-boot PRs. One bullet per runtime check CI does not show — the claim, then the evidence, dual-linked: revert-proofs, cross-language parity, byte-identical encodings, live-boot behavior. Never "tests pass". A final bullet may list the tests run green at the reviewed sha. The comment.md Body pin draws its at-most-three checks from here.>
 
+## Existing threads
+<Optional; only when the PR carries unresolved reviewer threads. One line per thread: reviewer, gist, state, overlap with own findings ("overlaps the [tag] Warning" / "no overlap"), thread link.>
+
 ## Open questions
 <Optional. Thoughts the reviewer should see but that are not posted to the PR: deferred-scope follow-ups, extensions, design musings. One terse line each, ending with why it wasn't posted.>
 
@@ -304,6 +307,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 - Never cite an absolute value for a constant that master recalibrates (gas fixtures, byte-count goldens): it goes stale between the review and the read. Quote the merge base, or say the author re-derives it after merging.
 - Cite `file:line` for every claim the review asserts, dual-linked per *Links & citations*.
 - No GitHub checkboxes (`- [ ]`) unless the author must tick items.
+- PRs >10 files: Summary ends with a reading order — the file sequence to review dependency-first (core change, then callers, then tests).
 
 ### Calibration
 
@@ -334,7 +338,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 
 ## PR overview (`overview.html`)
 
-Opt-in only: write or update `overview.html` ONLY when the user explicitly asks for it in the current turn (e.g. "with overview", "create the overview"). Never create it as part of the default review flow.
+Generate `overview.html` when the subject is complex: the change spans subsystems, hinges on concepts a reader must first learn, or its behavior lands faster as a diagram or simulator than prose (VM semantics, type-system rules, state flows, protocol changes). Skip for simple PRs — docs-only, mechanical refactors, small localized fixes — unless the user explicitly asks ("with overview", "create the overview"). An explicit user ask wins in both directions.
 
 When requested, write `overview.html` at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.html`, NOT inside the round directory (it explains the PR, not one commit). Single self-contained HTML file: inline CSS/JS, zero external requests. Light theme only: white/light background, dark text. Generating model in the page title — both the `<title>` tag and the visible subtitle.
 
@@ -346,7 +350,7 @@ Content — pick what fits: plain-language explanation, request/state/dataflow d
 
 Update `overview.html` only when new commits change the PR's own files. Base-only head bumps, new findings, verdict changes, and new review rounds never touch it.
 
-After writing or updating any `overview.html`, run `./scripts/build-indexes.sh` (regenerates `reviews/README.md` and the root `index.html`, served at `https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` with the review artifacts.
+After writing or updating any `overview.html`, run `./scripts/build-indexes.sh` (regenerates `reviews/README.md` and the root `index.html`, served at `https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` with the review artifacts. Then open the page in the browser (`xdg-open <path>`); skip the open in subagent and batch runs.
 
 ## GitHub review draft (`comment_<model>.md`)
 
@@ -391,6 +395,7 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<rev
 
 - Visible prose (Body and every inline comment) follows `skills/writing-style.md`: short sentences one idea each, no em-dashes, no parentheticals, no bold; state the problem directly; state the problem, not the fix.
 - `Event:` maps from the verdict: APPROVE → APPROVE, REQUEST CHANGES → REQUEST_CHANGES, NEEDS DISCUSSION and CLOSE → COMMENT. The `Event:` line is the verdict; Body never restates it (no "Changes needed." opener) and goes straight to substance.
+- Inline sections in severity order: Critical, Warning, Missing test, Nit, Suggestion; file order within a band.
 - Post only comments that change what the author does: fix, decide, or answer. A finding whose details end "no change needed" / "flagging for whoever touches this next" stays in the review file and never reaches comment.md. Severity never gates this: a Nit or Suggestion that asks for a concrete modification (a wording fix, a corrected value, a dropped line) gets its own anchored comment.md section like any Warning. The discriminator is "should the author change something," not the severity band.
 - Never explain routine fixes the author would do anyway (merge master, regenerate assets, re-run a flaky job). A red CI check with a routine cause gets one short Body line ("not a code problem"), no instructions, no repro; detail it only when the cause is non-obvious or changes what the author must do.
 
