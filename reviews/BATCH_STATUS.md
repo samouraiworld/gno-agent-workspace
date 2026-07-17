@@ -31,14 +31,30 @@ One `general-purpose` coordinator per PR, all in one message. Each runs deep mod
 
 ## Results
 
+All six returned. Five REQUEST CHANGES, one APPROVE. Two rounds overturn a round-1 APPROVE: 5891 and 5893.
+
 | PR | Verdict | Headline |
 |----|---------|----------|
-| 5890 | pending | |
-| 5891 | pending | |
-| 5892 | pending | |
-| 5893 | pending | |
-| 5937 | pending | |
-| 5938 | pending | |
+| 5890 | REQUEST CHANGES | the `NewBanker` sub-token gate calls interpreted `chain.SplitPkgSubPath` instead of the native accessor the PR adds, so every `OriginSend` pays for a string split |
+| 5891 | REQUEST CHANGES (overturns round 1) | `GetMemPackageAll` hands a raw path to `MPAnyAll.Decide`, which panics on `#`; the `#allbutprod` sibling is addressable through `vm/qfile` and `vm/qdoc` by any unauthenticated client |
+| 5892 | APPROVE | no consensus defect; charge is exact and deterministic. Two Warnings: eleven unreachable nil-guard lines at `machine.go:330-340`, and dependency source billed at `ReadCostPerByte` 17 against the PR's 1250 |
+| 5893 | REQUEST CHANGES (overturns round 1) | a `//go:build go1.N` line in a submitted file overrides the pinned `GoVersion`, so the accept/reject verdict is still a function of the validator's build toolchain |
+| 5937 | REQUEST CHANGES | the ABCI query-height open can rebuild and rewrite the live fast index, because the `ImmutableDB` wrapper never reaches a store mounted with an explicit db; plus the unbounded version rescan |
+| 5938 | REQUEST CHANGES | mounting bptree puts a full scan of every retained version on the RPC path (100.9ms at 100K versions vs IAVL's flat 14.1µs); SET-read gas pinned 30% under its own cited measurement |
+
+Cross-PR confirmations and conflicts:
+
+- 5937 and 5938 independently found the same `discoverVersions` rescan from opposite ends: 5937 from tm2 internals (`nodedb.go:473`), 5938 from the mount that exposes it on mainnet RPC (`app.go:106`). One root cause, one fix.
+- Both flagged the same missing fingerprint guard at `generate.go:676`.
+- They conflict once: absent-key GET pricing is a Warning in 5937 (`params.go:40`) and a deliberate, not-posted Open question in 5938. Unresolved; settle before either becomes a fix.
+
+Parent verification of the two heaviest findings, run directly rather than taken from agent summaries:
+
+- 5893's Critical reproduces at `7fc5ec06a`. `//go:build go1.22` plus `for range 10` type-checks clean under the go1.18 pin, and `//go:build go1.99` fails with `file requires newer Go version go1.99 (application built with go1.26)`, naming the building toolchain. Two validators on go1.25 and go1.26 disagree on state, not just on the results hash.
+- 5937's immutable-write Warning holds: `MultiImmutableCacheWrapWithVersion` wraps the db and sets `Immutable=true`, but `constructStore:378-382` prefers `params.db` when non-nil and gno.land mounts `mainKey` with an explicit `cfg.DB`, so the read-only wrapper is dead. `ensureFastIndex` checks only `FastIndex`, never `opts.Immutable`.
+- 5892's dead-code Warning holds: `IterMemPackage` has exactly one implementation, and it already skips nil at `store.go:1263-1269`, so `machine.go:330`'s guard cannot fire.
+
+Two agents self-corrected during their own citation audits, which is worth recording: 5892 withdrew a 20.2 gas/byte figure that was a pre-5891 baseline and re-grounded the finding on `ReadCostPerByte`; 5891 fixed four bad anchors and retracted a round-1 Suggestion whose premise came from trusting a doc comment its own review proves false.
 
 ## Finalize (parent)
 
