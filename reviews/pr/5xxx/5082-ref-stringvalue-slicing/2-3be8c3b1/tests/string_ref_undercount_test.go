@@ -11,16 +11,16 @@ rm gnovm/pkg/gnolang/string_ref_undercount_test.go
 // Demonstrates two asymmetries introduced by ref-mode StringValue:
 //
 //  1. Pre/post-GC accounting drift: a parent string allocated at owner cost
-//     (24 + N) is dropped while only a tiny slice remains live. After GC the
-//     allocator's `bytes` counter reflects only the slice's 24-byte ref cost,
+//     (48 + N) is dropped while only a tiny slice remains live. After GC the
+//     allocator's `bytes` counter reflects only the slice's 48-byte ref cost,
 //     but the Go runtime still pins the parent's N-byte backing array because
 //     the slice header references it. The bigger the parent vs slice, the
 //     bigger the gap between "GnoVM thinks we use" and "Go heap actually
 //     holds".
 //
 //  2. Round-trip drift (no GC needed): a single ref-mode StringValue reports
-//     24 bytes via GetShallowSize today; after MarshalAmino/UnmarshalAmino it
-//     is reconstructed as owner mode (ref=false) and reports 24 + len(data).
+//     48 bytes via GetShallowSize today; after MarshalAmino/UnmarshalAmino it
+//     is reconstructed as owner mode (ref=false) and reports 48 + len(data).
 //     Same logical value, two different accounted sizes depending on whether
 //     it was just deserialized or still in-memory from a slice.
 //
@@ -62,7 +62,7 @@ func TestStringRefAccountingAsymmetry(t *testing.T) {
 	alloc.Recount(sliceVal.GetShallowSize())
 	_, afterGC := alloc.Status()
 
-	// IS (with this PR): GnoVM accounts only the ref struct (24 bytes),
+	// IS (with this PR): GnoVM accounts only the ref struct (48 bytes),
 	// even though the slice still pins the full parent backing array in Go.
 	if afterGC != allocStringRef {
 		t.Fatalf("post-GC bytes: got %d, want %d", afterGC, allocStringRef)
@@ -102,7 +102,7 @@ func TestStringRefMarshalRoundTripChangesSize(t *testing.T) {
 	t.Logf("pre-roundtrip=%d (ref) post-roundtrip=%d (owner) — same logical value, different accounting",
 		beforeSize, afterSize)
 
-	// IS: 24 (ref) -> 24+len(data) (owner). Same string, two sizes.
+	// IS: 48 (ref) -> 48+len(data) (owner). Same string, two sizes.
 	if beforeSize != allocStringRef {
 		t.Fatalf("pre-roundtrip: got %d, want allocStringRef=%d", beforeSize, allocStringRef)
 	}
