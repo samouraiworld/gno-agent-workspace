@@ -10,6 +10,20 @@ Generate the Samourai team weekly status report.
 
 **Input:** `$ARGUMENTS` — optional date expression for the report end-date (default: today). Examples: `weekly-report last week`, `weekly-report week of 1st march`. Parse to YYYY-MM-DD. Weeks run Mon–Sun. Pass via `--end-date YYYY-MM-DD`.
 
+## Workflow
+
+Steps in order, detailed below. Two user gates: context.md edits (step 4) and recurrent-conflict flags (*Conflict tracking & Discord ping*) — never generate the report before both clear.
+
+1. *Gather data* — `scripts/weekly-report.sh` → `data/weekly-report-data.json`.
+2. *Verify mergers list*.
+3. *Load last week's context*.
+4. *Build context.md* — present to user, **wait for edits**.
+5. *Produce report.md* — re-read context.md from disk first.
+6. *Save & present*.
+7. *Discord conflict ping* — `discord.md`.
+
+Artifacts land in `reports/weekly/YYYY-MM-DD/` (period end-date): `context.md`, `report.md`, `discord.md`.
+
 ## Team & Repos
 
 - **Samourai:** `davd-gzl`, `omarsy`, `mvallenet`, `Villaquiranm`, `WaDadidou`, `zxxma`, `louis14448`, `AmozPay` (keep in sync with `scripts/weekly-report.sh`)
@@ -40,7 +54,7 @@ A PR can have multiple prefixes, ordered: `⚠️ 🆕 ✅ 📥 🚫 💥`. `�
 |-------|---------|--------|
 | ⚠️ | High priority | `context.md` priority is `high` |
 | 🆕 | New this week | PR's `createdAt` ≥ window start date (the report period's Monday) |
-| ✅ | Approved by a merger | ≥1 approver from the **Mergers** list in `reviewStats.approvers` AND (`reviewDecision: APPROVED` OR stale CR per stale-rule) |
+| ✅ | Approved by a merger | ≥1 approver from the **Mergers** list in `reviewStats.approvers` AND (`reviewDecision: APPROVED` OR stale CR per the stale rule in step 4) |
 | 📥 | Waiting for first review | `review/triage-pending` label |
 | 🚫 | Don't merge | `don't merge` label |
 | 💥 | Merge conflict (not rendered on `recurrent-conflict` PRs) | `mergeable: "CONFLICTING"` |
@@ -64,8 +78,8 @@ Derivation per open PR `<n>`: find `reviews/pr/<bucket>/<n>-<slug>/`, take the h
 
 A 💥 PR is one of two states:
 
-- **Recurrent** — conflicts on a mechanical / auto-regenerated subject (gas snapshots, `go.mod`/`go.sum`, generated files). Drop `💥`; flag via the `recurrent-conflict` token on the `context.md` note. In `report.md`: no `💥`, trailing ` (expected conflict: <subject>)` marker, ordered by remaining tier. No magnet overlap → not recurrent (keep `💥`). Token stale (PR no longer touches magnet) → drop token, restore `💥`. Confirm flags with user before generating.
-- **Stale** — conflicting + `updatedAt` older than 7 days before end-date + not recurrent + not draft. Goes in Discord ping (step 6).
+- **Recurrent** — conflicts on a mechanical / auto-regenerated subject (gas snapshots, `go.mod`/`go.sum`, generated files). Drop `💥`; flag via the `recurrent-conflict` token on the `context.md` note. In `report.md`: no `💥`, trailing ` (expected conflict: <subject>)` marker after author/notes, ordered by remaining emoji tier, not the conflict group. No magnet overlap → not recurrent (keep `💥`). Token stale (PR no longer touches magnet) → drop token, restore `💥`. Confirm flags with user before generating.
+- **Stale** — conflicting + `updatedAt` older than 7 days before end-date + not recurrent + not draft. Goes in the Discord ping (step 7).
 
 **Subject detection.** Intersect the PR's changed files with the master hot-file set:
 
@@ -100,15 +114,15 @@ Key open PR fields: `number`, `title`, `url`, `author`, `createdAt`, `updatedAt`
 ```
 Uses last review per author as official status. Merged PRs: `number`, `title`, `url`, `author`, `mergedAt`, `labels`. Issues: `number`, `title`, `url`, `author`, `createdAt`, `state`, `labels`.
 
-### 1a. Verify mergers list
+### 2. Verify mergers list
 
 ```bash
 gh pr list --repo gnolang/gno --state merged --limit 200 --json mergedBy --jq '[.[].mergedBy.login] | unique | .[]'
 ```
 
-For each login: if missing from **Mergers** above and not a **Samourai** member, add it to line 16. Surface the diff to the user.
+For each login: if missing from **Mergers** and not a **Samourai** member, add it to the Mergers line in *Team & Repos*. Surface the diff to the user.
 
-### 2. Load last week's context
+### 3. Load last week's context
 
 Sort by directory name. Never `ls -td` (mtime).
 
@@ -119,17 +133,17 @@ ls -d reports/weekly/*/ | sort -r | grep -v "/$END_DATE/$" | head -1
 
 Previous `context.md` is for carry-forward priorities/manual notes only — not for 🆕. If the previous directory is more than 7 days before `END_DATE`, flag it to the user before producing the report.
 
-Also read the previous `report.md` **⭐ Highlight** block: it is the default source for the new report's Highlight section (see step 4). Do not rebuild the Highlight from `context.md`.
+Also read the previous `report.md` **⭐ Highlight** block: it is the default source for the new report's Highlight section (see step 5). Do not rebuild the Highlight from `context.md`.
 
-### 3. Build new context.md
+### 4. Build new context.md
 
 List **every open PR**. Line syntax: `` <number> [highlight|high|medium|low]: [note] - `<title>` ``
 
-- Priority optional (default: `medium`). `high` → ⚠️ emoji. (`highlight` may still tag a line for bookkeeping, but the report's Highlight section comes from the previous `report.md`, not from here — see step 4.)
+- Priority optional (default: `medium`). `high` → ⚠️ emoji. (`highlight` may still tag a line for bookkeeping, but the report's Highlight section comes from the previous `report.md`, not from here — see step 5.)
 - Note optional, kept short. Appears in parentheses in report.
 - Title suffix (`` - `<title>` ``) always appended for readability.
 
-A note may carry the manual `recurrent-conflict` token (see "Conflict tracking & Discord ping"). Carry forward like any manual note; coexists with the status note (e.g. `Approved, recurrent-conflict`).
+A note may carry the manual `recurrent-conflict` token (see *Conflict tracking & Discord ping*). Carry forward like any manual note; coexists with the status note (e.g. `Approved, recurrent-conflict`).
 
 **Per-PR logic** (in priority order):
 1. **Carry forward** from last week — preserve priority and manual note; never overwrite with auto-detected
@@ -147,11 +161,11 @@ A note may carry the manual `recurrent-conflict` token (see "Conflict tracking &
 
 **Save** to `reports/weekly/YYYY-MM-DD/context.md`, present to user, and **wait for edits** before generating the report.
 
-### 4. Produce report.md
+### 5. Produce report.md
 
 First re-read `reports/weekly/YYYY-MM-DD/context.md` from disk, even after approval: the user edits it between steps. The on-disk file is the source of truth for priorities and notes.
 
-Use `context.md` + JSON data. Content categories (2-8) omitted if empty; all other sections always appear.
+Use `context.md` + JSON data. The seven category sections (Security through Other) are omitted when empty; all other sections always appear.
 
 ```markdown
 Verified by:
@@ -229,24 +243,23 @@ From DD/MM to DD/MM  **: Samourai crew**
 #### Formatting rules
 
 - Sections separated by `---`. Headers **bold** (not `##`), except `## Gno Core (/gnolang/gno)`.
-- PR lines: `- <emoji prefixes> <title> - <url> - <author> <(context note)> <🤖 AI marker>`
+- PR lines: `- <emoji prefixes> <title> - <url> - <author> <(context note)>`
 - Context notes in parentheses after author. Don't duplicate emoji-derived status.
-- A PR whose `context.md` note carries `recurrent-conflict` drops `💥` and gets a trailing ` (expected conflict: <subject>)` after author/notes, `<subject>` = detected tag (see "Conflict tracking & Discord ping"). Order by remaining emoji tier, not the conflict group.
-- AI ❌ PRs are routed to the **In Progress — Not approved by AI** subsection (see "AI review routing"); drafts go to **In Progress — Draft**. No per-line AI marker is rendered.
+- Recurrent-conflict PRs render per *Conflict tracking & Discord ping*: no `💥`, trailing ` (expected conflict: <subject>)`, ordered by remaining tier.
+- AI `REQUEST CHANGES` PRs and drafts route to the In Progress subsections per *AI review routing*; no per-line AI marker.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - **In Progress subsections** (**Not approved by AI**, **Draft**) order by emoji tier ⚠️ → ✅ → plain → 💥 → 🚫 (each line assigned to its highest tier). Within each tier: fixes → features → chores, older first.
-- **Highlight section:** default to the previous `report.md`'s **⭐ Highlight** block verbatim, not `context.md`. Refresh each entry's emoji prefixes from current JSON and drop entries whose PR/issue is no longer open; keep manually-curated entries (issues, advisories, extra PRs). `context.md` `highlight:` lines are not a source for this section.
-- Highlight entries may use free-text formatting.
+- **Highlight section:** default to the previous `report.md`'s **⭐ Highlight** block verbatim, not `context.md`. Refresh each entry's emoji prefixes from current JSON and drop entries whose PR/issue is no longer open; keep manually-curated entries (issues, advisories, extra PRs). `context.md` `highlight:` lines are not a source for this section. Highlight entries may use free-text formatting.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
 - Do NOT fabricate PRs.
 
-### 5. Save & present
+### 6. Save & present
 
 Write `reports/weekly/YYYY-MM-DD/report.md` and `context.md` (period end-date). Show the report, highlight 🆕 PRs and any that disappeared from last week.
 
-### 6. Discord conflict ping
+### 7. Discord conflict ping
 
-Write `reports/weekly/YYYY-MM-DD/discord.md` — copy-paste block for Discord. Lists **stale conflicts**: in the report's `💥` set AND `updatedAt` older than 7 days before end-date AND not `recurrent-conflict` AND not draft.
+Write `reports/weekly/YYYY-MM-DD/discord.md` — copy-paste block for Discord. Lists the **stale** conflicts per *Conflict tracking & Discord ping*.
 
 Format (plain markdown, no per-line emoji):
 
