@@ -1,5 +1,6 @@
 # Review: PR [#5082](https://github.com/gnolang/gno/pull/5082)
-Event: REQUEST_CHANGES
+Posted: https://github.com/gnolang/gno/pull/5082#pullrequestreview-4726542178
+Event: COMMENT
 
 ## Body
 Verified on 3be8c3b1: regenerating [`pb3_gen.go`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/pb3_gen.go) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/pb3_gen.go) with [`misc/genproto2`](https://github.com/gnolang/gno/blob/3be8c3b1/misc/genproto2/genproto2.go) · [↗](../../../../../.worktrees/gno-review-5082/misc/genproto2/genproto2.go) reproduces it byte for byte, so the edit to the generated file is what the generator emits.
@@ -39,7 +40,7 @@ Verified on 3be8c3b1: regenerating [`pb3_gen.go`](https://github.com/gnolang/gno
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5082-ref-stringvalue-slicing/2-3be8c3b1/claude-opus-4-7_davd-gzl.md · [↗](claude-opus-4-7_davd-gzl.md)
 
-## gnovm/pkg/gnolang/alloc.go:88-90 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L88)
+## gnovm/pkg/gnolang/alloc.go:88-90 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L88) [posted](https://github.com/gnolang/gno/pull/5082#discussion_r3606563553)
 `allocStringRef` and [`allocString`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L86) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L86) are the pre-PR `_allocHeap + 16`, but `StringValue` is a 24-byte struct now, so both are 8 bytes low and the metering undercharges every string. The undercount is uniform and deterministic, so it does not diverge across nodes, but the constant is wrong against the rule that it equal `unsafe.Sizeof`, and the [`init()` self-check](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L132-L151) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L132-L151) that catches this drift on the other struct-backed types has no `StringValue` line. Bump both to `_allocHeap + 24` and add a check line.
 
 <details><summary>repro</summary>
@@ -79,14 +80,14 @@ FAIL	github.com/gnolang/gno/gnovm/pkg/gnolang	0.011s
 ```
 </details>
 
-## gnovm/pkg/gnolang/alloc.go:392-398 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L392)
-Suggestion: `NewStringRef` charges a flat 48 and skips the per-byte cost on the assumption its argument shares an existing backing array, but nothing enforces that. A fresh 1 MiB string passed to it is charged 48 instead of a bit over a megabyte. Only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) calls it today and always passes a reslice, so this is latent; documenting the shared-backing precondition as load-bearing would keep a future caller from silently under-metering.
+## SKIP gnovm/pkg/gnolang/alloc.go:392-398 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L392)
+Suggestion: `NewStringRef` charges a flat 48 and skips the per-byte cost on the assumption its argument shares an existing backing array, but nothing enforces that. Only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) calls it today and always passes a reslice, so this is latent; documenting the shared-backing precondition as load-bearing would keep a future caller from silently under-metering.
 
-## gnovm/pkg/gnolang/values.go:92-95 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L92)
-Suggestion: the `ref` bool grows `StringValue` from 16 to 24 bytes (1 byte plus 7 padding), so every literal, concatenation, and conversion result carries a field only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) sets. A separate reference type would keep the owner path at 16 bytes, at the cost of type-switching everywhere `StringValue` is handled. Deliberate trade for the simpler struct?
+## gnovm/pkg/gnolang/values.go:92-95 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L92) [posted](https://github.com/gnolang/gno/pull/5082#discussion_r3606563558)
+Suggestion: the `ref` bool grows `StringValue` from 16 to 24 bytes (1 byte plus 7 padding), so every literal, concatenation, and conversion result carries a field only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) sets. A separate reference type would keep the owner path at 16 bytes, at the cost of type-switching everywhere `StringValue` is handled. 
 
-## gnovm/pkg/gnolang/alloc_test.go:87 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc_test.go#L87)
+## gnovm/pkg/gnolang/alloc_test.go:87 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc_test.go#L87) [posted](https://github.com/gnolang/gno/pull/5082#discussion_r3606563565)
 Nit: `_ = result.GetString()` here and `_ = s3.GetString()` at line 113 discard the value, so they assert nothing.
 
-## gnovm/pkg/gnolang/bench_test.go:52-53 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/bench_test.go#L52)
+## SKIP gnovm/pkg/gnolang/bench_test.go:52-53 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/bench_test.go#L52)
 Nit: `NewAllocator(1024*1024)` sits inside the `b.N` loop, so `ReportAllocs` counts allocator setup in the allocs/op this benchmark reports.
