@@ -40,7 +40,7 @@ Verified on 3be8c3b1: regenerating [`pb3_gen.go`](https://github.com/gnolang/gno
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5082-ref-stringvalue-slicing/2-3be8c3b1/claude-opus-4-7_davd-gzl.md · [↗](claude-opus-4-7_davd-gzl.md)
 
 ## gnovm/pkg/gnolang/alloc.go:88-90 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L88)
-`allocStringRef` and [`allocString`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L86) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L86) are both `_allocHeap + 16`, but `StringValue` is a 24-byte struct now, so every string under-charges by 8 bytes. Unlike every other value type, it has no line in the [`init()` self-check](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L132-L151) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L132-L151) to catch the drift.
+Suggestion: `allocStringRef` and [`allocString`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L86) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L86) are the pre-PR `_allocHeap + 16`, but `StringValue` is a 24-byte struct now, so the fixed overhead is 8 bytes low in both modes. The undercount is uniform and deterministic, so it is not a fee or consensus issue, but the [`init()` self-check](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L132-L151) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L132-L151) that guards the other struct-backed types has no `StringValue` entry to catch it. Bump both to `_allocHeap + 24` and add a check line.
 
 <details><summary>repro</summary>
 
@@ -79,73 +79,11 @@ FAIL	github.com/gnolang/gno/gnovm/pkg/gnolang	0.011s
 ```
 </details>
 
-## gnovm/pkg/gnolang/values.go:123-133 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L123)
-`UnmarshalAmino` sets `ref=false`, so the same string [reports](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L647-L653) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L647-L653) 48 bytes before a restart and 54 after. The GC rebuilds the allocator's counter from those numbers.
-
-<details><summary>repro</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 5082 -R gnolang/gno
-cat > gnovm/pkg/gnolang/zz_roundtrip_test.go <<'EOF'
-package gnolang
-
-import "testing"
-
-func TestRefRoundTripChangesShallowSize(t *testing.T) {
-	ref := NewStringValueRef("abcdef")
-	repr, _ := ref.MarshalAmino()
-	var after StringValue
-	_ = after.UnmarshalAmino(repr)
-	t.Logf("GetShallowSize before persistence = %d, after = %d",
-		ref.GetShallowSize(), after.GetShallowSize())
-}
-EOF
-go test -v -run TestRefRoundTripChangesShallowSize ./gnovm/pkg/gnolang/
-rm gnovm/pkg/gnolang/zz_roundtrip_test.go
-```
-
-```
-=== RUN   TestRefRoundTripChangesShallowSize
-    zz_roundtrip_test.go:10: GetShallowSize before persistence = 48, after = 54
---- PASS: TestRefRoundTripChangesShallowSize (0.00s)
-ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	0.011s
-```
-</details>
-
 ## gnovm/pkg/gnolang/alloc.go:392-398 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L392)
-Nothing says [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) must stay the only producer of reference mode. Reference mode is only free because slicing shares a backing, so a call site that passes a freshly built string would under-charge it by its whole length.
-
-## gnovm/pkg/gnolang/alloc_test.go:51 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc_test.go#L51)
-Missing test: nothing pins the round-trip, where a ref reports 48 bytes going in and 54 coming back out as an owner.
-
-<details><summary>test cases</summary>
-
-```go
-func TestStringRefSizeAcrossAminoRoundTrip(t *testing.T) {
-	ref := NewStringValueRef("abcdef")
-	repr, err := ref.MarshalAmino()
-	if err != nil {
-		t.Fatalf("MarshalAmino: %v", err)
-	}
-	var after StringValue
-	if err := after.UnmarshalAmino(repr); err != nil {
-		t.Fatalf("UnmarshalAmino: %v", err)
-	}
-
-	// Ref in, owner out: the same value reports two sizes.
-	if got, want := ref.GetShallowSize(), int64(allocStringRef); got != want {
-		t.Fatalf("pre-round-trip: got %d, want %d", got, want)
-	}
-	if got, want := after.GetShallowSize(), allocString+allocStringByte*int64(len("abcdef")); got != want {
-		t.Fatalf("post-round-trip: got %d, want %d", got, want)
-	}
-}
-```
-</details>
+Suggestion: `NewStringRef` charges a flat 48 and skips the per-byte cost on the assumption its argument shares an existing backing array, but nothing enforces that. A fresh 1 MiB string passed to it is charged 48 instead of a bit over a megabyte. Only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) calls it today and always passes a reslice, so this is latent; documenting the shared-backing precondition as load-bearing would keep a future caller from silently under-metering.
 
 ## gnovm/pkg/gnolang/values.go:92-95 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L92)
-Suggestion: the `ref` bool takes `StringValue` from 16 to 24 bytes, so every literal and concatenation pays for a field only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) sets. A separate ref type would avoid that: deliberate trade for the simpler struct?
+Suggestion: the `ref` bool grows `StringValue` from 16 to 24 bytes (1 byte plus 7 padding), so every literal, concatenation, and conversion result carries a field only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) sets. A separate reference type would keep the owner path at 16 bytes, at the cost of type-switching everywhere `StringValue` is handled. Deliberate trade for the simpler struct?
 
 ## gnovm/pkg/gnolang/alloc_test.go:87 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc_test.go#L87)
 Nit: `_ = result.GetString()` here and `_ = s3.GetString()` at line 113 discard the value, so they assert nothing.
