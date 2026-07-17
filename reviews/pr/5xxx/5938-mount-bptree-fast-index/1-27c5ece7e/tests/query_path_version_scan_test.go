@@ -10,7 +10,7 @@ rm tm2/pkg/store/rootmulti/zz_query_path_version_scan_test.go
 // makes for every custom ABCI query; on the bptree store it reaches
 // MutableTree.Load, which scans every retained root record.
 // At 27c5ece7e each backend opens the store per query in: iavl ~14us flat at
-// every retained-version count, bptree+fastindex 29ms at 20K rising to 321ms
+// every retained-version count, bptree+fastindex 209us at 1K rising to 101ms
 // at 100K. gno.land's default PruneSyncable strategy retains 705,600 versions.
 // When fixed, the bptree row is flat in retained, like the iavl row.
 

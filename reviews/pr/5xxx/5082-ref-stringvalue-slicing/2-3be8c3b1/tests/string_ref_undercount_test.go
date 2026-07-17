@@ -4,28 +4,24 @@
 gh pr checkout 5082 -R gnolang/gno && git checkout 3be8c3b1a
 curl -fsSL -o gnovm/pkg/gnolang/string_ref_undercount_test.go \
   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5082-ref-stringvalue-slicing/2-3be8c3b1/tests/string_ref_undercount_test.go
-go test -v -run 'TestStringRefAccountingAsymmetry' ./gnovm/pkg/gnolang/
+go test -v -run 'TestStringSliceChargeVsRetention|TestStringRefMarshalRoundTripChangesSize' ./gnovm/pkg/gnolang/
 rm gnovm/pkg/gnolang/string_ref_undercount_test.go
 */
 
-// Demonstrates two asymmetries introduced by ref-mode StringValue:
+// Baselined against master 27b5b8e24: the identical test there accounts 49
+// bytes post-GC and pins the same parent, so slice retention is NOT introduced
+// by this PR. The round-2 claim that it was is retracted. What the diff moves
+// is the allocation-time charge and the size of a ref across persistence.
 //
-//  1. Pre/post-GC accounting drift: a parent string allocated at owner cost
-//     (48 + N) is dropped while only a tiny slice remains live. After GC the
-//     allocator's `bytes` counter reflects only the slice's 48-byte ref cost,
-//     but the Go runtime still pins the parent's N-byte backing array because
-//     the slice header references it. The bigger the parent vs slice, the
-//     bigger the gap between "GnoVM thinks we use" and "Go heap actually
-//     holds".
+//  1. Slice charge: master charges 48+len for a slice it never copied, which
+//     over-charges in the copy sense but bounds how much a transaction can
+//     retain by slicing. This PR charges a flat 48. Neither revision tracks the
+//     retained backing, so that per-byte charge is the only bound there is.
 //
-//  2. Round-trip drift (no GC needed): a single ref-mode StringValue reports
-//     48 bytes via GetShallowSize today; after MarshalAmino/UnmarshalAmino it
-//     is reconstructed as owner mode (ref=false) and reports 48 + len(data).
-//     Same logical value, two different accounted sizes depending on whether
-//     it was just deserialized or still in-memory from a slice.
-//
-// Flip the post-fix asserts to verify a fix (e.g. either keep the ref flag
-// across persistence or charge owner cost in GC recount).
+//  2. Round-trip drift: a ref-mode StringValue reports 48 bytes via
+//     GetShallowSize; after MarshalAmino/UnmarshalAmino it comes back as owner
+//     mode (ref=false) and reports 48 + len(data). Master has no ref mode, so
+//     the same value reports 54 on both sides.
 
 package gnolang
 
@@ -34,49 +30,30 @@ import (
 	"testing"
 )
 
-func TestStringRefAccountingAsymmetry(t *testing.T) {
-	const parentLen = 100_000
-	parent := strings.Repeat("a", parentLen)
+func TestStringSliceChargeVsRetention(t *testing.T) {
+	const parentLen = 64 << 20
+	alloc := NewAllocator(1 << 30)
+	tv := TypedValue{T: StringType, V: alloc.NewString(strings.Repeat("a", parentLen))}
+	_, before := alloc.Status()
 
-	alloc := NewAllocator(1024 * 1024 * 1024)
+	// Half the parent. No bytes are copied on either revision: Go substrings
+	// share the backing array, so the parent stays alive through the slice.
+	slice := tv.GetSlice(alloc, 0, 32<<20)
+	_, after := alloc.Status()
+	charged := after - before
 
-	// Owner: charges 24 + parentLen.
-	owner := alloc.NewString(parent)
-	_, afterOwner := alloc.Status()
-
-	// Slice 1 byte. With this PR: charges only allocStringRef (24).
-	ownerTV := TypedValue{T: StringType, V: owner}
-	sliceTV := ownerTV.GetSlice(alloc, 0, 1)
-	_, afterSlice := alloc.Status()
-
-	sliceCost := afterSlice - afterOwner
-	if sliceCost != allocStringRef {
-		t.Fatalf("slice alloc cost: got %d, want %d (allocStringRef)", sliceCost, allocStringRef)
+	// IS (this PR): a flat allocStringRef, whatever the slice length.
+	if charged != allocStringRef {
+		t.Fatalf("slice charge: got %d, want %d (allocStringRef)", charged, allocStringRef)
 	}
+	t.Logf("32 MiB slice charged %d bytes; master charges 33554480 for the same slice", charged)
 
-	// Simulate the GC re-walk on a "live set" that contains only the slice
-	// (caller has dropped the original owner string). The allocator counter
-	// is rebuilt from GetShallowSize.
-	alloc.Reset()
-	sliceVal := sliceTV.V.(StringValue)
-	alloc.Recount(sliceVal.GetShallowSize())
-	_, afterGC := alloc.Status()
-
-	// IS (with this PR): GnoVM accounts only the ref struct (48 bytes),
-	// even though the slice still pins the full parent backing array in Go.
-	if afterGC != allocStringRef {
-		t.Fatalf("post-GC bytes: got %d, want %d", afterGC, allocStringRef)
-	}
-
-	t.Logf("post-GC accounted=%d bytes, Go-pinned≈%d bytes (parent kept alive by slice)",
-		afterGC, parentLen)
-
-	// SHOULD: post-GC bytes ≈ allocString + parentLen — covers what is
-	// actually retained. Flip the comparison to assert a fix:
-	// if afterGC != allocString+allocStringByte*int64(parentLen) {
-	//     t.Fatalf("post-GC bytes: got %d, want owner-equivalent %d",
-	//         afterGC, allocString+allocStringByte*int64(parentLen))
+	// SHOULD, once backing-range tracking lands (see PR 4885): the retained
+	// backing is charged once per cycle rather than not at all. Flip to assert:
+	// if charged != allocStringRef+allocStringByte*int64(32<<20) {
+	//     t.Fatalf("slice charge: got %d, want the retained length", charged)
 	// }
+	_ = slice
 }
 
 func TestStringRefMarshalRoundTripChangesSize(t *testing.T) {

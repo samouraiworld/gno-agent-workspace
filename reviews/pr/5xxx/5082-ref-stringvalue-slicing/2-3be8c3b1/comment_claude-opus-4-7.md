@@ -2,9 +2,9 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Verified on 3be8c3b1: regenerating [`gnovm/pkg/gnolang/pb3_gen.go`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/pb3_gen.go) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/pb3_gen.go) through [`misc/genproto2`](https://github.com/gnolang/gno/blob/3be8c3b1/misc/genproto2/genproto2.go) · [↗](../../../../../.worktrees/gno-review-5082/misc/genproto2/genproto2.go) reproduces the committed file byte for byte, so the edit to the DO-NOT-EDIT file is what the generator emits.
+Verified on 3be8c3b1: regenerating [`pb3_gen.go`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/pb3_gen.go) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/pb3_gen.go) with [`misc/genproto2`](https://github.com/gnolang/gno/blob/3be8c3b1/misc/genproto2/genproto2.go) · [↗](../../../../../.worktrees/gno-review-5082/misc/genproto2/genproto2.go) reproduces it byte for byte, so the edit to the generated file is what the generator emits.
 
-- benchstore no longer builds behind `-tags=genproto2`: `StringValue` is a struct now, so the `gno.StringValue(s)` conversion at [`gnovm/cmd/benchstore/values.go:44`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/cmd/benchstore/values.go#L44) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/cmd/benchstore/values.go#L44) does not compile. It is the only call site left unmigrated, and no CI job builds with that tag, so nothing catches it.
+- benchstore no longer builds behind `-tags=genproto2`: the `gno.StringValue(s)` conversion at [`gnovm/cmd/benchstore/values.go:44`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/cmd/benchstore/values.go#L44) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/cmd/benchstore/values.go#L44) does not compile. No CI job builds with that tag.
   <details><summary>repro</summary>
 
   ```bash
@@ -18,7 +18,7 @@ Verified on 3be8c3b1: regenerating [`gnovm/pkg/gnolang/pb3_gen.go`](https://gith
   gnovm/cmd/benchstore/values.go:44:62: cannot convert s (variable of type string) to type gnolang.StringValue
   ```
   </details>
-- The red `main / test` check is this branch's own gas change: [`stdlib_restart_compare.txtar:7`](https://github.com/gnolang/gno/blob/3be8c3b1/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar#L7) · [↗](../../../../../.worktrees/gno-review-5082/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar#L7) pins `EXACT_GAS=1974482` from the merge base, and the branch produces 1974481. The restart parity the test guards still holds, so only the constant needs recalibrating on current master.
+- The red `main / test` check is this branch's own gas change: [`stdlib_restart_compare.txtar:7`](https://github.com/gnolang/gno/blob/3be8c3b1/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar#L7) · [↗](../../../../../.worktrees/gno-review-5082/gno.land/pkg/integration/testdata/stdlib_restart_compare.txtar#L7) pins `EXACT_GAS=1974482` from the merge base, and the branch produces 1974481. Restart parity still holds, so only the constant needs recalibrating.
   <details><summary>repro</summary>
 
   ```bash
@@ -36,61 +36,64 @@ Verified on 3be8c3b1: regenerating [`gnovm/pkg/gnolang/pb3_gen.go`](https://gith
   FAIL	github.com/gnolang/gno/gno.land/pkg/integration	3.682s
   ```
   </details>
-- ltzmaxwell's [question from April](https://github.com/gnolang/gno/pull/5082#issuecomment-4251302565) is still open, and the recount he calls necessary there is the piece this PR leaves out: [#4885](https://github.com/gnolang/gno/pull/4885) tracks each string backing as a range and charges it once per GC cycle, so a slice inherits its source's bytes instead of escaping the budget. Does this land as a partial step with the counting finished there, or does one supersede the other?
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5082-ref-stringvalue-slicing/2-3be8c3b1/claude-opus-4-7_davd-gzl.md · [↗](claude-opus-4-7_davd-gzl.md)
 
-## gnovm/pkg/gnolang/alloc.go:648-653 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L648)
-A ref-mode slice reports a flat 48 bytes, so after the [GC re-count](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/garbage_collector.go#L177-L188) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/garbage_collector.go#L177-L188) a 1-byte slice of a 64 MiB parent is charged 48 bytes while Go still holds the whole parent array. [`maxAllocTx = 500_000_000`](https://github.com/gnolang/gno/blob/3be8c3b1/gno.land/pkg/sdk/vm/keeper.go#L50) · [↗](../../../../../.worktrees/gno-review-5082/gno.land/pkg/sdk/vm/keeper.go#L50) bounds real memory pressure per transaction, so a transaction that slices large strings stays far under the cap while pinning much more. Either charge the retained length in ref mode, or stop letting a ref outlive its parent.
+## gnovm/pkg/gnolang/values.go:2234-2239 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2234)
+A 32 MiB slice of a 64 MiB parent is charged 48 bytes here, against 33,554,480 on master, and the slice keeps the whole parent alive either way. Nothing tracks the retained backing, so the per-byte charge is what currently bounds how much a transaction can retain by slicing, and dropping it leaves that unbounded.
 
 <details><summary>repro</summary>
 
 ```bash
 # from a local clone of gnolang/gno:
 gh pr checkout 5082 -R gnolang/gno
-cat > gnovm/pkg/gnolang/zz_ref_test.go <<'EOF'
+cat > /tmp/zz_sc_test.go <<'EOF'
 package gnolang
 
 import (
-	"runtime"
 	"strings"
 	"testing"
 )
 
-func TestRefSliceUndercountsRetainedBytes(t *testing.T) {
+func TestSliceChargeVsRetention(t *testing.T) {
 	const parentLen = 64 << 20
 	alloc := NewAllocator(1 << 30)
 	tv := TypedValue{T: StringType, V: alloc.NewString(strings.Repeat("a", parentLen))}
-	slice := tv.GetSlice(alloc, 0, 1)
-	tv = TypedValue{}
+	_, before := alloc.Status()
 
-	// The GC re-walks the live set and rebuilds the counter from GetShallowSize.
-	alloc.Reset()
-	alloc.Recount(slice.V.(StringValue).GetShallowSize())
-	_, accounted := alloc.Status()
+	// Half the parent. No bytes are copied on either revision: Go substrings
+	// share the backing array, so the parent stays alive via the slice.
+	slice := tv.GetSlice(alloc, 0, 32<<20)
+	_, after := alloc.Status()
 
-	var m runtime.MemStats
-	runtime.GC()
-	runtime.ReadMemStats(&m)
-	t.Logf("VM accounts %d bytes; Go heap holds %d MiB with only the 1-byte slice live",
-		accounted, m.HeapAlloc>>20)
-	runtime.KeepAlive(slice)
+	t.Logf("32 MiB slice of a 64 MiB parent: charged %d bytes", after-before)
+	_ = slice
 }
 EOF
-go test -v -run TestRefSliceUndercountsRetainedBytes ./gnovm/pkg/gnolang/
-rm gnovm/pkg/gnolang/zz_ref_test.go
+
+# on the PR head:
+cp /tmp/zz_sc_test.go gnovm/pkg/gnolang/zz_sc_test.go
+go test -v -run TestSliceChargeVsRetention ./gnovm/pkg/gnolang/
+rm gnovm/pkg/gnolang/zz_sc_test.go
+
+# the same test on master:
+git checkout origin/master
+cp /tmp/zz_sc_test.go gnovm/pkg/gnolang/zz_sc_test.go
+go test -v -run TestSliceChargeVsRetention ./gnovm/pkg/gnolang/
+rm gnovm/pkg/gnolang/zz_sc_test.go
 ```
 
 ```
-=== RUN   TestRefSliceUndercountsRetainedBytes
-    zz_ref_test.go:24: VM accounts 48 bytes; Go heap holds 70 MiB with only the 1-byte slice live
---- PASS: TestRefSliceUndercountsRetainedBytes (0.02s)
-ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	0.034s
+# PR head 3be8c3b1:
+    zz_sc_test.go:19: 32 MiB slice of a 64 MiB parent: charged 48 bytes
+
+# master 27b5b8e24:
+    zz_sc_test.go:19: 32 MiB slice of a 64 MiB parent: charged 33554480 bytes
 ```
 </details>
 
 ## gnovm/pkg/gnolang/alloc.go:88-90 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L88)
-`allocStringRef` and [`allocString`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L86) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L86) are both `_allocHeap + 16`, but `StringValue` is a 24-byte struct now, so both under-charge by 8 bytes. Every other value type has a line in the [`init()` self-check](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L132-L151) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L132-L151) that panics when a constant drifts from `unsafe.Sizeof`, and `StringValue` has none.
+`allocStringRef` and [`allocString`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L86) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L86) are both `_allocHeap + 16`, but `StringValue` is a 24-byte struct now, so every string under-charges by 8 bytes. Unlike every other value type, it has no line in the [`init()` self-check](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L132-L151) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L132-L151) to catch the drift.
 
 <details><summary>repro</summary>
 
@@ -130,7 +133,7 @@ FAIL	github.com/gnolang/gno/gnovm/pkg/gnolang	0.011s
 </details>
 
 ## gnovm/pkg/gnolang/values.go:123-133 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L123)
-`MarshalAmino` writes only `data` and `UnmarshalAmino` sets `ref=false`, so a ref-mode `StringValue` that [`GetShallowSize`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L647-L653) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L647-L653) reports as 48 bytes reports 54 after a restart. The GC re-count rebuilds the allocator's byte counter from that method, so the same string charges the budget differently on either side of a restart.
+`UnmarshalAmino` sets `ref=false`, so the same string [reports](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/alloc.go#L647-L653) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L647-L653) 48 bytes before a restart and 54 after. The GC rebuilds the allocator's counter from those numbers.
 
 <details><summary>repro</summary>
 
@@ -164,31 +167,14 @@ ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	0.011s
 </details>
 
 ## gnovm/pkg/gnolang/alloc.go:392-398 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc.go#L392)
-The doc comment says reference mode is for slicing, but not that [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) must stay its only producer, which is what bounds the under-counted bytes to slices today. A second `NewStringRef` call site would widen that silently.
+Nothing says [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) must stay the only producer of reference mode. Reference mode is only free because slicing shares a backing, so a call site that passes a freshly built string would under-charge it by its whole length.
 
 ## gnovm/pkg/gnolang/alloc_test.go:51 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc_test.go#L51)
-Missing test: the new cases all assert the charge at allocation time, so nothing pins what a ref costs after the GC re-count or after an amino round-trip, which is where the two accounting rules diverge.
+Missing test: nothing pins the round-trip, where a ref reports 48 bytes going in and 54 coming back out as an owner.
 
 <details><summary>test cases</summary>
 
 ```go
-func TestStringRefSizeAfterGCRecount(t *testing.T) {
-	const parentLen = 100_000
-	alloc := NewAllocator(1024 * 1024 * 1024)
-	tv := TypedValue{T: StringType, V: alloc.NewString(strings.Repeat("a", parentLen))}
-	slice := tv.GetSlice(alloc, 0, 1)
-
-	// The GC re-walks the live set and rebuilds the counter from GetShallowSize.
-	alloc.Reset()
-	alloc.Recount(slice.V.(StringValue).GetShallowSize())
-	_, accounted := alloc.Status()
-
-	// The 1-byte slice still pins the parent's whole backing array.
-	if want := int64(allocStringRef); accounted != want {
-		t.Fatalf("post-GC bytes: got %d, want %d", accounted, want)
-	}
-}
-
 func TestStringRefSizeAcrossAminoRoundTrip(t *testing.T) {
 	ref := NewStringValueRef("abcdef")
 	repr, err := ref.MarshalAmino()
@@ -212,13 +198,13 @@ func TestStringRefSizeAcrossAminoRoundTrip(t *testing.T) {
 </details>
 
 ## gnovm/pkg/gnolang/values.go:92-95 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L92)
-Suggestion: every `StringValue` now carries a `ref` bool that only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) ever sets, and padding takes the struct from 16 to 24 bytes, so every literal and concatenation result pays for a field it never uses. A separate ref type, or a bit in the unused `TypedValue.N` word, would avoid that: deliberate trade for the simpler struct?
+Suggestion: the `ref` bool takes `StringValue` from 16 to 24 bytes, so every literal and concatenation pays for a field only [`GetSlice`](https://github.com/gnolang/gno/blob/3be8c3b1/gnovm/pkg/gnolang/values.go#L2233-L2240) · [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L2233-L2240) sets. A separate ref type would avoid that: deliberate trade for the simpler struct?
 
 ## gnovm/pkg/gnolang/values.go:97 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/values.go#L97)
-Nit: the new exported doc comments lack terminating periods, from `NewStringValue` here through `UnmarshalAmino` at line 128.
+Nit: the new doc comments lack terminating periods, from `NewStringValue` here through `UnmarshalAmino` at line 128.
 
 ## gnovm/pkg/gnolang/alloc_test.go:87 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/alloc_test.go#L87)
-Nit: `_ = result.GetString()` here and `_ = s3.GetString()` at line 113 discard the value, so they assert nothing about the sliced content.
+Nit: `_ = result.GetString()` here and `_ = s3.GetString()` at line 113 discard the value, so they assert nothing.
 
 ## gnovm/pkg/gnolang/bench_test.go:52-53 [↗](../../../../../.worktrees/gno-review-5082/gnovm/pkg/gnolang/bench_test.go#L52)
-Nit: `NewAllocator(1024*1024)` is constructed inside the `b.N` loop, so `ReportAllocs` counts allocator setup in the allocs/op this benchmark reports.
+Nit: `NewAllocator(1024*1024)` sits inside the `b.N` loop, so `ReportAllocs` counts allocator setup in the allocs/op this benchmark reports.

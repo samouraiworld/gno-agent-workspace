@@ -1,0 +1,50 @@
+# Run: from a gno checkout:
+# gh pr checkout 5891 -R gnolang/gno && git checkout 82e5cb868
+# curl -fsSL -o gno.land/pkg/integration/testdata/qfile_sibling_alias.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5891-split-mempackage-prod-test/2-82e5cb868/tests/qfile_sibling_alias.txtar
+# go test -v -run 'TestTestdata/qfile_sibling_alias$' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/qfile_sibling_alias.txtar
+#
+# RED at 82e5cb868 — asserts the desired post-fix state, not current behavior.
+#
+# Every package that ships a test file gets a second store key,
+# pkg:<path>#allbutprod. Spelling that key as a package path makes
+# GetMemPackage return the sibling blob, so GetMemPackageAll reaches
+# MPAnyAll.Decide(path), which panics on the '#'. vm/qfile passes raw query
+# data straight through, so the panic is remote-triggerable: the node logs a
+# stack at ERROR and answers 500. The desired state is the same clean
+# "not available" error the pre-split single-blob layout returned.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello -gas-fee 1000000ugnot -gas-wanted 30000000 -chainid=tendermint_test test1
+
+# Control: the real path lists prod and test files alike.
+gnokey query vm/qfile --data 'gno.land/r/hello'
+stdout 'hello.gno'
+stdout 'hello_test.gno'
+
+# The sibling key spelled as a package path must be rejected, not panic.
+! gnokey query vm/qfile --data 'gno.land/r/hello#allbutprod'
+stdout 'is not available'                      # SHOULD: clean InvalidPackageError
+# stderr 'invalid status code received, 500'   # IS: panic in the RPC handler
+
+# Same for the file form and for qdoc.
+! gnokey query vm/qfile --data 'gno.land/r/hello#allbutprod/hello_test.gno'
+stdout 'is not available'
+! gnokey query vm/qdoc --data 'gno.land/r/hello#allbutprod'
+stdout 'not found'
+
+-- hello/gnomod.toml --
+module = "gno.land/r/hello"
+gno = "0.9"
+-- hello/hello.gno --
+package hello
+
+func Hi() string { return "hi" }
+-- hello/hello_test.gno --
+package hello
+
+import "testing"
+
+func TestHi(t *testing.T) {}

@@ -1,18 +1,18 @@
-/* Run:
+/* Run: from a gno checkout, with two Go toolchains available:
 
-	gh pr checkout 5893 -R gnolang/gno && git checkout 7fc5ec06a
-	cp <this-file> gno.land/pkg/sdk/vm/zz_buildtag_addpkg_test.go
-	go test -count=1 -run 'TestVMKeeperAddPackage_BuildTagCannotRaisePin' -v ./gno.land/pkg/sdk/vm/
-	rm gno.land/pkg/sdk/vm/zz_buildtag_addpkg_test.go
+gh pr checkout 5893 -R gnolang/gno && git checkout 7fc5ec06a
+curl -fsSL -o gno.land/pkg/sdk/vm/zz_buildtag_addpkg_test.go \
+  https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5893-deterministic-typecheck-verdict/2-7fc5ec06a/tests/keeper_buildtag_addpkg_test.go
+GOTOOLCHAIN=go1.26.5 go test -count=1 -v -run 'TestVMKeeperAddPackage_' ./gno.land/pkg/sdk/vm/
+GOTOOLCHAIN=go1.25.9 go test -count=1 -v -run 'TestVMKeeperAddPackage_' ./gno.land/pkg/sdk/vm/
+rm gno.land/pkg/sdk/vm/zz_buildtag_addpkg_test.go
 
-Expected at 7fc5ec06a: RED (both subtests). Proves the //go:build pin bypass is
-reachable from the real consensus entry point (MsgAddPackage ->
-VMKeeper.AddPackage -> gno.TypeCheckMemPackage at keeper.go:702), not just from
-the gnovm unit API.
-
-Expected after a fix that clears ast.File.GoVersion on every parsed .gno file
-(e.g. in GoParseMemPackage, alongside the existing prepareGoGno0p9 AST pass):
-GREEN.
+go/types resolves a file's `//go:build go1.N` line against the version of the Go
+toolchain that compiled the binary, so the accept/reject verdict for a submitted
+package becomes a function of the build rather than the package. At 7fc5ec06a
+the go1.26.5 build accepts and deploys the tagged package while the go1.25.9
+build rejects it with TypeCheckError, and go.mod's `go 1.25.9` admits both.
+When the verdict no longer depends on the build, both runs agree and go green.
 */
 
 package vm
@@ -28,76 +28,55 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A submitted package's accept/reject verdict must depend only on the package,
-// never on the Go toolchain the validator binary happens to be built with. The
-// pinned types.Config.GoVersion ("go1.18", gotypecheck.go) establishes that on
-// the Config axis. It does not hold on the per-file axis: go/types lets a
-// `//go:build go1.N` line upgrade a file's language version above the Config
-// pin (go/types.(*Checker).initFiles). File bodies arrive attacker-supplied
-// over the wire, so the gate is settable by the submitter.
-func TestVMKeeperAddPackage_BuildTagCannotRaisePin(t *testing.T) {
-	// NOTE: pkgPath must stay "gno.land/r/test" — setupTestEnv only permits
-	// that namespace, and any other path fails earlier with
-	// InvalidPkgPathError, which would make every assertion below vacuous.
-	addPkg := func(t *testing.T, body string) error {
-		t.Helper()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-		addr := crypto.AddressFromPreimage([]byte("addr1"))
-		acc := env.acck.NewAccountWithAddress(ctx, addr)
-		env.acck.SetAccount(ctx, acc)
-		env.bankk.SetCoins(ctx, addr, initialBalance)
+func addPkgForVerdict(t *testing.T, pkgPath, body string) error {
+	t.Helper()
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
 
-		const pkgPath = "gno.land/r/test"
-		files := []*std.MemFile{
-			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
-			{Name: "test.gno", Body: body},
-		}
-		return env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files))
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "test.gno", Body: body},
 	}
+	return env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files))
+}
 
-	// Preconditions: the harness admits a valid package, and the pin rejects a
-	// go1.22 construct with the TypeCheckError sentinel. If either fails, the
-	// assertions below prove nothing.
-	require.NoError(t, addPkg(t, "package test\nfunc F() int { return 1 }\n"),
-		"precondition: a plain valid package must be accepted")
-	err := addPkg(t, "package test\nfunc F() { for range 10 {} }\n")
+// The accept/reject verdict for a submitted package must depend only on the
+// package. The body here is valid Gno at every language version and the only
+// unusual token is a build constraint, which carries no meaning in Gno. Two
+// honest validators on this same commit, built with two Go releases go.mod
+// admits, must still agree.
+func TestVMKeeperAddPackage_VerdictIsBuildIndependent(t *testing.T) {
+	// Precondition: the pin is live, so a failure below cannot be misread as a
+	// missing pin.
+	err := addPkgForVerdict(t, "gno.land/r/plain",
+		"package plain\nfunc F() { for range 10 {} }\n")
 	require.Error(t, err, "precondition: the pin must reject range-over-int on the AddPackage path")
-	require.ErrorIs(t, err, TypeCheckError{},
-		"precondition: rejection must come from the type-check gate")
 
-	t.Run("build tag must not raise the pinned version", func(t *testing.T) {
-		// Same package as the precondition, plus one comment line. It must be
-		// rejected by the *type-check gate*, exactly as the untagged form is.
-		//
-		// At 7fc5ec06a it is not: the tag raises the file to go1.22, the gate
-		// passes it, and the package falls through to the GnoVM preprocessor,
-		// which rejects it with an unrelated error ("range iteration requires
-		// map, string, array, slice, or pointer to array; got BigintKind").
-		// The tx still fails, so this alone is not an escape — but the pin is
-		// not doing the job it is documented to do, and the next subtest shows
-		// what that costs.
-		err := addPkg(t, "//go:build go1.22\n\npackage test\nfunc F() { for range 10 {} }\n")
-		require.Error(t, err)
-		assert.ErrorIs(t, err, TypeCheckError{},
-			"a //go:build line must not let a go1.22 construct past the pinned type-check gate")
-	})
+	body := "//go:build go1.26\n\npackage tagged\n\nfunc Add(a, b int) int { return a + b }\n"
+	err = addPkgForVerdict(t, "gno.land/r/tagged", body)
 
-	t.Run("verdict must not depend on the building toolchain", func(t *testing.T) {
-		// go/types rejects a file version newer than the toolchain that built
-		// the binary: "file requires newer Go version goX (application built
-		// with goY)", where Y is the *builder's* Go version. The body here is
-		// plain, valid go1.18 code; only the tag decides the verdict.
-		//
-		// Measured on a go1.26-built binary: //go:build go1.26 -> ACCEPTED,
-		// //go:build go1.27 -> REJECTED. go.mod declares `go 1.25.9` with no
-		// toolchain directive, so a go1.25-built validator is in scope and
-		// would reject `//go:build go1.26` while a go1.26-built one accepts it.
-		// Two honest validators, opposite verdicts, same bytes — the fork this
-		// PR closes on the Config axis, still open on the per-file axis.
-		const body = "//go:build go1.99\n\npackage test\nfunc F() int { return 1 }\n"
-		assert.NoError(t, addPkg(t, body),
-			"verdict must not be a function of the building toolchain (this binary: %s)",
-			runtime.Version())
-	})
+	assert.NoError(t, err,
+		"the verdict must not depend on the building toolchain (this binary: %s); "+
+			"a validator built with an older Go rejects this same package, so the two fork",
+		runtime.Version())
+}
+
+// The pin must gate the package rather than merely be present: a construct the
+// GnoVM cannot run must be rejected at the type-check gate, carrying the
+// TypeCheckError sentinel, not slip past it to the preprocessor.
+func TestVMKeeperAddPackage_BuildTagCannotBypassGate(t *testing.T) {
+	err := addPkgForVerdict(t, "gno.land/r/tagrange",
+		"//go:build go1.22\n\npackage tagrange\nfunc F() { for range 10 {} }\n")
+	require.Error(t, err, "range-over-int must be rejected however the file is tagged")
+
+	// At 7fc5ec06a this is the GnoVM preprocessor's "got BigintKind" error rather
+	// than the gate's sentinel: the build tag raised the pinned version, so the
+	// construct reached code the pin was supposed to keep it away from.
+	assert.ErrorIs(t, err, TypeCheckError{},
+		"a //go:build line must not raise the pinned GoVersion: range-over-int "+
+			"must still be rejected by the type-check gate, not downstream")
 }

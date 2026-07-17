@@ -22,6 +22,7 @@ tool that no longer recognizes the previous era.
 package fork
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -126,32 +127,8 @@ func TestDepthDefaultsCurrentIsNotFingerprinted(t *testing.T) {
 }
 
 func fmtDepth(p vm.Params) string {
-	return jsonish(p.MinGetReadDepth100, p.MinSetReadDepth100, p.MinWriteDepth100,
+	return fmt.Sprintf("min{get:%d set:%d write:%d} fixed{get:%d set:%d write:%d} iterNextCostFlat:%d",
+		p.MinGetReadDepth100, p.MinSetReadDepth100, p.MinWriteDepth100,
 		p.FixedGetReadDepth100, p.FixedSetReadDepth100, p.FixedWriteDepth100,
 		p.IterNextCostFlat)
-}
-
-func jsonish(minGet, minSet, minWrite, fixGet, fixSet, fixWrite, iter int64) string {
-	return "min{get:" + itoa(minGet) + " set:" + itoa(minSet) + " write:" + itoa(minWrite) +
-		"} fixed{get:" + itoa(fixGet) + " set:" + itoa(fixSet) + " write:" + itoa(fixWrite) +
-		"} iterNextCostFlat:" + itoa(iter)
-}
-
-func itoa(v int64) string {
-	if v == 0 {
-		return "0"
-	}
-	neg := v < 0
-	if neg {
-		v = -v
-	}
-	var b []byte
-	for v > 0 {
-		b = append([]byte{byte('0' + v%10)}, b...)
-		v /= 10
-	}
-	if neg {
-		b = append([]byte{'-'}, b...)
-	}
-	return string(b)
 }
