@@ -1,4 +1,5 @@
 # Review: PR [#5960](https://github.com/gnolang/gno/pull/5960)
+Posted: https://github.com/gnolang/gno/pull/5960#pullrequestreview-4721497855
 Event: REQUEST_CHANGES
 
 ## Body
@@ -6,7 +7,7 @@ The devirtualization is a real win, but `PkgID.eq` gives it back on amd64: takin
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5960-didupdate-hot-path/1-75f126bf1/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gnovm/pkg/gnolang/realm.go:127 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L127)
+## gnovm/pkg/gnolang/realm.go:127 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L127) [posted](https://github.com/gnolang/gno/pull/5960#discussion_r3602148308)
 The value receiver costs more than the devirtualization saves: `eq` copies both 20-byte operands at every call site, four copies at [`realm.go:341`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L341) before a single PkgID comparison. Slicing `pid.Hashlet[0:8]` forces the operands addressable, so the inlined body cannot compare in registers, and the overlapping 16-byte stores it emits straddle a store boundary on read-back and stall forwarding on amd64. Taking the operands by pointer removes the copies and moves `RealPrimitive` from p=0.855 to −74.20%.
 
 <details><summary>repro</summary>
@@ -31,7 +32,7 @@ rm -f /tmp/head.test
 No `eq` symbol survives linking: it is inlined everywhere, so the clean three-MOV/CMP body that `-gcflags=-S` prints for the standalone `PkgID.eq` (`size=43, locals=0x0`) never executes. That body is copy-free only because the ABI already passes the two 20-byte structs on the stack. At the inlined call site the compiler has to materialize them: the 16 `MOVUPS` are four 20-byte copies into `0x58(SP)`, `0x1d4(SP)`, `0x184(SP)`, `0x10c(SP)`, two loads and two stores each. With a pointer receiver the same grep returns 4, and 0 once the intermediate `poPkgID` local goes too.
 </details>
 
-## gnovm/pkg/gnolang/realm_didupdate_bench_test.go:39-47 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm_didupdate_bench_test.go#L39)
+## gnovm/pkg/gnolang/realm_didupdate_bench_test.go:39-47 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm_didupdate_bench_test.go#L39) [posted](https://github.com/gnolang/gno/pull/5960#discussion_r3602148317)
 This benchmark never reaches the code the PR changes, so it cannot show −12.8%: `benchMachine()` leaves `Stage` at `""`, and `DidUpdate` returns on the stage check at [`realm.go:295`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L295), well before the first changed line at 331. The empty `Stage` also skips the `/p/`-immutability gate, so the nil-realm shape a real transaction takes goes unexercised.
 
 <details><summary>repro</summary>
@@ -64,10 +65,10 @@ rm gnovm/pkg/gnolang/zz_stage_probe_test.go
 The nil-realm block is lines 288-315, so the benchmark returns before line 331.
 </details>
 
-## gnovm/pkg/gnolang/hash_image.go:54 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/hash_image.go#L54)
+## gnovm/pkg/gnolang/hash_image.go:54 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/hash_image.go#L54) [posted](https://github.com/gnolang/gno/pull/5960#discussion_r3602148326)
 Nit: `ObjectID.IsZero` reaches `Hashlet.IsZero` through the same value-receiver chain, so the copies apply here too and the rewrite shows no gain: 9.768n before versus 10.170n after. A pointer receiver fixes it here as well, but changes the method set on an exported type.
 
-## gnovm/pkg/gnolang/realm.go:337 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L337)
+## gnovm/pkg/gnolang/realm.go:337 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L337) [posted](https://github.com/gnolang/gno/pull/5960#discussion_r3602148331)
 Missing test: nothing catches an `Object` implementation overriding an `ObjectInfo` accessor, which is the assumption the devirtualization rests on. It holds today, but only a grep enforces it, and `DidUpdate` would silently bypass such an override while every other caller honored it.
 
 <details><summary>test cases</summary>
@@ -132,11 +133,11 @@ func TestObjectInfoAccessorsAreNotOverridden(t *testing.T) {
 ```
 </details>
 
-## gnovm/pkg/gnolang/realm.go:485 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L485)
+## gnovm/pkg/gnolang/realm.go:485 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L485) [posted](https://github.com/gnolang/gno/pull/5960#discussion_r3602148338)
 Nit: `MarkNewDeleted` has no callers left; its only one now calls the unexported [`markNewDeleted`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L410) instead. The other three wrappers keep callers, and no linter flags an exported function.
 
-## gnovm/pkg/gnolang/realm.go:61-63 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L61-L63)
-Nit: `eq` reads exactly 20 bytes, so it agrees with `==` only while `PkgID` is nothing but its `Hashlet`; the tests catch `HashSize` drift, but nothing catches a new field. Adding one fails to build only at the unkeyed literal on [`realm.go:101`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L101), and once that is keyed the build is clean, both tests pass, and `alloc.go`'s sizeof guard stays silent since the field hides in `ObjectID`'s padding, while `a == b` is false and `a.eq(b)` is true. [`IsReadonlyBy`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/ownership.go#L461) and [`isExternalRealm`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/machine.go#L2737) gate realm identity through `eq`, so that direction fails open; four lines in the idiom [`alloc.go:146`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/alloc.go#L146) already uses pin both drifts:
+## gnovm/pkg/gnolang/realm.go:128-130 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L128-L130) [posted](https://github.com/gnolang/gno/pull/5960#discussion_r3602148342)
+Nit: these three loads read exactly 20 bytes, so `eq` agrees with `==` only while [`PkgID`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L61-L63) is nothing but its `Hashlet`; the tests catch `HashSize` drift, but nothing catches a new field. Adding one fails to build only at the unkeyed literal on [`realm.go:101`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L101), and once that is keyed the build is clean, both tests pass, and `alloc.go`'s sizeof guard stays silent since the field hides in `ObjectID`'s padding, while `a == b` is false and `a.eq(b)` is true. [`IsReadonlyBy`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/ownership.go#L461) and [`isExternalRealm`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/machine.go#L2737) gate realm identity through `eq`, so that direction fails open; four lines in the idiom [`alloc.go:146`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/alloc.go#L146) already uses pin both drifts:
 
 ```go
 // PkgID.eq and Hashlet.IsZero hard-code an 8+8+4 layout covering all of PkgID.
@@ -146,7 +147,7 @@ var (
 )
 ```
 
-## gnovm/pkg/gnolang/realm.go:430 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L430)
+## gnovm/pkg/gnolang/realm.go:430 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L430) [posted](https://github.com/gnolang/gno/pull/5960#discussion_r3602148346)
 Suggestion: the four `markX(oo, oi)` bodies require `oi == oo.GetObjectInfo()` and nothing checks it. `markDirty` sets the flag on `oi` but appends `oo` to `rlm.updated`, so a mismatched pair flags one object and enqueues another. Latent while the helpers stay unexported, and `debugAssert` is a build-tag const so the guard is free in production.
 
 <details><summary>repro</summary>
@@ -186,8 +187,8 @@ rm gnovm/pkg/gnolang/zz_pair_test.go
 The flag lands on `b` while `a` is what gets enqueued for saving, and `-tags debugAssert` stays silent.
 </details>
 
-## gnovm/pkg/gnolang/machine.go:2408 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/machine.go#L2408)
-Suggestion: borrow rule #3 keeps `!=` for the same `PkgID` compare that rule #2 converts thirty lines up at [`machine.go:2377`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/machine.go#L2377), in the same function. Two more expressions of the same shape stay on `!=` at [`realm.go:710`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L710) and [`realm.go:807`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L807), differing from the converted 382 and 404 only in the variable name. Those are finalize-time so leaving them is defensible, but two idioms for one comparison now coexist with nothing saying which to reach for.
+## gnovm/pkg/gnolang/machine.go:2377 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/machine.go#L2377) [posted](https://github.com/gnolang/gno/pull/5960#discussion_r3602148351)
+Suggestion: borrow rule #2 converts here, but rule #3 keeps `!=` for the same `PkgID` compare thirty lines down at [`machine.go:2408`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/machine.go#L2408), in this same function. Two more expressions of the same shape stay on `!=` at [`realm.go:710`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L710) and [`realm.go:807`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L807), differing from the converted 382 and 404 only in the variable name. Those are finalize-time so leaving them is defensible, but two idioms for one comparison now coexist with nothing saying which to reach for.
 
-## gnovm/pkg/gnolang/realm.go:434 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L434)
-Nit: this branch reads `pv.GetOwner()`/`pv.GetRefCount()` while the `else` at [`realm.go:442`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L442) reads `oi.GetOwner()`. Same values, but the split invites a reader to think they differ.
+## gnovm/pkg/gnolang/realm.go:442 [↗](../../../../../.worktrees/gno-review-5960/gnovm/pkg/gnolang/realm.go#L442) [posted](https://github.com/gnolang/gno/pull/5960#discussion_r3602148360)
+Nit: this reads `oi.GetOwner()` while the `*PackageValue` branch at [`realm.go:434`](https://github.com/gnolang/gno/blob/75f126bf1/gnovm/pkg/gnolang/realm.go#L434) reads `pv.GetOwner()`/`pv.GetRefCount()` for the same values. The split invites a reader to think they differ.
