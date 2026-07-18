@@ -35,7 +35,7 @@ go run ../gnovm/cmd/gno test -v ./gno.land/r/test/caller
 
 ## What each file shows
 
-`probe_probe_test.gno` calls `daorlm.Priv.CallerID()` from a different realm than the one owning the DAO. Observed at `0612859`:
+`probe_probe_test.gno` calls `daorlm.Priv.CallerID()` from a different realm than the one owning the DAO. Observed at `0612859`, unchanged at `60c4bf0`:
 
 ```
 CallerID seen by the DAO when r/test/probe calls in: []
@@ -43,7 +43,7 @@ CallerID seen by the DAO when r/test/probe calls in: []
 
 Caller identity for a cross-realm caller is the empty string. `realmid.Previous()` reads `unsafe.PreviousRealm()`, which does not resolve a calling realm across the non-crossing `daokit.DAO` interface method.
 
-`caller_caller_test.gno` proposes, votes and executes an EditProfile action on the DAO owned by `r/test/daorlm`, passing its own `cur`. `daorlm_daorlm.gno` registers a member whose address is the empty string, which `MembersStore.AddMember` accepts without validation. Observed at `0612859`:
+`caller_caller_test.gno` proposes, votes and executes an EditProfile action on the DAO owned by `r/test/daorlm`, passing its own `cur`. `daorlm_daorlm.gno` registers a member whose address is the empty string, which `MembersStore.AddMember` accepts without validation. Observed at `0612859`, unchanged at `60c4bf0`:
 
 ```
 setter observed: gno.land/r/test/daorlm|DisplayName=victim-dao
