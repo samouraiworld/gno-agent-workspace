@@ -2,20 +2,22 @@
 Event: REQUEST_CHANGES
 
 ## Body
-The avl work is confirmed. Verified on 60c4bf0 against the launched chain rather than the genesis script: `vm/qpaths gno.land/p/samcrew` on `rpc.topaz.testnets.gno.land` returns exactly piechart, tablesort and urlfilter, and `vm/qfile` shows live `p/demo/svg` declaring `Style *avl.Tree` over `p/nt/avl/v0` whose `Get` is single-value. Both surviving changes are required by that genesis, and no `/v2` occurrence remains.
+The avl work checks out. Verified on 60c4bf0 against the launched chain: `vm/qpaths gno.land/p/samcrew` returns exactly piechart, tablesort and urlfilter, and `vm/qfile` shows live `p/demo/svg` declaring `Style *avl.Tree` over `p/nt/avl/v0`, whose `Get` is single-value.
 
-The blocker is the commit underneath. 15dbc83 rewrote caller identity and realm threading across the framework and has no review on this PR or on [#64](https://github.com/samouraiworld/gnodaokit/pull/64). It is byte-identical here, so two defects ship with it. Running two adversarial realms against the branch at fc4052651: a DAO queried from a second realm reports its caller identity as the empty string, and an EditProfile action executed by that realm records the profile write under `gno.land/r/test/caller` while the DAO's own init records `gno.land/r/test/daorlm`. Fixture and output: [tests/](https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/gnodaokit/65-topaz-v2-rename/tests).
+The blocker is 15dbc83 underneath, unchanged here and unreviewed on this PR and on [#64](https://github.com/samouraiworld/gnodaokit/pull/64). Two defects ship with it, both inline: a DAO cannot identify a caller from another realm, and an action executed by that realm records its profile write under the caller instead of the DAO. Fixture and output: [tests/](https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/gnodaokit/65-topaz-v2-rename/tests).
 
-The suite passes with both live, because every test drives the DAO from inside its own realm and neither defect appears without a second one.
+The suite passes with both live, because every test drives the DAO from inside its own realm.
+
+[README.md:245](https://github.com/samouraiworld/gnodaokit/blob/60c4bf0/README.md?plain=1#L245) still tells integrators to export `DAO`, while this commit unexported it to `localDAO` in all three demos. Exporting it is what makes the `Execute` defect below reachable, and #64's dropped commit is what fixes the line.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/gnodaokit/65-topaz-v2-rename/2-60c4bf0/review_claude-fable-5.md [↗](review_claude-fable-5.md)
 
 ## gno/p/daokit/daokit.gno:17
-`Execute` takes the realm from its caller, so an action crosses under whichever realm invoked the DAO rather than the DAO's own. `NewEditProfileHandler` writes with `setter(cross(rlm), k, v)`, so the profile write lands on the calling realm. The same realm flows through `InstantExecute` into a caller-supplied target DAO, so a parent executing on a sub-DAO overwrites the parent's profile with the sub-DAO's payload.
+`Execute` takes its realm from the caller, so a DAO action crosses under whichever realm invoked it and the profile write lands on that caller. The same realm flows through `InstantExecute` into a caller-supplied target DAO, so a parent executing on a sub-DAO overwrites its own profile.
 
 <details><summary>repro</summary>
 
-Two realms, one owning the DAO and one calling in, plus a recording profile setter. Full fixture: https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/gnodaokit/65-topaz-v2-rename/tests
+Two realms, one owning the DAO and one calling in, with a recording profile setter. `NewEditProfileHandler` writes with `setter(cross(rlm), k, v)`, so the recorded realm is whichever one was passed to `Execute`. Fixture: https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/gnodaokit/65-topaz-v2-rename/tests
 
 ```
 setter observed: gno.land/r/test/daorlm|DisplayName=victim-dao
@@ -28,25 +30,25 @@ The first three are the DAO's own `basedao.New` init. The fourth is an EditProfi
 </details>
 
 ## gno/p/basedao/basedao.gno:42
-`Execute` gained a realm here but `Propose` and `Vote` below it did not, so `CallerIDFn` stays a bare `func() string` reading `unsafe.PreviousRealm()`, which is documented to name the outermost-crossing realm rather than the immediate caller in a non-crossing helper. A caller from another realm therefore resolves to the empty string, and `MembersStore.AddMember` stores an empty address as a member without validation. One empty-address member opens propose, vote and execute to every realm.
+`CallerIDFn` is a bare `func() string` reading `unsafe.PreviousRealm()`, which does not name the immediate caller across these non-crossing methods: a cross-realm caller resolves to the empty string. `AddMember` accepts that empty address as a member without validating it, so one such member authenticates every cross-realm caller. `Execute` here took a realm; `Propose` and `Vote` did not.
 
 <details><summary>repro</summary>
 
 ```
-CallerID seen by the DAO when r/test/probe calls in: []
+CallerID for cross-realm caller = []
 ```
 
-With an empty-address member registered, `r/test/caller` then proposed, voted and executed on the DAO. Without it the same run panics `caller is not a member`. Fixture: https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/gnodaokit/65-topaz-v2-rename/tests
+With one empty-address member registered, `r/test/caller` proposed, voted and executed on a DAO owned by `r/test/daorlm`. Without it the same run panics `caller is not a member`. Fixture: https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/gnodaokit/65-topaz-v2-rename/tests
 </details>
 
 ## gno/p/basedao/README.md:410
-The member-only example gates on `unsafe.PreviousRealm()` inside a non-crossing `Post`, so any realm a member touches can post as that member. The next line calls `dao.DAO`, and this branch removed the exported `DAO` variable from every demo realm, so the snippet no longer compiles either.
+The member-only example authenticates with `unsafe.PreviousRealm()` inside a non-crossing `Post`, which names the outermost crossing realm rather than the immediate caller. It is the framework's only worked answer to gating on membership, so the pattern propagates.
 
 ## Makefile:1
-Merging closes [#64](https://github.com/samouraiworld/gnodaokit/pull/64) and reverts its Makefile delta: this branch pins gno 2c7f1abe, the [#64 head](https://github.com/samouraiworld/gnodaokit/commit/523bf58) moved the pin to ba9da8eb, and the deployer's CI is now on fc4052651. Decide which pin the port ships with.
+Merging closes [#64](https://github.com/samouraiworld/gnodaokit/pull/64) and drops its pin bump: this branch stays on gno 2c7f1abe, the [#64 head](https://github.com/samouraiworld/gnodaokit/commit/523bf58) moved it to ba9da8eb, and the deployer's CI is now on fc4052651. Decide which pin the port ships with.
 
 ## gno/p/daokit/actions.gno:94
-Nit: `NewExecuteLambdaHandler` discards its realm into `_` and invokes a `func()` payload, so a lambda action can never perform the cross-realm call the threading was added for. `NewInstantExecuteHandler` two functions below forwards it, and nothing in the type or doc comment marks lambdas as the non-crossing kind.
+Nit: `NewExecuteLambdaHandler` drops its realm into `_` and invokes a `func()` payload, so a lambda action cannot make the cross-realm call the threading was added for. `NewInstantExecuteHandler` below it forwards the realm, and nothing marks lambdas as the non-crossing kind.
 
 ## gno/p/basedao/basedao.gno:128
-Nit: `New` stores `Realm: unsafe.CurrentRealm()` despite holding an authoritative `rlm realm` that cannot lie. The two agree in the demos because `New` is only called from `init(cur realm)`, so this is latent, but `DAOPrivate.Realm` feeds the private-extension gate.
+Nit: `New` stores `Realm: unsafe.CurrentRealm()` although it already holds `rlm`. Both agree in the demos, where `New` only runs from `init(cur realm)`, but `DAOPrivate.Realm` feeds the private-extension gate.
