@@ -86,10 +86,36 @@ Proposed grouping, not yet agreed with the user:
 
 Unresolved before any gas fix: 5937 and 5938 disagree on absent-key GET pricing. 5937 calls it a Warning at `params.go:40`; 5938 deliberately left it an unposted Open question. Settle first.
 
+## Fixes built (2026-07-17)
+
+User chose scope "unblocked code fixes" and "deep self-review each". Four fix worktrees built off `origin/master` (`959cefd91`), all verified, none committed or pushed. The blocked findings (5891 vs open 5971, 5893 pb3 migration, the gas repins) were not built.
+
+| Fix worktree | Branch | Source | Change | State |
+|---|---|---|---|---|
+| `.worktrees/gno-fix-typecheck-goversion` | `fix/typecheck-pin-file-goversion` | 5893 Critical | `gotypecheck.go` blanks `ast.File.GoVersion` per parsed .gno file; new `gotypecheck_buildtag_test.go`; ADR | built + verified |
+| `.worktrees/gno-fix-bptree-immutable-open` | `fix/bptree-immutable-query-open` | 5937 (Part 1) | `nodedb.go` `discoverVersions` seeks both edges; new `discover_versions_test.go`; ADR | built + verified |
+| `.worktrees/gno-fix-preprocess-dead-guard` | `fix/remove-unreachable-nil-guard` | 5892 Warning | delete unreachable nil-guard in `machine.go` | built + verified |
+| `.worktrees/gno-fix-banker-subtoken-gate` | `fix/banker-native-subtoken-gate` | 5890 (4 Warnings) | native `rlm.Subpath()` gate in `banker.gno`; doc fix; `address.gno` comment + separator; drift-test hardening; ADR | built + verified |
+
+Decisions on the record:
+- **5937 Part 1 only.** The immutable-open write (Part 2) is deferred: the review's "skip ensureFastIndex when immutable" is unsafe because `fastGet` trusts an entry on `entryVersion<=snapshot` without a stamp check, so a stale index would serve wrong reads. Correct fix stamp-gates the immutable fast-read; noted in the ADR "Out of scope". This path is ABCI queries (outside the Merkle commitment), and on master the write only fires when the index is stale (normally `ensureFastIndex` no-ops).
+- **5890 fix #2** narrowed the false `assertValidSubpath` comment rather than adding an ephemeral-host guard (which would expand the native-mirror sync surface the finding warns about). Guard-mirror noted as a maintainer call in the ADR.
+- **5890 fix #1** changes consensus gas but no golden drifts (vm `Gas` + full integration `TestTestdata` green).
+
+All four ADRs use the `prxxxx_` placeholder (no PR number yet).
+
+Deep self-review of each fix diff done (one adversarial agent per fix): correctness, semantic equivalence, blast radius, test adequacy, golden safety. All four returned **correct and complete, no code change needed**. Findings were two ADR-wording imprecisions, both fixed:
+- 5937 ADR: added the version-0 caveat (the seek differs from the old scan only for an unreachable version-0 root, where the seek is more faithful).
+- 5890 ADR: dropped the "forces strings to load" claim (banker.gno already imports strings); the saving is interpreted-call vs native-call.
+
+Non-blocking notes left as-is: 5890's gas reduction lands on a path no exact gas golden pins (the suite uses range checks by convention); the ADR documents this honestly, a targeted gas pin is an optional follow-up.
+
+All four fixes are verified and ready to open as PRs on the fork. Nothing committed, pushed, or opened.
+
 ## Resume
 
 1. Confirm the user has cut `31b4c448e`, then re-commit the review artifacts.
-2. Agree the fix grouping above with the user before writing code; seven-plus PRs is a lot of surface and wants cutting down.
-3. Then per fix: worktree, implement, test, deep-review the fix itself until clean.
+2. Fix scope agreed (unblocked code fixes); four fixes built and under deep self-review.
+3. After reviews return: apply any surviving findings, then present each fix for the user to open as a PR on the fork (`fork` = `davd-gzl/gno`). Nothing commits or pushes without the literal `push`; nothing opens a PR without approval.
 
-If a session dies mid-batch: check which review dirs hold both `review_*.md` and `comment_*.md`, re-dispatch only the incomplete ones. The review worktrees already exist at the shas in the table; do not re-create them.
+If a session dies mid-batch: the four fix worktrees above hold the uncommitted changes on disk; re-run only the deep reviews. The review worktrees hold both `review_*.md` and `comment_*.md`; do not re-create any worktree.

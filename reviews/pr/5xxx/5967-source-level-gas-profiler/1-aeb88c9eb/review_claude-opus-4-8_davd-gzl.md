@@ -7,7 +7,7 @@ Local worktree: `git -C gno worktree add .worktrees/gno-review-5967 aeb88c9eb`
 
 **TL;DR:** Adds a tool that shows where a gno transaction's gas went, function by function, in your own gno source. It reads the gas the VM already charges, attributes each charge to the gno function that caused it, and writes a standard pprof file you open with `go tool pprof` (top functions, flame graphs, per-line). It is off by default, and when on it never changes the gas charged or the execution result.
 
-**Verdict: APPROVE** — clean, well-tested, observation-only; only two optional Suggestions (a dev-node CLI footgun, a debug-only invariant assert) and a handful of no-change nits.
+**Verdict: REQUEST CHANGES** — the engine is clean, well-tested, and observation-only, but `.app/profiletx` is missing from gnodev's lazy-load interceptor, so the documented `gnokey maketx -profile` workflow fails on first use against the only node that ships the profiler enabled. One-line fix; everything else is Suggestions and no-change nits.
 
 ## Summary
 A `GasMeter` decorator reads every gas charge (CPU, alloc, store I/O, amino, refunds) and an incremental call-tree cursor, driven by the machine's frame push/pop, attributes each charge to the current gno function; the tree is emitted as a multi-dimension pprof profile. Two surfaces drive it: `gno test -gasprofile=<file>` (unit tests and filetests) and a dev-only `.app/profiletx` ABCI query reachable via `gnokey maketx -profile`, `gnoclient.ProfileTx`, and gnodev. The engine is a new self-contained package (`gnovm/pkg/gasprof`, stdlib + `tm2/pkg/store` only, no import cycle). The consensus gas path is untouched when profiling is off: the machine hooks are `nil`-guarded and short-circuit before evaluating `IsCall()`, so a validator `DeliverTx` runs byte-identically to master.
@@ -22,13 +22,22 @@ A `GasMeter` decorator reads every gas charge (CPU, alloc, store I/O, amino, ref
 - **Dimension table complete.** Every gas descriptor that reaches a wrapped meter is classified: cpu (`CPUCycles`, `GC`, `parsing`, `ComputeMapKey`, `stream output`, `AddPackagePreprocess`, `RunPreprocess`), alloc (`memory allocation`), store (`ReadFlat`, `ReadPerByte`, `WriteFlat`, `Delete`, `IterNextFlat`, `ValuePerByte`, `Depth{ReadFlat,Set,Delete}`, `AminoEncode/DecodePerByte`). The two store descriptors absent from the table, `Has` and `WritePerByte`, are dead constants never passed to `ConsumeGas`, so no store gas silently falls to `other`.
 - **`Simulate` change is backward-compatible.** `Simulate` gained a variadic `...ContextFn`; it is a concrete `*BaseApp` method with no interface to satisfy and one real implementation, so the signature change ripples nowhere. `nil` fns are skipped, and the ctxFn is passed only on the Simulate path (the profiler meter never reaches Deliver/Check).
 - **The ante.go change is comment-only.** Zero non-comment lines were added; it corrects a stale claim to say simulation is metered (bounded by `GasWanted`), which is what the ante actually does past the genesis block.
+- **Live gnodev round-trip.** Booted gnodev from this worktree and ran `gnokey maketx call -profile` end to end. Once the target package is loaded the on-chain profile is correct and useful: `foo20.Faucet` 51.9% flat with `grc20.PrivateLedger.Mint`, `PrivateLedger.balanceOf`, `avl.Tree.Get`, and `Node._copy` beneath it, plus the `(ante)` node. The same run on a fresh node exposed the interceptor gap in Warnings above.
 - Green at `aeb88c9eb`: `gnovm/pkg/gasprof`, `gnovm/pkg/gnolang -run GasProf` (incl. `-race`), `gnovm/pkg/test`, `gno.land/pkg/sdk/vm -run GasProfile`, `gno.land/pkg/gnoland -run gasProfile`, `gno.land/pkg/gnoclient -run Profile`, `tm2/pkg/sdk -run 'Simulate|ProfileTx'`, `tm2/pkg/crypto/keys/client -run Profile`, and the `gasprofile.txtar` / `maketx_gasprofile.txtar` integration tests.
 
 ## Critical (must fix)
 None.
 
 ## Warnings (should fix)
-None.
+- **[headline workflow fails on first use]** [`contribs/gnodev/pkg/proxy/path_interceptor.go:316`](https://github.com/gnolang/gno/blob/aeb88c9eb/contribs/gnodev/pkg/proxy/path_interceptor.go#L316) · [↗](../../../../../.worktrees/gno-review-5967/contribs/gnodev/pkg/proxy/path_interceptor.go#L316) — `.app/profiletx` is absent from gnodev's lazy-load interceptor, so profiling any not-yet-loaded package fails.
+  <details><summary>details</summary>
+
+  `handleQuery` switches on the ABCI query path to decide which packages to lazy-load: `.app/simulate` maps to `handleTx`, which extracts the tx's package paths and loads them. `.app/profiletx` carries identical tx bytes but is not in the switch, so it falls to `default` and the proxy logs `unable to parse RPC request: unhandled: ".app/profiletx"`. gnodev is the only node that ships the profiler enabled and has lazy loading on by default, so the workflow the docs prescribe fails on first attempt: the tx executes against an unloaded package, the log reads `partial profile: tx did not complete: internal error`, and the written profile contains only `(ante)` and `(root)` with no gno frames. A user who does not open the file may read that as success. Fix: add `.app/profiletx` to the `.app/simulate` case.
+
+  **Repro:** on a fresh gnodev, `gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Faucet -profile out.pprof` fails as above. Running the same tx with `-broadcast -simulate only` (which hits `.app/simulate`) loads the package, after which the identical `-profile` command returns `ok` and yields a full tree: `foo20.Faucet` 48.3% flat under `grc20.PrivateLedger.Mint` and `avl.Tree.Get`.
+  </details>
+
+  Verified live at `aeb88c9eb`: booted gnodev from this worktree and ran the three-step A/B/C isolation above; only the interposed `.app/simulate` call changes the outcome.
 
 ## Suggestions
 - **[dev-run silently not broadcast]** [`tm2/pkg/crypto/keys/client/maketx.go:385`](https://github.com/gnolang/gno/blob/aeb88c9eb/tm2/pkg/crypto/keys/client/maketx.go#L385) · [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/crypto/keys/client/maketx.go#L385) — `-profile` with `-broadcast` writes the profile and returns before broadcasting, exit 0.
@@ -43,6 +52,11 @@ None.
   </details>
 
 ## Nits
+- **[one feature, two flag names]** [`tm2/pkg/crypto/keys/client/maketx.go:148`](https://github.com/gnolang/gno/blob/aeb88c9eb/tm2/pkg/crypto/keys/client/maketx.go#L148) · [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/crypto/keys/client/maketx.go#L148) — the same profiler is `-gasprofile` on `gno test` and `-profile` on `gnokey maketx`.
+  <details><summary>details</summary>
+
+  `-gasprofile` is well-motivated on `gno test`: it follows the `go test -cpuprofile` family, and the `gno` binary already does Go-level CPU profiling via the `CPUPROFILE` env var ([`main.go:18`](https://github.com/gnolang/gno/blob/aeb88c9eb/gnovm/cmd/gno/main.go#L18) · [↗](../../../../../.worktrees/gno-review-5967/gnovm/cmd/gno/main.go#L18)), so a bare `-profile` there would be ambiguous. gnokey has no competing profiling concept, so `-profile` is unambiguous today. The cost is that one feature carries two names: a user who learns `-gasprofile` gets "flag provided but not defined" on gnokey, and `-profile` stops being self-describing if gnokey ever gains Go-level profiling. Fix: name it `-gasprofile` on gnokey too. Flag names are API, so this is cheap now and expensive after merge.
+  </details>
 - **[comment precision]** [`tm2/pkg/sdk/auth/ante.go:514`](https://github.com/gnolang/gno/blob/aeb88c9eb/tm2/pkg/sdk/auth/ante.go#L514) · [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/sdk/auth/ante.go#L514) — "simulation is still metered" is true past the genesis block, but the pre-first-commit `Simulate` fallback runs at height 0 and hits the infinite-meter branch. The comment's own "only genesis" carve-out already covers it (height 0 is genesis), so no change needed; not posted.
 - **[discarded RPC on error]** [`tm2/pkg/crypto/keys/client/maketx.go:294`](https://github.com/gnolang/gno/blob/aeb88c9eb/tm2/pkg/crypto/keys/client/maketx.go#L294) · [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/crypto/keys/client/maketx.go#L294) — the consensus-max-gas goroutine now launches before `signTx`, so a sign-setup failure (bad key, locked keybase) fires one `fetchConsensusMaxGas` RPC whose result is discarded. Buffered channel, no leak; the happy-path broadcast is byte-identical. No change needed; not posted.
 - **[documented edge]** [`gnovm/pkg/gasprof/gasprof.go:205`](https://github.com/gnolang/gno/blob/aeb88c9eb/gnovm/pkg/gasprof/gasprof.go#L205) · [↗](../../../../../.worktrees/gno-review-5967/gnovm/pkg/gasprof/gasprof.go#L205) — `ConsumeGas` records before delegating, so on the one path where `amount` differs from the applied delta (int64 overflow, which panics before mutating) the profile over-counts by one charge. Requires ~9.2e18 gas, terminal and unreachable; already noted in the code comment. No change needed; not posted.
