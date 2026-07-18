@@ -5,9 +5,9 @@ Event: COMMENT
 ## Body
 [AI bot]
 
-Verified on aeb88c9eb. Booted gnodev from this branch and ran `gnokey maketx call -profile` end to end. Once the target package is loaded the profile is correct and useful, naming `foo20.Faucet` with the `grc20` and `avl` frames beneath it.
+Verified on aeb88c9eb: booted gnodev from this branch and ran `gnokey maketx call -profile` end to end. Once the package is loaded the profile is good, naming `foo20.Faucet` with the `grc20` and `avl` frames beneath it.
 
-On a fresh node that same command fails. `.app/profiletx` is missing from the `handleQuery` switch in [`contribs/gnodev/pkg/proxy/path_interceptor.go`](https://github.com/gnolang/gno/blob/aeb88c9eb/contribs/gnodev/pkg/proxy/path_interceptor.go#L314-L327), so it falls to `default` and no package is lazy-loaded. gnodev is the only node shipping the profiler enabled and has lazy loading on by default, so a first `gnokey maketx -profile` against any not-yet-loaded package runs against an unloaded package, reports `partial profile: tx did not complete: internal error`, and still writes a profile, holding only `(ante)` and `(root)`. Adding `.app/profiletx` alongside `.app/simulate` fixes it, since that case already routes the identical tx bytes through `handleTx`.
+On a fresh node it fails. `.app/profiletx` is missing from the `handleQuery` switch in [`contribs/gnodev/pkg/proxy/path_interceptor.go`](https://github.com/gnolang/gno/blob/aeb88c9eb/contribs/gnodev/pkg/proxy/path_interceptor.go#L314-L327), so the package never lazy-loads. gnodev enables both the profiler and lazy loading by default, so this hits the first `-profile` of any package: it reports `partial profile: tx did not complete: internal error` and still writes a profile holding only `(ante)` and `(root)`. Add `.app/profiletx` to the `.app/simulate` case, which already routes the same tx bytes through `handleTx`.
 
 <details><summary>repro</summary>
 
@@ -61,7 +61,7 @@ C: gas profile written to /tmp/gnoprof/c.pprof (ok)
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5967-source-level-gas-profiler/1-aeb88c9eb/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
 ## tm2/pkg/crypto/keys/client/maketx.go:148 [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/crypto/keys/client/maketx.go#L148) [posted](https://github.com/gnolang/gno/pull/5967#discussion_r3609097950)
-Nit: the same profiler is `-gasprofile` on `gno test` and `-profile` here, so someone who learns the first gets "flag provided but not defined" on the second. The `gno test` name is motivated, since the `gno` binary already uses `CPUPROFILE` for Go-level profiling and a bare `-profile` would be ambiguous there, but gnokey has no such conflict to resolve. Naming this one `-gasprofile` too is cheap now and expensive after merge, since flag names are API.
+Nit: this is `-gasprofile` on `gno test` but `-profile` here, so learning one gives "flag provided but not defined" on the other. Worth aligning on `-gasprofile` before merge, since flag names are API.
 
 ## tm2/pkg/crypto/keys/client/maketx.go:385 [↗](../../../../../.worktrees/gno-review-5967/tm2/pkg/crypto/keys/client/maketx.go#L385) [posted](https://github.com/gnolang/gno/pull/5967#discussion_r3609097972)
-Suggestion: `-profile` together with `-broadcast` writes the profile and returns before broadcasting, exiting 0, so against a dev node the intended transaction is dropped. `Validate` rejects no such combination. Reject both flags together, or note on stderr that `-broadcast` is ignored under `-profile`.
+Suggestion: `-profile` with `-broadcast` writes the profile and returns before broadcasting, exiting 0, so the intended transaction is silently dropped. Reject the combination, or note on stderr that `-broadcast` is ignored.
