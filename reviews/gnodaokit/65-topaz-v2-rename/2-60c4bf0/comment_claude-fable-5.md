@@ -13,7 +13,7 @@ The suite passes with both live, because every test drives the DAO from inside i
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/gnodaokit/65-topaz-v2-rename/2-60c4bf0/review_claude-fable-5.md [↗](review_claude-fable-5.md)
 
 ## gno/p/daokit/daokit.gno:17
-`Execute` takes its realm from the caller, so a DAO action crosses under whichever realm invoked it and the profile write lands on that caller. The same realm flows through `InstantExecute` into a caller-supplied target DAO, so a parent executing on a sub-DAO overwrites its own profile.
+`Execute` takes its realm from the caller, so a DAO action crosses under whichever realm invoked it and the profile write lands on that caller. The same realm flows through `InstantExecute` into a caller-supplied target DAO, so a parent executing on a sub-DAO overwrites its own profile. It travels to implementers too: `Execute` sits on the `daokit.DAO` and `ActionHandler` interfaces, so anything governance swaps in through `ChangeDAOImplementation` receives the caller's realm rather than inert identity.
 
 <details><summary>repro</summary>
 
@@ -43,9 +43,6 @@ With one empty-address member registered, `r/test/caller` proposed, voted and ex
 
 ## gno/p/basedao/README.md:410
 The member-only example authenticates with `unsafe.PreviousRealm()` inside a non-crossing `Post`, which names the outermost crossing realm rather than the immediate caller. It is the framework's only worked answer to gating on membership, so the pattern propagates.
-
-## Makefile:1
-Merging closes [#64](https://github.com/samouraiworld/gnodaokit/pull/64) and drops its pin bump: this branch stays on gno 2c7f1abe, the [#64 head](https://github.com/samouraiworld/gnodaokit/commit/523bf58) moved it to ba9da8eb, and the deployer's CI is now on fc4052651. Decide which pin the port ships with.
 
 ## gno/p/daokit/actions.gno:94
 Nit: `NewExecuteLambdaHandler` drops its realm into `_` and invokes a `func()` payload, so a lambda action cannot make the cross-realm call the threading was added for. `NewInstantExecuteHandler` below it forwards the realm, and nothing marks lambdas as the non-crossing kind.
