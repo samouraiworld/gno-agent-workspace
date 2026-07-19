@@ -19,7 +19,9 @@
 
 set -uo pipefail
 
-WORK_DIR="/home/davd/Projects/gno-internal/gno-agent-workspace"
+# Workspace root. Defaults to this script's parent directory; override with
+# GNO_WORKSPACE_DIR when the checkout lives elsewhere.
+WORK_DIR="${GNO_WORKSPACE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$WORK_DIR"
 
 # Single-instance guard: refuse to run if another sweep already holds the lock.
