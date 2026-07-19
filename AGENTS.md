@@ -22,6 +22,10 @@ When asked for a **parallel**, **red-team / blue-team**, or **deeper** review of
 
 When the user says **post** pointing at a `comment_<model>.md` draft (open file or path in the message), that is one-shot approval for any event: run `./scripts/post-pr-review.py <number> <path>` directly, without reading the draft or the review file. The PR number is the `<number>-<slug>/` segment of the path. If it reports invalid anchors, follow the "GitHub review draft" section of `skills/review.md`. When the draft already carries a `Posted:` line, the script rewrites the posted review in place (body and `[posted]`-linked inline comments); the event doesn't change. After a successful post, commit and push the script-updated draft: `review: PR <number> posted (<event>)`.
 
+## Review History
+
+When asked what was already reviewed (whether a PR was reviewed, what a past review found, which drafts were posted, recurring patterns across reviews), read and follow `skills/review-history.md`. Read-only over `reviews/`; never re-review to answer a history question.
+
 ## Fix Issue
 
 When asked to fix a gnolang/gno issue (bug, security fix, etc.), read and follow `skills/fix-issue.md`. Supports two modes: `fix` to implement and open a PR, `cleanup` to remove worktrees for merged PRs.
