@@ -1,15 +1,18 @@
 # Review: PR [#5923](https://github.com/gnolang/gno/pull/5923)
+Posted: https://github.com/gnolang/gno/pull/5923#pullrequestreview-4731652190
 Event: REQUEST_CHANGES
 
 ## Body
-The three findings below share one root cause. The memo is keyed to the lifetime of a Go `Type` object, and that lifetime is both shorter and narrower than the design assumes: it ends at every transaction boundary, and it never begins for a type carrying a method. Nothing detects that, because the benchmark and the gas guard both drive shapes where the difference cannot show.
+[AI bot]
 
-Correctness of the memo itself holds on dcd6db417: over 5000 random type graphs with a random private subset, each queried in four shuffled rounds so earlier answers feed later ones, the memoized answer never disagreed with a cache-free reachability walk.
+The findings below share one root cause. The memo is keyed to the lifetime of a Go `Type` object, and that lifetime ends at every transaction boundary and never begins for a type carrying a method.
+
+Verified on dcd6db417: over 5000 random type graphs with random private subsets, each queried in four shuffled rounds so earlier answers feed later ones, the memoized answer never disagreed with a cache-free reachability walk. The memo returns the right answer whenever it exists.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5923-cache-type-privacy-checks/1-dcd6db417/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gnovm/pkg/gnolang/realm.go:1273-1276 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm.go#L1273-L1276)
-The memo does not survive a transaction boundary. Every transaction gets [a fresh `cacheTypes` map](https://github.com/gnolang/gno/blob/dcd6db417/gnovm/pkg/gnolang/store.go#L254) · [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/store.go#L254), so `GetType` hands back a different object with `privateDep` at zero. The update path, the one the description says re-pays the walk every block, never hits.
+## gnovm/pkg/gnolang/realm.go:1273-1276 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm.go#L1273-L1276) [posted](https://github.com/gnolang/gno/pull/5923#discussion_r3611538320)
+The memo does not survive a transaction boundary. Every transaction gets [a fresh `cacheTypes` map](https://github.com/gnolang/gno/blob/dcd6db417/gnovm/pkg/gnolang/store.go#L254) · [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/store.go#L254), so `GetType` hands back a different object with `privateDep` at zero. The repeated-update path never hits.
 
 <details><summary>repro</summary>
 
@@ -73,7 +76,7 @@ FAIL
 ```
 </details>
 
-## gnovm/pkg/gnolang/realm.go:1371-1379 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm.go#L1371-L1379)
+## gnovm/pkg/gnolang/realm.go:1371-1379 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm.go#L1371-L1379) [posted](https://github.com/gnolang/gno/pull/5923#discussion_r3611538325)
 Any type with a method is never memoized. A bound method carries its receiver, so the walk reaches the type again and [trips `sawCycle`](https://github.com/gnolang/gno/blob/dcd6db417/gnovm/pkg/gnolang/realm.go#L1314) · [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm.go#L1314), discarding the whole `pending` list. `type Coin struct{ Amount int }` memoizes; adding `func (c Coin) Get() int` stops it.
 
 <details><summary>repro</summary>
@@ -138,8 +141,8 @@ FAIL
 ```
 </details>
 
-## gno.land/pkg/integration/testdata/typecache_restart_gas.txtar:44-58 [↗](../../../../../.worktrees/gno-review-5923/gno.land/pkg/integration/testdata/typecache_restart_gas.txtar#L44-L58)
-This test stays green at the same `EXACT_GAS` with `getPrivateDepCache` forced to always miss. `SaveItem` only updates an existing object, so the warm and cold calls it compares are both cold and the gas equality holds for a reason unrelated to the memo. It cannot catch the metering trap it names.
+## gno.land/pkg/integration/testdata/typecache_restart_gas.txtar:44-58 [↗](../../../../../.worktrees/gno-review-5923/gno.land/pkg/integration/testdata/typecache_restart_gas.txtar#L44-L58) [posted](https://github.com/gnolang/gno/pull/5923#discussion_r3611538327)
+This test stays green at the same `EXACT_GAS` with `getPrivateDepCache` forced to always miss. `SaveItem` only updates an existing object, so the warm and cold calls it compares are both cold, and the gas equality holds for a reason unrelated to the memo.
 
 <details><summary>repro</summary>
 
@@ -163,8 +166,8 @@ ok  	github.com/gnolang/gno/gno.land/pkg/integration	3.149s
 ```
 </details>
 
-## gnovm/pkg/gnolang/realm_assertpublic_bench_test.go:53-60 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L53-L60)
-Missing test: the two repeated-commit benchmarks hand `assertTypeIsPublic` the same object on every iteration. That is the memo's best case and not a shape the realm save path ever presents, so the numbers say nothing about the real hit rate.
+## gnovm/pkg/gnolang/realm_assertpublic_bench_test.go:53-60 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L53-L60) [posted](https://github.com/gnolang/gno/pull/5923#discussion_r3611538328)
+Missing test: both repeated-commit benchmarks hand `assertTypeIsPublic` the same object on every iteration. That is the memo's best case and not a shape the realm save path ever presents, so the numbers say nothing about the real hit rate.
 
-## gno.land/pkg/integration/testdata/typecache_restart_gas.txtar:2 [↗](../../../../../.worktrees/gno-review-5923/gno.land/pkg/integration/testdata/typecache_restart_gas.txtar#L2)
-Nit: the ADR path here, `gnovm/adr/prxxxx_type_privacy_dependency_cache.md`, does not exist. The file added is [`pr5923_type_privacy_dependency_cache.md`](https://github.com/gnolang/gno/blob/dcd6db417/gnovm/adr/pr5923_type_privacy_dependency_cache.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-5923/gnovm/adr/pr5923_type_privacy_dependency_cache.md#L1). Same stale name at [`realm_assertpublic_bench_test.go:50`](https://github.com/gnolang/gno/blob/dcd6db417/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L50) · [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L50) and [`:86`](https://github.com/gnolang/gno/blob/dcd6db417/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L86) · [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L86).
+## gno.land/pkg/integration/testdata/typecache_restart_gas.txtar:2 [↗](../../../../../.worktrees/gno-review-5923/gno.land/pkg/integration/testdata/typecache_restart_gas.txtar#L2) [posted](https://github.com/gnolang/gno/pull/5923#discussion_r3611538330)
+Nit: `gnovm/adr/prxxxx_type_privacy_dependency_cache.md` does not exist. The file added is [`pr5923_type_privacy_dependency_cache.md`](https://github.com/gnolang/gno/blob/dcd6db417/gnovm/adr/pr5923_type_privacy_dependency_cache.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-5923/gnovm/adr/pr5923_type_privacy_dependency_cache.md#L1). Same stale name at [`realm_assertpublic_bench_test.go:50`](https://github.com/gnolang/gno/blob/dcd6db417/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L50) · [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L50) and [`:86`](https://github.com/gnolang/gno/blob/dcd6db417/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L86) · [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm_assertpublic_bench_test.go#L86).
