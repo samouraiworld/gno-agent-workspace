@@ -336,6 +336,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
 - New findings surfaced after the initial draft (a follow-up question, a deeper dig) are folded into the review file and `comment_<model>.md`, verified with a real run, and committed/pushed in the same turn automatically — never ask whether to add them. Posting still waits for the literal `post`.
 - Never push to gnolang/gno.
+- Review files are published to a public repo. A finding against an open PR's own diff is fine to publish at any severity: the code is not deployed, and the author sees it anyway. A finding that is exploitable against already-merged or deployed code (master, consensus paths, a live realm) is a disclosure, not a review: keep it out of the review file, store it privately, and raise the disclosure decision with the user before anything is written. `gno/SECURITY.md` forbids a public issue, and a public fix PR telegraphs the vector just as loudly.
 
 ## PR overview (`overview.html`)
 
