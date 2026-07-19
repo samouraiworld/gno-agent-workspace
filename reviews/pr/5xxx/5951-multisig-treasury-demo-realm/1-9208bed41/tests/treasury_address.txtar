@@ -1,0 +1,36 @@
+# Run: from a gno checkout:
+# gh pr checkout 5951 -R gnolang/gno && git checkout 9208bed41
+# curl -fsSL -o gno.land/pkg/integration/testdata/treasury_address.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5951-multisig-treasury-demo-realm/1-9208bed41/tests/treasury_address.txtar
+# go test -v -run 'TestTestdata/treasury_address' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/treasury_address.txtar
+#
+# TreasuryAddress() calls unsafe.CurrentRealm(), which walks the frame
+# stack instead of naming the realm it is declared in.
+# At 9208bed41 the wrapper read returns g1ndz9e3hkgyz2xgzs9zuj5au9lf8hfncftf7vwh,
+# the wrapper's own package address. Both reads return the multisig
+# package address once the accessor stops stack-walking.
+
+loadpkg gno.land/r/demo/multisig
+
+gnoland start
+
+# read the address directly, as a user funding the treasury would
+gnokey query vm/qeval --data 'gno.land/r/demo/multisig.TreasuryAddress()'
+stdout 'g17vd2lug0kdaeahm9sv3y0udz7pac9kc0kqs0aa'
+
+# read it through another realm, as a composing contract would
+gnokey maketx addpkg -pkgdir $WORK/wrapper -pkgpath gno.land/r/demo/wrapper -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/wrapper.Treasury()'
+stdout 'g17vd2lug0kdaeahm9sv3y0udz7pac9kc0kqs0aa'
+
+-- wrapper/gnomod.toml --
+module = "gno.land/r/demo/wrapper"
+gno = "0.9"
+-- wrapper/wrapper.gno --
+package wrapper
+
+import "gno.land/r/demo/multisig"
+
+func Treasury() string { return multisig.TreasuryAddress().String() }

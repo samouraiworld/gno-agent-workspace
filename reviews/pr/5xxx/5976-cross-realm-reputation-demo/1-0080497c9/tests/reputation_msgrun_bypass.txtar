@@ -1,0 +1,37 @@
+# Run: from a gno checkout:
+# gh pr checkout 5976 -R gnolang/gno && git checkout 0080497c9
+# curl -fsSL -o gno.land/pkg/integration/testdata/reputation_msgrun_bypass.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5976-cross-realm-reputation-demo/1-0080497c9/tests/reputation_msgrun_bypass.txtar
+# go test -v -run 'TestTestdata/reputation_msgrun_bypass' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/reputation_msgrun_bypass.txtar
+#
+# AddPoints rejects IsUserCall(), which is false for the ephemeral
+# "gno.land/e/<addr>/run" realm a `gnokey maketx run` script executes in.
+# At 0080497c9 an EOA credits itself 1000000 points with one command; the
+# fixed guard rejects the run script and the transaction aborts.
+
+adduserfrom runner 'apart roast chief monitor bundle auto fade double valid budget able average onion slam rice flame despair wage uphold nominee proud alien spider useful'
+stdout 'g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80'
+
+loadpkg gno.land/r/demo/reputation
+
+gnoland start
+
+gnokey maketx run runner $WORK/run/bypass.gno -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test
+
+stdout 'credited: 1000000'                              # IS:     run script is accepted as an issuer
+# ! stdout 'credited: 1000000'                          # SHOULD: guard rejects every user-driven call
+# stderr 'can only be called by another realm'          # SHOULD: abort message surfaces
+
+-- run/bypass.gno --
+package main
+
+import (
+	"gno.land/r/demo/reputation"
+)
+
+func main(cur realm) {
+	target := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	reputation.AddPoints(cross(cur), target, "selfawarded", 1000000)
+	println("credited:", reputation.GetTotalScore(target))
+}

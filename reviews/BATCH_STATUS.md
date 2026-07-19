@@ -1,121 +1,87 @@
-# Deep-review batch — status (started 2026-07-16)
+# Batch status — review all (started 2026-07-19)
 
-Scope: Jae's six most recent merges. User asked for the latest merge and confirmed "All 6 recent Jae merges" when the scope was ambiguous. Model claude-opus-4-8, reviewer davd-gzl. Deep mode on every PR (parallel lens agents, one critic round, claim-verification gate). Nothing posted.
-
-All six are already merged. Each is reviewed at its PR head on its own merits; the merged status is stated in each round note and does not soften any verdict.
-
-## Final set
-
-| PR | Size | Head sha | Merged as | Round | Worktree | Review dir |
-|----|------|----------|-----------|-------|----------|------------|
-| [5890](https://github.com/gnolang/gno/pull/5890) | +2662/-232, 50f | `b940037d1` | `5b989cad5` | 2 (round 1 at `8a115c8ca`) | `.worktrees/gno-review-5890` | `reviews/pr/5xxx/5890-realm-sub-subrealm-identities/2-b940037d1/` |
-| [5891](https://github.com/gnolang/gno/pull/5891) | +509/-24, 10f | `82e5cb868` | `af23ea2ae` | 2 (round 1 at `057894796`) | `.worktrees/gno-review-5891` | `reviews/pr/5xxx/5891-split-mempackage-prod-test/2-82e5cb868/` |
-| [5892](https://github.com/gnolang/gno/pull/5892) | +242/-60, 32f | `03ab3eea2` | `412ab1962` | 2 (round 1 at `d2f3d1337`) | `.worktrees/gno-review-5892` | `reviews/pr/5xxx/5892-meter-preprocess-gas/2-03ab3eea2/` |
-| [5893](https://github.com/gnolang/gno/pull/5893) | +117/-65, 9f | `7fc5ec06a` | `9bfc0a4bb` | 2 (round 1 at `131c5fccb`, APPROVE) | `.worktrees/gno-review-5893` | `reviews/pr/5xxx/5893-deterministic-typecheck-verdict/2-7fc5ec06a/` |
-| [5937](https://github.com/gnolang/gno/pull/5937) | +1490/-295, 49f | `b79972d22` | `dc305b6d6` | 1 (new) | `.worktrees/gno-review-5937` | `reviews/pr/5xxx/5937-bptree-clean-tree-fast-index/1-b79972d22/` |
-| [5938](https://github.com/gnolang/gno/pull/5938) | +426/-100, 20f | `27c5ece7e` | `1e2e00e2f` | 1 (new) | `.worktrees/gno-review-5938` | `reviews/pr/5xxx/5938-mount-bptree-fast-index/1-27c5ece7e/` |
+Scope confirmed by user: every open, non-draft gnolang/gno PR absent from `reviews/pr/`, minus the reviewer's own PRs. Model claude-opus-4-8, reviewer davd-gzl. Normal (non-deep) mode. Nothing posted.
 
 ## Dropped
 
-None. The user named all six, so the head-unchanged, already-APPROVED, and patch-id-equal base-only drops were not applied. The patch-id gate still runs on 5890, 5891, 5892, and 5893, but only to characterize head movement in each round note; no round is reanchored.
+| Reason | PRs |
+|---|---|
+| WIP-titled | 5922, 5263, 5223, 4949 |
+| dependabot | 5968, 5953, 5952 |
+| authored by reviewer (davd-gzl) | 5978, 5950, 5936, 5934 |
 
-## Head movement
+## Final set (16)
 
-5890, 5891, 5892, and 5893 all advanced past their round-1 shas, so each gets a full round 2 rather than a reanchor.
+| PR | Head sha | Author | Worktree | Review dir |
+|---|---|---|---|---|
+| [5980](https://github.com/gnolang/gno/pull/5980) | `c9aaed5c8` | ygd58 | `.worktrees/gno-review-5980` | `reviews/pr/5xxx/5980-*/1-c9aaed5c8/` |
+| [5976](https://github.com/gnolang/gno/pull/5976) | `0080497c9` | zardozmonopoly | `.worktrees/gno-review-5976` | `reviews/pr/5xxx/5976-*/1-0080497c9/` |
+| [5975](https://github.com/gnolang/gno/pull/5975) | `e3b7a7934` | zardozmonopoly | `.worktrees/gno-review-5975` | `reviews/pr/5xxx/5975-*/1-e3b7a7934/` |
+| [5970](https://github.com/gnolang/gno/pull/5970) | `f620d1c5c` | D4ryl00 | `.worktrees/gno-review-5970` | `reviews/pr/5xxx/5970-*/1-f620d1c5c/` |
+| [5969](https://github.com/gnolang/gno/pull/5969) | `7e0728bd5` | Romainua | `.worktrees/gno-review-5969` | `reviews/pr/5xxx/5969-*/1-7e0728bd5/` |
+| [5964](https://github.com/gnolang/gno/pull/5964) | `37b883fca` | jefft0 | `.worktrees/gno-review-5964` | `reviews/pr/5xxx/5964-*/1-37b883fca/` |
+| [5959](https://github.com/gnolang/gno/pull/5959) | `cc90c35f3` | ygd58 | `.worktrees/gno-review-5959` | `reviews/pr/5xxx/5959-*/1-cc90c35f3/` |
+| [5958](https://github.com/gnolang/gno/pull/5958) | `f2e427a71` | ygd58 | `.worktrees/gno-review-5958` | `reviews/pr/5xxx/5958-*/1-f2e427a71/` |
+| [5956](https://github.com/gnolang/gno/pull/5956) | `1ad3009b9` | ygd58 | `.worktrees/gno-review-5956` | `reviews/pr/5xxx/5956-*/1-1ad3009b9/` |
+| [5951](https://github.com/gnolang/gno/pull/5951) | `9208bed41` | zardozmonopoly | `.worktrees/gno-review-5951` | `reviews/pr/5xxx/5951-*/1-9208bed41/` |
+| [5946](https://github.com/gnolang/gno/pull/5946) | `037a90410` | zardozmonopoly | `.worktrees/gno-review-5946` | `reviews/pr/5xxx/5946-*/1-037a90410/` |
+| [5945](https://github.com/gnolang/gno/pull/5945) | `fc4052651` | aeddi | `.worktrees/gno-review-5945` | `reviews/pr/5xxx/5945-*/1-fc4052651/` |
+| [5943](https://github.com/gnolang/gno/pull/5943) | `05e124d67` | zeycan1 | `.worktrees/gno-review-5943` | `reviews/pr/5xxx/5943-*/1-05e124d67/` |
+| [5941](https://github.com/gnolang/gno/pull/5941) | `d415ef332` | coinsspor | `.worktrees/gno-review-5941` | `reviews/pr/5xxx/5941-*/1-d415ef332/` |
+| [5935](https://github.com/gnolang/gno/pull/5935) | `4369fdca7` | ltzmaxwell | `.worktrees/gno-review-5935` | `reviews/pr/5xxx/5935-*/1-4369fdca7/` |
+| [5923](https://github.com/gnolang/gno/pull/5923) | `dcd6db417` | Villaquiranm | `.worktrees/gno-review-5923` | `reviews/pr/5xxx/5923-*/1-dcd6db417/` |
 
-`7fc5ec06a` (5893) is a merge of master. `git show 7fc5ec06a --cc` prints zero hunks, so the merge authored no conflict-resolution content. Master now carries 5891 (`af23ea2ae`) and 5892 (`412ab1962`), so 5893's diff against master is finally its own nine files, and round 1's scope note about the stacked trio is obsolete.
+All 16 are first rounds; no head-unchanged, already-APPROVED, or patch-id gate applied.
 
 ## Dispatch
 
-One `general-purpose` coordinator per PR, all in one message. Each runs deep mode and dispatches its own lens agents. The parent created every worktree and checked out every PR head; subagents never run `worktree add`, `gh pr checkout`, or any branch switch. Subagents write `review_claude-opus-4-8_davd-gzl.md` and `comment_claude-opus-4-8.md`, and do not commit, push, regenerate indexes, or post.
+One `general-purpose` agent per PR, all in one message. The parent created every worktree and checked out every PR head; subagents never run `worktree add`, `gh pr checkout`, or any branch switch. Subagents write `review_claude-opus-4-8_davd-gzl.md` and `comment_claude-opus-4-8.md`, and do not commit, push, regenerate indexes, or post.
 
-## Results
+## Progress
 
-All six returned. Five REQUEST CHANGES, one APPROVE. Two rounds overturn a round-1 APPROVE: 5891 and 5893.
+All 16 returned; every PR has both a `review_` and a `comment_` file.
 
-| PR | Verdict | Headline |
-|----|---------|----------|
-| 5890 | REQUEST CHANGES | the `NewBanker` sub-token gate calls interpreted `chain.SplitPkgSubPath` instead of the native accessor the PR adds, so every `OriginSend` pays for a string split |
-| 5891 | REQUEST CHANGES (overturns round 1) | `GetMemPackageAll` hands a raw path to `MPAnyAll.Decide`, which panics on `#`; the `#allbutprod` sibling is addressable through `vm/qfile` and `vm/qdoc` by any unauthenticated client |
-| 5892 | APPROVE | no consensus defect; charge is exact and deterministic. Two Warnings: eleven unreachable nil-guard lines at `machine.go:330-340`, and dependency source billed at `ReadCostPerByte` 17 against the PR's 1250 |
-| 5893 | REQUEST CHANGES (overturns round 1) | a `//go:build go1.N` line in a submitted file overrides the pinned `GoVersion`, so the accept/reject verdict is still a function of the validator's build toolchain |
-| 5937 | REQUEST CHANGES | the ABCI query-height open can rebuild and rewrite the live fast index, because the `ImmutableDB` wrapper never reaches a store mounted with an explicit db; plus the unbounded version rescan |
-| 5938 | REQUEST CHANGES | mounting bptree puts a full scan of every retained version on the RPC path (100.9ms at 100K versions vs IAVL's flat 14.1µs); SET-read gas pinned 30% under its own cited measurement |
-
-Cross-PR confirmations and conflicts:
-
-- 5937 and 5938 independently found the same `discoverVersions` rescan from opposite ends: 5937 from tm2 internals (`nodedb.go:473`), 5938 from the mount that exposes it on mainnet RPC (`app.go:106`). One root cause, one fix.
-- Both flagged the same missing fingerprint guard at `generate.go:676`.
-- They conflict once: absent-key GET pricing is a Warning in 5937 (`params.go:40`) and a deliberate, not-posted Open question in 5938. Unresolved; settle before either becomes a fix.
-
-Parent verification of the two heaviest findings, run directly rather than taken from agent summaries:
-
-- 5893's Critical reproduces at `7fc5ec06a`. `//go:build go1.22` plus `for range 10` type-checks clean under the go1.18 pin, and `//go:build go1.99` fails with `file requires newer Go version go1.99 (application built with go1.26)`, naming the building toolchain. Two validators on go1.25 and go1.26 disagree on state, not just on the results hash.
-- 5937's immutable-write Warning holds: `MultiImmutableCacheWrapWithVersion` wraps the db and sets `Immutable=true`, but `constructStore:378-382` prefers `params.db` when non-nil and gno.land mounts `mainKey` with an explicit `cfg.DB`, so the read-only wrapper is dead. `ensureFastIndex` checks only `FastIndex`, never `opts.Immutable`.
-- 5892's dead-code Warning holds: `IterMemPackage` has exactly one implementation, and it already skips nil at `store.go:1263-1269`, so `machine.go:330`'s guard cannot fire.
-
-Two agents self-corrected during their own citation audits, which is worth recording: 5892 withdrew a 20.2 gas/byte figure that was a pre-5891 baseline and re-grounded the finding on `ReadCostPerByte`; 5891 fixed four bad anchors and retracted a round-1 Suggestion whose premise came from trusting a doc comment its own review proves false.
-
-## State at pause (2026-07-17)
-
-The review half is finished. All six PRs have `review_*.md` and `comment_*.md`; all six worktrees are clean; `build-indexes.sh` has been run.
-
-Blocked on one thing: commit `31b4c448e` ("review: PRs 5760, 5890-5893, 5937, 5938; 5082 GC claim retracted") was authored outside this batch and already swept these six review dirs into itself, together with a 5760 round-3 review and a 5082 retraction this batch never produced or verified. It is local only; `main` is ahead of `origin/main` by 1. The user is cutting that commit themselves. Nothing here was pushed, and nothing was posted to GitHub.
-
-Left staged on top of it, pending that cut: `index.html`, `reviews/BATCH_STATUS.md`, `reviews/README.md`, the 5082 round-2 file, 5891's and 5892's final review and comment (rewritten by resumed agents after `31b4c448e` captured an earlier state), and the 5938 review's ADR correction.
-
-Note for whoever re-commits: `31b4c448e`'s message says 5892 prices dependency bytes "~62x under". The final review says ~70x against `ReadCostPerByte` 17, after its citation audit withdrew an earlier figure as a stale pre-5891 baseline. Do not carry the 62x forward.
-
-## Next: fix PRs
-
-The goal is a fix PR per finding, each in its own worktree, reviewed until clean. Nothing is branched or written yet. Per `skills/fix-issue.md`: worktree at `.worktrees/gno-fix-<slug>` off `origin/master`, fork remote `fork` = `davd-gzl/gno`, never push to `origin`.
-
-Proposed grouping, not yet agreed with the user:
-
-| Fix | Source | Shape |
+| PR | Verdict | Findings |
 |---|---|---|
-| Clear `ast.File.GoVersion` in `GoParseMemPackage` | 5893 Critical | Consensus fork; highest value, self-contained. Parent-verified red at `7fc5ec06a`. Tests already written in 5893's `tests/`. |
-| Immutable open: stop scanning, stop writing | 5937 + 5938 | One PR, two commits. `discoverVersions` seek first/last instead of full scan; `ensureFastIndex` early-return on `opts.Immutable` plus `constructStore` wrapping `params.db` when Immutable. Both parent-verified. |
-| Delete unreachable nil guard `machine.go:330-340` | 5892 Warning | Trivial deletion; parent-verified unreachable. |
-| `GetMemPackageAll` panics on `#` path | 5891 Warning | Check overlap first: open PR 5971 fixes it incidentally. |
-| pb3 removal vs stored block results | 5893 Warning | Migration/compat; needs its own look. |
-| 5890 banker + address fixes | 5890 | Four Warnings, likely one PR. |
-| Depth-gas repins | 5938 + 5937 | Consensus genesis defaults, needs a fingerprint append. Wants Jae's buy-in; may be an issue, not a PR. |
-| Fingerprint guard test | 5937 + 5938 | Test-only. |
-| Doc/comment nits | all six | One batch PR. |
+| [5980](https://github.com/gnolang/gno/pull/5980) | REQUEST CHANGES | 2 Critical, 5 Warnings, 1 Missing test, 4 Nits, 3 Suggestions |
+| [5976](https://github.com/gnolang/gno/pull/5976) | REQUEST CHANGES | 1 Critical, 1 Warning, 3 Nits, 2 Missing tests, 2 Suggestions |
+| [5975](https://github.com/gnolang/gno/pull/5975) | REQUEST CHANGES | 2 Critical, 1 Warning, 3 Nits, 1 Missing test, 1 Suggestion |
+| [5970](https://github.com/gnolang/gno/pull/5970) | REQUEST CHANGES | 2 Warnings, 2 Nits, 2 Suggestions |
+| [5969](https://github.com/gnolang/gno/pull/5969) | REQUEST CHANGES | 2 Warnings, 2 Missing tests, 1 Nit |
+| [5964](https://github.com/gnolang/gno/pull/5964) | REQUEST CHANGES | 1 Warning, 1 Missing test |
+| [5959](https://github.com/gnolang/gno/pull/5959) | REQUEST CHANGES | 1 Critical, 3 Warnings, 1 Missing test, 4 Nits, 1 Suggestion |
+| [5958](https://github.com/gnolang/gno/pull/5958) | REQUEST CHANGES | 2 Critical, 4 Warnings, 2 Nits, 2 Missing tests, 1 Suggestion |
+| [5956](https://github.com/gnolang/gno/pull/5956) | REQUEST CHANGES | 1 Critical, 3 Warnings, 2 Missing tests, 3 Nits, 2 Suggestions |
+| [5951](https://github.com/gnolang/gno/pull/5951) | REQUEST CHANGES | 1 Critical, 3 Warnings, 1 Missing test, 4 Nits, 4 Suggestions |
+| [5946](https://github.com/gnolang/gno/pull/5946) | REQUEST CHANGES | 3 Critical, 1 Warning, 3 Nits, 1 Missing test, 3 Suggestions |
+| [5945](https://github.com/gnolang/gno/pull/5945) | REQUEST CHANGES | 1 Critical, 2 Warnings, 3 Nits, 4 Suggestions |
+| [5943](https://github.com/gnolang/gno/pull/5943) | REQUEST CHANGES | 1 Warning, 1 Suggestion |
+| [5941](https://github.com/gnolang/gno/pull/5941) | APPROVE | 1 Nit (not posted) |
+| [5935](https://github.com/gnolang/gno/pull/5935) | NEEDS DISCUSSION | 2 Warnings, 1 Missing test, 1 Suggestion |
+| [5923](https://github.com/gnolang/gno/pull/5923) | REQUEST CHANGES | 3 Warnings, 1 Missing test, 1 Nit, 1 Suggestion |
 
-Unresolved before any gas fix: 5937 and 5938 disagree on absent-key GET pricing. 5937 calls it a Warning at `params.go:40`; 5938 deliberately left it an unposted Open question. Settle first.
+## Cross-PR findings
 
-## Fixes built (2026-07-17)
+**privval set (5980, 5959, 5958, 5956).** All four import a cloud or HSM SDK without adding it to `go.mod`/`go.sum`, so each branch fails `go build ./...` across the whole module. CI hid it on all four: the fork contributors' build and test workflows sit behind the initial-approval bot and never ran, leaving only the conventional-commit title check visible. All four also add a backend field to `PrivValidatorConfig` with its own pairwise exclusion term and its own `errMultipleSignerSourcesSet`, so they conflict pairwise and merging any two leaves the cross-pair unguarded while the duplicate error variables collide. Merging all four links four cloud SDKs into every `gnoland` binary.
 
-User chose scope "unblocked code fixes" and "deep self-review each". Four fix worktrees built off `origin/master` (`959cefd91`), all verified, none committed or pushed. The blocked findings (5891 vs open 5971, 5893 pb3 migration, the gas repins) were not built.
+**zardozmonopoly examples (5975, 5946).** The same unguarded `a*b` before division appears in both, wrapping `int64` at pool sizes a demo would plausibly hit.
 
-| Fix worktree | Branch | Source | Change | State |
-|---|---|---|---|---|
-| `.worktrees/gno-fix-typecheck-goversion` | `fix/typecheck-pin-file-goversion` | 5893 Critical | `gotypecheck.go` blanks `ast.File.GoVersion` per parsed .gno file; new `gotypecheck_buildtag_test.go`; ADR | built + verified |
-| `.worktrees/gno-fix-bptree-immutable-open` | `fix/bptree-immutable-query-open` | 5937 (Part 1) | `nodedb.go` `discoverVersions` seeks both edges; new `discover_versions_test.go`; ADR | built + verified |
-| `.worktrees/gno-fix-preprocess-dead-guard` | `fix/remove-unreachable-nil-guard` | 5892 Warning | delete unreachable nil-guard in `machine.go` | built + verified |
-| `.worktrees/gno-fix-banker-subtoken-gate` | `fix/banker-native-subtoken-gate` | 5890 (4 Warnings) | native `rlm.Subpath()` gate in `banker.gno`; doc fix; `address.gno` comment + separator; drift-test hardening; ADR | built + verified |
+## Decisions needed
 
-Decisions on the record:
-- **5937 Part 1 only.** The immutable-open write (Part 2) is deferred: the review's "skip ensureFastIndex when immutable" is unsafe because `fastGet` trusts an entry on `entryVersion<=snapshot` without a stamp check, so a stale index would serve wrong reads. Correct fix stamp-gates the immutable fast-read; noted in the ADR "Out of scope". This path is ABCI queries (outside the Merkle commitment), and on master the write only fires when the index is stale (normally `ensureFastIndex` no-ops).
-- **5890 fix #2** narrowed the false `assertValidSubpath` comment rather than adding an ephemeral-host guard (which would expand the native-mirror sync surface the finding warns about). Guard-mirror noted as a maintainer call in the ADR.
-- **5890 fix #1** changes consensus gas but no golden drifts (vm `Gas` + full integration `TestTestdata` green).
+- [5943](https://github.com/gnolang/gno/pull/5943): davd-gzl already submitted an APPROVED review on this exact commit (`pullrequestreview-4683747087`, 2026-07-13). Posting REQUEST_CHANGES supersedes it.
+- [5969](https://github.com/gnolang/gno/pull/5969): borderline. Both Warnings are pre-existing and outside linked issue 5957, which the PR fully closes; REQUEST_CHANGES rests mainly on the untested assignability change. COMMENT is defensible.
+- [5970](https://github.com/gnolang/gno/pull/5970): verdict rests entirely on two documentation defects. COMMENT is defensible.
+- [5958](https://github.com/gnolang/gno/pull/5958): the config-fallback finding is filed Critical because the failure is silent and yields a wrong validator identity. Downgrades cleanly to Warning without changing the verdict.
+- [5956](https://github.com/gnolang/gno/pull/5956): the failing `check` job is the conventional-commit title lint rejecting `privval:`. Left out of the draft as contribution-convention.
+- [5941](https://github.com/gnolang/gno/pull/5941): APPROVE needs explicit human confirmation before posting.
 
-All four ADRs use the `prxxxx_` placeholder (no PR number yet).
+## Notes
 
-Deep self-review of each fix diff done (one adversarial agent per fix): correctness, semantic equivalence, blast radius, test adequacy, golden safety. All four returned **correct and complete, no code change needed**. Findings were two ADR-wording imprecisions, both fixed:
-- 5937 ADR: added the version-0 caveat (the seek differs from the old scan only for an unreachable version-0 root, where the seek is more faithful).
-- 5890 ADR: dropped the "forces strings to load" claim (banker.gno already imports strings); the saving is interpreted-call vs native-call.
+- `.worktrees/gno-review-5945` holds 210 MB of gitignored build output under `misc/deployments/topaz.gno.land/work/` from the genesis reproduction run. Left in place for re-verification.
 
-Non-blocking notes left as-is: 5890's gas reduction lands on a path no exact gas golden pins (the suite uses range checks by convention); the ADR documents this honestly, a targeted gas pin is an optional follow-up.
+## Resume / finalize
 
-All four fixes are verified and ready to open as PRs on the fork. Nothing committed, pushed, or opened.
-
-## Resume
-
-1. Confirm the user has cut `31b4c448e`, then re-commit the review artifacts.
-2. Fix scope agreed (unblocked code fixes); four fixes built and under deep self-review.
-3. After reviews return: apply any surviving findings, then present each fix for the user to open as a PR on the fork (`fork` = `davd-gzl/gno`). Nothing commits or pushes without the literal `push`; nothing opens a PR without approval.
-
-If a session dies mid-batch: the four fix worktrees above hold the uncommitted changes on disk; re-run only the deep reviews. The review worktrees hold both `review_*.md` and `comment_*.md`; do not re-create any worktree.
+1. Re-dispatch any PR whose review file is missing, per `skills/review.md` *Parallel dispatch*.
+2. `./scripts/build-indexes.sh`
+3. `git add reviews/ docs/glossary.md index.html && git commit -m "review: batch of 16 open PRs" && git push`
+4. Post nothing until the user says `post` per draft.

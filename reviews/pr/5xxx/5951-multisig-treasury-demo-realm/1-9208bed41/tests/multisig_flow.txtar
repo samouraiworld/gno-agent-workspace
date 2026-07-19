@@ -1,0 +1,46 @@
+# Run: from a gno checkout:
+# gh pr checkout 5951 -R gnolang/gno && git checkout 9208bed41
+# curl -fsSL -o gno.land/pkg/integration/testdata/multisig_flow.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5951-multisig-treasury-demo-realm/1-9208bed41/tests/multisig_flow.txtar
+# go test -v -run 'TestTestdata/multisig_flow' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/multisig_flow.txtar
+#
+# Propose stores the payout amount without checking its sign, so a
+# negative payout reaches the bank keeper and reverts inside Execute.
+# At 9208bed41 the negative Propose returns a proposal id and both
+# owners can sign it. Once Propose rejects non-positive amounts the
+# proposal never exists, and the honest 2-of-3 payout still settles.
+
+adduser ownerA
+adduser ownerB
+
+loadpkg gno.land/r/demo/multisig
+
+gnoland start
+
+# test1 uploaded the realm, so test1 is the recorded deployer
+gnokey maketx call -pkgpath gno.land/r/demo/multisig -func Setup -args $test1_user_addr -args $ownerA_user_addr -args $ownerB_user_addr -args 2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx send -to g17vd2lug0kdaeahm9sv3y0udz7pac9kc0kqs0aa -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+
+# honest payout: two distinct owners, real coin movement
+gnokey maketx call -pkgpath gno.land/r/demo/multisig -func Propose -args 'payout' -args $ownerB_user_addr -args 400000 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/multisig -func Approve -args 1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/multisig -func Approve -args 1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test ownerA
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/multisig -func Execute -args 1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query bank/balances/$ownerB_user_addr
+stdout '400000ugnot'
+
+# a negative payout must be refused at proposal time
+! gnokey maketx call -pkgpath gno.land/r/demo/multisig -func Propose -args 'drain' -args $ownerA_user_addr -args -500000 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+
+# and no such proposal is listed
+gnokey query vm/qrender --data 'gno.land/r/demo/multisig:'
+! stdout 'drain'
