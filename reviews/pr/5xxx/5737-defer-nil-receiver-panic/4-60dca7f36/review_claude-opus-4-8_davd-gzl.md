@@ -4,7 +4,7 @@ URL: https://github.com/gnolang/gno/pull/5737
 Author: ltzmaxwell | Base: master | Files: 45 | +1562 -85
 Reviewed by: davd-gzl | Model: claude-opus-4-8 (xhigh) | Commit: `60dca7f36` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5737 60dca7f36`
-Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/5xxx/5737-defer-nil-receiver-panic/overview.html) · [↗](../overview.html)
+Overview: [visual overview](../overview.html) · [↗](../overview.html)
 
 Round 4. Head advanced `c26e69ed9` → `60dca7f36`, +3 commits, no rebase. The delta is exactly @omarsy's three 2026-07-14 findings, one commit each: the gnoweb state walker [nil-derefs a lazy bind](https://github.com/gnolang/gno/pull/5737#discussion_r3578551168), [`pb3_gen.go` was hand-edited](https://github.com/gnolang/gno/pull/5737#discussion_r3578551297) rather than generated, and the new `VPSubrefField` nil guard [panicked with a plain string](https://github.com/gnolang/gno/pull/5737#discussion_r3578551393). All three are fixed and verified here; no VM logic changed. Round-3 findings carry unchanged: the local-type persistence regression still reproduces, and the struct-carried-cycle persist test is still missing.
 

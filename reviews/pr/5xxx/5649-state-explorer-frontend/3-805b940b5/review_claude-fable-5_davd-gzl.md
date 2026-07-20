@@ -4,7 +4,7 @@ URL: https://github.com/gnolang/gno/pull/5649
 Author: alexiscolin | Base: master | Files: 104 | +16219 -250
 Reviewed by: davd-gzl | Model: claude-fable-5 | Commit: `805b940b5` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5649 805b940b5`
-Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/5xxx/5649-state-explorer-frontend/overview.html) · [↗](../overview.html)
+Overview: [visual overview](../overview.html) · [↗](../overview.html)
 
 **TL;DR:** gnoweb gets a "State" tab: every realm's stored variables and objects become browsable web pages, rendered server-side with shareable URLs, lazy expansion of nested objects, live search, and a raw JSON API for external tools. Same architecture as before (chain query endpoints feed a Go decoder), but the rendering moved from browser TypeScript into Go templates.
 

@@ -4,7 +4,7 @@ URL: https://github.com/gnolang/gno/pull/5382
 Author: omarsy | Base: master | Files: 56 | +3330 -100
 Reviewed by: davd-gzl | Model: claude-opus-4-8 (deep, multi-lens) | Commit: a0226c4 (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5382 a0226c4`
-Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/5xxx/5382-realm-transaction-sponsorship/overview.html) · [↗](../overview.html)
+Overview: [visual overview](../overview.html) · [↗](../overview.html)
 
 **TL;DR:** Lets a realm pay a user's gas and storage deposits out of its own balance, so a user holding zero gnot can still transact. The realm decides mid-execution whether to sponsor by calling the new `runtime.PayGas` / `runtime.PayStorage` natives, gated behind a consensus credit window and a per-validator opt-in, both off by default.
 

@@ -241,7 +241,7 @@ URL: https://github.com/gnolang/gno/pull/<number>
 Author: <author> | Base: <base> | Files: <count> | +<add> -<del>
 Reviewed by: <GitHub username> | Model: <model used> | Commit: <short-sha> (<status>)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-<number> <short-sha>`
-Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/<thousand>xxx/<number>-<short-slug>/overview.html) · [↗](../overview.html) <— include this line only when the PR directory has an overview.html>
+Overview: [visual overview](../overview.html) <— include this line only when the PR directory has an overview.html>
 
 <Round note — re-review and same-commit deep rounds only. Re-review: "Round <n>. Head advanced <old-sha> → <new-sha> (<shape>): <what changed>; <prior findings resolved / carried>." Same-commit deep round: "Round <n> (deep — same commit <sha> round <n-1> reviewed): <prior verdict confirmed / overturned>.">
 

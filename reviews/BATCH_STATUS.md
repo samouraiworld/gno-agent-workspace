@@ -83,5 +83,5 @@ All 16 returned; every PR has both a `review_` and a `comment_` file.
 
 1. Re-dispatch any PR whose review file is missing, per `skills/review.md` *Parallel dispatch*.
 2. `./scripts/build-indexes.sh`
-3. `git add reviews/ docs/glossary.md index.html && git commit -m "review: batch of 16 open PRs" && git push`
+3. `git add reviews/ docs/glossary.md && git commit -m "review: batch of 16 open PRs" && git push`
 4. Post nothing until the user says `post` per draft.

@@ -4,7 +4,7 @@ URL: https://github.com/gnolang/gno/pull/5794
 Author: gfanton | Base: master | Files: 6 | +305 -13
 Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `4ab275316` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5794 4ab275316`
-Overview: [visual overview](https://samouraiworld.github.io/gno-agent-workspace/reviews/pr/5xxx/5794-markdown-accept-negotiation/overview.html) · [↗](../overview.html)
+Overview: [visual overview](../overview.html) · [↗](../overview.html)
 
 Round 2. The head advanced from `589d1970d` (round 1) to a clean `master` merge (`4ab275316`); the PR's own six files are byte-identical, only line numbers shifted, so all anchors are re-cut against the new head. CI is green except the gnoweb codeowner gate. Verdict and findings are unchanged from round 1.
 
