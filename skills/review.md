@@ -161,6 +161,10 @@ Verification discipline — every finding passes these before it enters the revi
 - Run greps and lint in the PR worktree (`.worktrees/gno-review-<number>`), never in the `gno/` submodule (stale detached HEAD).
 - Confirm symbol existence with `gno lint` run from the worktree source (`go run ../gnovm/cmd/gno lint ./path`), not IDE/language-server diagnostics; sanity-check that lint typechecks by feeding it a bogus symbol.
 
+### Realm security checklist (mandatory for realm code)
+
+Any PR or audit touching a realm (`examples/gno.land/r/`, `/p/`, `/e/`) loads `gno/docs/resources/gno-ai-contract-review.md` and walks its ten cases before writing findings. `gno/AGENTS.md` requires it. The cases that fire most often here: caller identity via `cur realm` rather than an `address` parameter (1), `IsUserCall()` not `IsUser()` on payment guards (2), exported pointers to mutable state (3 and 8), and `unsafe.PreviousRealm()` skipping frame verification (9). Read `gno/docs/resources/gno-interrealm.md` first when the finding turns on who the caller is; do not reason from other-chain intuition.
+
 ### Invariant catalog (mandatory)
 
 For a PR that touches gno code (the GnoVM, stdlibs, or `.gno` packages and realms), load `skills/invariant-catalog.md`, walk every class against the diff, and confirm coverage before writing the Output. Skip for docs- or tooling-only PRs with no gno-code change.
