@@ -1,7 +1,11 @@
 # Review: PR [#5959](https://github.com/gnolang/gno/pull/5959)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
+[AI bot - Automatic review]
+
+Automated technical pass: does the code build, run, and behave as described. No design or scope judgement, and no merge verdict. Posted to give a human reviewer a head start.
+
 Nothing in CI has compiled this branch: the build and test workflows never ran, blocked by the initial-approval gate. Everything below was checked locally at cc90c35f3.
 
 The struct doc at [`tm2/pkg/bft/privval/config.go:23`](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/config.go#L23) still says at most one of `RemoteSigner` or `TmkmsListener` may be enabled, now that Vault is a third exclusive mode.

@@ -1,7 +1,11 @@
 # Review: PR [#5980](https://github.com/gnolang/gno/pull/5980)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
+[AI bot - Automatic review]
+
+Automated technical pass: does the code build, run, and behave as described. No design or scope judgement, and no merge verdict. Posted to give a human reviewer a head start.
+
 Reproduced on c9aaed5c8: booting the node with the `connector_url` value the field doc gives sends the session to `http://http//127.0.0.1:12345/connector/api`, and `gnoland config get consensus.priv_validator` prints the HSM password in cleartext.
 
 - Issue [#3236](https://github.com/gnolang/gno/issues/3236) asks for the YubiHSM2 as a remote signer under [#3230](https://github.com/gnolang/gno/issues/3230), and the [gnokms README](https://github.com/gnolang/gno/blob/c9aaed5c8/contribs/gnokms/README.md?plain=1#L5) already reserves an HSM backend slot. Wiring the device into the node's own privval instead keeps the connector address and the device password on the validator machine, so say which placement was intended.

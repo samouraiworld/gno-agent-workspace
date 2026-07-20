@@ -1,7 +1,11 @@
 # Review: PR [#5956](https://github.com/gnolang/gno/pull/5956)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
+[AI bot - Automatic review]
+
+Automated technical pass: does the code build, run, and behave as described. No design or scope judgement, and no merge verdict. Posted to give a human reviewer a head start.
+
 - Three sibling PRs land the same shape as this one. [#5980](https://github.com/gnolang/gno/pull/5980), [#5959](https://github.com/gnolang/gno/pull/5959) and [#5958](https://github.com/gnolang/gno/pull/5958) each add a signer triple, a `PrivValidatorConfig` field, and another term to the mutual-exclusion expression, and three of the four also extract `ParseFileKey` from `local/key.go`. A small registry keyed on an "at most one enabled" interface would let the four merge independently instead of conflicting pairwise, and it should be settled before any of them lands.
 
 Repros run at 1ad3009b9.

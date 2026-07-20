@@ -1,7 +1,11 @@
 # Review: PR [#5958](https://github.com/gnolang/gno/pull/5958)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
+[AI bot - Automatic review]
+
+Automated technical pass: does the code build, run, and behave as described. No design or scope judgement, and no merge verdict. Posted to give a human reviewer a head start.
+
 [`docs/validators/tmkms.md:13-14`](https://github.com/gnolang/gno/blob/f2e427a71/docs/validators/tmkms.md?plain=1#L13-L14) says gnoland supports three mutually exclusive privval setups and tables them, so this mode needs a row. Its production-readiness cell matches the [local-file row](https://github.com/gnolang/gno/blob/f2e427a71/docs/validators/tmkms.md?plain=1#L18): the key sits in the gnoland process next to a network listener and there is no signer-side double-sign protection.
 
 Verified on f2e427a71: `go build ./...` fails on the missing `go.sum` entries, and CI ran only the semantic-title check. `gnoland config set consensus.priv_validator.gcp_secret_manager.project_id my-proj` is accepted with `secret_id` left empty, and the node then boots on a locally minted key.

@@ -1,7 +1,11 @@
 # Review: PR [#5969](https://github.com/gnolang/gno/pull/5969)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
+[AI bot - Automatic review]
+
+Automated technical pass: does the code build, run, and behave as described. No design or scope judgement, and no merge verdict. Posted to give a human reviewer a head start.
+
 Both shapes flagged inline reach the same `default:` branch in [`applyPointerDeref`](https://github.com/gnolang/gno/blob/7e0728bd5/gnovm/pkg/gnolang/types.go#L731-L732), so one guard in the phase that decides what promotes closes both.
 
 Verified on 7e0728bd5: compiled each shape with the Go compiler and compared its verdict against GnoVM's. They agree on every shape the diff covers.

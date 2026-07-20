@@ -1,7 +1,11 @@
 # Review: PR [#5975](https://github.com/gnolang/gno/pull/5975)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
+[AI bot - Automatic review]
+
+Automated technical pass: does the code build, run, and behave as described. No design or scope judgement, and no merge verdict. Posted to give a human reviewer a head start.
+
 Verified on e3b7a7934: a Go port of the three functions returns the same wrapped values the gno run produces, so the overflow is deterministic across validators rather than a consensus split. An exhaustive sweep of three-way splits for every total up to 120 found no case where the payouts sum above the pool, and dust never exceeded 2 units.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5975-parimutuel-payout-math/1-e3b7a7934/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)

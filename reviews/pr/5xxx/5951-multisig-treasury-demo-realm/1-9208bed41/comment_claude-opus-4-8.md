@@ -1,7 +1,11 @@
 # Review: PR [#5951](https://github.com/gnolang/gno/pull/5951)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
+[AI bot - Automatic review]
+
+Automated technical pass: does the code build, run, and behave as described. No design or scope judgement, and no merge verdict. Posted to give a human reviewer a head start.
+
 Reproduced on 9208bed41. The realm has no way back from a bad input: `initialized` is one-shot, a proposal cannot be cancelled, and the treasury address is fixed by the pkgpath. Every gap below therefore lands as permanent state rather than a retryable error, worth closing before this ships as the reference example.
 
 The red Merge Requirements check is the approval bot, not a code problem.

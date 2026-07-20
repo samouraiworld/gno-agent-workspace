@@ -69,6 +69,15 @@ Trigger: the user asks for a **parallel**, **red-team / blue-team**, or **deeper
 5. **Claim-verification gate (parallel).** Before drafting comment.md, dispatch one agent over the synthesized review plus worktree: extract every falsifiable claim — behavioral ("FormatFloat prints X"), structural ("only caller is keeper.go:678"), numeric ("bits = 0x7FF8…") — and for each run a check in the worktree designed to falsify it. It returns only claims that fail or can't be verified. Re-read those against the code, drop or fix, then finalize. Facts only — never severity, verdict, or design judgment; that's the critic pass.
 6. **Output.** Continue with the normal flow. The metadata line appends intensity and mode to the model name: `Model: <model> (<intensity>, deep)`, e.g. `(xhigh, deep)`; ask the user if the intensity is not known. Deep mode over a commit an earlier round already reviewed opens a new round directory `<n+1>-<same-sha>`; its round note names the mode and the prior verdict it confirms or overturns. The commit message may suffix `(deep)`.
 
+### Bot mode (automatic review)
+
+Trigger: the user asks for a PR, or a named set of PRs, to go out as an automated bot review. The user names the set; never infer it.
+
+- `Event:` is `COMMENT` regardless of the review file's verdict. The review file keeps its verdict unchanged.
+- Body opens with `[AI bot - Automatic review]`, then one short paragraph scoping the pass to technical checks and disclaiming design judgement and any merge verdict.
+- Findings, anchors, severities, and repros are unchanged.
+- Verify every finding with a real run before posting; a bot review that a maintainer cannot trust costs more than no review.
+
 ### Non-gno repositories
 
 A PR outside `gnolang/gno` goes under `reviews/<repo>/`, not `reviews/pr/` (gno-only).

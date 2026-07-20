@@ -1,7 +1,11 @@
 # Review: PR [#5946](https://github.com/gnolang/gno/pull/5946)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
+[AI bot - Automatic review]
+
+Automated technical pass: does the code build, run, and behave as described. No design or scope judgement, and no merge verdict. Posted to give a human reviewer a head start.
+
 Verified on 037a90410: with the `avl.Get` arity fixed so the package builds, a claim at 5,000,000,000 ugnot per side panics inside the banker send, and succeeds once the division comes first. Go returns the same wrapped values, so this is `int64` semantics, not a GnoVM divergence.
 
 [`ClaimWinnings`](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L119-L153) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L119) is the only path that moves coins out of the realm, so any case it refuses strands the escrow for good.
