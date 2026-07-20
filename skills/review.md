@@ -163,7 +163,7 @@ Verification discipline — every finding passes these before it enters the revi
 
 ### Realm security checklist (mandatory for realm code)
 
-Any PR or audit touching a realm (`examples/gno.land/r/`, `/p/`, `/e/`) loads `gno/docs/resources/gno-ai-contract-review.md` and walks its ten cases before writing findings. `gno/AGENTS.md` requires it. The cases that fire most often here: caller identity via `cur realm` rather than an `address` parameter (1), `IsUserCall()` not `IsUser()` on payment guards (2), exported pointers to mutable state (3 and 8), and `unsafe.PreviousRealm()` skipping frame verification (9). Read `gno/docs/resources/gno-interrealm.md` first when the finding turns on who the caller is; do not reason from other-chain intuition.
+A diff touching `examples/gno.land/r/`, `/p/`, or `/e/` walks `gno/docs/resources/gno-ai-contract-review.md` before findings are written. Add `gno/docs/resources/gno-interrealm.md` when a finding turns on caller identity.
 
 ### Invariant catalog (mandatory)
 
