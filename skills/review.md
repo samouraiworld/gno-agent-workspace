@@ -165,24 +165,7 @@ Verification discipline — every finding passes these before it enters the revi
 
 For a PR that touches gno code (the GnoVM, stdlibs, or `.gno` packages and realms), load `skills/invariant-catalog.md`, walk every class against the diff, and confirm coverage before writing the Output. Skip for docs- or tooling-only PRs with no gno-code change.
 
-### Audit pattern harness (realm PRs)
-
-For a PR that adds or changes a realm, walk the harness patterns alongside the invariant catalog. Both live in unmerged PRs, so neither path exists on master: read them from a worktree of [PR 5835](https://github.com/gnolang/gno/pull/5835) (`misc/audit-pattern-harness/`, prose in `docs/resources/gno-security-guide.md`), with the follow-up in [PR 5936](https://github.com/gnolang/gno/pull/5936) (`docs/resources/gno-ai-contract-review.md`).
-
-Each pattern under `misc/audit-pattern-harness/fixtures/` ships a vulnerable and a fixed spelling of the same realm. Match the diff against the vulnerable side:
-
-| Pattern | Shape |
-|---|---|
-| `origin-caller-auth` | authorization read from the transaction origin instead of the immediate caller |
-| `current-guard` | realm identity read without the guard that pins it to the current frame |
-| `payment-user-call` | a paid entry point that does not check whether the caller is a user or a realm |
-| `callback-param` | a caller-supplied callback invoked with the realm's own authority |
-| `interface-realm-param` | a caller-supplied interface value trusted as a realm identity |
-| `exported-pointer-leak` | an exported symbol handing out a pointer into realm state |
-| `render-map-iteration` | `Render` iterating a map, so output ordering is nondeterministic |
-| `render-markdown` | caller-controlled text interpolated into `Render` output unescaped |
-
-Cite the fixture pair when a finding matches a pattern; it names the fix without spelling it out.
+For a PR that adds or changes a realm, also walk the *Realm audit patterns* section of that file. Cite the fixture pair when a finding matches a pattern; it names the fix without spelling it out.
 
 ### Write tests for test-shaped findings
 
