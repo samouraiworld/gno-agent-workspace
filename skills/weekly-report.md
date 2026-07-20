@@ -70,7 +70,7 @@ Our own AI review (under `reviews/pr/`) routes a PR, it is not a trailing marker
 | `APPROVE` (incl. `with nits`/`with caveats`) | PR stays in its normal category |
 | no review under `reviews/pr/` | PR stays in its normal category |
 
-In Progress has two subsections: **Not approved by AI** (header links to `reviews/README.md`) holds the `REQUEST CHANGES` PRs; **Draft** holds the `isDraft` PRs. `REQUEST CHANGES` routing wins over every other category (Approved, Waiting for review, etc.): if our AI flagged it ❌, it lands in Not-approved-by-AI regardless of core-review state. A PR that is both ❌ and draft goes under Not approved by AI. No per-line AI marker is rendered (the subsection header carries the meaning); keep core-team/status emoji prefixes (✅/📥/🚫/💥 etc.).
+In Progress has two subsections: **Not approved by AI** (header links to `reviews/README.md`) holds the non-draft `REQUEST CHANGES` PRs; **Draft** holds every `isDraft` PR. `REQUEST CHANGES` routing wins over every other category (Approved, Waiting for review, etc.): if our AI flagged it ❌, it lands in Not-approved-by-AI regardless of core-review state. Draft outranks it: a PR that is both ❌ and draft goes under Draft, carrying a trailing `(AI: changes requested)` note. Under **Not approved by AI** no per-line AI marker is rendered (the subsection header carries the meaning). Keep core-team/status emoji prefixes (✅/📥/🚫/💥 etc.) everywhere.
 
 Derivation per open PR `<n>`: find `reviews/pr/<bucket>/<n>-<slug>/`, take the highest-numbered round dir `<round>-<commit>/`, read the `**Verdict: ...**` line (older reviews omit the `**`) from the `*.md` inside, normalise to `REQUEST CHANGES` / `NEEDS DISCUSSION` / `APPROVE`. Login matching for approvers is case-insensitive (`notJoon` == `NotJoon`).
 
@@ -90,7 +90,7 @@ gh pr view <n> --repo gnolang/gno --json files -q '.files[].path' | sort \
   | comm -12 - <(sort hot.txt)                                                    # PR's hot overlap
 ```
 
-Map overlap to a tag, first match: `gas` (`*gas*.txtar`, `restart_gas`, `gnokey_gasfee`, `gc.txtar`, `stdlib_restart_compare`, gas-table source) → `go.mod` (`go.mod`/`go.sum`) → `testdata` (other integration `.txtar`) → `generated` (`*generated*.go`, `*_string.go`). Hand-written code (VM core, `examples/**.gno`, gnoweb) is a normal conflict, not recurrent. Exact conflicting files: `git merge-tree <master> <pr-head>` in a worktree.
+Map overlap to a tag, first match: `gas` (`*gas*.txtar`, `restart_gas`, `gnokey_gasfee`, `gc.txtar`, `stdlib_restart_compare`, gas-table source) → `go.mod` (`go.mod`/`go.sum`) → `apphash` (`gno.land/pkg/sdk/vm/apphash_*_test.go`) → `testdata` (other integration `.txtar`) → `generated` (`*generated*.go`, `*_string.go`). Hand-written code (VM core, `examples/**.gno`, gnoweb) is a normal conflict, not recurrent. A PR overlapping both a magnet and hand-written code is recurrent only if `git merge-tree` puts every conflict in the magnet. Exact conflicting files: `git merge-tree <master> <pr-head>` in a worktree.
 
 Conflict source of truth is the `💥` set in the generated `report.md` (live `gh pr view` `mergeable` is often `UNKNOWN`). Use live fetch only for `updatedAt` and changed files.
 
@@ -133,7 +133,7 @@ ls -d reports/weekly/*/ | sort -r | grep -v "/$END_DATE/$" | head -1
 
 Previous `context.md` is for carry-forward priorities/manual notes only — not for 🆕. If the previous directory is more than 7 days before `END_DATE`, flag it to the user before producing the report.
 
-Also read the previous `report.md` **⭐ Highlight** block: it is the default source for the new report's Highlight section (see step 5). Do not rebuild the Highlight from `context.md`.
+The Highlight section comes from the user, not from this repo: ask for the block if the request doesn't carry it. Read the previous `report.md` **⭐ Highlight** block only as the fallback when none is supplied (see step 5). Do not rebuild the Highlight from `context.md`.
 
 ### 4. Build new context.md
 
@@ -148,7 +148,7 @@ A note may carry the manual `recurrent-conflict` token (see *Conflict tracking &
 **Per-PR logic** (in priority order):
 1. **Carry forward** from last week — preserve priority and manual note; never overwrite with auto-detected
 2. **Auto-detect** if no manual entry (first match):
-   - AI verdict `REQUEST CHANGES` → `In progress` note `AI: changes requested`. Wins over all checks below. (`NEEDS DISCUSSION` does not route here; it stays in its normal category with a `AI: needs discussion` note.)
+   - AI verdict `REQUEST CHANGES` → `In progress` note `AI: changes requested`. Wins over all checks below. (`NEEDS DISCUSSION` does not route here; it stays in its normal category with a `AI: needs discussion` note, appended to whatever note the checks below produce — a draft reads `In progress, AI: needs discussion`.)
    - `isDraft` → `In progress`
    - `CHANGES_REQUESTED` and not stale → `Changes requested`. **Stale rule:** every user in `changes_requesters` is also in `reviewRequests`. Stale CRs fall through to the next checks and are treated as no-CR for the `Approved` check.
    - `don't merge` label → `Don't merge`
@@ -249,7 +249,7 @@ From DD/MM to DD/MM  **: Samourai crew**
 - AI `REQUEST CHANGES` PRs and drafts route to the In Progress subsections per *AI review routing*; no per-line AI marker.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - **In Progress subsections** (**Not approved by AI**, **Draft**) order by emoji tier ⚠️ → ✅ → plain → 💥 → 🚫 (each line assigned to its highest tier). Within each tier: fixes → features → chores, older first.
-- **Highlight section:** default to the previous `report.md`'s **⭐ Highlight** block verbatim, not `context.md`. Refresh each entry's emoji prefixes from current JSON and drop entries whose PR/issue is no longer open; keep manually-curated entries (issues, advisories, extra PRs). `context.md` `highlight:` lines are not a source for this section. Highlight entries may use free-text formatting.
+- **Highlight section:** the user supplies the block each week (curated outside this repo); ask for it if not given. Reproduce the entries verbatim, including merged and closed ones. Refresh only the emoji prefixes from current JSON; never add, drop, or reorder entries, and never rewrite a title. Falls back to the previous `report.md`'s **⭐ Highlight** block when the user supplies nothing. `context.md` `highlight:` lines are not a source for this section. Highlight entries may use free-text formatting.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
 - Do NOT fabricate PRs.
 
