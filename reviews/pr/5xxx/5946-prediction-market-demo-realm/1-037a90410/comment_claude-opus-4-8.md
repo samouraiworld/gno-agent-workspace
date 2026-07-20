@@ -1,4 +1,5 @@
 # Review: PR [#5946](https://github.com/gnolang/gno/pull/5946)
+Posted: https://github.com/gnolang/gno/pull/5946#pullrequestreview-4733431140
 Event: COMMENT
 
 ## Body
@@ -14,7 +15,7 @@ Realms under `examples/` are [pre-deployed to gno.land testnets](https://github.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5946-prediction-market-demo-realm/1-037a90410/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:74 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L74)
+## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:74 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L74) [posted](https://github.com/gnolang/gno/pull/5946#discussion_r3613044977)
 Critical: [`avl.Tree.Get`](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/p/nt/avl/v0/tree.gno#L58) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/p/nt/avl/v0/tree.gno#L58) returns a single value, so this assignment and the four others at lines [107](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L107) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L107), [121](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L121) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L121), [14](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/r/demo/predictionmarket/predictionmarket_test.gno#L14) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket_test.gno#L14) and [31](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/r/demo/predictionmarket/predictionmarket_test.gno#L31) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket_test.gno#L31) fail to typecheck. The four tests the description lists have never run, and [`ci / examples`](https://github.com/gnolang/gno/blob/037a90410/.github/workflows/ci-dir-examples.yml#L7-L10) · [↗](../../../../../.worktrees/gno-review-5946/.github/workflows/ci-dir-examples.yml#L7) will fail once it is released to run.
 
 <details><summary>repro</summary>
@@ -36,7 +37,7 @@ FAIL: 0 build errors, 1 test errors
 ```
 </details>
 
-## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:143 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L143)
+## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:143 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L143) [posted](https://github.com/gnolang/gno/pull/5946#discussion_r3613044980)
 Critical: `b.amount * totalPool` wraps `int64` before the division, so the payout goes negative and the [banker send](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L152) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L152) aborts. The limit is on the product, not on either amount, so 5,000,000,000 ugnot on each of two outcomes already crosses it and every bettor in that market is locked out for good. [`math/overflow`](https://github.com/gnolang/gno/blob/037a90410/gnovm/stdlibs/math/overflow/overflow_generated.gno#L583-L589) · [↗](../../../../../.worktrees/gno-review-5946/gnovm/stdlibs/math/overflow/overflow_generated.gno#L583) turns the wrap into a panic, as [`p/demo/tokens/grc20`](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/p/demo/tokens/grc20/token.gno#L193-L194) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/p/demo/tokens/grc20/token.gno#L193) does.
 
 <details><summary>repro</summary>
@@ -94,7 +95,7 @@ panic: invalid result:  + -1068046444ugnot = -1068046444ugnot: non-positive coin
 ```
 </details>
 
-## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:130-133 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L130)
+## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:130-133 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L130) [posted](https://github.com/gnolang/gno/pull/5946#discussion_r3613044989)
 Critical: when the declared outcome drew no bets, every claim panics here and the escrow stays in the realm for good. [`ResolveMarket`](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L104-L106) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L104) accepts any outcome in 0..2 without checking that anyone backed it, so a draw between two bettors split across Home and Away hits this on the first try. A market the admin never resolves ends the same way.
 
 <details><summary>repro</summary>
@@ -144,10 +145,10 @@ FAIL
 ```
 </details>
 
-## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:99-103 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L99)
+## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:99-103 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L99) [posted](https://github.com/gnolang/gno/pull/5946#discussion_r3613044993)
 Nothing stops the admin from betting, then resolving their own outcome and taking the pot: [`PlaceBet`](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L65-L72) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L65) admits the admin like any account, and there is no betting cutoff, oracle or dispute window. The package carries no doc comment saying a bettor is trusting the admin completely.
 
-## examples/gno.land/r/demo/predictionmarket/predictionmarket_test.gno:53-62 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket_test.gno#L53)
+## examples/gno.land/r/demo/predictionmarket/predictionmarket_test.gno:53-62 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket_test.gno#L53) [posted](https://github.com/gnolang/gno/pull/5946#discussion_r3613044995)
 Missing test: nothing places a bet or completes a claim, so both the overflow and the empty-winning-pool lock reach the chain unchallenged. The admin gate is also vacuous under `gno test`, where `unsafe.OriginCaller()` and `cur.Previous().Address()` are both the empty address.
 
 <details><summary>test cases</summary>
@@ -210,14 +211,14 @@ func TestClaimPayoutSmallStakeUnchanged(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:155 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L155)
+## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:155 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L155) [posted](https://github.com/gnolang/gno/pull/5946#discussion_r3613045002)
 Nit: `Render` ignores its `path` argument, so a single market page, a bettor's open positions and a claimable balance are all unreachable from the web view.
 
-## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:61 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L61)
+## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:61 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L61) [posted](https://github.com/gnolang/gno/pull/5946#discussion_r3613045006)
 Nit: the tree key is the decimal id and [`Iterate`](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/p/nt/avl/v0/tree.gno#L89) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/p/nt/avl/v0/tree.gno#L89) walks keys as strings, so `Render` lists market 10 before market 2.
 
-## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:44-47 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L44)
+## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:44-47 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L44) [posted](https://github.com/gnolang/gno/pull/5946#discussion_r3613045012)
 Suggestion: `admin` is fixed at deploy with no transfer path, so a lost key leaves every open market unresolvable and its escrow stranded. [`p/nt/ownable/v0`](https://github.com/gnolang/gno/blob/037a90410/examples/gno.land/p/nt/ownable/v0/ownable.gno#L1) · [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/p/nt/ownable/v0/ownable.gno#L1) is the usual shape in `examples/`.
 
-## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:70-72 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L70)
+## examples/gno.land/r/demo/predictionmarket/predictionmarket.gno:70-72 [↗](../../../../../.worktrees/gno-review-5946/examples/gno.land/r/demo/predictionmarket/predictionmarket.gno#L70) [posted](https://github.com/gnolang/gno/pull/5946#discussion_r3613045017)
 Suggestion: the accepted outcomes are hardcoded here, so a market cannot declare itself binary and a bettor can stake on Draw in a contest that cannot draw.
