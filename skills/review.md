@@ -347,7 +347,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 - Empty categories: "None". Never fabricate.
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Large PRs (>20 files): summarize by area first, then deep-dive critical paths.
-- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: run `./scripts/build-indexes.sh`, then `git add reviews/ docs/glossary.md index.html && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only. `build-indexes.sh` rewrites the root `index.html`, so it must be staged too.
+- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: run `./scripts/build-indexes.sh`, then `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only.
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
 - New findings surfaced after the initial draft (a follow-up question, a deeper dig) are folded into the review file and `comment_<model>.md`, verified with a real run, and committed/pushed in the same turn automatically — never ask whether to add them. Posting still waits for the literal `post`.
 - Never push to gnolang/gno.
@@ -361,13 +361,11 @@ When requested, write `overview.html` at the PR directory root — `reviews/pr/<
 
 Scope: explainer only — zero review state. No verdict, no findings, no reviewed sha, no round references. Exactly one pointer to the review: a `Review files` link to the PR directory tree on GitHub (`https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/pr/<thousand>xxx/<number>-<slug>/`).
 
-Back-to-index link to the root `index.html` at both the top and in the footer, relative path `../../../../index.html`.
-
 Content — pick what fits: plain-language explanation, request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic. Add a short Concepts section when the PR hinges on domain concepts the reader may not have (one-two plain sentences each). If the page mirrors PR logic in JS, verify the mirror against the PR's own tests before committing and state the result on the page. No emoji.
 
 Update `overview.html` only when new commits change the PR's own files. Base-only head bumps, new findings, verdict changes, and new review rounds never touch it.
 
-After writing or updating any `overview.html`, run `./scripts/build-indexes.sh` (regenerates `reviews/README.md` and the root `index.html`, served at `https://samouraiworld.github.io/gno-agent-workspace/`). Commit `index.html` with the review artifacts. Then open the page in the browser (`xdg-open <path>`); skip the open in subagent and batch runs.
+After writing or updating any `overview.html`, run `./scripts/build-indexes.sh` (regenerates `reviews/README.md`). Then open the page in the browser (`xdg-open <path>`); skip the open in subagent and batch runs.
 
 ## GitHub review draft (`comment_<model>.md`)
 
