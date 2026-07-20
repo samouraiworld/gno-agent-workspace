@@ -1,4 +1,5 @@
 # Review: PR [#5975](https://github.com/gnolang/gno/pull/5975)
+Posted: https://github.com/gnolang/gno/pull/5975#pullrequestreview-4733409532
 Event: COMMENT
 
 ## Body
@@ -10,7 +11,7 @@ Verified on e3b7a7934: a Go port of the three functions returns the same wrapped
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5975-parimutuel-payout-math/1-e3b7a7934/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## examples/gno.land/p/demo/parimutuel/parimutuel.gno:72-77 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L72-L77)
+## examples/gno.land/p/demo/parimutuel/parimutuel.gno:72-77 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L72-L77) [posted](https://github.com/gnolang/gno/pull/5975#discussion_r3613027222)
 Critical: a winner-takes-all payout wraps to negative at a pool of 3037000500 ugnot, about 3037 GNOT, and returns with no panic; `ImpliedProbabilityBps` wraps the same way at an outcome pool of 922337203685478. The [doc comment](https://github.com/gnolang/gno/blob/e3b7a7934/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L68-L71) bounds the individual amounts, but the `a*b` product is the real limit. [`overflow.Mul64p`](https://github.com/gnolang/gno/blob/e3b7a7934/gnovm/stdlibs/math/overflow/overflow_generated.gno#L582-L589) is already used for exactly this in [`p/demo/tokens/grc20`](https://github.com/gnolang/gno/blob/e3b7a7934/examples/gno.land/p/demo/tokens/grc20/token.gno#L193-L194).
 
 <details><summary>repro</summary>
@@ -50,7 +51,7 @@ FAIL    ./gno.land/p/demo/parimutuel
 ```
 </details>
 
-## examples/gno.land/p/demo/parimutuel/parimutuel.gno:40 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L40)
+## examples/gno.land/p/demo/parimutuel/parimutuel.gno:40 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L40) [posted](https://github.com/gnolang/gno/pull/5975#discussion_r3613027226)
 Critical: any outcome holding more than `10000-rakeBps` of the pool panics instead of paying out, so the market cannot be settled. `netPool` goes in as `totalPool`, so [the `winningPool cannot exceed totalPool` guard](https://github.com/gnolang/gno/blob/e3b7a7934/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L15-L17) compares a pre-rake quantity against a post-rake one. With a 5% rake on 1000, a winning pool of 951 panics, and [the winner-takes-all case](https://github.com/gnolang/gno/blob/e3b7a7934/examples/gno.land/p/demo/parimutuel/parimutuel_test.gno#L5-L10) panics under any nonzero rake.
 
 <details><summary>repro</summary>
@@ -84,7 +85,7 @@ CalculatePayoutWithRake<VPBlock(4,1)>(960,1000,960,500)
 ```
 </details>
 
-## examples/gno.land/p/demo/parimutuel/parimutuel.gno:36-39 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L36-L39)
+## examples/gno.land/p/demo/parimutuel/parimutuel.gno:36-39 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L36-L39) [posted](https://github.com/gnolang/gno/pull/5975#discussion_r3613027233)
 A negative `totalPool` returns 0 instead of panicking: `netPool` is computed before any validation, so `CalculatePayoutWithRake(100, -1000, 400, 0)` short-circuits at the `netPool <= 0` check while [`CalculatePayout` rejects the same input](https://github.com/gnolang/gno/blob/e3b7a7934/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L11). A caller with the sign wrong gets silent zeros everywhere.
 
 <details><summary>repro</summary>
@@ -118,7 +119,7 @@ FAIL    ./gno.land/p/demo/parimutuel
 ```
 </details>
 
-## examples/gno.land/p/demo/parimutuel/parimutuel_test.gno:5-10 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel_test.gno#L5-L10)
+## examples/gno.land/p/demo/parimutuel/parimutuel_test.gno:5-10 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel_test.gno#L5-L10) [posted](https://github.com/gnolang/gno/pull/5975#discussion_r3613027240)
 Missing test: no case uses a pool large enough for the product in `mulDiv` to leave int64, or a winning pool above `10000-rakeBps` of the total. The largest pool in the suite is 1000, six orders of magnitude below the wrap threshold, and the largest raked `winningPool` is 40% of the total.
 
 <details><summary>test cases</summary>
@@ -159,14 +160,14 @@ func TestRakeWithDominantWinningPool(t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/p/demo/parimutuel/parimutuel.gno:1 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L1)
+## examples/gno.land/p/demo/parimutuel/parimutuel.gno:1 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L1) [posted](https://github.com/gnolang/gno/pull/5975#discussion_r3613027244)
 Nit: the package has no `// Package parimutuel ...` comment, so its generated docs page opens on nothing. Sibling [`p/demo/svg`](https://github.com/gnolang/gno/blob/e3b7a7934/examples/gno.land/p/demo/svg/doc.gno#L2) keeps one in a `doc.gno`.
 
-## examples/gno.land/p/demo/parimutuel/parimutuel.gno:73-75 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L73-L75)
+## examples/gno.land/p/demo/parimutuel/parimutuel.gno:73-75 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L73-L75) [posted](https://github.com/gnolang/gno/pull/5975#discussion_r3613027247)
 Nit: the `c == 0` panic is unreachable. All three call sites, [`CalculatePayout`](https://github.com/gnolang/gno/blob/e3b7a7934/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L12-L14), [`ImpliedProbabilityBps`](https://github.com/gnolang/gno/blob/e3b7a7934/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L52-L54) and [the rake path](https://github.com/gnolang/gno/blob/e3b7a7934/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L36), pass a positive `c`.
 
-## examples/gno.land/p/demo/parimutuel/parimutuel_test.gno:84-91 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel_test.gno#L84-L91)
+## examples/gno.land/p/demo/parimutuel/parimutuel_test.gno:84-91 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel_test.gno#L84-L91) [posted](https://github.com/gnolang/gno/pull/5975#discussion_r3613027252)
 Nit: the name says implied probabilities sum to 10000, but every split here divides exactly. `ImpliedProbabilityBps` rounds down, so three outcomes of 1000 in a 3000 pool each return 3333 and sum to 9999.
 
-## examples/gno.land/p/demo/parimutuel/parimutuel.gno:32 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L32)
+## examples/gno.land/p/demo/parimutuel/parimutuel.gno:32 [↗](../../../../../.worktrees/gno-review-5975/examples/gno.land/p/demo/parimutuel/parimutuel.gno#L32) [posted](https://github.com/gnolang/gno/pull/5975#discussion_r3613027257)
 Suggestion: nothing exported returns the commission itself, only the payout net of it, so every realm routing the house cut re-derives `totalPool * rakeBps / 10000` inline with its own rounding.

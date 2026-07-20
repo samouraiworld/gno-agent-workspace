@@ -1,4 +1,5 @@
 # Review: PR [#5969](https://github.com/gnolang/gno/pull/5969)
+Posted: https://github.com/gnolang/gno/pull/5969#pullrequestreview-4733409931
 Event: COMMENT
 
 ## Body
@@ -12,7 +13,7 @@ Verified on 7e0728bd5: compiled each shape with the Go compiler and compared its
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5969-defined-pointer-type-semantics/1-7e0728bd5/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gnovm/pkg/gnolang/types.go:2564-2566 [↗](../../../../../.worktrees/gno-review-5969/gnovm/pkg/gnolang/types.go#L2564-L2566)
+## gnovm/pkg/gnolang/types.go:2564-2566 [↗](../../../../../.worktrees/gno-review-5969/gnovm/pkg/gnolang/types.go#L2564-L2566) [posted](https://github.com/gnolang/gno/pull/5969#discussion_r3613027671)
 `type S struct{ *I }` with `I` an interface passes this guard, and selecting `s.M` through it panics `should not happen`. Go rejects it at declaration with `embedded field type cannot be a pointer to an interface`, the sibling of the rule ported here. It reproduces on master too.
 
 <details><summary>repro</summary>
@@ -56,7 +57,7 @@ rm gnovm/tests/files/struct65.gno
 ```
 </details>
 
-## gnovm/pkg/gnolang/types.go:3129-3133 [↗](../../../../../.worktrees/gno-review-5969/gnovm/pkg/gnolang/types.go#L3129-L3133)
+## gnovm/pkg/gnolang/types.go:3129-3133 [↗](../../../../../.worktrees/gno-review-5969/gnovm/pkg/gnolang/types.go#L3129-L3133) [posted](https://github.com/gnolang/gno/pull/5969#discussion_r3613027674)
 `p.A` for `p` of type `*D1` panics `should not happen` instead of reporting a missing field, here and on master. Go rejects it because the `(*x).f` shorthand does not apply when the operand is itself a pointer type. The root strip in [`findEmbeddedFieldType`](https://github.com/gnolang/gno/blob/7e0728bd5/gnovm/pkg/gnolang/types.go#L2927-L2932) turns `*D1` into `D1` before the walk starts, so the crossing is entered one level too late and the field is reported found.
 
 <details><summary>repro</summary>
@@ -100,7 +101,7 @@ rm gnovm/tests/files/ptr14.gno
 ```
 </details>
 
-## gnovm/pkg/gnolang/types.go:3153-3160 [↗](../../../../../.worktrees/gno-review-5969/gnovm/pkg/gnolang/types.go#L3153-L3160)
+## gnovm/pkg/gnolang/types.go:3153-3160 [↗](../../../../../.worktrees/gno-review-5969/gnovm/pkg/gnolang/types.go#L3153-L3160) [posted](https://github.com/gnolang/gno/pull/5969#discussion_r3613027677)
 Missing test: nothing asserts that a defined pointer type no longer satisfies an interface through its base's methods. `VerifyImplementedBy` resolves through this same lookup, so suppressing methods past the crossing changes assignability, and [`method47`](https://github.com/gnolang/gno/blob/7e0728bd5/gnovm/tests/files/method47.gno#L1) through [`method50`](https://github.com/gnolang/gno/blob/7e0728bd5/gnovm/tests/files/method50.gno#L1), [`ptr12`](https://github.com/gnolang/gno/blob/7e0728bd5/gnovm/tests/files/ptr12.gno#L1), [`ptr13`](https://github.com/gnolang/gno/blob/7e0728bd5/gnovm/tests/files/ptr13.gno#L1) and [`struct64`](https://github.com/gnolang/gno/blob/7e0728bd5/gnovm/tests/files/struct64.gno#L1) cover selectors and declarations only.
 
 <details><summary>test cases</summary>
@@ -133,7 +134,7 @@ func main() {
 ```
 </details>
 
-## gnovm/tests/files/struct64b.gno:10 [↗](../../../../../.worktrees/gno-review-5969/gnovm/tests/files/struct64b.gno#L10)
+## gnovm/tests/files/struct64b.gno:10 [↗](../../../../../.worktrees/gno-review-5969/gnovm/tests/files/struct64b.gno#L10) [posted](https://github.com/gnolang/gno/pull/5969#discussion_r3613027686)
 Missing test: nothing covers the legal spelling the new embedded-pointer rejection must not catch, an alias of a pointer type. `type P = *D2; type S struct{ P }` is legal Go and reaches the same [guard](https://github.com/gnolang/gno/blob/7e0728bd5/gnovm/pkg/gnolang/types.go#L2564-L2566), which runs on every embedded field of every struct in every package.
 
 <details><summary>test cases</summary>

@@ -1,4 +1,5 @@
 # Review: PR [#5980](https://github.com/gnolang/gno/pull/5980)
+Posted: https://github.com/gnolang/gno/pull/5980#pullrequestreview-4733408508
 Event: COMMENT
 
 ## Body
@@ -14,7 +15,7 @@ Reproduced on c9aaed5c8: booting the node with the `connector_url` value the fie
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5980-yubihsm2-backed-signer/1-c9aaed5c8/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## tm2/pkg/bft/privval/signer/yubihsm/client.go:6-8 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/client.go#L6-L8)
+## tm2/pkg/bft/privval/signer/yubihsm/client.go:6-8 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/client.go#L6-L8) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026241)
 Critical: `github.com/certusone/yubihsm-go` is imported but missing from `go.mod` and `go.sum`, so the module does not build. The PR's checks are green because the build and test workflows are gated behind maintainer approval and never ran.
 
 <details><summary>repro</summary>
@@ -38,7 +39,7 @@ tm2/pkg/bft/privval/signer/yubihsm/client.go:8:2: no required module provides pa
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/yubihsm/config.go:9-12 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/config.go#L9-L12)
+## tm2/pkg/bft/privval/signer/yubihsm/config.go:9-12 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/config.go#L9-L12) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026243)
 Critical: following the `http://127.0.0.1:12345` example given here and in the `comment:` tag that lands in every generated `config.toml` makes the node fail to start. [`HTTPConnector.Request`](https://github.com/certusone/yubihsm-go/blob/v0.3.0/connector/http.go#L39) prepends `http://` itself, so `connector_url` has to be a bare `host:port`, and the hardcoded scheme also puts a TLS connector on another host out of reach. `ValidateBasic` accepts the broken form, so it only surfaces at node start.
 
 <details><summary>repro</summary>
@@ -72,7 +73,7 @@ unable to create the Gnoland node, unable to open YubiHSM2 session: Post "http:/
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/yubihsm/config.go:18-19 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/config.go#L18-L19)
+## tm2/pkg/bft/privval/signer/yubihsm/config.go:18-19 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/config.go#L18-L19) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026249)
 The password lands in `config.toml`, which [`WriteConfigFile`](https://github.com/gnolang/gno/blob/c9aaed5c8/tm2/pkg/bft/config/toml.go#L61) writes at 0644 and `gnoland config get` prints in full, while the key file this replaces is written at [0600](https://github.com/gnolang/gno/blob/c9aaed5c8/tm2/pkg/bft/privval/signer/local/key.go#L65). Anyone who can read the config and reach the connector can sign. Take the password from a file path or the environment instead.
 
 <details><summary>repro</summary>
@@ -106,7 +107,7 @@ git checkout go.mod go.sum
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/yubihsm/config.go:41-44 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/config.go#L41-L44)
+## tm2/pkg/bft/privval/signer/yubihsm/config.go:41-44 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/config.go#L41-L44) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026252)
 A section with `auth_key_id`, `key_id` and `password` filled in but an empty `connector_url` reads as disabled, so the node falls through to [`LoadOrMakeLocalSigner`](https://github.com/gnolang/gno/blob/c9aaed5c8/tm2/pkg/bft/privval/config.go#L157) and signs with the file key without saying anything. `gnoland config set` walks an operator straight into that state: setting `connector_url` first is rejected while the other three succeed. Either reject a partly-filled disabled section or warn at startup.
 
 <details><summary>repro</summary>
@@ -142,10 +143,10 @@ password       -> Updated configuration saved at
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/yubihsm/signer.go:82-87 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/signer.go#L82-L87)
+## tm2/pkg/bft/privval/signer/yubihsm/signer.go:82-87 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/signer.go#L82-L87) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026261)
 None of `newSigner`'s four failure exits destroys the session opened on the line above, so a failed start leaves an authenticated session and its keepalive goroutine holding one of the device's limited slots until the process exits. A wrong `key_id` reaches this, and each retry burns another slot.
 
-## tm2/pkg/bft/privval/config.go:110-126 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/config.go#L110-L126)
+## tm2/pkg/bft/privval/config.go:110-126 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/config.go#L110-L126) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026264)
 Missing test: nothing exercises `errNilYubiHSMConfig` or either `errMultipleSignerSourcesSet` branch, though the matching [`errNilRemoteSignerConfig`](https://github.com/gnolang/gno/blob/c9aaed5c8/tm2/pkg/bft/privval/config_test.go#L62) and [`errBothExternalSignersEnabled`](https://github.com/gnolang/gno/blob/c9aaed5c8/tm2/pkg/bft/privval/config_test.go#L272) rules are covered. The mutual-exclusion check is the only thing between an operator and two live signer sources.
 
 <details><summary>test cases</summary>
@@ -234,20 +235,20 @@ func TestPrivValidatorConfig_YubiHSMNewPrivValidator(t *testing.T) {
 ```
 </details>
 
-## tm2/pkg/bft/privval/config.go:38-42 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/config.go#L38-L42)
+## tm2/pkg/bft/privval/config.go:38-42 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/config.go#L38-L42) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026265)
 Nit: the struct's own doc comment above still says "At most one of RemoteSigner or TmkmsListener may be enabled" now that there are three mutually exclusive modes.
 
-## tm2/pkg/bft/privval/signer/local/key.go:83 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/local/key.go#L83)
+## tm2/pkg/bft/privval/signer/local/key.go:83 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/local/key.go#L83) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026270)
 Nit: this wraps everything `ParseFileKey` returns as "unable to unmarshal", so a malformed file now reads `unable to unmarshal FileKey from <path>: unable to unmarshal FileKey: EOF` and a `validate` failure gets labelled an unmarshal failure.
 
-## tm2/pkg/bft/privval/signer/local/key.go:89-92 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/local/key.go#L89-L92)
+## tm2/pkg/bft/privval/signer/local/key.go:89-92 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/local/key.go#L89-L92) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026272)
 Suggestion: the only caller is [`LoadFileKey`](https://github.com/gnolang/gno/blob/c9aaed5c8/tm2/pkg/bft/privval/signer/local/key.go#L81) in the same file, and the yubihsm signer never reads a `FileKey`. Splitting the function is fine; exporting it for a consumer that does not exist yet widens the package API for nothing.
 
-## tm2/pkg/bft/privval/signer/yubihsm/signer.go:15 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/signer.go#L15)
+## tm2/pkg/bft/privval/signer/yubihsm/signer.go:15 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/signer.go#L15) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026279)
 Nit: there are no AWS, GCP or Vault backed signers in the tree. The existing modes are the [local file](https://github.com/gnolang/gno/blob/c9aaed5c8/tm2/pkg/bft/privval/config.go#L157), the [gnokms remote client](https://github.com/gnolang/gno/blob/c9aaed5c8/tm2/pkg/bft/privval/config.go#L143) and the [tmkms listener](https://github.com/gnolang/gno/blob/c9aaed5c8/tm2/pkg/bft/privval/config.go#L201).
 
-## tm2/pkg/bft/privval/signer/yubihsm/signer.go:50 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/signer.go#L50)
+## tm2/pkg/bft/privval/signer/yubihsm/signer.go:50 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/signer.go#L50) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026283)
 Suggestion: [`parseSignDataEddsaResponse`](https://github.com/certusone/yubihsm-go/blob/v0.3.0/commands/response.go#L279-L283) copies the device payload into `Signature` with no length check of its own, and this passes it straight through, so a malformed response surfaces later as a rejected vote rather than a signer error. The public key gets a length check at construction; the signature deserves the same.
 
-## tm2/pkg/bft/privval/signer/yubihsm/signer.go:104-111 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/signer.go#L104-L111)
+## tm2/pkg/bft/privval/signer/yubihsm/signer.go:104-111 [↗](../../../../../.worktrees/gno-review-5980/tm2/pkg/bft/privval/signer/yubihsm/signer.go#L104-L111) [posted](https://github.com/gnolang/gno/pull/5980#discussion_r3613026285)
 Suggestion: [`GetPubKeyResponse`](https://github.com/certusone/yubihsm-go/blob/v0.3.0/commands/response.go#L83-L87) carries the key's `Algorithm` and only `KeyData` is read here, so pointing `key_id` at a non-Ed25519 object reports an unexpected public key length instead of naming the real problem.

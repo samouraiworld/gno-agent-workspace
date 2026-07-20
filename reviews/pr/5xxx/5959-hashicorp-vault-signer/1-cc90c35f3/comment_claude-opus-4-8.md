@@ -1,4 +1,5 @@
 # Review: PR [#5959](https://github.com/gnolang/gno/pull/5959)
+Posted: https://github.com/gnolang/gno/pull/5959#pullrequestreview-4733410288
 Event: COMMENT
 
 ## Body
@@ -14,7 +15,7 @@ Repros run at cc90c35f3.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5959-hashicorp-vault-signer/1-cc90c35f3/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## tm2/pkg/bft/privval/signer/vault/client.go:7 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/client.go#L7)
+## tm2/pkg/bft/privval/signer/vault/client.go:7 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/client.go#L7) [posted](https://github.com/gnolang/gno/pull/5959#discussion_r3613027941)
 Critical: `github.com/hashicorp/vault/api` is imported here but absent from the [direct requires in `go.mod`](https://github.com/gnolang/gno/blob/cc90c35f3/go.mod#L5-L62), so the module does not build. `go get` resolves v1.23.0 and 16 `require` lines, after which `tm2/pkg/bft/privval/...` builds and tests pass.
 
 <details><summary>repro</summary>
@@ -31,7 +32,7 @@ tm2/pkg/bft/privval/signer/vault/client.go:7:2: no required module provides pack
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/vault/config.go:16 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/config.go#L16)
+## tm2/pkg/bft/privval/signer/vault/config.go:16 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/config.go#L16) [posted](https://github.com/gnolang/gno/pull/5959#discussion_r3613027945)
 The `toml` tag puts the Vault token into `config.toml`, which the node [writes at mode 0644](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/config/toml.go#L61), while the validator key that token fetches is [written at 0600](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/signer/local/key.go#L65). An operator who fills the field trades a private key file for a world-readable credential that retrieves it.
 
 <details><summary>repro</summary>
@@ -79,7 +80,7 @@ rm tm2/pkg/bft/config/zz_token_test.go && git checkout go.mod go.sum
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/vault/signer.go:92-97 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/signer.go#L92-L97)
+## tm2/pkg/bft/privval/signer/vault/signer.go:92-97 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/signer.go#L92-L97) [posted](https://github.com/gnolang/gno/pull/5959#discussion_r3613027952)
 Vault returns a nil `Data` map when the latest version was deleted but not destroyed, so with `create_if_missing` the node generates a fresh key and writes it as a newer version. The deleted key survives in history but is no longer what the node reads. `vault kv undelete` no longer recovers the validator, and the node comes up under a pubkey the validator set does not know.
 
 <details><summary>repro</summary>
@@ -143,7 +144,7 @@ rm tm2/pkg/bft/privval/signer/vault/zz_softdelete_test.go && git checkout go.mod
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/vault/signer.go:135 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/signer.go#L135)
+## tm2/pkg/bft/privval/signer/vault/signer.go:135 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/signer.go#L135) [posted](https://github.com/gnolang/gno/pull/5959#discussion_r3613027956)
 `Put` carries no `KVOption`, so [no options block reaches Vault](https://github.com/hashicorp/vault/blob/api/v1.23.0/api/kv_v2.go#L230-L237) and the write is unconditional. Two nodes started with `create_if_missing` against the same path both read "not found", both write, and the loser signs with a key that is no longer in Vault. A [`cas=0` write is allowed only when the key does not exist](https://github.com/hashicorp/vault/blob/api/v1.23.0/api/kv_v2.go#L95), and the [`kvAPI` interface](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/signer/vault/client.go#L15) already carries the option.
 
 <details><summary>repro</summary>
@@ -227,7 +228,7 @@ FAIL	github.com/gnolang/gno/tm2/pkg/bft/privval/signer/vault	0.007s
 ```
 </details>
 
-## tm2/pkg/bft/privval/config.go:110-126 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/config.go#L110-L126)
+## tm2/pkg/bft/privval/config.go:110-126 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/config.go#L110-L126) [posted](https://github.com/gnolang/gno/pull/5959#discussion_r3613027960)
 Missing test: neither `errNilVaultConfig` nor `errMultipleSignerSourcesSet` is exercised, and the vault branch of [`NewSignerFromConfig`](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/config.go#L151-L154) is unreached by any test. `config_test.go` already covers the two neighbouring cases, [`errNilRemoteSignerConfig`](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/config_test.go#L62) and [`errBothExternalSignersEnabled`](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/config_test.go#L272).
 
 <details><summary>test cases</summary>
@@ -269,14 +270,14 @@ t.Run("vault and tmkms listener both configured rejected", func(t *testing.T) {
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/local/key.go:83 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/local/key.go#L83)
+## tm2/pkg/bft/privval/signer/local/key.go:83 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/local/key.go#L83) [posted](https://github.com/gnolang/gno/pull/5959#discussion_r3613027965)
 Nit: a malformed file now carries the path prefix twice, since [line 96](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/signer/local/key.go#L96) adds its own copy. The wrap also catches the [`validate`](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/signer/local/key.go#L100-L102) errors that used to come back bare, so an address mismatch reports `unable to unmarshal FileKey from <path>: address does not match public key`. Wrap the file path once, where the file is read.
 
-## tm2/pkg/bft/privval/signer/vault/config.go:25 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/config.go#L25)
+## tm2/pkg/bft/privval/signer/vault/config.go:25 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/config.go#L25) [posted](https://github.com/gnolang/gno/pull/5959#discussion_r3613027969)
 Nit: an operator seeding the secret by hand has no way to learn it must land under the `priv_validator_key_json` field, a private constant at [`signer.go:17`](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/signer/vault/signer.go#L17). No `docs/validators/` page covers this mode, unlike [`tmkms.md`](https://github.com/gnolang/gno/blob/cc90c35f3/docs/validators/tmkms.md?plain=1#L1) for the listener.
 
-## tm2/pkg/bft/privval/signer/vault/config.go:47 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/config.go#L47)
+## tm2/pkg/bft/privval/signer/vault/config.go:47 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/signer/vault/config.go#L47) [posted](https://github.com/gnolang/gno/pull/5959#discussion_r3613027973)
 Nit: `TestConfig` returns `DefaultConfig()` verbatim and has no caller in the tree, since [`TestPrivValidatorConfig`](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/config.go#L65-L67) reaches Vault through `DefaultPrivValidatorConfig`.
 
-## tm2/pkg/bft/privval/config.go:124-126 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/config.go#L124-L126)
+## tm2/pkg/bft/privval/config.go:124-126 [↗](../../../../../.worktrees/gno-review-5959/tm2/pkg/bft/privval/config.go#L124-L126) [posted](https://github.com/gnolang/gno/pull/5959#discussion_r3613027979)
 Suggestion: this checks Vault against `RemoteSigner` and `TmkmsListener` only, and [#5956](https://github.com/gnolang/gno/pull/5956), [#5958](https://github.com/gnolang/gno/pull/5958), and [#5980](https://github.com/gnolang/gno/pull/5980) each add the same shape for their own backend. Merge two of them and a config enabling both Vault and AWS passes validation, [`NewSignerFromConfig`](https://github.com/gnolang/gno/blob/cc90c35f3/tm2/pkg/bft/privval/config.go#L140-L157) takes whichever branch comes first, and the duplicate `errMultipleSignerSourcesSet` declarations collide. A single list of enabled backends, rejected when longer than one, would scale across the four.

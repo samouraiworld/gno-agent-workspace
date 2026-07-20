@@ -1,4 +1,5 @@
 # Review: PR [#5951](https://github.com/gnolang/gno/pull/5951)
+Posted: https://github.com/gnolang/gno/pull/5951#pullrequestreview-4733411800
 Event: COMMENT
 
 ## Body
@@ -12,7 +13,7 @@ The red Merge Requirements check is the approval bot, not a code problem.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5951-multisig-treasury-demo-realm/1-9208bed41/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## examples/gno.land/r/demo/multisig/multisig.gno:120-122 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L120)
+## examples/gno.land/r/demo/multisig/multisig.gno:120-122 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L120) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029318)
 Critical: `TreasuryAddress` returns the caller's realm address, not the treasury's, so a realm that composes with this one funds itself. [`unsafe.CurrentRealm()`](https://github.com/gnolang/gno/blob/9208bed41/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno#L38-L40) stack-walks, so it resolves to whoever asked. Deriving the address from this package's own pkgpath, or from a threaded `cur realm`, makes both read paths agree.
 
 <details><summary>repro</summary>
@@ -50,7 +51,7 @@ data: ("g1ndz9e3hkgyz2xgzs9zuj5au9lf8hfncftf7vwh" string)
 The second address is the wrapper's own package address.
 </details>
 
-## examples/gno.land/r/demo/multisig/multisig.gno:47-55 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L47)
+## examples/gno.land/r/demo/multisig/multisig.gno:47-55 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L47) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029325)
 `Setup` accepts three owner addresses without checking they are distinct, then records `ownerCount = 3` whatever the tree holds. `Setup(A, A, A, 2)` leaves one owner and an unreachable threshold, so anything sent to the treasury is locked for good behind the one-shot `initialized`. The threshold bound at [line 47](https://github.com/gnolang/gno/blob/9208bed41/examples/gno.land/r/demo/multisig/multisig.gno#L47) checks the literal 3 rather than the owner set, so `Setup(A, A, B, 3)` fails the same way.
 
 <details><summary>repro</summary>
@@ -101,7 +102,7 @@ panic: not enough approvals
 ```
 </details>
 
-## examples/gno.land/r/demo/multisig/multisig.gno:67-81 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L67)
+## examples/gno.land/r/demo/multisig/multisig.gno:67-81 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L67) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029331)
 `Propose` stores the payout amount without checking its sign, so a negative or zero payout is only refused by the bank keeper inside [`Execute`](https://github.com/gnolang/gno/blob/9208bed41/examples/gno.land/r/demo/multisig/multisig.gno#L117). Both owners pay for an approval transaction on a proposal that can never settle, and with no cancel path it stays in the tree and in `Render` for good.
 
 <details><summary>repro</summary>
@@ -141,10 +142,10 @@ Execute at gno.land/r/demo/multisig/multisig.gno:117
 ```
 </details>
 
-## examples/gno.land/r/demo/multisig/multisig.gno:83-100 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L83)
+## examples/gno.land/r/demo/multisig/multisig.gno:83-100 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L83) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029337)
 Nothing in the realm removes an approval or a proposal. Once a payout reaches the threshold, [`Execute`](https://github.com/gnolang/gno/blob/9208bed41/examples/gno.land/r/demo/multisig/multisig.gno#L102-L118) settles it at any later block for any caller, so a proposal approved while the treasury was empty fires the moment someone funds the address. cw3-flex-multisig, the model the description names, expires proposals for this reason.
 
-## examples/gno.land/r/demo/multisig/multisig_test.gno:8-24 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig_test.gno#L8)
+## examples/gno.land/r/demo/multisig/multisig_test.gno:8-24 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig_test.gno#L8) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029344)
 Missing test: a threshold reached by distinct owners, and a payout that moves coins. Every test here is in-package and calls through the same `cur`, so [`TestApproveIncrementsCount`](https://github.com/gnolang/gno/blob/9208bed41/examples/gno.land/r/demo/multisig/multisig_test.gno#L62-L71) never passes 1 of 2 and only the manual Test13 run exercises the state machine. The suite is also order-dependent: `gno test -run TestProposeCreatesProposal` panics with `multisig not initialized`, and six of the eight fail standalone.
 
 <details><summary>test cases</summary>
@@ -193,17 +194,17 @@ func TestExecutePaysRecipient(cur realm, t *testing.T) {
 The same flow across three real keys on a node, asserting `bank/balances`, is at [`tests/multisig_flow.txtar`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5951-multisig-treasury-demo-realm/1-9208bed41/tests/multisig_flow.txtar).
 </details>
 
-## examples/gno.land/r/demo/multisig/multisig.gno:14-22 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L14)
+## examples/gno.land/r/demo/multisig/multisig.gno:14-22 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L14) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029348)
 Nit: `Proposal` is exported but every field is unexported and there are no accessors, so the only way for another realm to read a proposal is to scrape `Render` output. `approveCnt` also duplicates what [`approvals.Size()`](https://github.com/gnolang/gno/blob/9208bed41/examples/gno.land/p/nt/avl/v0/tree.gno#L39) already knows, and `Execute` trusts the counter.
 
-## examples/gno.land/r/demo/multisig/multisig.gno:79 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L79)
+## examples/gno.land/r/demo/multisig/multisig.gno:79 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L79) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029352)
 Nit: proposal ids are stored as decimal strings, so once there are ten proposals [`Render`](https://github.com/gnolang/gno/blob/9208bed41/examples/gno.land/r/demo/multisig/multisig.gno#L132-L144) lists them as 1, 10, 11, 2.
 
-## examples/gno.land/r/demo/multisig/multisig.gno:124 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L124)
+## examples/gno.land/r/demo/multisig/multisig.gno:124 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L124) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029357)
 Nit: `Render` takes `path` and never reads it, so `:1` and `:anything` both return the full list.
 
-## examples/gno.land/r/demo/multisig/multisig.gno:34-37 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L34)
+## examples/gno.land/r/demo/multisig/multisig.gno:34-37 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L34) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029362)
 Suggestion: realms under `examples/` are uploaded at genesis, so on a public chain the account `init` records is the genesis deployer and no reader can run the demo. `Setup` refuses everyone else, so one owner set exists for the life of the realm. A factory that mints a multisig per caller would make it something people can try.
 
-## examples/gno.land/r/demo/multisig/multisig.gno:102-118 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L102)
+## examples/gno.land/r/demo/multisig/multisig.gno:102-118 [↗](../../../../../.worktrees/gno-review-5951/examples/gno.land/r/demo/multisig/multisig.gno#L102) [posted](https://github.com/gnolang/gno/pull/5951#discussion_r3613029368)
 Suggestion: nothing here emits an event, so following the treasury means polling [`Render`](https://github.com/gnolang/gno/blob/9208bed41/examples/gno.land/r/demo/multisig/multisig.gno#L124-L146). A [`chain.Emit`](https://github.com/gnolang/gno/blob/9208bed41/gnovm/stdlibs/chain/emit_event.gno#L18) on `Propose` and `Execute` would let a wallet or indexer show pending payouts.

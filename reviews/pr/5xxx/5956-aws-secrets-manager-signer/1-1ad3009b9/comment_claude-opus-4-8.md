@@ -1,4 +1,5 @@
 # Review: PR [#5956](https://github.com/gnolang/gno/pull/5956)
+Posted: https://github.com/gnolang/gno/pull/5956#pullrequestreview-4733411280
 Event: COMMENT
 
 ## Body
@@ -12,7 +13,7 @@ Repros run at 1ad3009b9.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5956-aws-secrets-manager-signer/1-1ad3009b9/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## tm2/pkg/bft/privval/signer/awssecretsmanager/client.go:7-8 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/client.go#L7-L8)
+## tm2/pkg/bft/privval/signer/awssecretsmanager/client.go:7-8 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/client.go#L7-L8) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028805)
 Critical: the three `aws-sdk-go-v2` import paths are missing from `go.mod` and `go.sum`. gno is a single module, so `go build ./...` fails on every target, not just this package. Adding the two module roots makes everything under `tm2/pkg/bft/privval` build and pass.
 
 <details><summary>repro</summary>
@@ -34,10 +35,10 @@ exit=1
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go:131-133 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go#L131-L133)
+## tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go:131-133 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go#L131-L133) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028809)
 `CreateSecret` is called without `KmsKeyId`, so a key minted by `create_if_missing` is encrypted under the `aws/secretsmanager` default key, which [every user and role in the account can use](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_CreateSecret.html). Only the secret's own resource policy then guards the validator key, and [`Config`](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/signer/awssecretsmanager/config.go#L6-L25) offers no way to name a customer-managed key.
 
-## tm2/pkg/bft/privval/signer/awssecretsmanager/config.go:11 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/config.go#L11)
+## tm2/pkg/bft/privval/signer/awssecretsmanager/config.go:11 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/config.go#L11) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028816)
 `secret_id` is documented as an ARN or a name, but [`createAndStoreKey` passes it as `CreateSecret`'s `Name`](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go#L132), and [`Name` allows only letters, numbers and `/_+=.@-`](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_CreateSecret.html), so an ARN's colons are rejected. An ARN plus `create_if_missing` therefore fails at node startup with an opaque `InvalidParameterException`, and [`ValidateBasic`](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/signer/awssecretsmanager/config.go#L49-L53) returns nil unconditionally so config load never catches it.
 
 <details><summary>repro</summary>
@@ -71,10 +72,10 @@ FAIL
 ```
 </details>
 
-## tm2/pkg/bft/privval/config.go:38-42 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/config.go#L38-L42)
+## tm2/pkg/bft/privval/config.go:38-42 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/config.go#L38-L42) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028819)
 Any host with the IAM role can fetch the key, while [the sign state guarding against double-signing is a file under the node's own `RootDir`](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/config.go#L206-L210). Two nodes pointed at the same `secret_id` come up as the same validator with independent state files and equivocate at the first contested height. gnokms and tmkms avoid this because the key never leaves the signer process, so document here that exactly one node may hold the secret.
 
-## tm2/pkg/bft/privval/config.go:110-126 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/config.go#L110-L126)
+## tm2/pkg/bft/privval/config.go:110-126 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/config.go#L110-L126) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028825)
 Missing test: nothing in the privval package exercises `errNilAWSSecretsManagerCfg` or `errMultipleSignerSourcesSet`, in either `ValidateBasic` or `NewPrivValidatorFromConfig`, though every earlier rule of this kind has a subtest: [nil remote signer config](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/config_test.go#L56-L63) and [both external signers enabled](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/config_test.go#L262-L273). A later edit dropping the exclusion term would go unnoticed, and the first mode in source order would silently win.
 
 <details><summary>test cases</summary>
@@ -166,7 +167,7 @@ func TestNewPrivValidatorFromConfigAWSSecretsManager(t *testing.T) {
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go:107-116 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go#L107-L116)
+## tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go:107-116 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go#L107-L116) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028832)
 Missing test: [the mock only ever returns `SecretString`](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/signer/awssecretsmanager/awssecretsmanager_test.go#L48), so `secretPayload`'s `SecretBinary` fallback and its `errEmptySecretValue` return never run. A secret created outside gno through the console's binary upload takes the untested branch on every startup.
 
 <details><summary>test cases</summary>
@@ -205,14 +206,14 @@ func TestSecretPayload(t *testing.T) {
 ```
 </details>
 
-## tm2/pkg/bft/privval/signer/local/key.go:81-84 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/local/key.go#L81-L84)
+## tm2/pkg/bft/privval/signer/local/key.go:81-84 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/local/key.go#L81-L84) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028836)
 Nit: validation failures now arrive wrapped as `unable to unmarshal FileKey from <path>: address does not match public key`, naming unmarshalling for a file that unmarshalled fine. Unmarshal failures get the prefix twice, since [`ParseFileKey` already adds one](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/signer/local/key.go#L96).
 
-## tm2/pkg/bft/privval/signer/awssecretsmanager/config.go:37-40 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/config.go#L37-L40)
+## tm2/pkg/bft/privval/signer/awssecretsmanager/config.go:37-40 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/config.go#L37-L40) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028846)
 Nit: `TestConfig` has no callers anywhere in the tree, unlike the [`TestRemoteSignerClientConfig`](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/signer/remote/client/config.go#L46) pattern it copies, which [its own config test](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/signer/remote/client/config_test.go#L28) exercises.
 
-## tm2/pkg/bft/privval/signer/awssecretsmanager/awssecretsmanager_test.go:25-26 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/awssecretsmanager_test.go#L25-L26)
+## tm2/pkg/bft/privval/signer/awssecretsmanager/awssecretsmanager_test.go:25-26 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/awssecretsmanager_test.go#L25-L26) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028850)
 Nit: `createErr` is honored by the mock but never set by any test, so the [`CreateSecret` failure path](https://github.com/gnolang/gno/blob/1ad3009b9/tm2/pkg/bft/privval/signer/awssecretsmanager/signer.go#L131-L136) never runs.
 
-## tm2/pkg/bft/privval/signer/awssecretsmanager/config.go:6-25 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/config.go#L6-L25)
+## tm2/pkg/bft/privval/signer/awssecretsmanager/config.go:6-25 [↗](../../../../../.worktrees/gno-review-5956/tm2/pkg/bft/privval/signer/awssecretsmanager/config.go#L6-L25) [posted](https://github.com/gnolang/gno/pull/5956#discussion_r3613028855)
 Suggestion: this mode ships no operator docs, so the required IAM actions, the expected secret payload shape and the single-node constraint live only in TOML comments. A short `docs/validators/aws-secrets-manager.md` alongside [the tmkms page](https://github.com/gnolang/gno/blob/1ad3009b9/docs/validators/tmkms.md?plain=1#L1) would carry all three.
