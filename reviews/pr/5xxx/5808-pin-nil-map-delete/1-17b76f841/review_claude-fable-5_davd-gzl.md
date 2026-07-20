@@ -4,8 +4,7 @@ URL: https://github.com/gnolang/gno/pull/5808
 Author: omarsy | Base: master | Files: 3 | +107 -0
 Reviewed by: davd-gzl | Model: claude-fable-5 | Commit: `17b76f841` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5808 17b76f841`
-Overview: [visual overview](../overview.html) · [↗](../overview.html)
-
+Overview: [visual overview](../overview.html)
 **TL;DR:** Go's rule is that `delete` on a nil (never-initialized) map silently does nothing; GnoVM used to crash there, and the crash fix already merged in #5196. This PR adds no runtime code: it adds two test files and a design note pinning that behavior across more situations, including one deliberate difference from standard Go around keys that cannot be hashed (like slices).
 
 **Verdict: REQUEST CHANGES** — the pinned unhashable-key divergence rests on an unrecoverable-abort constraint that this branch's own master merge removed (slice-key map panics are recoverable since #5501), and [`zrealm_mapnil.gno:10`](https://github.com/gnolang/gno/blob/17b76f841/gnovm/tests/files/zrealm_mapnil.gno#L10) · [↗](../../../../../.worktrees/gno-review-5808/gnovm/tests/files/zrealm_mapnil.gno#L10) cites a readonly API the same merge deleted; both texts need realigning before this merges as the record of intent.

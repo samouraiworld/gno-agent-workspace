@@ -4,8 +4,7 @@ URL: https://github.com/gnolang/gno/pull/5737
 Author: ltzmaxwell | Base: master | Files: 45 | +1562 -85
 Reviewed by: davd-gzl | Model: claude-opus-4-8 (xhigh) | Commit: `60dca7f36` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5737 60dca7f36`
-Overview: [visual overview](../overview.html) · [↗](../overview.html)
-
+Overview: [visual overview](../overview.html)
 Round 4. Head advanced `c26e69ed9` → `60dca7f36`, +3 commits, no rebase. The delta is exactly @omarsy's three 2026-07-14 findings, one commit each: the gnoweb state walker [nil-derefs a lazy bind](https://github.com/gnolang/gno/pull/5737#discussion_r3578551168), [`pb3_gen.go` was hand-edited](https://github.com/gnolang/gno/pull/5737#discussion_r3578551297) rather than generated, and the new `VPSubrefField` nil guard [panicked with a plain string](https://github.com/gnolang/gno/pull/5737#discussion_r3578551393). All three are fixed and verified here; no VM logic changed. Round-3 findings carry unchanged: the local-type persistence regression still reproduces, and the struct-carried-cycle persist test is still missing.
 
 **TL;DR:** A method value formed through an interface, like `g := i.M` or `defer i.M()`, used to be wired up the instant you wrote it. Go instead waits until the call to pick the concrete method and copy the receiver. This makes GnoVM wait too, so nil-panic timing, receiver snapshots, embedded promotion, and dynamic re-dispatch all match Go, and two interface-method-value VM crashes are fixed.

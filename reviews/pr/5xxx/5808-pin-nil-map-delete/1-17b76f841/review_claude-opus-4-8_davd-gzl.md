@@ -4,8 +4,7 @@ URL: https://github.com/gnolang/gno/pull/5808
 Author: omarsy | Base: master | Files: 3 | +107 -0
 Reviewed by: davd-gzl | Model: claude-opus-4-8 | Commit: `17b76f841` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5808 17b76f841`
-Overview: [visual overview](../overview.html) · [↗](../overview.html)
-
+Overview: [visual overview](../overview.html)
 Round note (2026-06-11): [review_claude-fable-5_davd-gzl.md](review_claude-fable-5_davd-gzl.md) reviewed this same commit and found verified issues this review missed (pinned rationale stale post-#5501, readonly-delete panic unpinned post-#5747); its verdict is REQUEST CHANGES. Prefer it for posting.
 
 **TL;DR:** Go's spec says `delete` on a nil map is a no-op. The actual VM fix already merged in #5196; this PR only adds tests and an ADR to pin the guard's full semantics, including one deliberate place where gno no-ops but the Go compiler panics (deleting with an unhashable key on a nil map).

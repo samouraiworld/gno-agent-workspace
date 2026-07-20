@@ -4,8 +4,7 @@ URL: https://github.com/gnolang/gno/pull/5808
 Author: omarsy | Base: master | Files: 3 | +107 -0
 Reviewed by: davd-gzl | Model: claude-opus-4-8-take2 | Commit: `17b76f841` (latest)
 Local worktree: `git -C gno worktree add .worktrees/gno-review-5808 17b76f841`
-Overview: [visual overview](../overview.html) · [↗](../overview.html)
-
+Overview: [visual overview](../overview.html)
 Round note (2026-06-11): blind validation run. [review_claude-fable-5_davd-gzl.md](review_claude-fable-5_davd-gzl.md) reviewed this same commit and surfaced the recoverability staleness as a posted Warning plus the unpinned readonly-delete panic; its verdict is REQUEST CHANGES. Prefer it for posting.
 
 **TL;DR:** In Go, `delete(m, k)` on a nil map does nothing. GnoVM used to crash instead. The actual one-line fix already merged in #5196; this PR only adds tests that lock in the corrected behavior across more ways of reaching a nil map, plus a design note (ADR) recording two deliberate edge-case choices.
