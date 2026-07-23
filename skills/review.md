@@ -23,7 +23,7 @@ Single-PR run, in order (multi-PR and batch runs wrap it via *Parallel dispatch*
 5. *Write tests* for test-shaped findings; *Gno vs Go comparison* when `.gno` code changed.
 6. Write the review file (*Output*); generate `overview.html` when the subject is complex (*PR overview*).
 7. Draft `comment_<model>.md` (*GitHub review draft*), run its *Final check* and QA agents.
-8. `./scripts/build-indexes.sh`, then one commit and push covering everything (pre-authorized; see *Rules*).
+8. One commit and push covering everything (pre-authorized; see *Rules*).
 9. Hand over: link each PR's `comment_<model>.md` draft, not only the review file, plus a "Decisions needed" list (borderline verdict, APPROVE confirmation, Open questions worth promoting) — one line each, omit when empty. Post only on the literal `post`.
 
 Run from the workspace root. After the review is finished, ask the user before opening the worktree in VSCode (`code <workspace-root>/.worktrees/gno-review-<number>`).
@@ -53,7 +53,7 @@ When `$ARGUMENTS` contains more than one PR, the parent first creates each PR's 
 
 > Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). The worktree already exists at `<worktree-path>` with the PR checked out — never `worktree add` or `gh pr checkout`. Follow every other step in that file — diff, comments, CI, deep read, write the review file, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
-Do not sequence the agents. After all return, the parent runs `./scripts/build-indexes.sh` once, then a single commit (`review: PRs <a> and <b>`) and push covering all reviews; subagents never commit or push.
+Do not sequence the agents. After all return, the parent makes a single commit (`review: PRs <a> and <b>`) and push covering all reviews; subagents never commit or push.
 
 ### Deep mode (multi-angle, single PR)
 
@@ -84,7 +84,7 @@ A PR outside `gnolang/gno` goes under `reviews/<repo>/`, not `reviews/pr/` (gno-
 
 - First review for a repo: create `reviews/<repo>/README.md` with the repo's GitHub link and a one-line description.
 - Write `reviews/<repo>/<number>-<short-slug>/review_<model>.md` and `comment_<model>.md`, same formats as below.
-- Skip gno-only steps: submodule worktree, glossary, invariant catalog, `build-indexes.sh`, gno blob/`↗` dual links. Cite plain `file:line` from the repo's own checkout.
+- Skip gno-only steps: submodule worktree, glossary, invariant catalog, gno blob/`↗` dual links. Cite plain `file:line` from the repo's own checkout.
 - Post via `gh` against the target repo (no `post-pr-review.py`), after the literal `post`.
 
 ## For each PR
@@ -347,7 +347,8 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 - Empty categories: "None". Never fabricate.
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Large PRs (>20 files): summarize by area first, then deep-dive critical paths.
-- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: run `./scripts/build-indexes.sh`, then `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only.
+- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only.
+- Never run `./scripts/build-indexes.sh` as part of a review. `reviews/README.md` regenerates only when the user asks for it.
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
 - New findings surfaced after the initial draft (a follow-up question, a deeper dig) are folded into the review file and `comment_<model>.md`, verified with a real run, and committed/pushed in the same turn automatically — never ask whether to add them. Posting still waits for the literal `post`.
 - Never push to gnolang/gno.
@@ -365,7 +366,7 @@ Content — pick what fits: plain-language explanation, request/state/dataflow d
 
 Update `overview.html` only when new commits change the PR's own files. Base-only head bumps, new findings, verdict changes, and new review rounds never touch it.
 
-After writing or updating any `overview.html`, run `./scripts/build-indexes.sh` (regenerates `reviews/README.md`). Then open the page in the browser (`xdg-open <path>`); skip the open in subagent and batch runs.
+After writing or updating any `overview.html`, open the page in the browser (`xdg-open <path>`); skip the open in subagent and batch runs.
 
 ## GitHub review draft (`comment_<model>.md`)
 
