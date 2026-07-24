@@ -92,13 +92,23 @@ caught by the banker on every path except zero. In both cases the strongest find
 nobody predicted: 5985's line-shift under `printer.Fprint`, and 5983's `selfPath` versus
 `cur.Sub` path divergence.
 
-## Post plan
+## Posted
 
-Post the five bot-mode drafts. 6002 and 5981 stay local drafts.
+All five bot-mode drafts are up. 6002 and 5981 stay local drafts.
 
-## Resume / finalize
+| PR | Review | Inline comments |
+|---|---|---|
+| [6003](https://github.com/gnolang/gno/pull/6003) | [pullrequestreview-4771979843](https://github.com/gnolang/gno/pull/6003#pullrequestreview-4771979843) | 2 |
+| [5998](https://github.com/gnolang/gno/pull/5998) | [pullrequestreview-4771981362](https://github.com/gnolang/gno/pull/5998#pullrequestreview-4771981362) | 3 |
+| [5986](https://github.com/gnolang/gno/pull/5986) | [pullrequestreview-4771982861](https://github.com/gnolang/gno/pull/5986#pullrequestreview-4771982861) | 2 |
+| [5985](https://github.com/gnolang/gno/pull/5985) | [pullrequestreview-4771984589](https://github.com/gnolang/gno/pull/5985#pullrequestreview-4771984589) | 4 |
+| [5983](https://github.com/gnolang/gno/pull/5983) | [pullrequestreview-4771987027](https://github.com/gnolang/gno/pull/5983#pullrequestreview-4771987027) | 9 |
 
-1. Re-dispatch any PR whose review file is missing, per `skills/review.md` *Parallel dispatch*.
-2. `git add reviews/ docs/glossary.md && git commit -m "review: batch of 7 open PRs" && git push`
-3. `./scripts/post-pr-review.py <n> <path>` for 6003, 5998, 5986, 5985, 5983, then commit the
-   script-updated drafts.
+## Still open
+
+- [6002](https://github.com/gnolang/gno/pull/6002) verdict is APPROVE and needs human
+  confirmation before it can be posted with `--approve`.
+- [5981](https://github.com/gnolang/gno/pull/5981) draft is REQUEST_CHANGES, awaiting a read.
+- `reviews/pr/5xxx/5994-bench-caller-controlled-gas-inputs/` and
+  `reviews/pr/5xxx/5996-guard-lastcommitid-query/` were already untracked before this batch and
+  are left uncommitted.

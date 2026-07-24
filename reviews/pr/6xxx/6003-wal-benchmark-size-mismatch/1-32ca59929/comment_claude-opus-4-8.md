@@ -1,4 +1,5 @@
 # Review: PR [#6003](https://github.com/gnolang/gno/pull/6003)
+Posted: https://github.com/gnolang/gno/pull/6003#pullrequestreview-4771979843
 Event: COMMENT
 
 ## Body
@@ -12,7 +13,7 @@ Repros run at 32ca59929.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6003-wal-benchmark-size-mismatch/1-32ca59929/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## tm2/pkg/bft/wal/wal_test.go:291-293 [↗](../../../../../.worktrees/gno-review-6003/tm2/pkg/bft/wal/wal_test.go#L291-L293)
+## tm2/pkg/bft/wal/wal_test.go:291-293 [↗](../../../../../.worktrees/gno-review-6003/tm2/pkg/bft/wal/wal_test.go#L291-L293) [posted](https://github.com/gnolang/gno/pull/6003#discussion_r3644371987)
 `BenchmarkWalRead1GB` peaks at 12.3 GB resident for a single iteration, so the package's benchmark run goes from 46 MB to 12.8 GB and is OOM-killed under a 12 GiB budget. Consensus opens the WAL at a [1 MB max record size](https://github.com/gnolang/gno/blob/32ca59929/tm2/pkg/bft/consensus/reactor.go#L29) · [↗](../../../../../.worktrees/gno-review-6003/tm2/pkg/bft/consensus/reactor.go#L29), so a real node's writer rejects a record this size.
 
 <details><summary>repro</summary>
@@ -41,7 +42,7 @@ MAX_RSS_MB=12313
 ```
 </details>
 
-## tm2/pkg/bft/wal/wal_test.go:275-277 [↗](../../../../../.worktrees/gno-review-6003/tm2/pkg/bft/wal/wal_test.go#L275-L277)
+## tm2/pkg/bft/wal/wal_test.go:275-277 [↗](../../../../../.worktrees/gno-review-6003/tm2/pkg/bft/wal/wal_test.go#L275-L277) [posted](https://github.com/gnolang/gno/pull/6003#discussion_r3644371996)
 Missing test: outside the benchmarks nothing in this package reads back a record above 64 KB. The tm2 job runs [`go test ... ./...`](https://github.com/gnolang/gno/blob/32ca59929/.github/workflows/_ci-go.yml#L124) · [↗](../../../../../.worktrees/gno-review-6003/.github/workflows/_ci-go.yml#L124) with no `-bench`, so CI never exercises the path this PR repairs. [`TestWALWriterReader`](https://github.com/gnolang/gno/blob/32ca59929/tm2/pkg/bft/wal/wal_test.go#L41-L67) · [↗](../../../../../.worktrees/gno-review-6003/tm2/pkg/bft/wal/wal_test.go#L41-L67) round-trips two messages with empty payloads.
 
 <details><summary>test cases</summary>

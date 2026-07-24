@@ -1,4 +1,5 @@
 # Review: PR [#5983](https://github.com/gnolang/gno/pull/5983)
+Posted: https://github.com/gnolang/gno/pull/5983#pullrequestreview-4771987027
 Event: COMMENT
 
 ## Body
@@ -10,7 +11,7 @@ Repros run at 7d9a11104.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5983-token-bound-account-realm/1-7d9a11104/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## examples/gno.land/r/zeycan1/tba/tba.gno:15 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L15)
+## examples/gno.land/r/zeycan1/tba/tba.gno:15 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L15) [posted](https://github.com/gnolang/gno/pull/5983#discussion_r3644377306)
 A copy of this file deployed at another path keeps this constant, so [`VaultAddress`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/zeycan1/tba/tba.gno#L64-L66) and [`Balance`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/zeycan1/tba/tba.gno#L68-L71) still answer for the original realm's vault, while [`Withdraw` spends through `cur.Sub`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/zeycan1/tba/tba.gno#L83-L85), which derives from the deployed path. The copy reports a balance its owner cannot spend, and the coins stay spendable by whoever holds that token id in `r/zeycan1/tba`. Rejecting a mismatch in `Setup` ties the two derivations together.
 
 <details><summary>repro</summary>
@@ -67,7 +68,7 @@ Withdraw at gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/tba/tba.gno:85
 ```
 </details>
 
-## examples/gno.land/r/zeycan1/tba/tba.gno:30-32 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L30-L32)
+## examples/gno.land/r/zeycan1/tba/tba.gno:30-32 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L30-L32) [posted](https://github.com/gnolang/gno/pull/5983#discussion_r3644377317)
 `admin` ends up as the chain's genesis key, not you: everything under `examples/` is [deployed by that key](https://github.com/gnolang/gno/blob/7d9a11104/gno.land/cmd/gnoland/start.go#L453) unless [`gnomod.toml` names a creator](https://github.com/gnolang/gno/blob/7d9a11104/gno.land/pkg/gnoland/genesis.go#L199-L207), and [`unsafe.PreviousRealm()` at package initialization](https://github.com/gnolang/gno/blob/7d9a11104/gnovm/stdlibs/internal/execctx/realm.go#L58-L69) resolves to the deploy signer. Only that key can call `Setup` or `Mint`. A literal admin address in the source, as in [r/gnoland/home](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/gnoland/home/home.gno#L16), also drops the `chain/runtime/unsafe` import that [the realm checklist](https://github.com/gnolang/gno/blob/7d9a11104/docs/resources/gno-ai-contract-review.md?plain=1#L140-L161) flags alongside `cur realm` parameters.
 
 <details><summary>repro</summary>
@@ -108,7 +109,7 @@ Mint at gno.land/r/zeycan1/tba/tba.gno:48
 ```
 </details>
 
-## examples/gno.land/r/zeycan1/tba/tba.gno:96-99 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L96-L99)
+## examples/gno.land/r/zeycan1/tba/tba.gno:96-99 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L96-L99) [posted](https://github.com/gnolang/gno/pull/5983#discussion_r3644377318)
 An unauthorized transfer [returns `ErrCallerIsNotOwnerOrApproved`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/p/demo/tokens/grc721/basic_nft.gno#L214-L217) instead of aborting, so the transaction commits, reports `OK!`, and moves nothing. [`Setup`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/zeycan1/tba/tba.gno#L39-L41), [`Mint`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/zeycan1/tba/tba.gno#L47-L49) and [`Withdraw`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/zeycan1/tba/tba.gno#L79-L81) all panic on their guards, so a caller reading transaction status has no reason to treat this one differently.
 
 <details><summary>repro</summary>
@@ -155,7 +156,7 @@ data: ("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0" .uverse.address)
 ```
 </details>
 
-## examples/gno.land/r/zeycan1/tba/tba.gno:34-43 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L34-L43)
+## examples/gno.land/r/zeycan1/tba/tba.gno:34-43 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L34-L43) [posted](https://github.com/gnolang/gno/pull/5983#discussion_r3644377320)
 Missing test: `gno test ./gno.land/r/zeycan1/tba` reports `[no test files]`, so nothing covers the admin gate, the owner gate, or vault control moving with the token. Writing them surfaces the [`init()` binding](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/zeycan1/tba/tba.gno#L30-L32) too: under `gno test` the origin caller is empty, so `admin` is an empty address no caller can match until a test assigns it.
 
 <details><summary>test cases</summary>
@@ -205,17 +206,17 @@ func setup(cur realm, t *testing.T) grc721.TokenID {
 ```
 </details>
 
-## examples/gno.land/r/zeycan1/tba/tba.gno:45 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L45)
+## examples/gno.land/r/zeycan1/tba/tba.gno:45 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L45) [posted](https://github.com/gnolang/gno/pull/5983#discussion_r3644377327)
 Nit: none of the fourteen exported functions carries a doc comment, and the admin-only and owner-only contracts appear only in panic strings. A realm published as a reference pattern gets read from its signatures.
 
-## examples/gno.land/r/zeycan1/tba/tba.gno:52 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L52)
+## examples/gno.land/r/zeycan1/tba/tba.gno:52 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L52) [posted](https://github.com/gnolang/gno/pull/5983#discussion_r3644377331)
 Nit: calling `Mint` before `Setup` aborts with `runtime error: nil pointer dereference` raised inside [`BasicNFT.exists`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/p/demo/tokens/grc721/basic_nft.gno#L425-L427), which names grc721 rather than the step that was skipped. Only the admin can reach it.
 
-## examples/gno.land/r/zeycan1/tba/tba.gno:83-85 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L83-L85)
+## examples/gno.land/r/zeycan1/tba/tba.gno:83-85 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L83-L85) [posted](https://github.com/gnolang/gno/pull/5983#discussion_r3644377337)
 Nit: an amount of zero passes every check and commits a transaction that moves nothing for 5,063,313 gas. Negative amounts, overdrafts and malformed recipients are all caught inside [`banker.SendCoins`](https://github.com/gnolang/gno/blob/7d9a11104/gnovm/stdlibs/chain/banker/banker.gno#L166-L175), so zero is the only value that gets through.
 
-## examples/gno.land/r/zeycan1/tba/tba.gno:131-136 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L131-L136)
+## examples/gno.land/r/zeycan1/tba/tba.gno:131-136 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L131-L136) [posted](https://github.com/gnolang/gno/pull/5983#discussion_r3644377343)
 Nit: `path` is discarded, so a `vm/qrender` of `:token/1` returns the [collection header from `RenderHome`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/p/demo/tokens/grc721/basic_nft.gno#L442-L448) with no vault address, balance, or owner. The per-token vault is the point of this realm and the page never shows it.
 
-## examples/gno.land/r/zeycan1/tba/tba.gno:116-129 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L116-L129)
+## examples/gno.land/r/zeycan1/tba/tba.gno:116-129 [↗](../../../../../.worktrees/gno-review-5983/examples/gno.land/r/zeycan1/tba/tba.gno#L116-L129) [posted](https://github.com/gnolang/gno/pull/5983#discussion_r3644377348)
 Suggestion: [`Withdraw`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/zeycan1/tba/tba.gno#L73-L86) and [`TransferFrom`](https://github.com/gnolang/gno/blob/7d9a11104/examples/gno.land/r/zeycan1/tba/tba.gno#L96-L99) are separate transactions, so a seller can empty the vault after a buyer reads `TokenInfo` and before the transfer lands. ERC-6551 has the same property, and it is the one thing a reader has to know before copying this pattern. A line on `Withdraw` saying the vault is drainable by the current owner up to the moment of transfer covers it.

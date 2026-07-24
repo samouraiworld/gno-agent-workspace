@@ -1,4 +1,5 @@
 # Review: PR [#5985](https://github.com/gnolang/gno/pull/5985)
+Posted: https://github.com/gnolang/gno/pull/5985#pullrequestreview-4771984589
 Event: COMMENT
 
 ## Body
@@ -10,7 +11,7 @@ Repros run at 639f73fb3.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5985-x-flag-run-test/1-639f73fb3/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## gnovm/cmd/gno/test.go:449-453 [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/test.go#L449-L453)
+## gnovm/cmd/gno/test.go:449-453 [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/test.go#L449-L453) [posted](https://github.com/gnolang/gno/pull/5985#discussion_r3644375577)
 An override name carries no package qualifier, so one flag rewrites the same-named var in every package under test, `_test.gno` and `_filetest.gno` files included. A single `-X Version=1.2.3 ./...` set `Version` in two unrelated packages. The [flag help](https://github.com/gnolang/gno/blob/639f73fb3/gnovm/cmd/gno/test.go#L196-L197) · [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/test.go#L196-L197) cites `go build -ldflags "-X ..."`, whose [documented form](https://pkg.go.dev/cmd/link) is `importpath.name=value` and which rejects the unqualified spelling.
 
 <details><summary>repro</summary>
@@ -70,7 +71,7 @@ pkgb=1.2.3
 ```
 </details>
 
-## gnovm/cmd/gno/xflag.go:46-75 [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/xflag.go#L46-L75)
+## gnovm/cmd/gno/xflag.go:46-75 [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/xflag.go#L46-L75) [posted](https://github.com/gnolang/gno/pull/5985#discussion_r3644375582)
 A name that matches nothing is silently ignored, so the run stays green on the default value. That includes the qualified `main.myVar=...` form the [Go linker](https://pkg.go.dev/cmd/link) requires. `-X Count=7` on `var Count = 3` and `-X Konst=z` on a `const` are equally quiet, where the linker errors with `main.Count: cannot set with -X: not a var of type string (type:int)`.
 
 <details><summary>repro</summary>
@@ -125,7 +126,7 @@ Konst=k
 ```
 </details>
 
-## gnovm/cmd/gno/xflag.go:83-88 [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/xflag.go#L83-L88)
+## gnovm/cmd/gno/xflag.go:83-88 [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/xflag.go#L83-L88) [posted](https://github.com/gnolang/gno/pull/5985#discussion_r3644375590)
 Reported line numbers stop matching the file on disk, because re-quoting collapses a multi-line raw string initializer to one line and the VM parses that re-render. A panic under a three-line `var Banner` reports `main.gno:7` with `-X` and `main.gno:10` without, and `gno test` puts the same file's type error at line 6 instead of line 9. Splicing the quoted value into the original bytes at the literal's own offsets would leave the rest of the file untouched.
 
 <details><summary>repro</summary>
@@ -175,7 +176,7 @@ main<VPBlock(1,1)>()
 ```
 </details>
 
-## gnovm/cmd/gno/run_test.go:22-33 [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/run_test.go#L22-L33)
+## gnovm/cmd/gno/run_test.go:22-33 [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/run_test.go#L22-L33) [posted](https://github.com/gnolang/gno/pull/5985#discussion_r3644375592)
 Missing test: `gno test -X`. Coverage stops at `gno run`, so deleting the [MemPackage patch loop](https://github.com/gnolang/gno/blob/639f73fb3/gnovm/cmd/gno/test.go#L449-L453) · [↗](../../../../../.worktrees/gno-review-5985/gnovm/cmd/gno/test.go#L449-L453) keeps the suite green.
 
 <details><summary>test cases</summary>

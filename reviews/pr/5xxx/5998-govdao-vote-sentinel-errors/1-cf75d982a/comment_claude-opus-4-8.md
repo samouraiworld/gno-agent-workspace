@@ -1,4 +1,5 @@
 # Review: PR [#5998](https://github.com/gnolang/gno/pull/5998)
+Posted: https://github.com/gnolang/gno/pull/5998#pullrequestreview-4771981362
 Event: COMMENT
 
 ## Body
@@ -10,7 +11,7 @@ Repros run at cf75d982a.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5998-govdao-vote-sentinel-errors/1-cf75d982a/review_claude-opus-4-8_davd-gzl.md [↗](review_claude-opus-4-8_davd-gzl.md)
 
-## examples/gno.land/r/gov/dao/v3/impl/govdao.gno:19-30 [↗](../../../../../.worktrees/gno-review-5998/examples/gno.land/r/gov/dao/v3/impl/govdao.gno#L19-L30)
+## examples/gno.land/r/gov/dao/v3/impl/govdao.gno:19-30 [↗](../../../../../.worktrees/gno-review-5998/examples/gno.land/r/gov/dao/v3/impl/govdao.gno#L19-L30) [posted](https://github.com/gnolang/gno/pull/5998#discussion_r3644373069)
 These sentinels live in the versioned implementation, but callers reach voting through [`gno.land/r/gov/dao`](https://github.com/gnolang/gno/blob/cf75d982a/examples/gno.land/r/gov/dao/proxy.gno#L101-L106), and [`UpdateImpl`](https://github.com/gnolang/gno/blob/cf75d982a/examples/gno.land/r/gov/dao/proxy.gno#L146-L160) swaps the implementation behind that entry point. The next implementation declares its own [`errors.New`](https://github.com/gnolang/gno/blob/cf75d982a/gnovm/stdlibs/errors/errors.gno#L44-L46) values, so after a swap a caller's `errors.Is` against [`ErrProposalNotFound`](https://github.com/gnolang/gno/blob/cf75d982a/examples/gno.land/r/gov/dao/v3/impl/govdao.gno#L20) goes false while the message stays identical, and the caller's branch silently stops firing. A sentinel that survives a swap has to be declared where the entry point is.
 
 <details><summary>repro</summary>
@@ -146,7 +147,7 @@ v3-sentinel-matches: false
 ```
 </details>
 
-## examples/gno.land/r/gov/dao/v3/impl/govdao_test.gno:338-402 [↗](../../../../../.worktrees/gno-review-5998/examples/gno.land/r/gov/dao/v3/impl/govdao_test.gno#L338-L402)
+## examples/gno.land/r/gov/dao/v3/impl/govdao_test.gno:338-402 [↗](../../../../../.worktrees/gno-review-5998/examples/gno.land/r/gov/dao/v3/impl/govdao_test.gno#L338-L402) [posted](https://github.com/gnolang/gno/pull/5998#discussion_r3644373072)
 Missing test: nothing asserts that a sentinel matches only itself. Replacing the body of [`ProposalClosedError.Is`](https://github.com/gnolang/gno/blob/cf75d982a/examples/gno.land/r/gov/dao/v3/impl/govdao.gno#L45-L47) with `return true` leaves this test green, and so would collapsing all five sentinels onto one value.
 
 <details><summary>test cases</summary>
@@ -177,5 +178,5 @@ func TestSentinelsAreDisjoint(t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/gov/dao/v3/impl/govdao.gno:120-133 [↗](../../../../../.worktrees/gno-review-5998/examples/gno.land/r/gov/dao/v3/impl/govdao.gno#L120-L133)
+## examples/gno.land/r/gov/dao/v3/impl/govdao.gno:120-133 [↗](../../../../../.worktrees/gno-review-5998/examples/gno.land/r/gov/dao/v3/impl/govdao.gno#L120-L133) [posted](https://github.com/gnolang/gno/pull/5998#discussion_r3644373077)
 Nit: no code realm can reach these returns. [`isValidCall`](https://github.com/gnolang/gno/blob/cf75d982a/examples/gno.land/r/gov/dao/v3/impl/govdao.gno#L214-L229) admits only a direct user call or a `maketx run` script. A realm calling [`dao.VoteOnProposal`](https://github.com/gnolang/gno/blob/cf75d982a/examples/gno.land/r/gov/dao/proxy.gno#L101-L106) on chain is turned away by [the one branch still returning an ad-hoc `errors.New`](https://github.com/gnolang/gno/blob/cf75d982a/examples/gno.land/r/gov/dao/v3/impl/govdao.gno#L108-L110), so it gets `proposal voting must be done directly by a user`, which no sentinel matches.
