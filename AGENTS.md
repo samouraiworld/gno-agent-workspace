@@ -30,6 +30,8 @@ When asked what was already reviewed (whether a PR was reviewed, what a past rev
 
 When asked to fix a gnolang/gno issue (bug, security fix, etc.), read and follow `skills/fix-issue.md`. Supports two modes: `fix` to implement and open a PR, `cleanup` to remove worktrees for merged PRs.
 
+After implementing a fix, propose a loop review. If approved, adversarially self-review the fix diff using `skills/review.md` Deep-mode lenses, run inline unless agents are requested. Loop (review, fix, re-review) autonomously until clean, then surface for approval; write no review file while looping. On approval write only `review_<model>.md` at the PR's review dir; if no PR exists yet, ask to create it first, then write there. Never write `comment_<model>.md`; never post.
+
 ## Weekly Report
 
 When asked to generate or update the weekly team report, read and follow `skills/weekly-report.md`. The data-gathering script is `scripts/weekly-report.sh`. Reports are saved in `reports/weekly/`.
