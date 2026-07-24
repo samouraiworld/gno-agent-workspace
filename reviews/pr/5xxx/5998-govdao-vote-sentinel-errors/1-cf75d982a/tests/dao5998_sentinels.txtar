@@ -1,0 +1,124 @@
+# Run: from a gno checkout:
+# gh pr checkout 5998 -R gnolang/gno && git checkout cf75d982a
+# curl -fsSL -o gno.land/pkg/integration/testdata/dao5998_sentinels.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5998-govdao-vote-sentinel-errors/1-cf75d982a/tests/dao5998_sentinels.txtar
+# go test -v -run 'TestTestdata/dao5998_sentinels' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/dao5998_sentinels.txtar
+
+# Who can actually reach the sentinels on chain, and whether a sentinel pointer
+# read out of impl's package state stays stable. At cf75d982a a maketx run
+# script matches them, a code realm is stopped by isValidCall before any
+# sentinel branch, and a pointer cached in tx N still compares equal in tx N+1.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/demo/voteproxy $WORK/voteproxy
+
+gnoland start
+
+# 1) a MsgRun script can match the sentinel with errors.Is
+gnokey maketx run -gas-fee 4300001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test member $WORK/run/sentinel.gno
+stdout 'notfound-is: true'
+stdout 'notfound-msg: proposal not found'
+stdout 'crossmatch: false'
+stdout 'cached-is: true'
+
+# 2) a code realm calling through the proxy never reaches the sentinel path
+gnokey maketx call -pkgpath gno.land/r/demo/voteproxy -func TryVote -gas-fee 1900001ugnot -gas-wanted 19_000_000 -chainid=tendermint_test member
+stdout 'realm-err: proposal voting must be done directly by a user'
+stdout 'realm-is-notfound: false'
+
+# 3) reading the sentinel from another realm and caching it in that realm's state
+gnokey maketx call -pkgpath gno.land/r/demo/voteproxy -func CacheSentinel -gas-fee 1900001ugnot -gas-wanted 19_000_000 -chainid=tendermint_test member
+stdout OK!
+
+# 4) does the cached pointer still match in a LATER transaction?
+gnokey maketx call -pkgpath gno.land/r/demo/voteproxy -func CheckCached -gas-fee 1900001ugnot -gas-wanted 19_000_000 -chainid=tendermint_test member
+stdout 'cached-eq: true cached-is: true'
+
+-- run/sentinel.gno --
+package main
+
+import (
+	"errors"
+
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main(cur realm) {
+	err := dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(999)))
+	println("notfound-is:", errors.Is(err, impl.ErrProposalNotFound))
+	println("notfound-msg:", err.Error())
+	println("crossmatch:", errors.Is(err, impl.ErrAlreadyVoted))
+
+	cached := impl.ErrProposalNotFound
+	println("cached-is:", errors.Is(err, cached))
+}
+-- voteproxy/voteproxy.gno --
+package voteproxy
+
+import (
+	"errors"
+
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func TryVote(cur realm) string {
+	err := dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(999)))
+	out := "realm-err: " + err.Error() + " realm-is-notfound: "
+	if errors.Is(err, impl.ErrProposalNotFound) {
+		return out + "true"
+	}
+	return out + "false"
+}
+
+var cached error
+
+// CacheSentinel stores a pointer to impl's realm-owned sentinel in this
+// realm's own state.
+func CacheSentinel(cur realm) {
+	cached = impl.ErrProposalNotFound
+}
+
+// CheckCached compares the pointer stored in a previous transaction with the
+// one read fresh in this transaction.
+func CheckCached(cur realm) string {
+	fresh := impl.ErrProposalNotFound
+	out := "cached-eq: "
+	if cached == fresh {
+		out += "true"
+	} else {
+		out += "false"
+	}
+	out += " cached-is: "
+	if errors.Is(fresh, cached) {
+		out += "true"
+	} else {
+		out += "false"
+	}
+	return out
+}
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}

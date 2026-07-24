@@ -1,0 +1,106 @@
+# Run: from a gno checkout:
+# gh pr checkout 5998 -R gnolang/gno && git checkout cf75d982a
+# curl -fsSL -o gno.land/pkg/integration/testdata/dao5998_closed.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5998-govdao-vote-sentinel-errors/1-cf75d982a/tests/dao5998_closed.txtar
+# go test -v -run 'TestTestdata/dao5998_closed' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/dao5998_closed.txtar
+
+# The closed-proposal path end to end on chain: the concrete *ProposalClosedError
+# reaches the caller, errors.Is matches ErrProposalClosed only, and the message
+# still reads "proposal closed. Accepted: true". At cf75d982a the VM's readonly
+# taint blocks the caller from writing the exported Accepted field.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+gnokey maketx run -gas-fee 4300001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test member $WORK/run/create.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2200001ugnot -gas-wanted 24_000_000 -args 0 -chainid=tendermint_test member
+stdout OK!
+
+# vote again on the now-closed proposal, from a run script
+gnokey maketx run -gas-fee 4300001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test member $WORK/run/closed.gno
+stdout 'closed-is: true'
+stdout 'concrete-ok: true'
+stdout 'accepted: true'
+stdout 'msg: proposal closed. Accepted: true'
+stdout 'notclosed-is: false'
+
+# the returned pointer cannot be mutated by the caller
+! gnokey maketx run -gas-fee 4300001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test member $WORK/run/mutate.gno
+stderr 'cannot directly modify readonly tainted object'
+
+-- run/create.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main(cur realm) {
+	preq := impl.NewAddMemberRequest(cross(cur), address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "portfolio")
+	dao.MustCreateProposal(cross(cur), preq)
+}
+-- run/closed.gno --
+package main
+
+import (
+	"errors"
+
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main(cur realm) {
+	err := dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	println("closed-is:", errors.Is(err, impl.ErrProposalClosed))
+	pce, ok := err.(*impl.ProposalClosedError)
+	println("concrete-ok:", ok)
+	println("accepted:", pce.Accepted)
+	println("msg:", err.Error())
+	println("notclosed-is:", errors.Is(err, impl.ErrProposalNotFound))
+}
+-- run/mutate.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main(cur realm) {
+	err := dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	pce := err.(*impl.ProposalClosedError)
+	// mutate the pointer handed back across the realm boundary
+	pce.Accepted = false
+	println("after-mutation:", pce.Error())
+}
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+}

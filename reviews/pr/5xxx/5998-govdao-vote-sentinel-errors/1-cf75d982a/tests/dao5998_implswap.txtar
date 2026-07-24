@@ -1,0 +1,118 @@
+# Run: from a gno checkout:
+# gh pr checkout 5998 -R gnolang/gno && git checkout cf75d982a
+# curl -fsSL -o gno.land/pkg/integration/testdata/dao5998_implswap.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5998-govdao-vote-sentinel-errors/1-cf75d982a/tests/dao5998_implswap.txtar
+# go test -v -run 'TestTestdata/dao5998_implswap' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/dao5998_implswap.txtar
+
+# dao.UpdateImpl swaps the implementation behind gno.land/r/gov/dao. The v4 stub
+# returns its own errors.New("proposal not found"), so at cf75d982a the message
+# a caller sees is unchanged while errors.Is against the v3 sentinel flips to
+# false. Sentinels declared on the proxy instead of the impl keep matching.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v4/impl $WORK/v4impl
+loadpkg gno.land/r/demo/upgrader $WORK/upgrader
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# before the swap: the v3 sentinel matches
+gnokey maketx run -gas-fee 4300001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test member $WORK/run/check.gno
+stdout 'msg: proposal not found'
+stdout 'v3-sentinel-matches: true'
+
+# swap the DAO implementation
+gnokey maketx call -pkgpath gno.land/r/demo/upgrader -func Upgrade -gas-fee 1900001ugnot -gas-wanted 19_000_000 -chainid=tendermint_test member
+stdout OK!
+
+# after the swap: identical message, sentinel no longer matches
+gnokey maketx run -gas-fee 4300001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test member $WORK/run/check.gno
+stdout 'msg: proposal not found'
+stdout 'v3-sentinel-matches: false'    # IS:     the caller's branch silently disappears
+# stdout 'v3-sentinel-matches: true'   # SHOULD: a version-independent sentinel keeps matching
+
+-- run/check.gno --
+package main
+
+import (
+	"errors"
+
+	"gno.land/r/gov/dao"
+	v3impl "gno.land/r/gov/dao/v3/impl"
+)
+
+func main(cur realm) {
+	err := dao.VoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(999)))
+	println("msg:", err.Error())
+	println("v3-sentinel-matches:", errors.Is(err, v3impl.ErrProposalNotFound))
+}
+-- v4impl/v4impl.gno --
+package impl
+
+import (
+	"errors"
+
+	"gno.land/r/gov/dao"
+)
+
+var ErrProposalNotFound = errors.New("proposal not found")
+
+type GovDAOv4 struct{}
+
+var _instance *GovDAOv4 = &GovDAOv4{}
+
+func GetInstance(_ int, rlm realm) *GovDAOv4 { return _instance }
+
+func (g *GovDAOv4) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (address, error) {
+	return "", errors.New("not implemented")
+}
+
+func (g *GovDAOv4) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid dao.ProposalID) {}
+
+func (g *GovDAOv4) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
+	return ErrProposalNotFound
+}
+
+func (g *GovDAOv4) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (g *GovDAOv4) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Executor) error {
+	return nil
+}
+
+func (g *GovDAOv4) Render(cur realm, pkgpath string, path string) string { return "v4" }
+-- upgrader/upgrader.gno --
+package upgrader
+
+import (
+	"gno.land/r/gov/dao"
+	v4impl "gno.land/r/gov/dao/v4/impl"
+)
+
+func Upgrade(cur realm) {
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(v4impl.GetInstance(0, cur), []string{"gno.land/r/demo/upgrader"}))
+}
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl", "gno.land/r/demo/upgrader"}))
+}

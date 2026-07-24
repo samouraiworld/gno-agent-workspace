@@ -1,0 +1,42 @@
+# Run: from a gno checkout:
+# gh pr checkout 5985 -R gnolang/gno && git checkout 639f73fb3
+# curl -fsSL -o gnovm/cmd/gno/testdata/test/flag_x_lines.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5985-x-flag-run-test/1-639f73fb3/tests/flag_x_lines.txtar
+# go test -v -run 'Test_Scripts/test/flag_x_lines$' ./gnovm/cmd/gno/
+# rm gnovm/cmd/gno/testdata/test/flag_x_lines.txtar
+#
+# patchXVars re-prints the whole file with go/printer, so the multi-line raw
+# string initializer collapses to one line and every position after it moves.
+# At the pinned hash the type error is reported at line 6 under -X and line 9
+# without it; when fixed, both report line 9.
+
+! gno test .
+
+stderr 'lines\.gno:9:9'
+
+! gno test -X Banner=hi .
+
+stderr 'lines\.gno:6:9'                # IS:     position shifted by three lines
+# stderr 'lines\.gno:9:9'              # SHOULD: position matches the file on disk
+
+-- lines.gno --
+package lines
+
+var Banner = `
+  welcome
+  to gno
+`
+
+func Broken() int {
+	return "not an int"
+}
+
+-- lines_test.gno --
+package lines
+
+import "testing"
+
+func TestNothing(t *testing.T) {}
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/lines'
