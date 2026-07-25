@@ -1,5 +1,6 @@
 # Contribution: PR [#5835](https://github.com/gnolang/gno/pull/5835) — `realm_only_gate` rule + regex gaps
 Event: APPROVE
+Posted: https://github.com/gnolang/gno/pull/5835#pullrequestreview-4780204840
 
 ## Body
 New example proposition, from [#5976](https://github.com/gnolang/gno/pull/5976), that slips every rule:
@@ -19,6 +20,8 @@ auditpattern -scan /path/to/my/realm
 ```
 
 Suggestion: the security material is spread across `gno-security-guide.md`, `gno-security.md`, and now `gno-ai-contract-review.md`, which overlap a lot. Worth consolidating to one deep reference plus the concise checklist, dropping the duplication. The harness rule comments and the contract-test corpus still point at `gno-security-guide.md`, not the concise guide.
+
+Verified on 96cce07a2: ran all 10 rules against every example above; the four slipped cases get zero hits, and the file-scope and New-name cases fire on the safe fixtures shown.
 
 After those fixes it looks good to merge to me. I can work on the follow-ups if needed.
 
