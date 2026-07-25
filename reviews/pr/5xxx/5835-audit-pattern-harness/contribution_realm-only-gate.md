@@ -1,14 +1,12 @@
 # Contribution draft: PR [5835](https://github.com/gnolang/gno/pull/5835) — `realm_only_gate` rule
 
-Not a review round. Rule + fixtures live in `.worktrees/gno-review-5835`, checked out on head `96cce07a2` (moul's `loadGnoSource` / `src.hit` line-map idiom). Postable comment: [`comment_realm-only-gate.md`](comment_realm-only-gate.md).
+Not a review round. Worktree `.worktrees/gno-review-5835` is kept at pristine head `96cce07a2` so the review anchors in comment.md stay correct; the rule edits are parked, not applied in place. Postable comment: [`comment_realm-only-gate.md`](comment_realm-only-gate.md).
 
-## State (all uncommitted in the worktree)
+## State
 
-- `run.go`: `realm_only_gate` case + `realmOnlyGateHits` in the new idiom.
-- `run_test.go`: `TestRealmOnlyGateRule`.
-- `expected/realm-only-gate.yaml`, `fixtures/realm-only-gate/{vulnerable,fixed}` (`reputation.gno` + `gnomod.toml`).
-- Harness suite green, including `TestAgentPatternContract/realm-only-gate` and `TestAgentPatternContractWithGNO/realm-only-gate` (both fixtures compile under `gno`).
-- Run against 5976's realm file: reports `reputation.gno:17`.
+- Rule + test edits parked in [`realm-only-gate.patch`](realm-only-gate.patch): `realm_only_gate` case + `realmOnlyGateHits` (moul's `loadGnoSource` / `src.hit` idiom) in `run.go`, `TestRealmOnlyGateRule` in `run_test.go`. `run.go`/`run_test.go` in the worktree are reverted to pristine.
+- `expected/realm-only-gate.yaml`, `fixtures/realm-only-gate/{vulnerable,fixed}` (`reputation.gno` + `gnomod.toml`) remain untracked in the worktree.
+- With the patch applied: harness suite green including `TestAgentPatternContract/realm-only-gate` and `TestAgentPatternContractWithGNO/realm-only-gate` (both fixtures compile under `gno`); run against 5976's realm reports `reputation.gno:17`.
 
 ## Gap it closes
 

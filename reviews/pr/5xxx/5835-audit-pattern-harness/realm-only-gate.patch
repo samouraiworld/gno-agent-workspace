@@ -1,0 +1,70 @@
+diff --git a/misc/audit-pattern-harness/internal/auditpattern/run.go b/misc/audit-pattern-harness/internal/auditpattern/run.go
+index 77b8077a7..38f3836b1 100644
+--- a/misc/audit-pattern-harness/internal/auditpattern/run.go
++++ b/misc/audit-pattern-harness/internal/auditpattern/run.go
+@@ -145,6 +145,8 @@ func RunRule(rule, dir string) ([]Hit, error) {
+ 		return renderMarkdownEscapeHits(dir)
+ 	case "payment_user_call":
+ 		return paymentUserCallHits(dir)
++	case "realm_only_gate":
++		return realmOnlyGateHits(dir)
+ 	case "origin_caller_auth":
+ 		return originCallerAuthHits(dir)
+ 	case "callback_param":
+@@ -354,6 +356,41 @@ func paymentUserCallHits(dir string) ([]Hit, error) {
+ 	return hits, nil
+ }
+ 
++// realmOnlyGateHits flags a "realms only" gate written as `if x.IsUserCall() {
++// panic }`. IsUserCall() is pkgPath == "", true only for a direct maketx call.
++// The ephemeral maketx run realm has a non-empty pkgPath, so IsUserCall() is
++// false there and a user script passes the gate. `if !x.IsUserCall()` requires
++// a direct user call and is correct, so only the negation-free form is flagged.
++// IsUser() covers both entry points.
++func realmOnlyGateHits(dir string) ([]Hit, error) {
++	files, err := gnoFiles(dir)
++	if err != nil {
++		return nil, err
++	}
++
++	var hits []Hit
++	for _, file := range files {
++		src, err := loadGnoSource(file)
++		if err != nil {
++			return nil, err
++		}
++		for i, line := range src.code {
++			trimmed := strings.TrimSpace(line)
++			if !strings.HasPrefix(trimmed, "if ") {
++				continue
++			}
++			if !strings.Contains(trimmed, ".IsUserCall()") {
++				continue
++			}
++			if strings.Contains(trimmed, "!") {
++				continue
++			}
++			hits = append(hits, src.hit(dir, file, i))
++		}
++	}
++	return hits, nil
++}
++
+ func originCallerAuthHits(dir string) ([]Hit, error) {
+ 	return lineContainsHits(dir, func(line string) bool {
+ 		trimmed := strings.TrimSpace(line)
+diff --git a/misc/audit-pattern-harness/internal/auditpattern/run_test.go b/misc/audit-pattern-harness/internal/auditpattern/run_test.go
+index e5fcb614d..4b83aaf95 100644
+--- a/misc/audit-pattern-harness/internal/auditpattern/run_test.go
++++ b/misc/audit-pattern-harness/internal/auditpattern/run_test.go
+@@ -93,6 +93,10 @@ func TestPaymentUserCallRule(t *testing.T) {
+ 	assertRuleCounts(t, "payment_user_call", "payment-user-call", 1, 0)
+ }
+ 
++func TestRealmOnlyGateRule(t *testing.T) {
++	assertRuleCounts(t, "realm_only_gate", "realm-only-gate", 1, 0)
++}
++
+ func TestOriginCallerAuthRule(t *testing.T) {
+ 	assertRuleCounts(t, "origin_caller_auth", "origin-caller-auth", 1, 0)
+ }
