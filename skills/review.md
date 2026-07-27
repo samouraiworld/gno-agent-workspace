@@ -10,7 +10,7 @@ Review one or more PRs from the `gnolang/gno` repository.
 
 **Input:** `$ARGUMENTS` — space-separated PR numbers or GitHub URLs. Process each PR independently.
 
-Every artifact is written for a human reader: verdict first, then narrative, then findings; concise prose, clickable references, self-sufficient files. Maximize signal per line: strip articles, hedging, filler; no emoji. Cut anything that doesn't change what the reader does next. Plain English everywhere, including test comments — real words, no shorthand like "decls". Lean on `docs/glossary.md`; name a concept rather than re-explain its mechanics.
+Every artifact is written for a human reader: verdict first, then narrative, then findings; concise prose, clickable references, self-sufficient files. Maximize signal per line: strip articles, hedging, filler; no emoji. Cut anything that doesn't change what the reader does next. Plain English everywhere, including test comments — real words, no shorthand like "decls". Name a concept rather than re-explain its mechanics.
 
 ## Workflow
 
@@ -60,7 +60,7 @@ Do not sequence the agents. After all return, the parent makes a single commit (
 Trigger: the user asks for a **parallel**, **red-team / blue-team**, or **deeper** review of one PR, or "review and loop until perfect". Deep mode runs many lenses on one PR; *Parallel dispatch* runs one reviewer across many PRs. Everything else — worktree, output format, comment.md, indexes, push rules — is identical to the normal flow.
 
 1. **Set up.** Run *Fetch & understand* and *Run tests*. Collect the diff, comments, CI status, and prior reviews once; hand the same paths to every agent.
-2. **Dispatch lens agents.** One message, multiple `Agent` calls (`subagent_type: general-purpose`) so they run concurrently. Default three lenses; add more for large PRs (perf, docs, consensus impact, API surface). Each prompt is self-contained — worktree path, PR number, diff path, prior-review paths, one narrow lens — tells the agent to load `skills/invariant-catalog.md` and `docs/glossary.md` and check the catalog classes in its lens, and returns findings in this skill's severity model (Critical / Warning / Nit / Suggestion) with `file:line` citations.
+2. **Dispatch lens agents.** One message, multiple `Agent` calls (`subagent_type: general-purpose`) so they run concurrently. Default three lenses; add more for large PRs (perf, docs, consensus impact, API surface). Each prompt is self-contained — worktree path, PR number, diff path, prior-review paths, one narrow lens — tells the agent to load `skills/invariant-catalog.md` and check the catalog classes in its lens, and returns findings in this skill's severity model (Critical / Warning / Nit / Suggestion) with `file:line` citations.
    - **Red team** — bugs, broken invariants, security holes, edge cases, determinism / gas issues, missing input validation, downstream footguns.
    - **Blue team** — missing tests, undocumented invariants, hardening gaps, misuse-inviting ergonomics, migration / rollback risk.
    - **Correctness** — does the code match the PR description and linked issue? Scope drift, silent behavior changes, contract mismatches.
@@ -84,7 +84,7 @@ A PR outside `gnolang/gno` goes under `reviews/<repo>/`, not `reviews/pr/` (gno-
 
 - First review for a repo: create `reviews/<repo>/README.md` with the repo's GitHub link and a one-line description.
 - Write `reviews/<repo>/<number>-<short-slug>/review_<model>.md` and `comment_<model>.md`, same formats as below.
-- Skip gno-only steps: submodule worktree, glossary, invariant catalog, gno blob/`↗` dual links. Cite plain `file:line` from the repo's own checkout.
+- Skip gno-only steps: submodule worktree, invariant catalog, gno blob/`↗` dual links. Cite plain `file:line` from the repo's own checkout.
 - Post via `gh` against the target repo (no `post-pr-review.py`), after the literal `post`.
 
 ## For each PR
@@ -107,7 +107,6 @@ A PR outside `gnolang/gno` goes under `reviews/<repo>/`, not `reviews/pr/` (gno-
 - Read the PR body, all comments (`gh api repos/gnolang/gno/issues/<number>/comments`), and review comments (`gh api repos/gnolang/gno/pulls/<number>/comments`). Note unresolved threads.
 - Read past reviews in `reviews/pr/<thousand>xxx/<number>-*/` first (`<thousand>` = leading digit(s): 4 for 4000–4999, 5 for 5000–5999). Focus on what changed since the last reviewed commit.
 - Read linked issues.
-- Read `docs/glossary.md` so its terms are in context while drafting findings; add any term you use but can't find there.
 - Read every changed file in full, not just diff hunks.
 - Map callers, dependents, and sibling files for blast radius.
 
@@ -249,16 +248,17 @@ Overview: [visual overview](../overview.html) <— include this line only when t
 
 **Verdict: APPROVE / REQUEST CHANGES / NEEDS DISCUSSION / CLOSE** — <one terse sentence: decision plus open concerns by name> (<finding counts, nonzero bands only, e.g. "2 Critical, 1 Warning, 4 Nits">). `CLOSE` only when the PR should not be merged at all (superseded, abandoned with no path forward, premise invalidated, wrong direction); cite the load-bearing reason in the same sentence.
 
-## Summary
-<2-4 dense sentences: the bug/feature, why it matters (anchor numbers — "20% of MaxTxBytes"), one-sentence shape of the fix. Jargon goes to Glossary.>
+## Verify first
+<Always include. One to three lines, highest stake first: the places a human must check themselves before merging. Each line is a dual-linked `file:line`, then one clause naming the property to confirm and the concrete way to confirm it. Point at load-bearing code, not at findings: the hunk everything else rests on, the guard the rest of the diff assumes, the constant that is wrong everywhere if it is wrong once. Repeat a finding here only when confirming it is the merge decision. Nothing vague: "run X and check Y", never "review carefully".>
 
-<Optional ASCII diagram when the bug/fix is shape-y.>
+## Summary
+<2-4 dense sentences: the bug/feature, why it matters (anchor numbers — "20% of MaxTxBytes"), one-sentence shape of the fix.>
+
+## Diagram
+<Include whenever the change is shape-y: a call chain crossing files or realms, a state machine, a lifecycle or ordering change, a before/after structure, a trust boundary. Draw the shape the reader must hold in their head, label nodes with real symbols, and mark the edge the diff changes. ASCII by default; a fenced `mermaid` graph once the shape passes six nodes or its edges cross. Skip when one sentence carries the same shape.>
 
 ## Examples
 <Optional. Concrete written-form to outcome rows (a short list or small table) that make a semantics change tangible: the input as a user would write it, and what it now does. No findings, no `file:line`, no decision; the divergent/buggy cases stay in Summary and the findings sections. Include only when examples land the behavior faster than prose: language/VM/type-system/API-shape PRs. Skip for refactors, plumbing, and bugfixes with no user-visible surface.>
-
-## Glossary
-<List the `docs/glossary.md` terms that appear below, one terse line each, in order of first use; include only if 2+ appear.>
 
 ## Fix
 <2-4 sentences prose: before-state, after-state, the load-bearing constraint. No code blocks. Link `file:Lstart-Lend` inline. Skip if the diff is purely additive/trivial.>
@@ -314,6 +314,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 ### Format rules
 
 - `<status>` is `latest` when `<short-sha>` matches the PR's current head, or `stale — +N commits since`; recomputed by `scripts/convert-review-links.py` on every run.
+- `Verify first` and `Diagram` stay in the review file and never reach comment.md.
 - Every finding line carries a plain-English priority tag, in every severity section, so the tag naming stays uniform across a review (`[bug can come back invisibly]`, not `[invariant decay risk]`). Only a trivial nit with no distinct risk drops it.
 - No bare `#<number>` in any text GitHub renders inside this repo (review/comment H1, commit subject): it autolinks to `samouraiworld/gno-agent-workspace#<number>`, the wrong repo. Link it (`[#<number>](pr-url)`) or drop the `#` (commit subjects).
 - Prose in `<details>` by default; labeled sub-bullets only for findings with a tangible repro.
@@ -331,6 +332,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 - Severity is binary. Warnings = a maintainer could plausibly block (correctness, security, decay, missing invariant). Nits = style, polish, optional. Borderline → Nit.
 - Severity is about whether it is a real defect, not how big. A small but genuine correctness/metering/decay bug (a constant that is wrong, a guard that was dropped) is a Warning even when the impact is a couple of gas; magnitude goes in the details, not the severity. Suggestions are for things that are not bugs at all: latent-only risks with no current trigger, and design tradeoffs. Downgrading a real bug because it is tiny is a miscalibration.
 - A cosmetic nit that no enabled linter enforces and that changes no meaning (doc-comment periods, comment wrapping, import order) stays in the review file and never reaches comment.md. Check the repo's linter config before flagging a style convention; `.github/golangci.yml` runs `default: none` with an explicit enable list. Record it in the review file with the config link and "not posted, no change needed".
+- A pre-existing defect is in scope when the diff is a sweep of that defect's own class and missed it, or when the PR makes the code permanent (a publish, a freeze, a release cut). Name the sweep commit or the freeze, and say the defect predates the diff.
 - Map the full call graph before claiming dead / redundant / unused. Grep every caller.
 - Never flag contribution-policy compliance (AGENTS.md ADR requirement, commit conventions). Findings cover the code only.
 - Never flag or critique the ADR — its wording, symbols it names, claims it makes. Don't reference "the ADR" or editorialize "as the ADR claims" anywhere; state behavior facts directly against the code by path. If the underlying code is wrong, the finding is about the code. When a code or test comment repeats a stale claim, anchor the finding on that comment.
@@ -347,7 +349,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 - Empty categories: "None". Never fabricate.
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Large PRs (>20 files): summarize by area first, then deep-dive critical paths.
-- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only.
+- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: `git add reviews/ && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only.
 - Never run `./scripts/build-indexes.sh` as part of a review. `reviews/README.md` regenerates only when the user asks for it.
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
 - New findings surfaced after the initial draft (a follow-up question, a deeper dig) are folded into the review file and `comment_<model>.md`, verified with a real run, and committed/pushed in the same turn automatically — never ask whether to add them. Posting still waits for the literal `post`.
