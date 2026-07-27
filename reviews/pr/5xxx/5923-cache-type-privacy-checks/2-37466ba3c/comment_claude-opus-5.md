@@ -1,12 +1,15 @@
 # Review: PR [#5923](https://github.com/gnolang/gno/pull/5923)
+Posted: https://github.com/gnolang/gno/pull/5923#pullrequestreview-4790426069
 Event: REQUEST_CHANGES
 
 ## Body
+[AI bot]
+
 Verified on 37466ba3c: two node runs that differ only by one simulated `addpkg` reach opposite outcomes on the same later transaction, and both runs behave identically at the merge-base d14a03770. Warm and cold gas match exactly on two realm shapes beyond the one [`typecache_restart_gas.txtar`](https://github.com/gnolang/gno/blob/37466ba3c/gno.land/pkg/integration/testdata/typecache_restart_gas.txtar) covers, so nothing in the memo's reach shows up in billed gas today.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5923-cache-type-privacy-checks/2-37466ba3c/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 
-## gnovm/pkg/gnolang/realm.go:1293-1296 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm.go#L1293-L1296)
+## gnovm/pkg/gnolang/realm.go:1293-1296 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/realm.go#L1293-L1296) [posted](https://github.com/gnolang/gno/pull/5923#discussion_r3660029942)
 Critical: a verdict computed inside a discarded transaction is kept, so simulating a public build of a path and then deploying a private package at that path leaves [the enforcement walk skipped](https://github.com/gnolang/gno/blob/37466ba3c/gnovm/pkg/gnolang/realm.go#L1420) for those types for the life of the process. An array of nil pointers to the private type then persists into a public realm, with no private object for [`assertObjectIsPublic`](https://github.com/gnolang/gno/blob/37466ba3c/gnovm/pkg/gnolang/realm.go#L1179-L1183) to catch. Simulation is [an ABCI query](https://github.com/gnolang/gno/blob/37466ba3c/tm2/pkg/crypto/keys/client/broadcast.go#L243) answered by one node and never replicated, so a validator that served it accepts a transaction that a validator that did not will panic on.
 
 <details><summary>repro</summary>
@@ -111,5 +114,5 @@ FAIL	github.com/gnolang/gno/gno.land/pkg/integration	1.433s
 Both files pass at the merge-base d14a03770.
 </details>
 
-## gnovm/pkg/gnolang/store.go:192-193 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/store.go#L192-L193)
+## gnovm/pkg/gnolang/store.go:192-193 [↗](../../../../../.worktrees/gno-review-5923/gnovm/pkg/gnolang/store.go#L192-L193) [posted](https://github.com/gnolang/gno/pull/5923#discussion_r3660029956)
 `TypeID` does not distinguish a type declared in a private package from a structurally identical one declared in a public package at the same path, and privacy is read from the [`PackageValue`](https://github.com/gnolang/gno/blob/37466ba3c/gnovm/pkg/gnolang/realm.go#L2333-L2339) at walk time rather than from anything the key carries. The same claim at [`realm.go:1421-1423`](https://github.com/gnolang/gno/blob/37466ba3c/gnovm/pkg/gnolang/realm.go#L1421-L1423) is what licenses skipping the enforcement walk, so it is the argument the optimization rests on. State which transactions a verdict may be drawn from instead.
