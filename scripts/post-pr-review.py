@@ -8,7 +8,7 @@ Post a GitHub PR review from a comment.md draft (see skills/review.md,
 
 Usage:
     ./scripts/post-pr-review.py <pr-number> <path-to-comment.md> [--repo OWNER/NAME]
-                                [--dry-run] [--skip-invalid]
+                                [--dry-run] [--skip-invalid] [--diff-file PATH]
 
 comment.md format:
     # Review: PR #<number>
@@ -132,14 +132,22 @@ def parse_comment_md(text):
     return event, body, comments
 
 
-def diff_right_lines(repo, pr):
+def diff_right_lines(repo, pr, diff_file=None):
     """Map path -> set of RIGHT-side line numbers present in the PR diff
     (added and context lines), by replaying the NEW-side line numbering
-    of the unified diff hunk by hunk."""
-    diff = subprocess.run(
-        ["gh", "pr", "diff", str(pr), "-R", repo],
-        capture_output=True, text=True, check=True,
-    ).stdout
+    of the unified diff hunk by hunk.
+
+    `gh pr diff` returns HTTP 406 once a diff passes 20000 lines, so
+    diff_file supplies the same unified diff from a local checkout:
+    `git diff $(git merge-base origin/<base> HEAD)..HEAD > <file>`."""
+    if diff_file:
+        with open(diff_file) as f:
+            diff = f.read()
+    else:
+        diff = subprocess.run(
+            ["gh", "pr", "diff", str(pr), "-R", repo],
+            capture_output=True, text=True, check=True,
+        ).stdout
     lines_by_path = {}
     path = None      # file currently being walked (None = deleted file)
     new_line = None  # NEW-side number of the next content line, None between hunks
@@ -320,6 +328,9 @@ def main():
                          "samouraiworld/gno-onboarding-bot, else gnolang/gno)")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the JSON payload without posting")
+    ap.add_argument("--diff-file", default=None,
+                    help="read the unified PR diff from a file instead of "
+                         "`gh pr diff`, which returns HTTP 406 past 20000 lines")
     ap.add_argument("--skip-invalid", action="store_true",
                     help="drop comments with anchors outside the diff instead of aborting")
     ap.add_argument("--approve", action="store_true",
@@ -351,7 +362,7 @@ def main():
 
     # Pre-flight: check every anchor against the diff so a single bad
     # line number doesn't make GitHub reject the whole review upload.
-    valid = diff_right_lines(args.repo, args.pr)
+    valid = diff_right_lines(args.repo, args.pr, args.diff_file)
 
     def in_diff(c):
         lines = valid.get(c["path"], set())

@@ -7,9 +7,11 @@ Local checkout: `.worktrees/gnodaokit-review-65` (plain clone, PR 65 checked out
 
 Round 3 (deep). Head advanced 60c4bf0 → 0eb8518, force-pushed: the branch absorbed [#67](https://github.com/samouraiworld/gnodaokit/pull/67), [#68](https://github.com/samouraiworld/gnodaokit/pull/68), [#69](https://github.com/samouraiworld/gnodaokit/pull/69), [#70](https://github.com/samouraiworld/gnodaokit/pull/70), [#71](https://github.com/samouraiworld/gnodaokit/pull/71) and [#72](https://github.com/samouraiworld/gnodaokit/pull/72), all merged into it rather than into `main`, taking the diff from 7 files to 225. Both round-2 blockers are closed and proved closed against real second realms. The avl work is unchanged and stays confirmed. What is new is a permanent exported surface, a 23k-line vendored tree with its own provenance workflow, and a proposal-lifecycle rewrite, none of which any review has seen before this one.
 
+Corrections made before posting, each from a run rather than a re-read. The `recover()` hazard the `Core.Execute` comment names is real: a host realm that recovers keeps the marker, so the finding is the visibility change alone and not the comment. The avl fork is correctly documented as an `f3d5a5d13` snapshot, so what survives is a Nit about the input checks it trails, not a Warning about the description. And `initdao` states its own harness limitation in the file, so the missing-fixture finding was dropped.
+
 **TL;DR:** Publishes the Samourai DAO framework at its original package paths on the launched topaz-1 chain, and carries with it the whole hardening series that was written after the last review: the DAO now refuses to act as anyone but its own realm, the dependency tree is vendored so the build no longer downloads from a live testnet, and the exported API is being settled because it can never change once published.
 
-**Verdict: REQUEST CHANGES** — the caller-identity work is real and holds, but the `daokit.DAO` interface still hands a caller's live realm to whatever implements it, and the new provenance workflow's exemption lets a file under `vendored/p/samcrew/avl/` claim any package path while the job reports green; both freeze on merge (2 Critical, 9 Warnings, 3 Missing tests, 13 Nits, 6 Suggestions).
+**Verdict: REQUEST CHANGES** — the caller-identity work is real and holds, but the `daokit.DAO` interface still hands a caller's live realm to whatever implements it, and the new provenance workflow's exemption lets a file under `vendored/p/samcrew/avl/` claim any package path while the job reports green; both freeze on merge (2 Critical, 8 Warnings, 2 Missing tests, 14 Nits, 6 Suggestions).
 
 ## Verify first
 
@@ -104,21 +106,21 @@ The solid path is gated at both steps. The dashed path is Critical 1: nothing on
 
   Fix: pin the fork to a sha and compare against it here, the same way the non-exempt files are compared against upstream.
   </details>
-- **[the fork is a stale snapshot, not a patch]** [`vendored/gno.land/p/samcrew/avl/tree.gno`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/vendored/gno.land/p/samcrew/avl/tree.gno#L1) — every document describes the fork as upstream avl plus a two-value `Get`, but it is upstream at `f3d5a5d13` and is missing the input checks upstream added before the pinned ref.
-  <details><summary>details</summary>
-
-  Diffed against upstream `p/nt/avl/v0` at `f3d5a5d13`: byte-identical modulo module-path rewrites. Between that ref and the pinned `fc40526`, upstream landed `d2737d84e fix(avl): add missing checks`, and the fork carries none of it: the `GetByIndex` negative-index panic, the `TraverseByOffset` negative-offset clamp, and the `GetPageWithSize` non-positive page-size panic are all absent.
-
-  Latent today: `Pager.ParseQuery` clamps both parameters and both call sites pass a constant page size, and ten hostile query strings render without panic. The finding is the description, not the reachability. The workflow comment, `vendored/README.md` and the PR body all frame the exemption as one method signature, so the next person to reason about the fork will reason about the wrong delta.
-  </details>
 - **[a failed execution reads as a successful one]** [`gno/p/daokit/daokit.gno:137-140`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/p/daokit/daokit.gno#L137-L140) — `Execute` marks the proposal Executed before running the handler, so a proposal whose action failed renders identically to one that ran.
   <details><summary>details</summary>
 
-  Measured at 0eb8518 with a host realm wrapping `Execute` in `revive()`: the handler aborts with `member already exists`, the stored status is `Executed`, the detail page shows `Status - Executed`, the proposal drops out of the active list, appears in history, and the JSON reports `Executed`.
+  The failing path is the one the comment above those lines names: a host realm that recovers. Ran it, with a host wrapping `Execute` in `recover()` and a duplicate member seeded so the `AddMember` action fails.
+
+  ```
+  recover() around Execute -> recovered
+  stored status            -> Executed
+  detail shows Executed    ->  true
+  json says Executed       ->  true
+  ```
 
   The burn itself is pre-existing. Transplanting the merge-base ordering into `Core.Execute` verbatim gives `status after the failed execution: Passed` and `second attempt abort: proposal is not open`, so a burned proposal used to sit visibly stuck in the active list. What this diff changes is that it now reads as done.
 
-  Two corrections to the comment above those lines. It names `recover()` as the hazard, but `recover()` cannot catch a panic unwinding across a realm boundary on this toolchain; `revive()` is what catches it, and [`custom_resource_test.gno:104`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/r/daodemo/custom_resource/custom_resource_test.gno#L104) already wraps `Execute` in it. And a flag set before and cleared after the handler blocks the same re-entrancy without moving the status write.
+  A flag set before and cleared after the handler blocks the same re-entrancy without moving the status write.
   </details>
 - **[four render paths abort for any viewer]** [`gno/p/basedao/view_proposal_detail_page.gno:32-34`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/p/basedao/view_proposal_detail_page.gno#L32-L34) — `proposal/<absent id>`, `proposal/<non-numeric>` and `role/<absent name>` all abort instead of rendering, on the cross-realm handle gnoweb drives.
   <details><summary>details</summary>
@@ -166,11 +168,6 @@ The solid path is gated at both steps. The dashed path is Critical 1: nothing on
 
   The test to add drives a payload of a different concrete type carrying the same method set through `dao.Core.Resources.Get(ActionAddMemberKind).Handler.Execute` and requires it to panic.
   </details>
-- **[a deploy pattern the fixture only asserts in prose]** [`gno/r/daoidentity/initdao/initdao.gno:11-12`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/r/daoidentity/initdao/initdao.gno#L11-L12) — the comment claims seeding a DAO with the deployer as a member and calling `InstantExecute` from `init` works; the fixture does neither, and the realm the comment describes aborts.
-  <details><summary>details</summary>
-
-  `basedao.New` makes no gated call, so the fixture pins `cur.IsCurrent()` as a VM fact rather than proving construction survives the gate. Writing the realm the comment describes gives `member id must not be empty` at package load, because `cur.Previous().Address()` is empty at init under the test harness. On chain `OriginCaller` is the deployer, so it should work there, which is precisely why it needs a fixture: the claim is unverifiable in the only environment CI has.
-  </details>
 - **[the only worked membership gate is not compiled]** [`gno/p/basedao/README.md:415-441`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/p/basedao/README.md?plain=1#L415-L441) — the member-only example is a complete `package my_content` block and the framework's only worked authentication example, and `check-readme-examples.sh` does not cover it.
   <details><summary>details</summary>
 
@@ -181,6 +178,13 @@ The solid path is gated at both steps. The dashed path is Critical 1: nothing on
 
 - **[a filename outlives the code]** [`gno/p/daocond/cond_role_treshold.gno`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/p/daocond/cond_role_treshold.gno#L1) — `treshold` is misspelled in the filename and in the new `cond_role_treshold_test.gno`; every identifier inside is spelled correctly. File names are what `vm/qfile` and gnoweb list, so it freezes too.
 - **[a test comment claims more than it checked]** [`gno/r/daoidentity/suite/suite_test.gno:120-122`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/r/daoidentity/suite/suite_test.gno#L120-L122) — it says swapping the gate and `CallerID` "leaves every other test green"; swapping them in `Propose` alone also reddens `TestInstantExecuteIsSameRealmOnly`.
+- **[the fork trails upstream on input checks]** [`vendored/README.md:35-36`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/vendored/README.md?plain=1#L35-L36) — the fork is correctly documented as upstream `p/nt/avl/v0` at `f3d5a5d13`, but nothing says it also trails `d2737d84e fix(avl): add missing checks`, which landed before the pinned ref.
+  <details><summary>details</summary>
+
+  Diffed the fork against upstream at `f3d5a5d13`: every `.gno` file present in both is byte-identical after normalising the module path, so the snapshot claim in `README.md:35-36` and [`equivalence_test.gno:5`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/vendored/gno.land/p/samcrew/avl/equivalence_test.gno#L5) holds. Diffed the same files against `fc40526`: the `GetByIndex` negative-index panic, the `TraverseByOffset` negative-offset clamp, and the `GetPageWithSize` non-positive page-size panic are all absent from the fork.
+
+  Latent: `Pager.ParseQuery` clamps both parameters and both call sites pass a constant page size. The docs frame the delta as the two-value `Get`, so a reader has no way to know the fork is also behind on input validation while every other vendored file is at `fc40526`.
+  </details>
 - **[a re-entrancy regression fails as a hang]** [`gno/p/daokit/daokit.gno:137-140`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/p/daokit/daokit.gno#L137-L140) — moving the executed marker after the handler makes `gno test ./gno/r/daoidentity/suite` run past 200s against a 1.4s baseline, because `TestAProposalCannotReenterItsOwnExecution` recurses unbounded with no gas meter under `gno test`. A depth counter in the fixture would turn the hang into a failure.
 - **[a branch nothing can reach]** [`gno/p/basedao/view_proposal_detail_page.gno:53-55`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/p/basedao/view_proposal_detail_page.gno#L53-L55) — the `Status - Closed 🔴` branch is unreachable; the three statuses are exhaustive.
 - **[a comment the same branch made false]** [`gno/p/basedao/view_proposals_page.gno:29-30`](https://github.com/samouraiworld/gnodaokit/blob/0eb8518/gno/p/basedao/view_proposals_page.gno#L29-L30) — it says only `Execute` writes `Status`; `1eabd78` deliberately re-exported `UpdateStatus`, which also does.
