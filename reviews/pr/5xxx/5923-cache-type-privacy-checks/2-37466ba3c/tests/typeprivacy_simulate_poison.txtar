@@ -1,0 +1,87 @@
+# Run: from a gno checkout:
+# gh pr checkout 5923 -R gnolang/gno && git checkout 37466ba3c
+# curl -fsSL -o gno.land/pkg/integration/testdata/typeprivacy_simulate_poison.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5923-cache-type-privacy-checks/2-37466ba3c/tests/typeprivacy_simulate_poison.txtar
+# go test -v -run 'TestTestdata/typeprivacy_simulate_poison$' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/typeprivacy_simulate_poison.txtar
+#
+# A simulated addpkg is an ABCI query, never a broadcast, but it still writes
+# typeHasPrivateDep verdicts into the root store's process-lived
+# typePrivacyCache. Simulating a public build of a path, then really deploying
+# a private one at that path, leaves the verdict at "no private dependency"
+# forever, and assertTypeIsPublic returns before it can reject anything.
+# At 37466ba3c the Leak call below succeeds; it must be rejected.
+# typeprivacy_simulate_control.txtar is this file minus the simulated addpkg.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/pub -pkgpath gno.land/r/zz/pub -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# The only line that differs from the control: a public-flavoured build of
+# gno.land/r/zz/priv, simulated and discarded.
+gnokey maketx addpkg -pkgdir $WORK/priv_public -pkgpath gno.land/r/zz/priv -simulate only -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+
+gnokey maketx addpkg -pkgdir $WORK/priv -pkgpath gno.land/r/zz/priv -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+! gnokey maketx call -pkgpath gno.land/r/zz/priv -func Leak -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot persist object of type defined in the private realm gno.land/r/zz/priv'
+
+-- pub/gnomod.toml --
+module = "gno.land/r/zz/pub"
+gno = "0.9"
+
+-- pub/pub.gno --
+package pub
+
+var Slot any
+
+func Save(cur realm, v any) {
+	Slot = v
+}
+
+-- priv/gnomod.toml --
+module = "gno.land/r/zz/priv"
+gno = "0.9"
+private = true
+
+-- priv/priv.gno --
+package priv
+
+import "gno.land/r/zz/pub"
+
+type Data struct {
+	N int
+}
+
+// Persisted at deploy time, so the deploy's own commit runs the
+// type-privacy check over Data and memoizes its verdict.
+var keep = &Data{N: 0}
+
+// Carries the private type but no object from the private realm, so
+// assertTypeIsPublic is the only check standing between it and pub.
+func Leak(cur realm) {
+	var arr [3]*Data
+	pub.Save(cross(cur), arr)
+}
+
+-- priv_public/gnomod.toml --
+module = "gno.land/r/zz/priv"
+gno = "0.9"
+
+-- priv_public/priv.gno --
+package priv
+
+import "gno.land/r/zz/pub"
+
+type Data struct {
+	N int
+}
+
+var keep = &Data{N: 0}
+
+func Leak(cur realm) {
+	var arr [3]*Data
+	pub.Save(cross(cur), arr)
+}
