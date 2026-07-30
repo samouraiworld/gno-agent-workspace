@@ -35,7 +35,7 @@ Run from the workspace root. After the review is finished, ask the user before o
 When invoked with "review all" (no explicit PR numbers), build the target set:
 
 ```bash
-ls reviews/pr/2xxx reviews/pr/4xxx reviews/pr/5xxx 2>/dev/null | grep -oE '^[0-9]+' | sort -un > /tmp/reviewed.txt
+ls reviews/pr/*xxx 2>/dev/null | grep -oE '^[0-9]+' | sort -un > /tmp/reviewed.txt
 gh pr list -R gnolang/gno --state open --limit 200 --json number,title,isDraft \
   --jq '.[] | select(.isDraft==false) | "\(.number)\t\(.title)"' > /tmp/open_nondraft.txt
 while IFS=$'\t' read -r num title; do
@@ -43,7 +43,10 @@ while IFS=$'\t' read -r num title; do
 done < /tmp/open_nondraft.txt
 ```
 
+- Sync this repo per the `AGENTS.md` sync rule before the `ls reviews/pr/` above, and state the synced head when confirming the set: a checkout behind `samouraiworld` yields a short `reviewed.txt` and a target set padded with PRs already reviewed. Diverged and unsyncable: derive the set read-only from the remote tree (`git ls-tree -r --name-only <remote>/<branch> -- reviews/pr/`), never from the working tree.
 - Exclude PRs titled `WIP*` and dependabot PRs (`app/dependabot`) unless the user explicitly includes them. Confirm the final list with the user before reviewing more than one PR, then process via *Parallel dispatch*.
+- Exclude PRs authored by the reviewer; name them in the confirmation as available on request. A self-review is a single-PR run the user asks for by number, never batch scope.
+- Any PR whose `author_association` is `FIRST_TIME_CONTRIBUTOR` gets a static danger pass over the raw diff before any review work, nothing executed: build and dependency surface touched (`.github/workflows`, Makefile, `go.mod`, `go.sum`, `package.json`, Dockerfile, `*.sh`); `os/exec`, `net/http`, `net.Dial`, `syscall`, `go:generate`, `go:embed`, Go `unsafe`, base64 or hex decode, environment or credential reads, filesystem writes; Trojan Source (non-ASCII added lines, bidirectional overrides, zero-width characters, homoglyphs). Record the result per PR in `reviews/BATCH_STATUS.md` and carry any non-malicious risk it surfaces into that PR's review.
 - When the run also covers already-reviewed PRs whose head advanced: keep only heads whose change since the last reviewed sha is real PR content — compare patch-ids per the *Re-review rounds* gate; drop patch-id-equal base-only moves. Also drop any PR the reviewer already APPROVED on GitHub (`gh api repos/gnolang/gno/pulls/<num>/reviews --jq '[.[]|select(.user.login=="<reviewer>")]|last|.state'` = `APPROVED`) — don't re-review approved work.
 - Write `reviews/BATCH_STATUS.md` before dispatch and update it as agents return: the user-confirmed scope; dropped PRs grouped by reason (head-unchanged, already APPROVED, base-only move, WIP, dependabot); the final set as a table (PR, head sha, last reviewed sha and next round for re-reviews, worktree path, review dir); the resume/finalize steps. Commit it with the batch.
 
