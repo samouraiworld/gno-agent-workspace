@@ -16,3 +16,5 @@ It does. A 91584-case differential against the merge base sorts all 19585 diverg
 The verdict is APPROVE with two Warnings. A capped chain rejects every transaction and emits no telemetry at all, because the price stops changing and the write-skip suppresses the one hook. Separately the decrease floor compares raw `Price.Amount` values while a `GasPrice` is a ratio, which predates the diff but sits on a line this diff edits.
 
 The PR is the reviewer's own, so the findings went into its branch as three commits rather than a posted review. The round directory carries the review file and the harnesses, no GitHub draft. The floor Warning is the one thing left, because fixing it changes what an idle chain settles at.
+
+The branch also carries the skill change the round produced. A pull request the reviewer wrote themselves now goes through an `Own PR` mode: the findings land as commits on that branch and no GitHub draft is written at all.
