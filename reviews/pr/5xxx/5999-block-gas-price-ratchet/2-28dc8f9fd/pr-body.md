@@ -14,3 +14,5 @@ review: PR 5999 round 2, the overflow panic became a clamp
 It does. A 91584-case differential against the merge base sorts all 19585 divergent cases into the four intended causes and finds no other, and the merge base panics in every one of the 14976 cases where the branch does not. The clamp is reached after 1002 full blocks at the shipped parameters and unwinds in 407 idle ones, so it is a bounded outage rather than an absorbing state. Three harnesses under `tests/` carry the runs.
 
 The verdict is APPROVE with two Warnings. A capped chain rejects every transaction and emits no telemetry at all, because the price stops changing and the write-skip suppresses the one hook. Separately the decrease floor compares raw `Price.Amount` values while a `GasPrice` is a ratio, which predates the diff but sits on a line this diff edits.
+
+The PR is the reviewer's own, so the findings went into its branch as three commits rather than a posted review. The round directory carries the review file and the harnesses, no GitHub draft. The floor Warning is the one thing left, because fixing it changes what an idle chain settles at.
