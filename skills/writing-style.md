@@ -12,6 +12,7 @@ description: Use when writing or editing gno docs, code comments, or PR review c
   a term and bolt the definition on a sentence later.
 - Precise term over hedge: "unspecified", not "may be true or false". A technical term needed for comprehension beats a full explanation of it; use the word. Spell out only opaque abbreviations: copy-on-write, not COW.
 - Cut filler: drop any clause the reader already infers.
+- Never sign-post the document from inside it. No "see below", no "the last section says which", no "as mentioned above". The reader arrives there anyway, and the pointer costs a clause to say nothing.
 - No em-dashes, no parentheticals. Short sentences, one idea each. No "This page" openers.
 - Wrap around 80 columns, no trailing whitespace.
 - Don't vouch for code with a bare adjective ("sound", "correct", "safe", "fine") or a bare absence ("no auth defect found", "nothing broken"). Both are unverifiable reassurance. State the specific checks run and what each showed, or locate the findings ("every finding is in the docs, not the auth path"). A bare absence-claim with no named check behind it is filler; cut it or name the check.
