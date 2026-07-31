@@ -21,6 +21,8 @@ Never mix the two. A multi-change PR written as flat prose forces the reader to 
 
 `pr-body.md` sits in the PR review directory. It opens with a header block — `Target:` (the opened PR URL, else the `compare/...?expand=1` URL), `Head:` and `Base:` with shas, `Status:` when there is something to say — then `## Title`, `## Body`, and `## Visual evidence` only when there is something to attach. The header is metadata for the user; only Title and Body get pasted into GitHub.
 
+Nothing in the file narrates how it was written. No shape label, no model PR it followed, no note explaining why the title reads as it does, no round count. That belongs in `plan.md`. Every line here is either something the user pastes or something they act on.
+
 ## Shape
 
 Prose, broken small.
