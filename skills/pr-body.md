@@ -42,7 +42,13 @@ Paragraph order, for the one-concern shape and inside each `###` section of the 
 3. **Anything riding along**, each with its own why. One paragraph, or one per change if they are unrelated.
 4. **What was verified**, last, in one or two sentences: what fails on the base branch and passes here. Never a table of jobs, never "all tests pass".
 
-Say what was deliberately not fixed, and why, when a reader would otherwise wonder. One short paragraph, not a section.
+**Do not over-explain.** The reader has the diff and will read it. Give the defect, the consequence, and the context they cannot get from the code: why it matters now, what else it touches, what a number means. Never walk through a mechanism the diff shows plainly.
+
+**Hyperlink everything.** Every symbol, file, job, endpoint, standard-library call, external API and setting named in the body gets a link on first mention, to the blob at the reviewed sha or to upstream documentation. A named thing with no link is a defect. The exception is a bare commit sha, above.
+
+**State what the change does not achieve, up front.** A PR that does not fully solve the problem it opens with says so in the framing paragraphs, not only at the end. "This does not turn the check green. It clears one condition of three." A reader who discovers the gap in the last section has been misled by the first.
+
+Say what was deliberately not fixed, and why, when a reader would otherwise wonder. One short paragraph, or its own section in the multi-change shape.
 
 ## Title
 
