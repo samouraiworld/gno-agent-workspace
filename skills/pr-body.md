@@ -13,7 +13,7 @@ Two shapes, chosen by how many independent changes the PR carries. Read the matc
 
 **One concern** — [gno#5999](https://github.com/gnolang/gno/pull/5999), [#5996](https://github.com/gnolang/gno/pull/5996). Four short paragraphs, about 200 words, no headers. That is the target length, not a floor.
 
-**Several independent changes** — [gno#6006](https://github.com/gnolang/gno/pull/6006). One `### <symbol>: <one-line diagnosis>` section per change, separated by `---`, each self-contained and readable alone. Two framing paragraphs before the first section, then a one-line bridge counting what follows ("There are three distinct bugs, plus one budget that was too tight"). A final `### How each was proved` section carries all the verification, so no section argues its own case. Budget about 150 words per section; the whole may run long, because a reader takes one section at a time.
+**Several independent changes** — [gno#6006](https://github.com/gnolang/gno/pull/6006). One `### <symbol>: <one-line diagnosis>` section per change, separated by `---`, each self-contained and readable alone. Framing paragraphs before the first section, then a one-line bridge counting what follows ("There are three distinct bugs, plus one budget that was too tight"). Budget about 150 words per section.
 
 Never mix the two. A multi-change PR written as flat prose forces the reader to hold four unrelated things at once, which is the failure this shape exists to prevent.
 
@@ -40,7 +40,7 @@ Paragraph order, for the one-concern shape and inside each `###` section of the 
 1. **The symptom, first sentence, in the reader's terms.** What breaks, under what condition, concretely. Then the mechanism that causes it, named by symbol. Never open with what the change does.
 2. **The fix**, in a clause, as a property of the new code rather than a narration of the edit.
 3. **Anything riding along**, each with its own why. One paragraph, or one per change if they are unrelated.
-4. **What was verified**, last, in one or two sentences: what fails on the base branch and passes here. Never a table of jobs, never "all tests pass".
+4. **What was verified**, in the framing paragraphs, not at the end. Same shape as the pin in `comment_<model>.md`: one short paragraph naming at most three checks, each a runtime check the jobs do not and cannot show, plus any job that could not run and why. Never a table of jobs, never "all tests pass", never a trailing verification section. A reader decides whether to trust the change before reading it, not after.
 
 **Do not over-explain.** The reader has the diff and will read it. Give the defect, the consequence, and the context they cannot get from the code: why it matters now, what else it touches, what a number means. Never walk through a mechanism the diff shows plainly.
 
