@@ -19,7 +19,7 @@ Never mix the two. A multi-change PR written as flat prose forces the reader to 
 
 ## File
 
-`pr-body.md` sits in the PR review directory. It opens with a header block — `Target:` (the opened PR URL, else the `compare/...?expand=1` URL), `Head:` and `Base:` with shas, `Status:` when there is something to say — then `## Title`, `## Body`, and `## Visual evidence` (the attachments, or `None.` plus the reason in one clause). The header is metadata for the user; only Title and Body get pasted into GitHub.
+`pr-body.md` sits in the PR review directory. It opens with a header block — `Target:` (the opened PR URL, else the `compare/...?expand=1` URL), `Head:` and `Base:` with shas, `Status:` when there is something to say — then `## Title`, `## Body`, and `## Visual evidence` only when there is something to attach. The header is metadata for the user; only Title and Body get pasted into GitHub.
 
 ## Shape
 
@@ -32,6 +32,8 @@ Prose, broken small.
 - **A diagram wherever shape beats sentences.** See below.
 - **No code block** unless it is real observed output or a diagram, and then only the signal-bearing lines.
 - Symbols in backticks. Delta from the link rule: an in-repo symbol needs no link.
+- **A commit sha goes bare.** No backticks, no markdown link. GitHub auto-links a bare sha in its own repo and gives it the native hovercard; wrapping it in either suppresses that.
+- **An empty section is deleted, not written as "None".** No `## Visual evidence` saying there is none, no heading with nothing under it.
 
 Paragraph order, for the one-concern shape and inside each `###` section of the multi-change shape:
 
