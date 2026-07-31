@@ -5,11 +5,23 @@ Author: davd-gzl | Base: master | Files: 2 | +135 -9
 Reviewed by: davd-gzl | Model: claude-opus-5 (deep) | Commit: 28dc8f9fd (latest)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-5999 28dc8f9fd`
 
-Round 2. Head advanced 29fb53a1e → 28dc8f9fd: three commits plus a clean merge of master (`git show 28dc8f9fd --cc` prints no conflict hunks). One production change, the int64 overflow `panic` is now a clamp at `math.MaxInt64`; the rest is comment compression and two new tests. Round 1's Suggestion asked for that decision and it is now made. Round 1's three nits are resolved, one of them partly re-opened by the compression.
+Round 2. Head advanced 29fb53a1e → 28dc8f9fd: three commits plus a clean merge of master (`git show 28dc8f9fd --cc` prints no conflict hunks). One production change, the int64 overflow `panic` is now a clamp at `math.MaxInt64`; the rest is comment compression and two new tests. Round 1's Suggestion asked for that decision and it is now made. Round 1's three nits are resolved, one of them partly re-opened by the compression. Every finding below except the floor Warning is already fixed on the branch; see *Applied on the branch*.
 
 **TL;DR:** The node recalculates the minimum gas price at the end of every block from how much gas the block used against a target. This PR stops two ways that math breaks on a chain with no usable gas limit, and stops the third way it breaks under sustained congestion: instead of crashing the node when the price no longer fits in a 64-bit integer, the price now stops at the largest value that fits.
 
 **Verdict: APPROVE** — the clamp is output-identical to master everywhere master does not crash, it is not an absorbing state, and no panic moves downstream; the two Warnings are a missing operator signal on the new silent path and a floor bug that predates this diff, neither of them a regression against master (0 Critical, 2 Warnings, 4 Nits, 1 Missing test).
+
+## Applied on the branch
+
+The reviewer authored this PR, so the findings went in as commits rather than as a posted review. Head is now 9d04904e9.
+
+| Commit | Closes |
+|---|---|
+| 29a80685c `docs(tm2/auth)` | the three comment nits: the guard comment now names the target rather than the limit and gives `-1` its own harm, the `XXX` says which cap it still asks for, and the doc reads "and never below 1" |
+| 0814069ba `fix(tm2/auth)` | the silent-ceiling Warning: `UpdateGasPrice` logs at `ERROR` on any block whose new price is `math.MaxInt64`, with a test asserting it fires there and nowhere below |
+| 9d04904e9 `test(tm2/auth)` | the missing test: the descent now runs from the cap to the floor under a 1,000-block bound, and a new subtest sweeps the decrease branch across last and initial prices up to `math.MaxInt64` |
+
+Left for a decision: the floor comparing amounts rather than ratios. It predates the branch, and fixing it changes the price an idle chain settles at, so it is a behavior change on a consensus path rather than a cleanup. Green after each commit: `go test ./tm2/pkg/sdk/...`, `go test ./gno.land/pkg/gnoland/ -run 'TestGasPriceUpdate|TestInitChainer'`, `gofmt -l` and `go vet` on the changed package. `golangci-lint` is not installed here and was not run.
 
 ## Verify first
 
