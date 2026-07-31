@@ -22,7 +22,7 @@ Single-PR run, in order (multi-PR and batch runs wrap it via *Parallel dispatch*
 4. *Review the diff*, including the *Invariant catalog* walk.
 5. *Write tests* for test-shaped findings; *Gno vs Go comparison* when `.gno` code changed.
 6. Write the review file (*Output*); generate `overview.html` when the subject is complex (*PR overview*).
-7. Draft `comment_<model>.md` (*GitHub review draft*), run its *Final check* and QA agents.
+7. Draft `comment_<model>.md` (*GitHub review draft*), run its *Final check* and QA agents. Skip for a PR the reviewer authored; see *Own PR*.
 8. One commit and push covering everything (pre-authorized; see *Rules*).
 9. Hand over: link each PR's `comment_<model>.md` draft, not only the review file, plus a "Decisions needed" list (borderline verdict, APPROVE confirmation, Open questions worth promoting) — one line each, omit when empty. Post only on the literal `post`.
 
@@ -72,6 +72,16 @@ Trigger: the user asks for a **parallel**, **red-team / blue-team**, or **deeper
 4. **Critic pass (one round, parallel).** Dispatch 2-3 critics in one message, each a distinct lens — verdict-check, missing-blocking, severity-calibration — over the synthesized draft plus diff and worktree. Each critic returns ONLY findings that (a) flip the verdict, (b) raise a finding by ≥1 severity band, or (c) add a Critical/Warning absent from the draft; everything sub-bar is dropped at the source; nothing qualifying → exactly `NO_MATERIAL_FINDINGS`. No open-ended "what's wrong / what's missing" prompts. After critics return: dedupe, re-read each cited `file:line`, drop what doesn't hold, revise. One critic round only — never loop.
 5. **Claim-verification gate (parallel).** Before drafting comment.md, dispatch one agent over the synthesized review plus worktree: extract every falsifiable claim — behavioral ("FormatFloat prints X"), structural ("only caller is keeper.go:678"), numeric ("bits = 0x7FF8…") — and for each run a check in the worktree designed to falsify it. It returns only claims that fail or can't be verified. Re-read those against the code, drop or fix, then finalize. Facts only — never severity, verdict, or design judgment; that's the critic pass.
 6. **Output.** Continue with the normal flow. The metadata line appends intensity and mode to the model name: `Model: <model> (<intensity>, deep)`, e.g. `(xhigh, deep)`; ask the user if the intensity is not known. Deep mode over a commit an earlier round already reviewed opens a new round directory `<n+1>-<same-sha>`; its round note names the mode and the prior verdict it confirms or overturns. The commit message may suffix `(deep)`.
+
+### Own PR (the reviewer authored it)
+
+Trigger: the PR author is the reviewer (`gh pr view <number> -R gnolang/gno --json author`). Findings land as commits on the PR branch, never as a review to post.
+
+- No `comment_<model>.md`, no `pr-body.md`, no posting. Write the review file as usual: it is the record of what was found and what was left.
+- Apply every finding whose fix is mechanical — comments, doc text, test comments, missing tests, naming, dead code — in the worktree the review already uses. Then run the affected suites and `gofmt`, and loop until green.
+- Never apply without asking: a change to behavior a user or the chain can observe, a fix to a defect that predates the branch, or anything a maintainer would treat as a design decision. Each goes to the user as a named decision.
+- One commit per finding class, conventional subject, authored and committed per `AGENTS.md`. Push to the PR's head repository, never to `gnolang/gno`.
+- Hand over the branch and the pushed shas, then what was left unapplied and the decision each needs.
 
 ### Bot mode (automatic review)
 
@@ -452,7 +462,7 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<rev
 
 - Visible prose (Body and every inline comment) follows `skills/writing-style.md`: short sentences one idea each, no em-dashes, no parentheticals, no bold; state the problem directly; state the problem, not the fix.
 - `Event:` maps from the verdict: APPROVE → APPROVE, REQUEST CHANGES → REQUEST_CHANGES, NEEDS DISCUSSION and CLOSE → COMMENT. The `Event:` line is the verdict; Body never restates it (no "Changes needed." opener) and goes straight to substance.
-- A PR whose author is the reviewer posts as `COMMENT` whatever the verdict: GitHub rejects APPROVE and REQUEST_CHANGES on one's own pull request. The review file keeps its verdict unchanged.
+- A PR whose author is the reviewer goes through *Own PR* and is not posted at all. When the user asks for it to be posted anyway, `Event:` is `COMMENT` whatever the verdict: GitHub rejects APPROVE and REQUEST_CHANGES on one's own pull request. The review file keeps its verdict unchanged.
 - Inline sections in severity order: Critical, Warning, Missing test, Nit, Suggestion; file order within a band.
 - Post only comments that change what the author does: fix, decide, or answer. A finding whose details end "no change needed" / "flagging for whoever touches this next" stays in the review file and never reaches comment.md. Severity never gates this: a Nit or Suggestion that asks for a concrete modification (a wording fix, a corrected value, a dropped line) gets its own anchored comment.md section like any Warning. The discriminator is "should the author change something," not the severity band.
 - Never explain routine fixes the author would do anyway (merge master, regenerate assets, re-run a flaky job). A red CI check with a routine cause gets one short Body line ("not a code problem"), no instructions, no repro; detail it only when the cause is non-obvious or changes what the author must do.
