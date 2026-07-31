@@ -92,6 +92,8 @@ Verify CI on the fix's PR and patch failures that are caused by our changes. **T
    ```
    gh run view <run-id> --repo gnolang/gno --log-failed
    ```
+   A failing check that is not a GitHub Actions run (an app check or a commit status, e.g. `Merge Requirements`) has no run id; `gh run view` and `gh run list` never show it. Open its details URL from `gh pr checks`, and read the same signal on master via `gh api repos/gnolang/gno/commits/<master-sha>/check-runs` and `.../status`.
+
    Classify each failure as one of:
    - **Related** — the failure touches code, tests, files, or behavior our PR changed (matches a path in `git -C .worktrees/gno-fix-<id> diff --name-only origin/master`, or the error references a symbol/test we modified).
    - **Unrelated** — pre-existing failure on master, infra/runner issue, or a flaky test with no link to our diff. Verify by checking the same job on a recent master commit (`gh run list --repo gnolang/gno --branch master --workflow <name> -L 5`).

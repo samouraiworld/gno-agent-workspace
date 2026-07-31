@@ -44,6 +44,7 @@ done < /tmp/open_nondraft.txt
 ```
 
 - Sync this repo per the `AGENTS.md` sync rule before the `ls reviews/pr/` above, and state the synced head when confirming the set: a checkout behind `samouraiworld` yields a short `reviewed.txt` and a target set padded with PRs already reviewed. Diverged and unsyncable: derive the set read-only from the remote tree (`git ls-tree -r --name-only <remote>/<branch> -- reviews/pr/`), never from the working tree.
+- Exactly 200 rows back from `gh pr list` means `--limit` clipped the list; re-run with a higher limit before building the set.
 - Exclude PRs titled `WIP*` and dependabot PRs (`app/dependabot`) unless the user explicitly includes them. Confirm the final list with the user before reviewing more than one PR, then process via *Parallel dispatch*.
 - Exclude PRs authored by the reviewer; name them in the confirmation as available on request. A self-review is a single-PR run the user asks for by number, never batch scope.
 - Any PR whose `author_association` is `FIRST_TIME_CONTRIBUTOR` gets a static danger pass over the raw diff before any review work, nothing executed: build and dependency surface touched (`.github/workflows`, Makefile, `go.mod`, `go.sum`, `package.json`, Dockerfile, `*.sh`); `os/exec`, `net/http`, `net.Dial`, `syscall`, `go:generate`, `go:embed`, Go `unsafe`, base64 or hex decode, environment or credential reads, filesystem writes; Trojan Source (non-ASCII added lines, bidirectional overrides, zero-width characters, homoglyphs). Record the result per PR in `reviews/BATCH_STATUS.md` and carry any non-malicious risk it surfaces into that PR's review.
@@ -79,7 +80,7 @@ Trigger: the user asks for a PR, or a named set of PRs, to go out as an automate
 - `Event:` is `COMMENT` regardless of the review file's verdict. The review file keeps its verdict unchanged.
 - Body opens with `[AI bot - Automatic review]`, then one short paragraph scoping the pass to technical checks and disclaiming design judgement and any merge verdict.
 - Findings, anchors, severities, and repros are unchanged.
-- Verify every finding with a real run before posting; a bot review that a maintainer cannot trust costs more than no review.
+- Verify every finding with a real run before posting.
 
 ### Non-gno repositories
 
@@ -94,12 +95,13 @@ A PR outside `gnolang/gno` goes under `reviews/<repo>/`, not `reviews/pr/` (gno-
 
 ### Fetch & understand
 
+- Sync this repo first, per the `AGENTS.md` sync rule, before reading anything under `reviews/`: a stale checkout yields wrong round numbers and re-raises findings already posted.
 - `git -C gno fetch origin master`
 - Create a worktree per PR:
   ```bash
   git -C gno worktree add ../.worktrees/gno-review-<number> origin/master
   ```
-  This lands at `<workspace-root>/.worktrees/gno-review-<number>`.
+  This lands at `<workspace-root>/.worktrees/gno-review-<number>`. When the path already exists (a prior round), `worktree add` fails: reuse the worktree as-is and only re-run the PR checkout below.
 - Checkout the PR inside that worktree (cwd = the worktree, chained so a failed cd aborts):
   ```bash
   cd <workspace-root>/.worktrees/gno-review-<number> && gh pr checkout <number> -R gnolang/gno
@@ -111,7 +113,7 @@ A PR outside `gnolang/gno` goes under `reviews/<repo>/`, not `reviews/pr/` (gno-
 - Read past reviews in `reviews/pr/<thousand>xxx/<number>-*/` first (`<thousand>` = leading digit(s): 4 for 4000–4999, 5 for 5000–5999). Focus on what changed since the last reviewed commit.
 - Read linked issues.
 - Read every changed file in full, not just diff hunks.
-- Map callers, dependents, and sibling files for blast radius.
+- Map blast radius: grep the worktree for callers of every symbol the diff adds, changes, or removes, and read the sibling files of each changed file. Done when each such symbol has been grepped.
 
 ### Re-review rounds (head advanced)
 
@@ -133,8 +135,8 @@ Every full re-review round opens with a round-note paragraph between the metadat
 
 ### Run tests
 
-- `gh pr checks <number> -R gnolang/gno` first. Note failures.
-- `.gno` packages: `gno test -v ./path/to/package`
+- `gh pr checks <number> -R gnolang/gno` first. Note failures. It is the authoritative per-PR list: check runs plus commit statuses (gno's `Merge Requirements` bot is a status, not a run). Never derive CI state from `gh run list`/`gh run view` alone — they cover only GitHub Actions runs. For a bare commit: `gh api repos/gnolang/gno/commits/<sha>/check-runs` plus `.../commits/<sha>/status`.
+- `.gno` packages: `gno test -v ./path/to/package`. When the PR touches the GnoVM or the `gno` tool itself, run it from the worktree source (`go run ./gnovm/cmd/gno test ...` at the worktree root): an installed `gno` binary tests under the VM it was built from, not the PR's.
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
 - `-run` splits its pattern on `/`, one regex per subtest level. A filetest under a subdirectory is `-run 'TestFiles/types/foo.gno$'`; an alternation may never span a `/`, or it silently matches nothing. Run one `-run` per test when comparing results.
 - Baseline every failing test against the PR's merge-base before attributing it to the diff: add a worktree at that commit and run the same test there. A local Go newer than CI's drifts `go/types` message text and reddens filetests unrelated to the PR.
@@ -162,6 +164,15 @@ Verification discipline — every finding passes these before it enters the revi
 - A "bound" or "leak" claim is quantitative and gets measured, not asserted: name the quantity said to be bounded, vary it against the quantity said to bound it, and confirm they actually track.
 - Run greps and lint in the PR worktree (`.worktrees/gno-review-<number>`), never in the `gno/` submodule (stale detached HEAD).
 - Confirm symbol existence with `gno lint` run from the worktree source (`go run ../gnovm/cmd/gno lint ./path`), not IDE/language-server diagnostics; sanity-check that lint typechecks by feeding it a bogus symbol.
+
+### Static-analysis findings
+
+A finding lifted from a linter or a quality gate is a lead, not a finding. Before it enters the review:
+
+- Read the flagged lines and state the concrete failure in the code's own terms. A rule ID and its stock message are never the finding text.
+- Separate rules describing a real defect from rules describing a policy the project has not adopted (see the linter-config check under *Calibration*). Both can be reported; only the first is a Warning or above.
+- Say what the fix costs. A rule whose fix is a behavior change is a maintainer decision; the review says so rather than assuming.
+- Never report a count as a finding. Group by rule, name the representative instance, give the full list once.
 
 ### Realm security checklist (mandatory for realm code)
 
@@ -266,7 +277,7 @@ One block per PR, in this exact format:
 URL: https://github.com/gnolang/gno/pull/<number>
 Author: <author> | Base: <base> | Files: <count> | +<add> -<del>
 Reviewed by: <GitHub username> | Model: <model used> | Commit: <short-sha> (<status>)
-Local worktree: `git -C gno worktree add .worktrees/gno-review-<number> <short-sha>`
+Local worktree: `git -C gno worktree add ../.worktrees/gno-review-<number> <short-sha>`
 Overview: [visual overview](../overview.html) <— include this line only when the PR directory has an overview.html>
 
 <Round note — re-review and same-commit deep rounds only. Re-review: "Round <n>. Head advanced <old-sha> → <new-sha> (<shape>): <what changed>; <prior findings resolved / carried>." Same-commit deep round: "Round <n> (deep — same commit <sha> round <n-1> reviewed): <prior verdict confirmed / overturned>.">
@@ -376,7 +387,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 - Empty categories: "None". Never fabricate.
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Large PRs (>20 files): summarize by area first, then deep-dive critical paths.
-- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: `git add reviews/ && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only.
+- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only.
 - Never run `./scripts/build-indexes.sh` as part of a review. `reviews/README.md` regenerates only when the user asks for it.
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
 - New findings surfaced after the initial draft (a follow-up question, a deeper dig) are folded into the review file and `comment_<model>.md`, verified with a real run, and committed/pushed in the same turn automatically — never ask whether to add them. Posting still waits for the literal `post`.
