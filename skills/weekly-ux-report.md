@@ -93,13 +93,13 @@ Filter the result to only issues with `createdAt >= <start-date>`.
 
 ### 2. Load last week's context
 
-Find the most recent report directory:
+Find the previous report directory. Sort by directory name, never `ls -td` (mtime), and skip the current end-date's own directory:
 
 ```bash
-ls -td reports/weekly-ux/*/ | head -1
+ls -d reports/weekly-ux/*/ | sort -r | grep -v "/$END_DATE/$" | head -1
 ```
 
-Read `context.md` from it. The previous `report.md` is NOT read.
+Read `context.md` from it. The previous `report.md` is NOT read. If the previous directory is more than 7 days before the end-date, flag it to the user before producing the report: `🆕` detection depends on it.
 
 **`🆕` detection:** a PR is "new this week" if its number does not appear in last week's `context.md`.
 
@@ -124,7 +124,7 @@ Build the new `context.md` listing **every open PR** from the data.
 
 ### 4. Produce the new report
 
-Using `context.md` and fresh data only. Filter merged PRs to those with `mergedAt` within the 7-day window. Follow this template (content categories omitted if empty):
+First re-read `reports/weekly-ux/YYYY-MM-DD/context.md` from disk, even after approval: the user edits it between steps, and the on-disk file is the source of truth for priorities and notes. Then use it and fresh data only. Filter merged PRs to those with `mergedAt` within the 7-day window. Follow this template (content categories omitted if empty):
 
 ```markdown
 From DD/MM to DD/MM  **: a/ux (UX team)**
