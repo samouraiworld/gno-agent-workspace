@@ -38,6 +38,10 @@ When asked to generate or update the weekly team report, read and follow `skills
 
 When asked to generate or update the weekly UX report (a/ux label), read and follow `skills/weekly-ux-report.md`. Data is fetched directly via `gh` CLI. Reports are saved in `reports/weekly-ux/`.
 
+## PR body
+
+When writing the title and body of a PR, read and follow `skills/pr-body.md`. It loops on the draft until a pass changes nothing, and covers when a change ships a screenshot or a video.
+
 ## Writing docs & comments
 
 When writing or editing gno docs (`docs/resources/*.md`, READMEs), code comments, or PR review comments, read and follow `skills/writing-style.md`.
