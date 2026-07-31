@@ -40,7 +40,9 @@ Paragraph order, for the one-concern shape and inside each `###` section of the 
 1. **The symptom, first sentence, in the reader's terms.** What breaks, under what condition, concretely. Then the mechanism that causes it, named by symbol. Never open with what the change does.
 2. **The fix**, in a clause, as a property of the new code rather than a narration of the edit.
 3. **Anything riding along**, each with its own why. One paragraph, or one per change if they are unrelated.
-4. **What was verified**, in the framing paragraphs, not at the end. Same shape as the pin in `comment_<model>.md`: one short paragraph naming at most three checks, each a runtime check the jobs do not and cannot show, plus any job that could not run and why. Never a table of jobs, never "all tests pass", never a trailing verification section. A reader decides whether to trust the change before reading it, not after.
+4. **What was verified**, in the framing paragraphs, not at the end. Two or three sentences: the jobs ran, the one runtime check they cannot show stated as a claim, and any job that could not run with the reason. Never a table of jobs, never "all tests pass", never a trailing verification section. A reader decides whether to trust the change before reading it, not after.
+
+   State the claim, never the methodology. "pylint was confirmed to really see the package it had been skipping", not the rule id, the injected statement and the error count. How it was proved belongs in `plan.md`; a reader who doubts the claim reads there. Rule ids, suppression comments and tool internals in a verification sentence are the tell that the proof got pasted in place of the result.
 
 **Do not over-explain.** The reader has the diff and will read it. Give the defect, the consequence, and the context they cannot get from the code: why it matters now, what else it touches, what a number means. Never walk through a mechanism the diff shows plainly.
 
