@@ -1,6 +1,6 @@
 ---
 name: pr-body
-description: Write the title and body of a pull request. Use whenever a fix is being proposed, before opening the PR. Produces pr-body.md beside the review, and loops on it until it passes the checks below.
+description: Write the title and body of a pull request. Use whenever a fix is being proposed, before opening the PR. Produces pr-body.md in the fix directory, and loops on it until it passes the checks below.
 ---
 
 # PR body
@@ -9,7 +9,17 @@ The body is as important as the change. A correct diff with a bad body gets read
 
 It is read by someone with no context who has to decide whether to merge. Cut everything that does not help that decision. Prose follows `skills/writing-style.md`; the rules below are the PR-body deltas.
 
-Model: [gnolang/gno#5999](https://github.com/gnolang/gno/pull/5999) and [#5996](https://github.com/gnolang/gno/pull/5996). Read one before drafting. Both run four short paragraphs and about 200 words; that is the target length, not a floor.
+Two shapes, chosen by how many independent changes the PR carries. Read the matching model before drafting.
+
+**One concern** — [gno#5999](https://github.com/gnolang/gno/pull/5999), [#5996](https://github.com/gnolang/gno/pull/5996). Four short paragraphs, about 200 words, no headers. That is the target length, not a floor.
+
+**Several independent changes** — [gno#6006](https://github.com/gnolang/gno/pull/6006). One `### <symbol>: <one-line diagnosis>` section per change, separated by `---`, each self-contained and readable alone. Two framing paragraphs before the first section, then a one-line bridge counting what follows ("There are three distinct bugs, plus one budget that was too tight"). A final `### How each was proved` section carries all the verification, so no section argues its own case. Budget about 150 words per section; the whole may run long, because a reader takes one section at a time.
+
+Never mix the two. A multi-change PR written as flat prose forces the reader to hold four unrelated things at once, which is the failure this shape exists to prevent.
+
+## File
+
+`pr-body.md` sits in the PR review directory. It opens with a header block — `Target:` (the opened PR URL, else the `compare/...?expand=1` URL), `Head:` and `Base:` with shas, `Status:` when there is something to say — then `## Title`, `## Body`, and `## Visual evidence` (the attachments, or `None.` plus the reason in one clause). The header is metadata for the user; only Title and Body get pasted into GitHub.
 
 ## Shape
 
@@ -17,13 +27,13 @@ Prose, broken small.
 
 - **Short paragraphs, one idea each.** Two to four sentences. A paragraph past five is two paragraphs.
 - **A one-line paragraph carries a turn in the argument.** "The reliability rating rests on one issue, so it clears on its own." That line is what a skimmer reads.
-- **No headers.** Not "Purpose", not "What changed", not "Testing".
-- **No tables, no bullet lists, no bold, no emoji.** Content parallel and long enough to want a table signals the PR is too big.
+- **No process headers.** Not "Purpose", not "What changed", not "Testing". The only headers allowed are the per-change `###` sections of the multi-change shape, named for the symbol they diagnose.
+- **No tables, no bullet lists, no bold, no emoji.** Content parallel and long enough to want a table wants the multi-change shape instead.
 - **A diagram wherever shape beats sentences.** See below.
 - **No code block** unless it is real observed output or a diagram, and then only the signal-bearing lines.
 - Symbols in backticks. Delta from the link rule: an in-repo symbol needs no link.
 
-Paragraph order:
+Paragraph order, for the one-concern shape and inside each `###` section of the multi-change shape:
 
 1. **The symptom, first sentence, in the reader's terms.** What breaks, under what condition, concretely. Then the mechanism that causes it, named by symbol. Never open with what the change does.
 2. **The fix**, in a clause, as a property of the new code rather than a narration of the edit.
@@ -71,7 +81,7 @@ Do not ship the first draft. Re-read it against these, revise, and repeat until 
 
 The body should be shorter after each of the first two rounds. If it grows, the loop is adding rather than sharpening.
 
-Length is the check that catches the rest. Past roughly 300 words, cut rather than restructure: detail belongs in the review file and the plan, which the body can point at. A body twice the length of the model PRs has failed check 2, whatever it scores on the others.
+Length is the check that catches the rest, measured against the shape's own budget: about 200 words for one concern, about 150 per section for several. Past it, cut rather than restructure; the detail belongs in the review file and the plan, which the body can point at. A one-concern body at twice the model length has failed check 2, whatever it scores on the others.
 
 ## Visual evidence
 
@@ -79,7 +89,7 @@ A change with a user-visible surface ships a screenshot. A change to an interact
 
 - Before and after, side by side, same viewport and same data. A single after-shot proves nothing about what changed.
 - Crop to the surface under discussion.
-- Attach by dragging into the PR body on GitHub, which uploads and inserts the markdown. Files under `reviews/pr/<thousand>xxx/<number>-<slug>/<n>-<sha>/media/` in this workspace, so the draft is reproducible.
+- Attach by dragging into the PR body on GitHub, which uploads and inserts the markdown. Files under `reviews/pr/<thousand>xxx/<number>-<slug>/<n>-<sha>/media/` in this workspace, so the draft is reproducible. The draft marks each attachment point with the `media/` path; the real URL exists only after the drag, so never fabricate a `user-images` URL.
 - Backend-only, tooling, and lint changes ship none. Do not manufacture a screenshot to look thorough.
 
 Capture with Playwright, driving the app booted from the PR worktree:
