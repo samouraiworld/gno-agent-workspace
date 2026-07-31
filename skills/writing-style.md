@@ -21,4 +21,21 @@ description: Use when writing or editing gno docs, code comments, or PR review c
 - State the problem and stop. Drop the why-it-matters chain (the reader infers it) and the fix (they work it out). Keep a fix only when the remedy is non-obvious, and then name the outcome, not the steps.
 - Always link every named thing: a file, symbol, PR, issue, package, or external project gets a link the first time it appears, no exceptions. Anchor the link on the words already in the prose. A reference with no link is a defect.
 - In code comments, keep the symbols a contributor needs, drop other-language jargon, link to the canonical source instead of restating it.
+- Scannable, without losing anything. The reader must get the whole picture in one pass and reach the detail only if they want it. Lead with the state in one line. Put anything with repeating structure (findings left out, jobs run, commits) in a table, one row each, the consequence in the last column, never as prose paragraphs. Keep the reasoning behind a `<details>` block rather than cutting it: completeness lives there, speed lives above it. A reader who stops after the tables still knows what happened, what is fixed, and what is not.
 - In a review, lead with the verdict only where no separate field already states it. The review file Summary opens with a short phrase like "Looks good." or "Correct fix."; the comment draft's `Event:` line carries the verdict, so its body never restates it and goes straight to substance. Everything else, including what the PR does, comes after. One finding per block headed by its file:line. State the problem directly; if it is written, it is meant to be read. Do not soften a finding with an opener like "Optional" or "non-blocking"; the severity-band prefix `skills/review.md` requires on non-Warning inline comments (`Critical:` / `Missing test:` / `Nit:` / `Suggestion:`) is the only label, and it stays. State the problem, never the fix; a human or an agent works the fix out. Keep CI and merge noise out of the findings.
+
+## Short form
+
+A one-line comment, a question, a chat reply. The rules above still hold, but the register is clipped.
+
+- One idea. Stop when it lands.
+- Imperative. "put all fixes in one branch", not "could you put".
+- Open with `And` or `But` when adding to a previous point; don't smooth it into a transition.
+- No greeting, no thanks, no apology, no "just", no "I think", no "feel free".
+- A question is one line and ends there.
+
+Sample, hand-typed: "You should rephrase that introduction and move it in #profiling-a-transaction".
+
+## Provenance warning
+
+Most `davd-gzl` PR bodies and inline review comments on GitHub were produced by this workflow, not typed by hand; the `Critical:` and repro-block ones are this skill's own output. Do not mine them as style samples, or the voice drifts further from the real one each round. Re-derive from a fresh hand-typed sample when one appears, preferring a short comment on someone else's PR.

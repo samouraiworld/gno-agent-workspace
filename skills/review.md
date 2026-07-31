@@ -210,6 +210,30 @@ stdout 'p==q=false q==r=true'   # IS:     bug — cross-tx pointer-identity brea
 
 When the PR contains `.gno` code, write an equivalent Go test to verify behavior parity. Run both, note discrepancies. Save to the same `tests/` directory.
 
+## Preparing a fix
+
+Ported from `davd-gzl/agent-workspace`. A review that leads to a fix produces four artifacts, all in the round directory.
+
+- **Review file** — the findings in full, per *Output*. The reference, not the thing anyone reads first.
+- **`plan.md`** — written while preparing, before the fix is finished. Scope with the rule that admits a change; a table of what is in, one row per finding, with its effect on the failing signal; what is out and the decision each excluded item needs; the verification table, one row per CI job, with the real command and its result; the checks that go beyond running the jobs; and an Iterations section naming every round the fix needed and what caught it. A plan that lists only successes is hiding the loop.
+- **Worktree** — `.worktrees/gno-<slug>/`, per the *Never write into the `gno/` submodule in-place* rule in `AGENTS.md`.
+- **`comment_<model>.md`** — the postable one, and the one to get right. It carries the whole picture itself, never a bare pointer to the review file. Every finding gets a section, including those already fixed on the branch and those deliberately left out; each says which it is in a closing line.
+
+### Run the CI locally
+
+Reproduce every job the diff touches, and loop until each is green before pushing.
+
+- Take the command from the workflow file, not from the project's Makefile or README, and match the invocation exactly. A job's real command is often narrower or wider than the documented one.
+- Read what each script actually runs. A `check` target may be formatting only, and the typecheck may live inside `build`; assuming the name means what it says leaves a whole class unchecked.
+- A job that cannot run locally is reported as not run, never as passing. Name the missing dependency and give the closest real substitute: a system check, an import check through the project's own bootstrap, an equivalence proof over the changed function.
+- When a change makes a linter cover new files, confirm the linter is really walking them. Introduce a deliberate violation, see it reported, remove it. A silent pass and a skipped path are indistinguishable otherwise.
+- When a suppression comment moves, confirm it still suppresses. Delete it, see the error, restore it.
+- A behavior-preserving refactor of a pure function ships an equivalence proof over a large input set, not an argument.
+
+### Self-review
+
+Read the final diff as a reviewer who did not write it, before pushing. Apply the same verification discipline and severity model as any other review. What it finds gets fixed in the branch and recorded in the plan's Iterations section, not silently amended away.
+
 ## Links & citations
 
 Shared by the review file and comment.md.
