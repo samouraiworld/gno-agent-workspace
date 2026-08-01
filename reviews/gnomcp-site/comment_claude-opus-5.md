@@ -5,7 +5,7 @@ Event: ISSUE
 Pinned: `ef19be4`
 
 ## Title
-Site review: mcp.gno.dev (1 Critical, 6 Warnings, 12 Nits)
+Site review: mcp.gno.dev (1 Critical, 7 Warnings, 14 Nits)
 
 ## Body
 Review of [mcp.gno.dev](https://mcp.gno.dev/) against
@@ -18,7 +18,7 @@ byte-identical to `site/`, so they resolve in the repo.
 
 Clean on the checks that matter most: the 26 tool names in the strip match
 `docs/tools.md` exactly, the realm paths in the example prompts exist in
-`examples/`, all 8 external links resolve, the heading outline has no skips,
+`examples/`, all 12 external URLs resolve, the heading outline has no skips,
 cold load is ~71 KB, and the CSP is `default-src 'none'` with no
 `unsafe-inline`. Dark mode passes all 20 contrast pairs measured.
 
@@ -50,7 +50,7 @@ claim a skeptical reader can use to discount the rest.
 The "Works with" row names Claude Desktop and Cursor. Neither appears again
 anywhere on the page.
 [`scripts/install.sh:52-57`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/scripts/install.sh#L52-L57)
-accepts `claude|gemini|codex|opencode`, and
+accepts `claude|gemini|codex|opencode` plus the `none` opt-out, and
 [`site/index.html:236`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L236)
 says so accurately. A Cursor user is recruited by the hero, runs the one
 command, and receives a binary and silence.
@@ -58,7 +58,7 @@ command, and receives a binary and silence.
 carries a Cursor section and an "Other MCP clients" section, and the page links
 to neither.
 
-### site/style.css:108 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L108)
+### site/style.css:108-109 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L108-L109)
 
 `outline: 2px solid var(--mint)` measures 1.95:1 on `--bg` and 1.79:1 on
 `--surface`. WCAG 2.2 SC 1.4.11 requires 3:1. Every focusable element on the
@@ -96,6 +96,14 @@ Telegram, so the page is built to be shared into the three surfaces that unfurl
 link previews and will unfurl as a bare URL in all three. `robots.txt` and
 `sitemap.xml` both return 404.
 
+### site/index.html:15 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L15)
+
+No skip link, so there is no way to bypass the header. A keyboard or
+screen-reader user crosses the wordmark, five section links, and the GitHub
+link before reaching the `h1`. `main` already carries `id="top"` at
+[`site/index.html:29`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L29),
+so one anchor at the top of `body` closes it. WCAG 2.4.1 is Level A.
+
 ### site/style.css:158 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L158)
 
 `.site-nav { display: none }` under 860px with no replacement. On a
@@ -129,7 +137,10 @@ management.
 
 The stat reads 2 chains to start on.
 [`docs/gnomcp.md`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/docs/gnomcp.md)
-ships `testnet`, its sunset predecessor, and `local`.
+ships `testnet`, its sunset predecessor, and `local`. The predecessor is
+labeled sunset, so reading "to start on" as excluding it is defensible and the
+stat may be deliberate; raised only because the two numbers sit one click
+apart.
 
 ### Nit: site/style.css:61-87 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L61-L87)
 
@@ -163,6 +174,21 @@ visit.
 `id="install-cmd"` is referenced nowhere.
 [`site/app.js:21`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/app.js#L21)
 resolves the target through `btn.parentElement.querySelector("code")`.
+
+### Nit: site/index.html:280 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L280)
+
+The `noscript` pixel sets `referrerpolicy="no-referrer-when-downgrade"`, which
+sends the full URL to `queue.simpleanalyticscdn.com`. Every other request is
+covered by `strict-origin-when-cross-origin` from
+[`netlify.toml:15`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/netlify.toml#L15),
+so the attribute is the one place the page opts out of its own header.
+
+### Nit: site/index.html:279 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L279)
+
+`scripts.simpleanalyticscdn.com/latest.js` runs with no `integrity` and no
+`crossorigin`, and the CSP admits the whole host. A rolling `latest.js` cannot
+be pinned by hash, so the choice is a versioned URL or an accepted risk stated
+as such — worth naming, since the CSP is otherwise `default-src 'none'`.
 
 ### Nit: repository metadata
 

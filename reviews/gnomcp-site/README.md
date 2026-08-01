@@ -10,4 +10,8 @@ The site has no PR, so the draft targets a new issue on `gnoverse/gno-mcp`.
 
 | Review | Draft | Date | Verdict |
 |:-------|:------|:-----|:--------|
-| [review_claude-opus-5.md](review_claude-opus-5.md) | [comment_claude-opus-5.md](comment_claude-opus-5.md) | 2026-07-30 | REQUEST CHANGES |
+| [review_claude-opus-5.md](review_claude-opus-5.md) | [comment_claude-opus-5.md](comment_claude-opus-5.md) | 2026-07-30, rechecked 2026-08-01 | REQUEST CHANGES |
+
+The recheck re-derived every finding from a fresh clone at `ef19be4` and from
+the live deploy. All 19 originals stand; four line-number or count details were
+corrected and three findings added. See the review's *Recheck* section.
