@@ -519,6 +519,7 @@ Nit: this says `Tree.Size` is a field, but [`Size` is a method](https://github.c
 ### Posting
 
 - Never post without explicit user approval in the current turn: the literal word "post" (or "upload"). "push" authorizes git push only and never covers posting.
+- A `gh` write refused with 403 `Resource not accessible by personal access token` is a missing scope. Never retry it and never work around it. Record the refused command in the artifact's `Status:` line, and end the reply with `post <github url of the artifact>` alone on its own line, for an agent that holds the scope.
 - Same gate for mutating posted content (editing or deleting a posted comment, re-posting): update the local draft first, show the user the exact new text, and touch GitHub only after they approve it in the current turn — even when the change itself was requested.
 - APPROVE is a human decision: state the verdict and wait for the user to confirm the approval itself — a generic "post it" covers REQUEST_CHANGES/COMMENT only. Then run the script with `--approve` (it refuses APPROVE without the flag).
 - Post with `./scripts/post-pr-review.py <number> <path-to-comment.md>`. It pre-validates anchors against the PR diff and reports invalid ones — move those into Body, or re-run with `--skip-invalid`. `--dry-run` prints the payload without posting.
