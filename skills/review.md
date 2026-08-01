@@ -47,6 +47,12 @@ done < /tmp/open_nondraft.txt
 - Exactly 200 rows back from `gh pr list` means `--limit` clipped the list; re-run with a higher limit before building the set.
 - Exclude PRs titled `WIP*` and dependabot PRs (`app/dependabot`) unless the user explicitly includes them. Confirm the final list with the user before reviewing more than one PR, then process via *Parallel dispatch*.
 - Exclude PRs authored by the reviewer; name them in the confirmation as available on request. A self-review is a single-PR run the user asks for by number, never batch scope.
+- Exclude PRs the reviewer already reviewed on GitHub, whatever the state and whether or not `reviews/pr/` holds a file. A review dir is not the only record: work reviewed straight on GitHub leaves none. Check both surfaces per PR, and drop on any hit:
+  ```bash
+  gh api repos/gnolang/gno/pulls/<num>/reviews --jq '[.[]|select(.user.login=="<reviewer>")|.state]|join(",")'
+  gh api repos/gnolang/gno/pulls/<num>/comments --jq '[.[]|select(.user.login=="<reviewer>")]|length'
+  ```
+  Name the dropped PRs in the confirmation; re-reviewing one is a single-PR run the user asks for by number.
 - Any PR whose `author_association` is `FIRST_TIME_CONTRIBUTOR` gets a static danger pass over the raw diff before any review work, nothing executed: build and dependency surface touched (`.github/workflows`, Makefile, `go.mod`, `go.sum`, `package.json`, Dockerfile, `*.sh`); `os/exec`, `net/http`, `net.Dial`, `syscall`, `go:generate`, `go:embed`, Go `unsafe`, base64 or hex decode, environment or credential reads, filesystem writes; Trojan Source (non-ASCII added lines, bidirectional overrides, zero-width characters, homoglyphs). Record the result per PR in `reviews/BATCH_STATUS.md` and carry any non-malicious risk it surfaces into that PR's review.
 - When the run also covers already-reviewed PRs whose head advanced: keep only heads whose change since the last reviewed sha is real PR content — compare patch-ids per the *Re-review rounds* gate; drop patch-id-equal base-only moves. Also drop any PR the reviewer already APPROVED on GitHub (`gh api repos/gnolang/gno/pulls/<num>/reviews --jq '[.[]|select(.user.login=="<reviewer>")]|last|.state'` = `APPROVED`) — don't re-review approved work.
 - Write `reviews/BATCH_STATUS.md` before dispatch and update it as agents return: the user-confirmed scope; dropped PRs grouped by reason (head-unchanged, already APPROVED, base-only move, WIP, dependabot); the final set as a table (PR, head sha, last reviewed sha and next round for re-reviews, worktree path, review dir); the resume/finalize steps. Commit it with the batch.
@@ -58,6 +64,8 @@ When `$ARGUMENTS` contains more than one PR, the parent first creates each PR's 
 > Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). The worktree already exists at `<worktree-path>` with the PR checked out — never `worktree add` or `gh pr checkout`. Follow every other step in that file — diff, comments, CI, deep read, write the review file, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
 
 Do not sequence the agents. After all return, the parent makes a single commit (`review: PRs <a> and <b>`) and push covering all reviews; subagents never commit or push.
+
+Reconcile before the commit. Two agents reviewing coupled PRs can reach opposite conclusions, each having priced only what its own PR showed: a merge-order recommendation is the usual case. Re-derive the answer from the diffs and the linked issues, name the constraint both orders have to satisfy, and write the same conclusion into every affected review file and draft. Never ship two drafts that contradict each other, and never settle it by taking one agent's summary. Record the conflict and how it resolved in `reviews/BATCH_STATUS.md`.
 
 ### Deep mode (multi-angle, single PR)
 
