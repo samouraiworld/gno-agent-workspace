@@ -13,13 +13,15 @@ Round 2. Head advanced 29fb53a1e → 28dc8f9fd: three commits plus a clean merge
 
 ## Applied on the branch
 
-The reviewer authored this PR, so the findings went in as commits rather than as a posted review. Head is now 9d04904e9.
+The reviewer authored this PR, so the findings went in as commits rather than as a posted review. Head is now 9930cadc4.
 
 | Commit | Closes |
 |---|---|
 | 29a80685c `docs(tm2/auth)` | the three comment nits: the guard comment now names the target rather than the limit and gives `-1` its own harm, the `XXX` says which cap it still asks for, and the doc reads "and never below 1" |
 | 0814069ba `fix(tm2/auth)` | the silent-ceiling Warning: `UpdateGasPrice` logs at `ERROR` on any block whose new price is `math.MaxInt64`, with a test asserting it fires there and nowhere below |
 | 9d04904e9 `test(tm2/auth)` | the missing test: the descent now runs from the cap to the floor under a 1,000-block bound, and a new subtest sweeps the decrease branch across last and initial prices up to `math.MaxInt64` |
+| 3ee8c23ea `chore(tm2/auth)` | self-review: the new log went out untagged, while `AccountKeeper.Logger` attaches `module=auth`. `GasPriceKeeper` now has the same helper |
+| 9930cadc4 `docs(tm2/adr)` | the ADR `AGENTS.md` asks for on a non-trivial AI-assisted change, absent from the PR until now |
 
 Left for a decision: the floor comparing amounts rather than ratios. It predates the branch, and fixing it changes the price an idle chain settles at, so it is a behavior change on a consensus path rather than a cleanup. Green after each commit: `go test ./tm2/pkg/sdk/...`, `go test ./gno.land/pkg/gnoland/ -run 'TestGasPriceUpdate|TestInitChainer'`, `gofmt -l` and `go vet` on the changed package. `golangci-lint` is not installed here and was not run.
 
