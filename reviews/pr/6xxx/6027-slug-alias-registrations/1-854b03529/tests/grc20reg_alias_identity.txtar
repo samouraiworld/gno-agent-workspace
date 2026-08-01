@@ -1,0 +1,58 @@
+# Run: from a gno checkout:
+# gh pr checkout 6027 -R gnolang/gno && git checkout 854b03529
+# curl -fsSL -o gno.land/pkg/integration/testdata/grc20reg_alias_identity.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6027-slug-alias-registrations/1-854b03529/tests/grc20reg_alias_identity.txtar
+# go test ./gno.land/pkg/integration/ -run 'TestTestdata/grc20reg_alias_identity' -v
+# rm gno.land/pkg/integration/testdata/grc20reg_alias_identity.txtar
+#
+# One token registered under two slugs, written in one transaction and read in
+# the next. Passes at 854b03529: the object survives persistence as one value,
+# so neither alias sees a stale balance.
+
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/aliastoken $WORK
+
+gnoland start
+
+# mint 100 through the realm's own ledger
+gnokey maketx call -pkgpath gno.land/r/aliastoken -func Mint -args 100 -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+# read the balance back through both aliases, one transaction later
+gnokey maketx call -pkgpath gno.land/r/aliastoken -func Report -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout 'same=true a=100 b=100'
+
+-- gnomod.toml --
+module = "gno.land/r/aliastoken"
+gno = "0.9"
+-- aliastoken.gno --
+package aliastoken
+
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	token  *grc20.Token
+	ledger *grc20.PrivateLedger
+	holder address
+)
+
+func init(cur realm) {
+	token, ledger = grc20.NewToken("Alias", "AL", 4, 0, cur)
+	grc20reg.Register(cross(cur), token, "a")
+	grc20reg.Register(cross(cur), token, "b")
+}
+
+func Mint(cur realm, amount int64) {
+	holder = cur.Previous().Address()
+	ledger.Mint(holder, amount)
+}
+
+func Report(cur realm) string {
+	a := grc20reg.MustGet("gno.land/r/aliastoken.a")
+	b := grc20reg.MustGet("gno.land/r/aliastoken.b")
+	return ufmt.Sprintf("same=%t a=%d b=%d", a == b, a.BalanceOf(holder), b.BalanceOf(holder))
+}

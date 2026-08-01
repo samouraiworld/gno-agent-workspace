@@ -1,0 +1,57 @@
+# Run: from a gno checkout:
+# gh pr checkout 6029 -R gnolang/gno && git checkout 3b5b4a701
+# curl -fsSL -o gno.land/pkg/integration/testdata/grc721reg_kind_injection.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6029-grc721-token-ledger-teller/1-3b5b4a701/tests/grc721reg_kind_injection.txtar
+# go test -v -run 'TestTestdata/grc721reg_kind_injection' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc721reg_kind_injection.txtar
+#
+# Register takes any grc721.ExtensionView, and extensionBadges writes the kind
+# string it reports straight into the registry home page shared by every
+# collection. At 3b5b4a701 the registration is accepted and the render carries
+# the injected heading and link. Both assertions pass once the kind is escaped
+# at render; a fix that rejects the kind at registration instead turns the
+# maketx step below into a rejection.
+
+loadpkg gno.land/p/demo/tokens/grc721
+loadpkg gno.land/p/demo/tokens/grc721/collection
+loadpkg gno.land/r/demo/grc721reg
+loadpkg gno.land/r/evil $WORK/evil
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/evil -func Go -gas-fee 1000000ugnot -gas-wanted 40000000 -chainid=tendermint_test test1
+
+gnokey query vm/qrender --data 'gno.land/r/demo/grc721reg:'
+! stdout 'INJECTED HEADING'
+! stdout 'phish.example'
+
+-- evil/gnomod.toml --
+module = "gno.land/r/evil"
+gno = "0.9"
+
+-- evil/evil.gno --
+package evil
+
+import (
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/r/demo/grc721reg"
+)
+
+// badView reports a kind carrying markdown; nothing constrains the string.
+type badView struct{ id string }
+
+func (b *badView) ExtensionKind() string {
+	return "x`\n# INJECTED HEADING\n[click me](http://phish.example)\n`y"
+}
+
+func (b *badView) TokenID() string { return b.id }
+
+var tok *grc721.Token
+
+func init(cur realm) {
+	tok, _ = grc721.NewToken("Evil Coll", "EVIL", 0, cur)
+}
+
+func Go(cur realm) string {
+	return grc721reg.Register(cross(cur), tok, "evil", &badView{id: tok.ID()})
+}
