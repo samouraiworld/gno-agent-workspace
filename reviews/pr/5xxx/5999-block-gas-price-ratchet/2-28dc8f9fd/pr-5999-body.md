@@ -1,7 +1,7 @@
 Target: https://github.com/gnolang/gno/pull/5999 (existing description, replace on `post`)
 Head: 9930cadc4 (davd-gzl/gno, fix/tm2-auth-gas-price-ratchet)
 Base: master
-Status: drafted, not applied. The current description predates the clamp log, the new tests and the ADR.
+Status: not applied. The token cannot write pull requests on gnolang/gno: `gh pr edit` and `PATCH /repos/gnolang/gno/pulls/5999` both return 403, `Resource not accessible by personal access token`. Paste the Body below over the current description by hand.
 
 ## Title
 
