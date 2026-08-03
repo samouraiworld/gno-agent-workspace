@@ -89,7 +89,7 @@ None beyond the balance-movement assertion folded into the second Warning.
 
 - Reverting the change in the pool swap mock — putting `common.SafeGRC20Transfer(cross(cur), ...)` back in `mockSwapCallback` — still passes the full `pool/v1` suite at 615c1f6 against gnoswap-labs/gno master 959cefd, the ref CI pins. The "broke EOA-context test callbacks" comment does not reproduce.
 - `gno fmt` over a converted filetest deletes exactly the doubled blank line, confirming the formatting nit is real and mechanical.
-- All touched suites pass locally at 615c1f6 against the fork tip: `gov/staker/v1`, `protocol_fee/v1`, `launchpad/v1`, `pool/v1`, `position/v1`, `router/v1`, `scenario/position`; the fuzz suite run is recorded in the round note if it finished after drafting.
+- All touched suites pass locally at 615c1f6 against the fork tip: `gov/staker/v1`, `protocol_fee/v1`, `launchpad/v1`, `pool/v1`, `position/v1`, `router/v1`, `scenario/position` (filetests, 55s). The `test/fuzz` suite was still executing locally at drafting (the seed rotates per run); its CI job passes at this head in 18m26s.
 - Static equivalence of every mechanical replacement (same debited address before and after) traced through the fork's `testing.SetRealm` in-place frame mutation and `cross` identity check; the two suites where the debited address deliberately changes are gov/staker and launchpad, both matching what their production proxies thread.
 
 ## Existing threads
