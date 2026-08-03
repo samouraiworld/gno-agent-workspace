@@ -1,4 +1,83 @@
-# Batch status — review all (started 2026-08-01)
+# Batch status — review all (started 2026-08-03)
+
+Model claude-opus-5, reviewer davd-gzl. Normal (non-deep) mode, no subagents: both PRs reviewed in
+one session.
+
+Synced head `9e5edf6` (`origin/main`, `samouraiworld`), `0 0` against `HEAD`, so `reviews/pr/` is
+current. gno master at dispatch: `ddb752cac`.
+
+## Scope
+
+371 review directories under `reviews/pr/`; 106 open non-draft PRs after dropping dependabot,
+`WIP`-titled and reviewer-authored ones. Three were absent from `reviews/pr/`, and one of those
+carries a GitHub review by the reviewer, so the final set is two.
+
+## External-contribution safety gate
+
+6023 is `FIRST_TIME_CONTRIBUTOR`. Static danger pass over the raw diff, nothing executed:
+
+| Class | Result |
+|---|---|
+| build and dependency surface (`.github/`, Makefile, `go.mod`, `go.sum`, `package.json`, Dockerfile, `*.sh`) | none touched |
+| `os/exec`, `net/http`, `net.Dial`, `syscall`, `go:generate`, `go:embed`, `unsafe`, base64/hex decode, env or credential reads, filesystem writes | no added line matches |
+| Trojan Source (non-ASCII, bidi overrides, zero-width, homoglyphs) | one hit, an em dash in README prose |
+
+Clean. 6030 is authored by `moul` (`MEMBER`), no gate needed.
+
+## Dropped
+
+| Reason | PRs |
+|---|---|
+| already reviewed (present in `reviews/pr/`) | the rest of the open non-draft set |
+| already reviewed on GitHub (`CHANGES_REQUESTED` by davd-gzl, no review dir) | 6022 |
+| draft | 6032, 6019, 6016, 6007, 6004 and the rest of the draft set |
+| dependabot | 6021, 6008, 5992, 5990, 5989 |
+| WIP-titled | 5929, 5922, 5871, 5852, 5740 |
+| authored by the reviewer | 6006, 6000, 5996, 5993, 5979, 5978 and the rest |
+
+## Final set (2)
+
+Both are first rounds.
+
+| PR | Head sha | Author | Size | Worktree | Review dir |
+|---|---|---|---|---|---|
+| [6030](https://github.com/gnolang/gno/pull/6030) | `098a7b782` | moul | +2704-155, 32f (+504, 6f over #6018) | `.worktrees/gno-review-6030` | `reviews/pr/6xxx/6030-fastindex-consistency-audit/1-098a7b782/` |
+| [6023](https://github.com/gnolang/gno/pull/6023) | `6324377f5` | AviaOne | +388-5, 5f | `.worktrees/gno-review-6023` | `reviews/pr/6xxx/6023-wire-seeds-into-switch/1-6324377f5/` |
+
+6030 carries [#6018](https://github.com/gnolang/gno/pull/6018)'s commits, reviewed at `5ceafd2c5`, so
+its round covers only `git diff 5ceafd2c5..098a7b782`, the six files added on top.
+
+## Environment
+
+No Go toolchain on `PATH` at session start (`bash: go: command not found`), and none installed
+anywhere on the machine. `gno/go.mod` requires `go 1.25.9`; fetched the release tarball into
+`/tmp/go` and exported `PATH=/tmp/go/bin:$PATH` for every run.
+
+## Results
+
+| PR | Verdict | Findings |
+|---|---|---|
+| 6030 | REQUEST CHANGES | 3 Warnings, 3 Missing tests, 2 Nits, 2 Suggestions |
+| 6023 | REQUEST CHANGES | 2 Warnings, 2 Missing tests, 3 Nits, 1 Suggestion |
+
+Both verdicts rest on measured behavior: four tests ship under the rounds' `tests/` directories,
+three of them red at the reviewed sha.
+
+6030's blocker is that the new `gnoland fastindex verify` exits 0 on a data directory holding no
+store at all, and creates one there, so a CI gate wired to it stays green while auditing nothing.
+6023's two blockers are that the startup dial queues every seed at once, past the
+`max_num_outbound_peers` accounting the thread agreed to, and that the seed fallback converges on
+holding a connection to every configured seed, which the PR's own README says it does not.
+
+No conflict to reconcile: the two PRs touch disjoint subsystems.
+
+## Next
+
+Both drafts are unposted. Posting waits for the literal `post`.
+
+---
+
+# Previous run — review all (started 2026-08-01)
 
 Model claude-opus-5, reviewer davd-gzl. Normal (non-deep) mode.
 
