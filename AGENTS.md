@@ -34,6 +34,15 @@ When asked to fix a gnolang/gno issue (bug, security fix, etc.), read and follow
 
 When asked to generate or update the weekly team report, read and follow `skills/weekly-report.md`. The data-gathering script is `scripts/weekly-report.sh`. Reports are saved in `reports/weekly/`.
 
+The script dies on `ERROR: 'jq' is required but not found in PATH` on a machine with no `jq` and no `sudo`. Fetch the static binary and put it on the path for the run; it needs no privileges:
+
+```bash
+mkdir -p ~/bin && curl -fsSL -o ~/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 && chmod +x ~/bin/jq
+export PATH="$HOME/bin:$PATH"
+```
+
+The full fetch takes about four minutes: it walks every open PR one `gh pr view` at a time.
+
 ## Weekly UX Report
 
 When asked to generate or update the weekly UX report (a/ux label), read and follow `skills/weekly-ux-report.md`. Data is fetched directly via `gh` CLI. Reports are saved in `reports/weekly-ux/`.
