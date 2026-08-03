@@ -1,13 +1,20 @@
 # Site review: mcp.gno.dev
 
-Target: new issue on [gnoverse/gno-mcp](https://github.com/gnoverse/gno-mcp)
+Target: [gnoverse/gno-mcp#69](https://github.com/gnoverse/gno-mcp/issues/69)
 Event: ISSUE
 Pinned: `ef19be4`
+Reverified: 2026-08-03, `ef19be4` still the tip of `main`
+Posted: 2026-08-03, [gnoverse/gno-mcp#69](https://github.com/gnoverse/gno-mcp/issues/69). A manual pass by the user follows.
 
 ## Title
 Site review: mcp.gno.dev (1 Critical, 7 Warnings, 14 Nits)
 
 ## Body
+> Automated review. An agent produced every finding below and re-derived each
+> one against `ef19be4` before filing. A human pass follows and has not run
+> yet, so read each item as a claim with its evidence attached rather than as a
+> settled conclusion.
+
 Review of [mcp.gno.dev](https://mcp.gno.dev/) against
 [`site/`](https://github.com/gnoverse/gno-mcp/tree/ef19be4/site),
 [`docs/security.md`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/docs/security.md),
@@ -22,9 +29,7 @@ Clean on the checks that matter most: the 26 tool names in the strip match
 cold load is ~71 KB, and the CSP is `default-src 'none'` with no
 `unsafe-inline`. Dark mode passes all 20 contrast pairs measured.
 
-Full review:
-https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/gnomcp-site/review_claude-opus-5.md
-[↗](review_claude-opus-5.md)
+[Full review, with the evidence behind every line below.](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/gnomcp-site/review_claude-opus-5.md)
 
 ### Critical: site/index.html:212 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L212)
 
@@ -45,7 +50,7 @@ The heading directly above reads "Safe by architecture, not by promise", and
 the other five invariants hold against §1, §3, §5, §6, and §7. This is the one
 claim a skeptical reader can use to discount the rest.
 
-### site/index.html:46 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L46)
+### site/index.html:46-48 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L46-L48)
 
 The "Works with" row names Claude Desktop and Cursor. Neither appears again
 anywhere on the page.
@@ -63,9 +68,10 @@ to neither.
 `outline: 2px solid var(--mint)` measures 1.95:1 on `--bg` and 1.79:1 on
 `--surface`. WCAG 2.2 SC 1.4.11 requires 3:1. Every focusable element on the
 page is affected in light mode: the section nav, both hero buttons, the copy
-button, every documentation link, the footer. The same ring measures 9.92:1 on
-the dark background. `--accent-ink` is already defined at `#3b7a64` in the
-light block and reaches 5.06:1 on white.
+button, every documentation link, the footer. The same ring measures 9.94:1 on
+the dark background. `--accent-ink` is already defined at `#3b7a64` in the live
+[`:root`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L32)
+and reaches 5.06:1 on white.
 
 ### site/style.css:18-19 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L18-L19)
 
@@ -133,7 +139,7 @@ dialed. Same shape at
 "Your signature for sessions" chips a row where six of nine tools are key
 management.
 
-### Nit: site/index.html:84 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L84)
+### Nit: site/index.html:85 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L85)
 
 The stat reads 2 chains to start on.
 [`docs/gnomcp.md`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/docs/gnomcp.md)
@@ -142,11 +148,15 @@ labeled sunset, so reading "to start on" as excluding it is defensible and the
 stat may be deliberate; raised only because the two numbers sit one click
 apart.
 
-### Nit: site/style.css:61-87 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L61-L87)
+### Nit: site/style.css:61-88 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L61-L88)
 
 Complete `:root[data-theme="light"]` and `:root[data-theme="dark"]` palettes.
 Nothing in the HTML or the JS sets `data-theme`, and there is no toggle, so the
-OS preference cannot be overridden.
+OS preference cannot be overridden. The theme that ships is the live
+[`:root`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L14)
+plus the
+[`prefers-color-scheme: dark`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L44)
+override, which duplicates these two blocks.
 
 ### Nit: site/app.js:1 [↗](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/app.js#L1)
 
@@ -193,7 +203,7 @@ as such — worth naming, since the CSP is otherwise `default-src 'none'`.
 ### Nit: repository metadata
 
 `homepage` and `description` on [gnoverse/gno-mcp](https://github.com/gnoverse/gno-mcp)
-are both null, so GitHub does not link back to the site.
+are both empty, so GitHub does not link back to the site.
 
 ### Nit: 404 handling
 

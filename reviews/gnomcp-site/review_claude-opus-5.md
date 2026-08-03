@@ -135,11 +135,12 @@ motion. Fonts carry `font-display: swap` and a one-year immutable cache.
 
   This affects every focusable element on the page: the section nav, both hero
   buttons, the copy button, every documentation link, the footer. The same
-  ring measures 9.92:1 against the dark background, so the failure is confined
+  ring measures 9.94:1 against the dark background, so the failure is confined
   to the light theme.
 
-  Fix: `--accent-ink` is already defined as `#3b7a64` in the light block and
-  reaches 5.06:1 on white.
+  Fix: `--accent-ink` is already defined as `#3b7a64` in the live
+  [`:root`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L32)
+  and reaches 5.06:1 on white.
   </details>
 
 - **[four light-mode text contrast failures]** [`site/style.css:18-19`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L18-L19)
@@ -216,16 +217,19 @@ motion. Fonts carry `font-display: swap` and a one-year immutable cache.
   [`site/index.html:192`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L192):
   "Your signature for sessions" chips a row where six of nine tools are key
   management.
-- **[the chain count is 2 on the page and 3 in the docs]** [`site/index.html:84`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L84)
+- **[the chain count is 2 on the page and 3 in the docs]** [`site/index.html:85`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/index.html#L85)
   — [`docs/gnomcp.md:128`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/docs/gnomcp.md#L128)
   ships `testnet`, its sunset predecessor, and `local`. The weakest finding in
   this review: the third profile is labeled sunset, so reading "chains to start
   on" as excluding it is defensible, and the stat may be deliberate. Raised
   only because the two numbers are one click apart.
-- **[dead theme system]** [`site/style.css:61-87`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L61-L87)
+- **[dead theme system]** [`site/style.css:61-88`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L61-L88)
   — complete `:root[data-theme="light"]` and `:root[data-theme="dark"]`
   palettes. Nothing in the HTML or the JS sets `data-theme`, and there is no
-  toggle, so the OS preference cannot be overridden.
+  toggle, so the OS preference cannot be overridden. What ships instead is the
+  live [`:root`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L14)
+  plus the [`prefers-color-scheme: dark`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L44)
+  override, which duplicates these two blocks.
 - **[`app.js` has no enclosing function]** [`site/app.js:1`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/app.js#L1)
   — the leading two-space indent is left over from an inline `<script>`.
   `saEvent` and `io` land on `window`.
@@ -291,6 +295,41 @@ decimals: mint on white 1.95:1, on `--surface` 1.79:1, on the dark background
 9.94:1; `--fg-faint` 3.74:1; `--label` 4.39:1; the proposed `#0a0a0a99` 5.25:1
 and `--accent-ink` 5.06:1. Weight re-measured at 71.1 KB, matching the ~71 KB
 originally reported.
+
+## Recheck, 2026-08-03
+
+Run before filing the issue. `ef19be4` is still the tip of `main`, and the three
+deployed files are still byte-identical to `site/`. All 22 findings stand. Every
+check below was re-run from a fresh clone and against the live deploy:
+
+| Re-run | Result |
+|:-------|:-------|
+| 26 tool names in the strip vs `docs/tools.md` | `diff` of both sorted lists is empty |
+| `r/gnoland/wugnot`, `r/gov/dao`, `r/demo/profile` in gnolang/gno `examples/` | all three resolve |
+| 9 anchors, 2 third-party assets, and the `raw.githubusercontent.com` install URL the terminal block prints | 12 of 12 return 200 |
+| `robots.txt`, `sitemap.xml`, unknown path | 404, 404, 404 |
+| CSP, HSTS, nosniff, frame-deny, `Referrer-Policy` | all five served |
+| `homepage` and `description` on the repo | both empty |
+| `grep -ci skip`, `og:`/`twitter:`/canonical, `rel="preload"` | 0, 0, 0 |
+| `.copy-btn` and `.mini-cmd` occurrences | 1 each, so the install step has no copy button |
+| `id="install-cmd"` references | one, its own definition |
+| Four contrast ratios recomputed from the hex values | 3.74, 4.38, 1.95, 1.79, 9.94, 5.06, 5.25 all confirmed |
+| Font sizes behind the contrast table | `.8125rem`, `.6875rem` bold, `.6875rem` bold, `.75rem` bold — none large-text exempt |
+| `docs/security.md` §4 | three uncovered channels still named; the Critical stands verbatim |
+
+Three anchors moved:
+
+| Was | Now | Why |
+|:----|:----|:----|
+| `index.html:84` | `85` | 84 is the `hero-stats` container; the chain stat is 85 |
+| `index.html:46` | `46-48` | 46 opens `.client-row`; the client names are on 48 |
+| `style.css:61-87` | `61-88` | the `[data-theme="dark"]` block closes on 88 |
+
+One claim was corrected rather than moved: `--accent-ink` was described as
+living "in the light block", meaning the dead `:root[data-theme="light"]`. It is
+in the live [`:root`](https://github.com/gnoverse/gno-mcp/blob/ef19be4/site/style.css#L32)
+as well, which is what makes the fix a one-token swap. The dark-ring ratio was
+9.92 in the body and 9.94 in the first recheck; 9.94 is correct.
 
 ## Disclosure note
 
