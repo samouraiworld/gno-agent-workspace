@@ -1,4 +1,4 @@
-# PR [#6033](https://github.com/gnolang/gno/pull/6033): refactor(examples)!: drop the placeholder argument by putting the realm last
+# PR [#6033](https://github.com/gnolang/gno/pull/6033): refactor(examples)!: drop the placeholder argument by keeping the realm off first
 
 URL: https://github.com/gnolang/gno/pull/6033
 Author: davd-gzl | Base: master | Files: 145 | +799 -679
@@ -55,7 +55,7 @@ Every `_ int, rlm realm` prefix becomes a trailing `rlm realm` wherever another 
 
   The codemod walks `.gno` files. Five call sites live in realms embedded in `gno.land/pkg/integration/testdata/*.txtar` and were rewritten in a later commit, so the total is 424. The same figure appears in the PR body and in the first commit message. Fix: 424 in the ADR; the PR body needs the same edit.
 
-  Applied on the branch for the ADR. The PR body is a GitHub write and is left for a human.
+  Applied on the branch for the ADR, and on the PR body.
   </details>
 
 - **[claim promises a build failure that does not happen]** `gnovm/adr/prxxxx_realm_param_last.md:88-90` — Consequences says the compiler catches every stale call site, which is not true of the shapes that actually broke.
@@ -119,4 +119,4 @@ Every `_ int, rlm realm` prefix becomes a trailing `rlm realm` wherever another 
 
 ## Open questions
 
-- `inviteMembers(boardID boards.ID, rlm realm, invites ...Invite)` puts the realm second-to-last, not last, because a variadic must stay final. The PR title and the ADR both say "last". The rule the code follows is "as late as the signature allows"; not worth retitling a merged-shape PR, but the next reader of the title will expect something the codebase does not do.
+- `inviteMembers(boardID boards.ID, rlm realm, invites ...Invite)` puts the realm second-to-last, not last, because a variadic must stay final. The title said "last" and now says "keeping the realm off first", which is the rule [`IsCrossing`](https://github.com/gnolang/gno/blob/c552dcb3c/gnovm/pkg/gnolang/types.go#L1340-L1347) actually applies. The ADR heading still reads "last"; its Decision section carries the qualifier, so it was left.
