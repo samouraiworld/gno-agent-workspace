@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/6033
 Author: davd-gzl | Base: master | Files: 145 | +799 -679
-Reviewed by: davd-gzl | Model: claude-opus-5 | Commit: c552dcb3c (latest)
+Reviewed by: davd-gzl | Model: claude-opus-5 | Commit: c552dcb3c (stale — +11 commits since, all applying this review; head cea49947b, ready for review, CI green)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6033 c552dcb3c`
 
 **TL;DR:** A helper that wants a realm value but must not become a crossing function used to take a discarded `0` as its first argument. This moves the realm to the end of the parameter list instead, which does the same job with no placeholder, across 116 signatures and 422 call sites.
