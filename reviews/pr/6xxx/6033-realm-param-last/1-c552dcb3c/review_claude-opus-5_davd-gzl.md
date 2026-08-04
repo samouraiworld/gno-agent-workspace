@@ -5,9 +5,9 @@ Author: davd-gzl | Base: master | Files: 145 | +799 -679
 Reviewed by: davd-gzl | Model: claude-opus-5 | Commit: c552dcb3c (latest)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6033 c552dcb3c`
 
-**TL;DR:** A helper that wants a realm value but must not become a crossing function used to take a discarded `0` as its first argument. This moves the realm to the end of the parameter list instead, which does the same job with no placeholder, across 126 signatures and 424 call sites.
+**TL;DR:** A helper that wants a realm value but must not become a crossing function used to take a discarded `0` as its first argument. This moves the realm to the end of the parameter list instead, which does the same job with no placeholder, across 116 signatures and 422 call sites.
 
-**Verdict: APPROVE** — the rewrite is order-preserving at every call site checked, and the remaining findings are all in the prose that describes it (4 Warnings, 2 Nits, all applied on the branch).
+**Verdict: APPROVE** — the rewrite is order-preserving at every call site checked, and the remaining findings are all in the prose that describes it (4 Warnings, 3 Nits, all applied on the branch).
 
 ## Verify first
 
@@ -16,7 +16,7 @@ Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6033 c552dcb3c
 
 ## Summary
 
-A crossing function is one whose first parameter is a `realm`, tested by [`FuncType.IsCrossing`](https://github.com/gnolang/gno/blob/c552dcb3c/gnovm/pkg/gnolang/types.go#L1340-L1347) · [↗](../../../../../.worktrees/gno-review-6033/gnovm/pkg/gnolang/types.go#L1340-L1347) reading `Params[0]`. A non-crossing helper that still needs a realm had to keep it off that slot, and the convention prepended a discarded `int`. Declaring the realm last keeps it off index 0 by the same rule, at no cost: parameter position is part of `FuncType.TypeID`, so the property travels with the type through interfaces and func values. 186 signatures keep the sentinel because nothing can follow their realm, either because it is their only parameter or because the only other one is variadic.
+A crossing function is one whose first parameter is a `realm`, tested by [`FuncType.IsCrossing`](https://github.com/gnolang/gno/blob/c552dcb3c/gnovm/pkg/gnolang/types.go#L1340-L1347) · [↗](../../../../../.worktrees/gno-review-6033/gnovm/pkg/gnolang/types.go#L1340-L1347) reading `Params[0]`. A non-crossing helper that still needs a realm had to keep it off that slot, and the convention prepended a discarded `int`. Declaring the realm last keeps it off index 0 by the same rule, at no cost: parameter position is part of `FuncType.TypeID`, so the property travels with the type through interfaces and func values. 68 signatures keep the sentinel: their realm is the only parameter, the only other one is variadic, or the other one is a callback that belongs last. The figures are differences between the merge base and the head, and the ADR carries the commands that produce them.
 
 Reading order: [`gnovm/adr/prxxxx_realm_param_last.md`](https://github.com/gnolang/gno/blob/c552dcb3c/gnovm/adr/prxxxx_realm_param_last.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6033/gnovm/adr/prxxxx_realm_param_last.md#L1) for the decision and the two shapes it cannot reach, then [`examples/gno.land/p/moul/authz/authz.gno:200-218`](https://github.com/gnolang/gno/blob/c552dcb3c/examples/gno.land/p/moul/authz/authz.gno#L200-L218) · [↗](../../../../../.worktrees/gno-review-6033/examples/gno.land/p/moul/authz/authz.gno#L200-L218) as the representative signature pair, then the call sites.
 
@@ -93,16 +93,30 @@ Every `_ int, rlm realm` prefix becomes a trailing `rlm realm` wherever another 
   Applied on the branch.
   </details>
 
-- **[an exception with no note reads as a miss]** `examples/gno.land/p/demo/tests/tests.gno:81` — `ExecRlm` moved its own realm last while its callback parameter keeps `_ int, rlm realm`, and nothing at the site says why.
+- **[the sweep moved a signature it should have skipped]** `examples/gno.land/p/demo/tests/tests.gno:81` — `ExecRlm` moved its own realm last, which evicts the callback from the final argument.
   <details><summary>details</summary>
 
+  The callback cannot drop the sentinel: a realm is its only parameter, so `func(realm)` puts a realm at `Params[0]` and every literal would type as crossing. So the move leaves one expression carrying both conventions, three lines from a sibling call that does not:
+
   ```go
-  func ExecRlm(fn func(_ int, rlm realm), rlm realm) {
-  	fn(0, rlm)
-  }
+  rtests.ExecSwitchRlm(cross(cur), func(_ int, rlm realm) {
+  	// ...
+  })                    // crossing, realm first, closure last
+
+  rtests.ExecRlm(func(_ int, rlm realm) {
+  	// ...
+  }, cur)               // swept, closure evicted from last
   ```
 
-  The callback cannot drop the sentinel: a realm is its only parameter, so `func(realm)` puts a realm at `Params[0]` and every literal would type as crossing. The result is one expression carrying both conventions at the three call sites in [`gnovm/tests/files/zrealm_crossrealm11.gno:95`](https://github.com/gnolang/gno/blob/c552dcb3c/gnovm/tests/files/zrealm_crossrealm11.gno#L95) · [↗](../../../../../.worktrees/gno-review-6033/gnovm/tests/files/zrealm_crossrealm11.gno#L95). The ADR covers the shape in general; the declaration does not. Fix: one comment line at each of the three declarations.
+  Fix: leave `ExecRlm` alone. A trailing realm is expressible here, so this is a judgement rather than an impossibility, and the ADR records it as a third shape that keeps the sentinel.
+
+  Reverted on the branch, at the three declarations and the three call sites in [`gnovm/tests/files/zrealm_crossrealm11.gno:95`](https://github.com/gnolang/gno/blob/c552dcb3c/gnovm/tests/files/zrealm_crossrealm11.gno#L95) · [↗](../../../../../.worktrees/gno-review-6033/gnovm/tests/files/zrealm_crossrealm11.gno#L95).
+  </details>
+
+- **[a README quoting code the sweep moved]** `examples/quarantined/gno.land/p/samcrew/daokit/README.md:297` — the page shows `DAO.Vote(0, cur, proposalID, vote)` against a `DAOWrapper` that now takes the realm last.
+  <details><summary>details</summary>
+
+  It quotes `daodemo.gno` verbatim, and that file moved. Same class as the txtar and docs misses: the codemod reads `.gno`. Found by sweeping every `.md` and `.txtar` for calls to the 92 function names that dropped the sentinel; it was the only real hit, the rest being name collisions on unrelated `Render` and `Get`, and frozen test5 genesis snapshots whose `0` is a proposal id.
 
   Applied on the branch.
   </details>
@@ -115,6 +129,7 @@ Every `_ int, rlm realm` prefix becomes a trailing `rlm realm` wherever another 
 - The apphash pin moved for the reason the branch claims. [`TestAppHashCrossrealm38`](https://github.com/gnolang/gno/blob/c552dcb3c/gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go#L125) · [↗](../../../../../.worktrees/gno-review-6033/gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go#L125) still produces the old hash at the merge base ddb752cac and the new one on the branch, so the shift comes from the branch and not from master.
 - The sweep left no reachable signature behind. Every `_ int, rlm realm` declaration surviving outside `examples/quarantined/` falls into the two shapes the ADR excludes: 63 of `(_ int, rlm realm)` with nothing to trail, and one of `(_ int, rlm realm, addrs ...address)` where a realm cannot follow a variadic. No declaration keeps the sentinel while carrying another parameter that could hold the realm.
 - `gno lint` gates on a signature desync. Three deliberate breaks under `gno lint -C examples -v ./...` each exit 1: an in-package type error, a cross-package call site with the old arity, and `*fnTeller` left behind by the `Teller` interface. This refutes the Verification claim in the ADR and is the fourth Warning above.
+- Every doc and archive was swept, not just the ones the failure named. Every `.md` and `.txtar` in the tree was checked for calls to the 92 function names that dropped the sentinel, and for calls to the 58 that kept it written without one. One real hit, the daokit README above.
 - Green at c552dcb3c: `gno.land/pkg/integration` (514s), `gno.land/pkg/sdk/vm` (64s), `TestFiles/zrealm_crossrealm11.gno`, and all 102 PR checks.
 
 ## Open questions
