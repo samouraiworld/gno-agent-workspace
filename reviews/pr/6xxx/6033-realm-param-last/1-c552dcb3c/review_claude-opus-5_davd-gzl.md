@@ -7,7 +7,7 @@ Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6033 c552dcb3c
 
 **TL;DR:** A helper that wants a realm value but must not become a crossing function used to take a discarded `0` as its first argument. This moves the realm to the end of the parameter list instead, which does the same job with no placeholder, across 126 signatures and 424 call sites.
 
-**Verdict: APPROVE** — the rewrite is order-preserving at every call site checked, and the remaining findings are all in the prose that describes it (3 Warnings, 2 Nits, all applied on the branch).
+**Verdict: APPROVE** — the rewrite is order-preserving at every call site checked, and the remaining findings are all in the prose that describes it (4 Warnings, 2 Nits, all applied on the branch).
 
 ## Verify first
 
@@ -66,6 +66,23 @@ Every `_ int, rlm realm` prefix becomes a trailing `rlm realm` wherever another 
   Applied on the branch.
   </details>
 
+- **[warning tells the next reader to distrust a gate that works]** `gnovm/adr/prxxxx_realm_param_last.md:122-126` — Verification says `gno lint` exits 0 while printing type errors. It exits 1.
+  <details><summary>details</summary>
+
+  The claim matters because it tells whoever revisits this that `gno-checks / lint` cannot gate a signature desync, which is the exact failure class this change risks. Three deliberate breaks under the job's own command, `gno lint -C examples -v ./...`, all exit 1: a type error inside one package, a call site carrying the old arity across packages, and an implementation left behind by its interface.
+
+  ```
+  gno.land/r/demo/defi/foo20/foo20.gno:50:53: too many arguments in call to userTeller.TransferFrom
+  	have (number, realm, address, address, int64)
+  	want (grc20.address, grc20.address, int64, grc20.realm) (code=gnoTypeCheckError)
+  exit status 1
+  ```
+
+  Fix: state what the gate does catch, and name the one shape it cannot, a call site inside a `.txtar` archive.
+
+  Applied on the branch.
+  </details>
+
 ## Nits
 
 - **[guide teaches the shape the same guide replaces]** `gnovm/adr/migration_guide.md:323` and `:351` — two snippets in §11 still call `tdao.vote(0, cur, ...)`.
@@ -96,6 +113,7 @@ Every `_ int, rlm realm` prefix becomes a trailing `rlm realm` wherever another 
 - Every rewritten call site preserved the relative order of its non-realm arguments. A parser over the diff paired each removed call with its replacement, dropped the sentinel and the realm from both sides, and compared the remainder as ordered lists: 399 single-line call sites, zero mismatches. The five multi-line `NewSimpleExecutor` calls and the nine parser false positives were read by hand.
 - The families where a swap would compile were read individually: `TransferFrom(owner, to address, ...)`, `getThread`/`getComment`/`setThreadReadonly` on adjacent `uint64` and `boards.ID`, `NewBasicNFT`/`NewNFTWithMetadata`/`NewNFTWithRoyalty` on adjacent `string`, and `CreateForm` on five consecutive `string` parameters. All preserve order.
 - The apphash pin moved for the reason the branch claims. [`TestAppHashCrossrealm38`](https://github.com/gnolang/gno/blob/c552dcb3c/gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go#L125) · [↗](../../../../../.worktrees/gno-review-6033/gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go#L125) still produces the old hash at the merge base ddb752cac and the new one on the branch, so the shift comes from the branch and not from master.
+- `gno lint` gates on a signature desync. Three deliberate breaks under `gno lint -C examples -v ./...` each exit 1: an in-package type error, a cross-package call site with the old arity, and `*fnTeller` left behind by the `Teller` interface. This refutes the Verification claim in the ADR and is the fourth Warning above.
 - Green at c552dcb3c: `gno.land/pkg/integration` (514s), `gno.land/pkg/sdk/vm` (64s), `TestFiles/zrealm_crossrealm11.gno`, and all 102 PR checks.
 
 ## Open questions
