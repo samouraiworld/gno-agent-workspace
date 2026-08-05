@@ -30,6 +30,10 @@ When asked what was already reviewed (whether a PR was reviewed, what a past rev
 
 When asked to fix a gnolang/gno issue (bug, security fix, etc.), read and follow `skills/fix-issue.md`. Supports two modes: `fix` to implement and open a PR, `cleanup` to remove worktrees for merged PRs.
 
+## Security Advisory
+
+When asked to verify a security finding against deployed/merged gnolang/gno code and write it up for private disclosure, read and follow `skills/security-advisory.md`. Verify by execution (filetest repro), route output to the private disclosure repo, produce a CVSS vector and a paste-ready body for the GitHub Security Advisory form. Findings against an open PR's own diff are reviews, not disclosures: use `skills/review.md`.
+
 ## Weekly Report
 
 When asked to generate or update the weekly team report, read and follow `skills/weekly-report.md`. The data-gathering script is `scripts/weekly-report.sh`. Reports are saved in `reports/weekly/`.
@@ -68,7 +72,7 @@ When writing or editing gno docs (`docs/resources/*.md`, READMEs), code comments
 - **Never write into the `gno/` submodule in-place.** Any task that modifies files under `gno/` — code, docs, READMEs, anything — happens inside a worktree at `.worktrees/gno-<slug>/`. See `skills/fix-issue.md` for the worktree-creation procedure. Docs/README work is not an exception: "small" is not a reason to skip a worktree.
 - **Never push to gnolang/gno** for review purposes. Pushing to a fork of gnolang/gno is acceptable for specific cases (e.g. cherry-picks).
 - **When working on the fork, always pull from `origin` (upstream master) first, then run the command.**
-- After writing a review, commit and push to this repo only: `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`. No bare `#<number>` in the subject: it autolinks to this repo, not gnolang/gno.
+- After writing a review, commit and push to this repo only: `git add reviews/ && git commit -m "review: PR <number>" && git push`. No bare `#<number>` in the subject: it autolinks to this repo, not gnolang/gno.
 - **Reviews land on `origin/main` directly.** `origin` is `samouraiworld/gno-agent-workspace`, and it is the only remote this checkout has: the fork `davd-gzl/gno-agent-workspace` is abandoned, so nothing branches off it, pushes to it, or opens a cross-fork pull request from it. Push to `origin/main` first, every turn, without asking. A branch and a pull request are the fallback, taken only once the direct push is refused, and then one branch and one pull request carry the whole turn. Token access varies by session: some `davd-gzl` tokens carry `admin` here, measured with `gh api repos/samouraiworld/gno-agent-workspace --jq '.permissions'`, and others are refused with `403 Permission to samouraiworld/gno-agent-workspace.git denied`. Check the permissions before assuming either. On a 403, finish everything else, then hand over a short copy-pasteable prompt for an agent that holds a token with write access. Name the branch, both shas, the steps, and the constraints. Never hand the user a command line.
 - **Every `scripts/*.sh` carries the NOT AUDITED line as line 2**, right after the shebang: `# NOT AUDITED — AI-generated tooling. Review before executing in any privileged context.` then a `#` separator. Never on adversarial test files under `reviews/.../tests/`.
 

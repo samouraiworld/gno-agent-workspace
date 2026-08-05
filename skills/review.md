@@ -406,7 +406,7 @@ If another reviewer already raised a finding, attribute in the TL;DR before the 
 - Empty categories: "None". Never fabricate.
 - Priority: correctness > security > determinism > state safety > tests > docs > style.
 - Large PRs (>20 files): summarize by area first, then deep-dive critical paths.
-- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: `git add reviews/ docs/glossary.md && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only.
+- Draft `comment_<model>.md` (see *GitHub review draft*) before committing, then do a single final push at the end covering the review file and comment: `git add reviews/ && git commit -m "review: PR <number>" && git push`, to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only.
 - Never run `./scripts/build-indexes.sh` as part of a review. `reviews/README.md` regenerates only when the user asks for it.
 - Push is pre-authorized for this skill — do not stop to ask. Overrides the global ask-before-push rule, scoped to this skill only.
 - New findings surfaced after the initial draft (a follow-up question, a deeper dig) are folded into the review file and `comment_<model>.md`, verified with a real run, and committed/pushed in the same turn automatically — never ask whether to add them. Posting still waits for the literal `post`.
