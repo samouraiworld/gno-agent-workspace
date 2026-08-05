@@ -23,8 +23,9 @@ Single-PR run, in order (multi-PR and batch runs wrap it via *Parallel dispatch*
 5. *Write tests* for test-shaped findings; *Gno vs Go comparison* when `.gno` code changed.
 6. Write the review file (*Output*); generate `overview.html` when the subject is complex (*PR overview*).
 7. Draft `comment_<model>.md` (*GitHub review draft*), run its *Final check* and QA agents. Skip for a PR the reviewer authored; see *Own PR*.
-8. One commit and push covering everything (pre-authorized; see *Rules*).
-9. Hand over: link each PR's `comment_<model>.md` draft, not only the review file, plus a "Decisions needed" list (borderline verdict, APPROVE confirmation, Open questions worth promoting) — one line each, omit when empty. Post only on the literal `post`.
+8. Full `skills/writing-style.md` pass over every line of the review file and `comment_<model>.md`. First priority, never skipped, whatever the findings are worth. Re-run it after any later edit to that prose, including one made in response to a question about it. State which passes ran when handing over.
+9. One commit and push covering everything (pre-authorized; see *Rules*).
+10. Hand over: link each PR's `comment_<model>.md` draft, not only the review file, plus a "Decisions needed" list (borderline verdict, APPROVE confirmation, Open questions worth promoting) — one line each, omit when empty. Post only on the literal `post`.
 
 Run from the workspace root. After the review is finished, ask the user before opening the worktree in VSCode (`code <workspace-root>/.worktrees/gno-review-<number>`).
 
@@ -61,7 +62,9 @@ done < /tmp/open_nondraft.txt
 
 When `$ARGUMENTS` contains more than one PR, the parent first creates each PR's worktree and checks out the PR (per *Fetch & understand*); subagents never run `worktree add` or `gh pr checkout`. Then dispatch one Agent per PR in a single message (`subagent_type: general-purpose`), this prompt per subagent:
 
-> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). The worktree already exists at `<worktree-path>` with the PR checked out — never `worktree add` or `gh pr checkout`. Follow every other step in that file — diff, comments, CI, deep read, write the review file, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
+> Run the gno PR review workflow at `skills/review.md` on PR `<number>` (URL: `<url>`). Read `skills/writing-style.md` before drafting any prose; every line of the review file and `comment_<model>.md` conforms to it. The worktree already exists at `<worktree-path>` with the PR checked out — never `worktree add` or `gh pr checkout`. Follow every other step in that file — diff, comments, CI, deep read, write the review file, draft `comment_<model>.md`. Do not commit, push, regenerate the indexes, or post the review; the parent does all of that at the end. Report back the review file path and a one-paragraph summary of the verdict and headline findings.
+
+The parent runs the *Final check* and both QA agents over every returned draft before the commit. A subagent's own pass does not stand in for them.
 
 Do not sequence the agents. After all return, the parent makes a single commit (`review: PRs <a> and <b>`) and push covering all reviews; subagents never commit or push.
 

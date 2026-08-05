@@ -9,7 +9,7 @@ Verified on 2c817cec4: a `gnoland` built from this branch emits the flags, defau
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6039-move-node-operator-docs/1-2c817cec4/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 
 ## docs/builders/running-a-node.md:65 [↗](../../../../../.worktrees/gno-review-6039/docs/builders/running-a-node.md#L65)
-https://docs.gno.land/validators/tmkms becomes a 404 with this move, and this line names tmkms in prose where [the link that used to reach it](https://github.com/gnolang/gno/blob/3ced3553a/docs/builders/running-a-node.md?plain=1#L68) stood, so nothing on the site points there. The docs site's redirect block [says the old URLs are indexed and linked externally, and to extend it when docs paths move again](https://github.com/gnolang/docs.gno.land/blob/b11d650be/netlify.toml#L22-L24).
+https://docs.gno.land/validators/tmkms 404s after this move, and this line names tmkms in prose where [the link that used to reach it](https://github.com/gnolang/gno/blob/3ced3553a/docs/builders/running-a-node.md?plain=1#L68) stood. The docs site's redirect block [asks for an entry when docs paths move](https://github.com/gnolang/docs.gno.land/blob/b11d650be/netlify.toml#L22-L24).
 
 <details><summary>repro</summary>
 
@@ -29,7 +29,7 @@ files left under docs/validators: 0
 </details>
 
 ## docs/resources/gnoland-networks.md:35-37 [↗](../../../../../.worktrees/gno-review-6039/docs/resources/gnoland-networks.md#L35-L37)
-The bullet promises binaries, container images, `genesis.json` and its checksum on the matching release tag, but `chain/gnoland1.1` carries no assets at all and `chain/gnoland1.0` carries three, none of them a binary or a checksum. Container images hang off no release tag; they are published to `ghcr.io/gnolang/gno`, as [`install.md:80`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/install.md?plain=1#L80) already says. The claim holds for `chain/topaz` and `chain/test13`, which carry eighteen assets each.
+Betanet's release tags carry no binary and no checksum file, so an operator on the row marked current finds none of what this promises. Container images hang off no release tag either; they are published to [`ghcr.io/gnolang/gno`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/install.md?plain=1#L80).
 
 <details><summary>repro</summary>
 
@@ -50,7 +50,7 @@ chain/gnoland1.0	assets=3	genesis.json,gno.wasm,root.zip
 </details>
 
 ## docs/resources/gnoland-networks.md:43-45 [↗](../../../../../.worktrees/gno-review-6039/docs/resources/gnoland-networks.md#L43-L45)
-`../../misc/deployments` ships as `/misc/deployments` on docs.gno.land and returns 404, and the two rows beside it do the same. All three were absolute GitHub URLs before this diff, and [`running-a-node.md:84`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L84) takes the same shape. [`make -C docs lint`](https://github.com/gnolang/gno/blob/2c817cec4/docs/Makefile#L2) passes because the checker only [stats the path on disk](https://github.com/gnolang/gno/blob/2c817cec4/misc/docs/tools/linter/links.go#L80-L81).
+`../../misc/deployments` ships as `/misc/deployments` on docs.gno.land and returns 404, and so do the two rows beside it and [`running-a-node.md:84`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L84). [`make -C docs lint`](https://github.com/gnolang/gno/blob/2c817cec4/docs/Makefile#L2) passes because the checker only [stats the path on disk](https://github.com/gnolang/gno/blob/2c817cec4/misc/docs/tools/linter/links.go#L80-L81).
 
 <details><summary>repro</summary>
 
@@ -75,7 +75,7 @@ docs.gno.land/contribs/tx-archive -> 404
 </details>
 
 ## gno.land/cmd/gnoland/README.md:26 [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L26)
-This command exits 1 with `no v* release found` and installs nothing: [`misc/install.sh`](https://github.com/gnolang/gno/blob/2c817cec4/misc/install.sh#L218-L220) resolves `latest` to the newest non-prerelease tag starting with `v`, and all eight releases the repository publishes are `chain/*`. The `--version <tag>` escape it suggests does not work either, since the `v1.1.0` and `v1.0.0` git tags carry no GitHub release behind them. The defect is in the script and predates this diff; what this adds is a second place sending a reader there, beside [`running-a-node.md:86-87`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L86-L87).
+This command exits 1 and installs nothing: [`misc/install.sh`](https://github.com/gnolang/gno/blob/2c817cec4/misc/install.sh#L218-L220) resolves `latest` to a tag starting with `v`, and all eight releases the repository publishes are `chain/*`. The `--version <tag>` escape it suggests fails too, since the `v1.1.0` and `v1.0.0` git tags carry no GitHub release behind them. The defect is in the script and predates this diff; what this adds is a second place sending a reader there, beside [`running-a-node.md:86-87`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L86-L87).
 
 <details><summary>repro</summary>
 
