@@ -96,7 +96,7 @@ exit=1
 </details>
 
 ## gno.land/cmd/gnoland/README.md:45-51 [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L45-L51)
-The last line stops at `missing genesis.json`, because nothing in this block writes one. [`gnogenesis`](https://github.com/gnolang/gno/blob/2c817cec4/contribs/gnogenesis/README.md?plain=1#L3), the tool that makes the file, is never named in this README.
+The last line stops at `missing genesis.json`, because nothing in this block writes one. The three flags that shape a genesis, `-genesis-balances-file`, `-genesis-txs-file` and `-genesis-remote`, are absent from the table above and only take effect [under `-lazy`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/start.go#L221-L223), which that table calls local dev only. [`gnogenesis`](https://github.com/gnolang/gno/blob/2c817cec4/contribs/gnogenesis/README.md?plain=1#L3), the tool that makes the file, is never named in this README.
 
 <details><summary>repro</summary>
 
