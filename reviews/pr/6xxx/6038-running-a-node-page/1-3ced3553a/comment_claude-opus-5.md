@@ -2,9 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Verified on 3ced3553a: `misc/install.sh --full` exits 1 before downloading anything, and Betanet's release tag `chain/gnoland1.1` carries no assets.
-
-Betanet, the row the table marks current, follows neither of the two conventions the new section states. Topaz and Test13 follow both.
+Betanet, the row the table marks current, follows neither of the two conventions the new section states. Topaz and Test13 follow both. Repros run at 3ced3553a.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6038-running-a-node-page/1-3ced3553a/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 
