@@ -74,6 +74,28 @@ docs.gno.land/contribs/tx-archive -> 404
 ```
 </details>
 
+## gno.land/cmd/gnoland/README.md:152-158 [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L152-L158)
+Disk is named as the bottleneck here, and `prune_strategy` is the setting that governs how fast it fills. It takes `everything`, `nothing` or `syncable`, and reaches the store through [`SetPruningOptions`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/pkg/gnoland/app.go#L103). It shares the [`[application]`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/pkg/gnoland/app.go#L47-L48) block with `min_gas_prices`, the lowest gas price the validator accepts, and this file names neither key nor the section.
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 6039 -R gnolang/gno
+go run ./gno.land/cmd/gnoland config init -config-path /tmp/probe.toml
+sed -n '/^\[application\]/,/^#####/p' /tmp/probe.toml
+rm -f /tmp/probe.toml
+```
+
+```
+[application]
+# Lowest gas prices accepted by a validator
+min_gas_prices = ""
+# State pruning strategy [everything, nothing, syncable]
+prune_strategy = "syncable"
+```
+</details>
+
 ## gno.land/cmd/gnoland/README.md:171-172 [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L171-L172)
 Monitoring is a step of the validator process here, and no section above covers it. The node ships the surface it would document: [`telemetry`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/pkg/telemetry/config/config.go#L13-L18) carries `metrics_enabled`, `service_name`, `traces_enabled` and an [`exporter_endpoint`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/pkg/telemetry/config/config.go#L17) for an OpenTelemetry collector, and [`contribs/gnohealth`](https://github.com/gnolang/gno/blob/2c817cec4/contribs/gnohealth/internal/timestamp/timestamp.go#L37) ships a liveness check.
 
