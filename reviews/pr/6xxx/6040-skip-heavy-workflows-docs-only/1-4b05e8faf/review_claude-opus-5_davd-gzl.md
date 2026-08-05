@@ -100,6 +100,11 @@ Reconciliation input for the parent. Measured, not inferred.
 - `MustReadMemPackage` on `gnovm/tests/files/extern/redeclaration1` returns `[README.md redeclaration.gno redeclaration2.gno]`, against `[README.md errors.gno gnomod.toml join.gno wrap.gno]` for `gnovm/stdlibs/errors`. Dropping a stray `NOTES.MD` into that directory and running `TestFiles/redeclaration6.gno` leaves it green, which is what puts the finding at Warning rather than higher.
 - No `//go:embed` directive in the repository names a `.md` file, and `git ls-files '*testdata*.md' '*golden*.md'` returns nothing, so the only Markdown a test consumes is mempackage content.
 
+## Not verified
+
+- The before and after trigger sets come from a re-implementation of GitHub's matcher, not from a run. No commit touching only documentation has been pushed to this branch to see which workflows GitHub actually starts, and the branch cannot produce that observation itself: every commit on it edits `.github/workflows/**`, which matches [`meta-actions-lint`](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/meta-actions-lint.yml#L10-L11) · [↗](../../../../../.worktrees/gno-review-6040/.github/workflows/meta-actions-lint.yml#L10-L11) and several others. A one-commit branch off this head touching a single `.md` file under `docs/` would settle it, and is the check a maintainer can run that this review cannot.
+- The negation ordering the diff relies on is taken from GitHub's documentation rather than measured. Every `!` pattern here is a trailing override on a `paths` list, which is the documented shape, but a mis-ordered list fails silently: the job simply stops running, and no signal says so.
+
 ## Open questions
 
 - The author offers to drop the `push.paths` blocks on `ci / val-scenarios` and `ci / multiarch-determinism` in a follow-up, so every merge to `master` runs the full suite. That is a coverage policy decision for a maintainer, not a defect in this diff. Not posted.
