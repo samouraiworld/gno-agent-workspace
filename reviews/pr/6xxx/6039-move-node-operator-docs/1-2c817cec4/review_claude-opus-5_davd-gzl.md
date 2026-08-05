@@ -1,0 +1,143 @@
+# PR [#6039](https://github.com/gnolang/gno/pull/6039): docs: move node-operator docs into gno.land/cmd/gnoland, drop gnops.io links
+
+URL: https://github.com/gnolang/gno/pull/6039
+Author: moul | Base: master | Files: 10 | +306 -27
+Reviewed by: davd-gzl | Model: claude-opus-5 | Commit: 2c817cec4 (latest)
+Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6039 2c817cec4`
+
+**TL;DR:** Node-operator instructions move out of the published documentation site and into the `gnoland` command's own README, and every link to the third-party gnops.io blog is replaced by something in the repository.
+
+**Verdict: REQUEST CHANGES** — the move drops a page that is live on docs.gno.land, converts working links on that site into 404s, neither of the two install paths the new README documents produces a node, and one cross-reference to the moved file is now dead (6 Warnings, 2 Nits, 2 Suggestions).
+
+This pull request carries `Closes #6038` in its body, so [PR 6038](https://github.com/gnolang/gno/pull/6038) never merges under its own number and this review is the only one its content reaches. The two findings from the 6038 review that survive unchanged at this head are carried here as Warnings, re-verified at `2c817cec4`.
+
+## Verify first
+
+- [`gno.land/cmd/gnoland/TMKMS.md:1`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/TMKMS.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/TMKMS.md#L1) — the page this file leaves behind is served today: `curl -o /dev/null -w '%{http_code}' -L https://docs.gno.land/validators/tmkms` returns 200. Decide whether a redirect ships in [`gnolang/docs.gno.land`](https://github.com/gnolang/docs.gno.land/blob/b11d650be/netlify.toml#L22-L24) before this merges.
+- [`docs/resources/gnoland-networks.md:43-45`](https://github.com/gnolang/gno/blob/2c817cec4/docs/resources/gnoland-networks.md?plain=1#L43-L45) · [↗](../../../../../.worktrees/gno-review-6039/docs/resources/gnoland-networks.md#L43-L45) — confirm the absolute-to-relative conversion is what you want on the published site: `curl -sL https://docs.gno.land/resources/gno-packages | grep -o 'href="/examples[^"]*"'` shows what Docusaurus does with the same shape, and that href is a 404.
+- [`gno.land/cmd/gnoland/README.md:45-51`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L45-L51) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L45-L51) — run the five lines in an empty directory. They stop at `missing genesis.json`.
+
+## Summary
+
+The pull request does two things its predecessor left alone. It removes every gnops.io URL from the tree, writing the content each one stood in for into [`gno.land/cmd/gnoland/README.md`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L1), which grows from 32 lines to 186 and becomes the operator hub: install, local chain, joining a network, sentry architecture, remote signing, hardware, and the validator process. And it takes node-operator material out of `docs/`, moving [`docs/validators/tmkms.md`](https://github.com/gnolang/gno/blob/3ced3553a/docs/validators/tmkms.md?plain=1#L1) to [`gno.land/cmd/gnoland/TMKMS.md`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/TMKMS.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/TMKMS.md#L1) and shrinking the docs site's validator section to a hand-off. The operator facts the new README asserts hold against the source; the problems are all in what the move does to the published site and to one recipe.
+
+Reading order: [`gno.land/cmd/gnoland/README.md`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L1) first, since everything else points at it, then [`docs/builders/running-a-node.md`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L47-L78) and [`docs/resources/gnoland-networks.md`](https://github.com/gnolang/gno/blob/2c817cec4/docs/resources/gnoland-networks.md?plain=1#L1) for the link conversions, then the realm pair.
+
+## Diagram
+
+Where a reader looking for the tmkms guide ends up, before and after.
+
+```
+before                                    after
+
+docs.gno.land                             docs.gno.land
+  /builders/running-a-node                  /builders/running-a-node
+        │ "Signing with TMKMS"                    │ prose: "remote signer (tmkms)"
+        ▼                                         ▼   (no link)
+  /validators/tmkms  [200]                   /validators/tmkms  [404]
+                                                        ▲
+github.com/gnolang/gno                                  │ no redirect
+  docs/validators/tmkms.md                  github.com/gnolang/gno
+                                              gno.land/cmd/gnoland/README.md
+                                                    │ "see TMKMS.md"
+                                                    ▼
+                                              gno.land/cmd/gnoland/TMKMS.md
+```
+
+## Critical (must fix)
+
+None.
+
+## Warnings (should fix)
+
+- **[a published page disappears with no redirect]** [`docs/builders/running-a-node.md:65`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L65) · [↗](../../../../../.worktrees/gno-review-6039/docs/builders/running-a-node.md#L65) — moving the guide out of `docs/` turns https://docs.gno.land/validators/tmkms into a 404, and this line drops the only link the docs site had to it.
+  <details><summary>details</summary>
+
+  The page is live today, not merely present in the tree. [`docs/validators/tmkms.md`](https://github.com/gnolang/gno/blob/3ced3553a/docs/validators/tmkms.md?plain=1#L1) is published at https://docs.gno.land/validators/tmkms, which returns 200 with `<h1>Signing with tmkms` and a canonical URL, while a bogus sibling under the same prefix returns 404. Absence from [`misc/docs/sidebar.json`](https://github.com/gnolang/gno/blob/2c817cec4/misc/docs/sidebar.json#L18-L30) · [↗](../../../../../.worktrees/gno-review-6039/misc/docs/sidebar.json#L18-L30) keeps a page out of the navigation, not out of the build. The docs site already ran into this once and wrote the procedure down: its redirect block [says the old URLs are indexed and linked externally, and to extend the block when docs paths move again](https://github.com/gnolang/docs.gno.land/blob/b11d650be/netlify.toml#L22-L24). Nothing here extends it. The same edit also removes [the `Signing with TMKMS` link](https://github.com/gnolang/gno/blob/3ced3553a/docs/builders/running-a-node.md?plain=1#L68) and replaces it with unlinked prose at [`running-a-node.md:65`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L65) · [↗](../../../../../.worktrees/gno-review-6039/docs/builders/running-a-node.md#L65), so after the merge no page on docs.gno.land links the guide at all. Fix: ship the 301 in [`gnolang/docs.gno.land`](https://github.com/gnolang/docs.gno.land/blob/b11d650be/netlify.toml#L22-L24) alongside this, and keep a link from the validator section to the guide's new home. [repro](comment_claude-opus-5.md)
+  </details>
+
+- **[working links become 404s on the published site]** [`docs/resources/gnoland-networks.md:43-45`](https://github.com/gnolang/gno/blob/2c817cec4/docs/resources/gnoland-networks.md?plain=1#L43-L45) · [↗](../../../../../.worktrees/gno-review-6039/docs/resources/gnoland-networks.md#L43-L45) — the absolute-to-relative conversion resolves against the docs.gno.land URL, not against the repository, so `../../misc/deployments` ships as `/misc/deployments`.
+  <details><summary>details</summary>
+
+  Eight links in this file and one in [`running-a-node.md:84`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L84) · [↗](../../../../../.worktrees/gno-review-6039/docs/builders/running-a-node.md#L84) were absolute `github.com/gnolang/gno/tree/master/...` URLs before this diff and worked on both surfaces. Docusaurus rewrites a relative link only when it resolves to another page inside the docs root; a path that climbs out of it is emitted verbatim. The result is already observable on the precedent the pull request body cites: https://docs.gno.land/resources/gno-packages renders [`../../examples/gno.land/p/nt/avl/v0`](https://github.com/gnolang/gno/blob/2c817cec4/docs/resources/gno-packages.md?plain=1#L199) · [↗](../../../../../.worktrees/gno-review-6039/docs/resources/gno-packages.md#L199) as `href="/examples/gno.land/p/nt/avl/v0"`, and that URL returns 404. `/misc/loop`, `/misc/deployments`, `/contribs/tx-archive` and `/gno.land/cmd/gnoland` all return 404 too. The repository's own link checker cannot see this: it [stats the path on disk](https://github.com/gnolang/gno/blob/2c817cec4/misc/docs/tools/linter/links.go#L80-L81) · [↗](../../../../../.worktrees/gno-review-6039/misc/docs/tools/linter/links.go#L80-L81) and nothing more, so `make -C docs lint` passes.
+
+  On GitHub the same conversion resolves, but to the wrong copy. `../../misc/deployments` renders against the branch the file is being viewed on, so after this merges it lands on `master` — the copy the two bullets at [`gnoland-networks.md:31-33`](https://github.com/gnolang/gno/blob/2c817cec4/docs/resources/gnoland-networks.md?plain=1#L31-L33) · [↗](../../../../../.worktrees/gno-review-6039/docs/resources/gnoland-networks.md#L31-L33) tell the reader not to use, since the real directory is on `chain/<name>`. `master`'s Betanet config was last touched 2026-03-27 and names [one persistent peer](https://github.com/gnolang/gno/blob/master/misc/deployments/gnoland1/config.toml#L150); the `chain/gnoland1` copy was last touched 2026-04-13 and names [three](https://github.com/gnolang/gno/blob/chain/gnoland1/misc/deployments/gnoland1/config.toml#L150). `master` also carries `govdao/` where the chain branch carries `govdao-scripts/`. An operator who follows the link and runs the documented [`cp config.toml gnoland-data/config/config.toml`](https://github.com/gnolang/gno/blob/2c817cec4/misc/deployments/gnoland1/README.md?plain=1#L50) · [↗](../../../../../.worktrees/gno-review-6039/misc/deployments/gnoland1/README.md#L50) starts a node against the superseded peer set. The pre-diff absolute URLs pinned `master` explicitly and had the same problem, so the conversion neither causes nor fixes it. Fix: keep an absolute GitHub URL for any target outside `docs/`, and point the `misc/deployments` ones at the branch the surrounding prose names. [repro](comment_claude-opus-5.md)
+  </details>
+
+- **[the documented from-scratch recipe does not produce a node]** [`gno.land/cmd/gnoland/README.md:45-51`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L45-L51) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L45-L51) — nothing in the block writes `genesis.json`, so the last line stops at `missing genesis.json`.
+  <details><summary>details</summary>
+
+  The block is introduced as the path you need for a real deployment, as opposed to `-lazy`. But `gnoland` has four subcommands, `start`, `secrets`, `config` and `version`, and none of them makes a genesis file. The tool that does is [`gnogenesis`](https://github.com/gnolang/gno/blob/2c817cec4/contribs/gnogenesis/README.md?plain=1#L3) · [↗](../../../../../.worktrees/gno-review-6039/contribs/gnogenesis/README.md#L3), which the README never names. Run verbatim in an empty directory the five lines leave `gnoland-data/` on disk and print `missing genesis.json`; the [`-lazy` invocation above the block](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L35) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L35) leaves `gnoland-data/` and `genesis.json`. This matters more than a usual doc gap because resolving the old `TODO: make this README self-sufficient` is one of the pull request's stated goals. Fix: name the tool that produces `genesis.json`. [repro](comment_claude-opus-5.md)
+  </details>
+
+- **[the other install path fails too]** [`gno.land/cmd/gnoland/README.md:26`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L26) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L26) — the one-line installer this diff adds cannot resolve a version today, so it exits 1 without installing anything.
+  <details><summary>details</summary>
+
+  [`misc/install.sh`](https://github.com/gnolang/gno/blob/2c817cec4/misc/install.sh#L218-L220) · [↗](../../../../../.worktrees/gno-review-6039/misc/install.sh#L218-L220) resolves `latest` by taking the newest non-prerelease release whose tag starts with `v`. `gnolang/gno` publishes eight releases and every one of them is `chain/*`, so the walk finds nothing and the run [dies](https://github.com/gnolang/gno/blob/2c817cec4/misc/install.sh#L298) · [↗](../../../../../.worktrees/gno-review-6039/misc/install.sh#L298) with `no v* release found`. The `v1.1.0` and `v1.0.0` git tags carry no GitHub release, so the suggested `--version <tag>` escape does not work either. The defect is in `misc/install.sh` and predates the diff; what the diff changes is the exposure, twice. This block is added by this pull request directly beneath a `make install.gnoland` recipe that does work, at [`README.md:20`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L20) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L20), and [`running-a-node.md:86-87`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L86-L87) · [↗](../../../../../.worktrees/gno-review-6039/docs/builders/running-a-node.md#L86-L87) sends the local-chain reader to the same `--full` flag as that page's only executable instruction. Fix: route both readers to the recipe that works today, or fix the resolver first. [repro](comment_claude-opus-5.md)
+  </details>
+
+- **[promised artifacts that do not exist]** [`docs/resources/gnoland-networks.md:35-37`](https://github.com/gnolang/gno/blob/2c817cec4/docs/resources/gnoland-networks.md?plain=1#L35-L37) · [↗](../../../../../.worktrees/gno-review-6039/docs/resources/gnoland-networks.md#L35-L37) — Betanet's release tags carry no binaries, no checksum file, and no container image.
+  <details><summary>details</summary>
+
+  The bullet promises binaries, container images, `genesis.json` and its checksum on "the matching release tag". `chain/gnoland1.1` has zero assets. `chain/gnoland1.0` has `genesis.json`, `gno.wasm` and `root.zip`, so no binary and no checksum. `chain/topaz` and `chain/test13` carry eighteen assets each, which is where the generalisation holds. Container images hang off no release tag at all; they are published to `ghcr.io/gnolang/gno`, as [`install.md:80`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/install.md?plain=1#L80) · [↗](../../../../../.worktrees/gno-review-6039/docs/builders/install.md#L80) already says. This matters because the branch a Betanet operator is sent to tells them to [build from source](https://github.com/gnolang/gno/blob/2c817cec4/misc/deployments/gnoland1/README.md?plain=1#L33) · [↗](../../../../../.worktrees/gno-review-6039/misc/deployments/gnoland1/README.md#L33) instead. Fix: scope the claim to the tags that carry the assets, and move container images to their registry. [repro](comment_claude-opus-5.md)
+  </details>
+
+- **[dead cross-reference no job checks]** [`tm2/adr/adr-003-tmkms-compat.md:262`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L262) · [↗](../../../../../.worktrees/gno-review-6039/tm2/adr/adr-003-tmkms-compat.md#L262) — the relative link to the moved operator guide points at a path that no longer exists, and the docs linter never walks this directory.
+  <details><summary>details</summary>
+
+  [`adr-003-tmkms-compat.md:262`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L262) · [↗](../../../../../.worktrees/gno-review-6039/tm2/adr/adr-003-tmkms-compat.md#L262) reads `[`docs/validators/tmkms.md`](../../docs/validators/tmkms.md)`, and the target is gone at this head. The same path appears as prose at [line 117](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L117) · [↗](../../../../../.worktrees/gno-review-6039/tm2/adr/adr-003-tmkms-compat.md#L117) and [line 237](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L237) · [↗](../../../../../.worktrees/gno-review-6039/tm2/adr/adr-003-tmkms-compat.md#L237). CI stays green because [`docs/Makefile:2`](https://github.com/gnolang/gno/blob/2c817cec4/docs/Makefile#L2) · [↗](../../../../../.worktrees/gno-review-6039/docs/Makefile#L2) runs the linter with `-path "$(PWD)"` from `docs/`, so `tm2/adr/` is never scanned, and no other workflow checks markdown links. Fix: repoint all three to `gno.land/cmd/gnoland/TMKMS.md`.
+  </details>
+
+## Nits
+
+- **[a recipe that reads as misaligned]** [`gno.land/cmd/gnoland/README.md:46-49`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L46-L49) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L46-L49) — the trailing comments use two different alignment columns inside one block. No enabled linter covers markdown code blocks, so this stays here and is not posted.
+- **[the document points at itself]** [`docs/builders/running-a-node.md:50-51`](https://github.com/gnolang/gno/blob/2c817cec4/docs/builders/running-a-node.md?plain=1#L50-L51) · [↗](../../../../../.worktrees/gno-review-6039/docs/builders/running-a-node.md#L50-L51) — "Two things to read, and neither is in this section of the docs" describes the document's own structure rather than the reader's next step. Too small to spend a comment slot on; recorded here only.
+
+## Missing Tests
+
+None. The one code-adjacent change, [`init.gno:91`](https://github.com/gnolang/gno/blob/2c817cec4/examples/gno.land/r/gnops/valopers/init.gno#L91) · [↗](../../../../../.worktrees/gno-review-6039/examples/gno.land/r/gnops/valopers/init.gno#L91), is covered by the existing golden at [`filetests/z_1_filetest.gno:106`](https://github.com/gnolang/gno/blob/2c817cec4/examples/gno.land/r/gnops/valopers/filetests/z_1_filetest.gno#L106) · [↗](../../../../../.worktrees/gno-review-6039/examples/gno.land/r/gnops/valopers/filetests/z_1_filetest.gno#L106), which this diff updates in step.
+
+## Suggestions
+
+- **[the source fix does not reach the chain]** [`examples/gno.land/r/gnops/valopers/init.gno:91`](https://github.com/gnolang/gno/blob/2c817cec4/examples/gno.land/r/gnops/valopers/init.gno#L91) · [↗](../../../../../.worktrees/gno-review-6039/examples/gno.land/r/gnops/valopers/init.gno#L91) — betanet still serves the gnops.io URL from the deployed realm, so removing it from the tree does not remove it from what a validator candidate reads.
+  <details><summary>details</summary>
+
+  The realm is in betanet's genesis package list at [`packages.gen.txt:43`](https://github.com/gnolang/gno/blob/2c817cec4/misc/deployments/gnoland1/packages.gen.txt#L43) · [↗](../../../../../.worktrees/gno-review-6039/misc/deployments/gnoland1/packages.gen.txt#L43), and https://gno.land/r/gnops/valopers renders `gnops.io/articles/guides/become-testnet-validator/` today. An on-chain upgrade is what retires it. Fix: say in the pull request whether that upgrade is planned, so the claim that every gnops.io URL is gone is not read as covering the live chain.
+  </details>
+
+- **[a claim that expires on another merge]** [`gno.land/cmd/gnoland/README.md:87-89`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L87-L89) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L87-L89) — the statement that `p2p.seeds` is not consumed is true at this head and stops being true when [PR 6023](https://github.com/gnolang/gno/pull/6023) merges.
+  <details><summary>details</summary>
+
+  Verified at this head: [`Seeds`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/pkg/p2p/config/config.go#L30) · [↗](../../../../../.worktrees/gno-review-6039/tm2/pkg/p2p/config/config.go#L30) is read nowhere outside its own declaration and the `gnoland config` tests, so a peer list set there is indeed ignored. [PR 6023, `feat(p2p): wire config.P2P.Seeds into the switch`](https://github.com/gnolang/gno/pull/6023) is open and does exactly what its title says. Because this README is being made the canonical operator reference, a bolded instruction that inverts on an unrelated merge is worth a hedge. Fix: whichever of the two lands second updates the other.
+  </details>
+
+## Verified
+
+- Booted the chain from the pull request worktree. `gnoland start -lazy -skip-genesis-sig-verification` writes `genesis.json` and `gnoland-data/`, and the generated `config.toml` carries `laddr = "tcp://0.0.0.0:26656"` for p2p and `laddr = "tcp://127.0.0.1:26657"` for RPC, matching [`README.md:38-39`](https://github.com/gnolang/gno/blob/2c817cec4/gno.land/cmd/gnoland/README.md?plain=1#L38-L39) · [↗](../../../../../.worktrees/gno-review-6039/gno.land/cmd/gnoland/README.md#L38-L39). Running the step-by-step block instead leaves no `genesis.json` and prints `missing genesis.json`.
+- Fetched the published docs page the move deletes. https://docs.gno.land/validators/tmkms returns 200 with `<h1>Signing with tmkms`; a bogus path under the same prefix returns 404, so the 200 is the real page and not a soft 404.
+- Fetched the deployed realm. https://gno.land/r/gnops/valopers still renders `gnops.io/articles/guides/become-testnet-validator/`.
+- Fetched the live docs page carrying the same relative-link shape. https://docs.gno.land/resources/gno-packages emits `href="/examples/gno.land/p/nt/avl/v0"`, and that URL returns 404.
+- Ran `gnoland start -h`, `gnoland config init -h`, `gnoland secrets init -h` and `gnoland secrets get -h` from the worktree source. Every flag in the README's table exists with the default it quotes, and `node_id.id` and `node_id.p2p_address` are both real keys.
+- Walked the sentry section against the code. `pex` is consumed at [`node.go:513`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/pkg/bft/node/node.go#L513) · [↗](../../../../../.worktrees/gno-review-6039/tm2/pkg/bft/node/node.go#L513), `private_peer_ids` at [`node.go:551`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/pkg/bft/node/node.go#L551) · [↗](../../../../../.worktrees/gno-review-6039/tm2/pkg/bft/node/node.go#L551), and private peers are dropped from the shared list at [`discovery.go:227-239`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/pkg/p2p/discovery/discovery.go#L227-L239) · [↗](../../../../../.worktrees/gno-review-6039/tm2/pkg/p2p/discovery/discovery.go#L227-L239), so the tables say what the code does.
+- Ran the docs job locally as the workflow invokes it, `make generate -B` then `make lint` from `docs/`, plus the valopers package and its filetests. All green at this head, matching CI.
+- Ran the one-line installer the new README documents, `curl -fsSL .../misc/install.sh | sh -s -- --full`. It exits 1 with `no v* release found` and installs nothing.
+- Listed the repository's releases. All eight tags are `chain/*` and none starts with `v`, which is what the resolver requires. `chain/gnoland1.1` carries zero assets and `chain/gnoland1.0` carries three, against eighteen each on `chain/topaz` and `chain/test13`.
+- Compared the two copies of the Betanet config the relative link now reaches. `master` names one persistent peer and was last touched 2026-03-27; `chain/gnoland1` names three and was last touched 2026-04-13, and the two branches differ in `govdao/` against `govdao-scripts/`.
+
+## Cross-PR constraints
+
+The parent run reconciles these; they are stated here so they do not have to be re-derived.
+
+- **Stacked on [PR 6038](https://github.com/gnolang/gno/pull/6038).** The branch carries two commits and GitHub shows the union until 6038 merges. This review reads `2c817cec4` alone. The body's `Closes #6038` will close that pull request when this one merges, which is consistent with the stacking but means 6038 never lands under its own number. Because of that, the two 6038 findings that survive unchanged at this head are carried here rather than left on a pull request that closes unmerged: the release-artifacts bullet and the one-line installer, both Warnings above and both re-verified at `2c817cec4`. 6038's remaining findings either land on lines this diff rewrites or are covered by the relative-link Warning.
+- **[PR 6040](https://github.com/gnolang/gno/pull/6040) and what counts as documentation.** This branch is titled `docs:` but changes [`init.gno:91`](https://github.com/gnolang/gno/blob/2c817cec4/examples/gno.land/r/gnops/valopers/init.gno#L91) · [↗](../../../../../.worktrees/gno-review-6039/examples/gno.land/r/gnops/valopers/init.gno#L91) and its golden. If 6040 gates on paths, `examples/**` has to stay outside the documentation-only set, or a branch shaped like this one ships a filetest golden change with the suite that proves it skipped. Resolved against 6040's head `4b05e8faf`: `examples/**` stays in, so this branch keeps its filetest run. The cost 6040 does impose is that `gno.land/cmd/gnoland/` is checked by no job at all, so the seven relative links this diff adds to that README are unguarded from then on. They all resolve today, anchor included, which is why this is a constraint and not a finding.
+- **[PR 6023](https://github.com/gnolang/gno/pull/6023) and the `p2p.seeds` claim.** See the Suggestion above. Whichever of 6023 and this one merges second updates the other.
+
+## Existing threads
+
+- louis14448, `docs/resources/gnoland-networks.md`: the `Test13` section still calls itself the latest testnet and Topaz/Test14 has no section of its own, both from [PR 6015](https://github.com/gnolang/gno/pull/6015). Open, no overlap with anything here. [thread](https://github.com/gnolang/gno/pull/6039#discussion_r3722471507)
+- louis14448, `gno.land/cmd/gnoland/README.md`: the `Install` section states no Go version prerequisite. Open, no overlap. [thread](https://github.com/gnolang/gno/pull/6039#discussion_r3722575199)
+
+## Open questions
+
+- `misc/deployments/gnoland1/README.md` on `chain/gnoland1` still carries the gnops.io hardware link, and `misc/deployments/topaz.gno.land/VALIDATOR.md` on `chain/topaz` still points there for its sentry guide. The pull request body already names both as out of scope, so nothing is posted.
+- The generated `config.toml` comment on `external_address` says an empty value triggers introspection or UPnP, but [`node.go:1005-1031`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/pkg/bft/node/node.go#L1005-L1031) · [↗](../../../../../.worktrees/gno-review-6039/tm2/pkg/bft/node/node.go#L1005-L1031) simply falls back to the listen address. That is a pre-existing defect in [`config.go:27`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/pkg/p2p/config/config.go#L27) · [↗](../../../../../.worktrees/gno-review-6039/tm2/pkg/p2p/config/config.go#L27) rather than in this diff, and the README's advice is right either way.

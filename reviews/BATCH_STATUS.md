@@ -1,242 +1,87 @@
-# Batch status — review all (started 2026-08-03)
+# Batch status — review all (started 2026-08-05)
 
-Model claude-opus-5, reviewer davd-gzl. Normal (non-deep) mode, no subagents: both PRs reviewed in
-one session.
+Model claude-opus-5, reviewer davd-gzl. Normal (non-deep) mode, one subagent per PR via parallel
+dispatch.
 
-Synced head `9e5edf6` (`origin/main`, `samouraiworld`), `0 0` against `HEAD`, so `reviews/pr/` is
-current. gno master at dispatch: `ddb752cac`.
+Synced head `74201ec` (`origin/main`, `samouraiworld`), `0 0` against `HEAD`, so `reviews/pr/` is
+current. gno master at dispatch: `fb02547fd`.
 
 ## Scope
 
-371 review directories under `reviews/pr/`; 106 open non-draft PRs after dropping dependabot,
-`WIP`-titled and reviewer-authored ones. Three were absent from `reviews/pr/`, and one of those
-carries a GitHub review by the reviewer, so the final set is two.
+148 open non-draft PRs; 18 absent from `reviews/pr/`. After dropping `WIP`-titled, dependabot,
+reviewer-authored and already-reviewed-on-GitHub PRs, the final set is four.
 
 ## External-contribution safety gate
 
-6023 is `FIRST_TIME_CONTRIBUTOR`. Static danger pass over the raw diff, nothing executed:
-
-| Class | Result |
-|---|---|
-| build and dependency surface (`.github/`, Makefile, `go.mod`, `go.sum`, `package.json`, Dockerfile, `*.sh`) | none touched |
-| `os/exec`, `net/http`, `net.Dial`, `syscall`, `go:generate`, `go:embed`, `unsafe`, base64/hex decode, env or credential reads, filesystem writes | no added line matches |
-| Trojan Source (non-ASCII, bidi overrides, zero-width, homoglyphs) | one hit, an em dash in README prose |
-
-Clean. 6030 is authored by `moul` (`MEMBER`), no gate needed.
+No PR in the final set is `FIRST_TIME_CONTRIBUTOR`: 6037 is `MEMBER` (Villaquiranm), 6038, 6039 and
+6040 are `MEMBER` (moul). No static danger pass needed.
 
 ## Dropped
 
 | Reason | PRs |
 |---|---|
-| already reviewed (present in `reviews/pr/`) | the rest of the open non-draft set |
+| already reviewed (present in `reviews/pr/`) | the other 130 open non-draft PRs |
 | already reviewed on GitHub (`CHANGES_REQUESTED` by davd-gzl, no review dir) | 6022 |
-| draft | 6032, 6019, 6016, 6007, 6004 and the rest of the draft set |
 | dependabot | 6021, 6008, 5992, 5990, 5989 |
-| WIP-titled | 5929, 5922, 5871, 5852, 5740 |
-| authored by the reviewer | 6006, 6000, 5996, 5993, 5979, 5978 and the rest |
+| WIP-titled | 5922, 5263, 5223, 4949 |
+| authored by the reviewer | 6006, 5993, 5936, 5934 |
 
-## Final set (2)
+## Final set (4)
 
-Both are first rounds.
+All four are first rounds.
 
 | PR | Head sha | Author | Size | Worktree | Review dir |
 |---|---|---|---|---|---|
-| [6030](https://github.com/gnolang/gno/pull/6030) | `098a7b782` | moul | +2704-155, 32f (+504, 6f over #6018) | `.worktrees/gno-review-6030` | `reviews/pr/6xxx/6030-fastindex-consistency-audit/1-098a7b782/` |
-| [6023](https://github.com/gnolang/gno/pull/6023) | `6324377f5` | AviaOne | +388-5, 5f | `.worktrees/gno-review-6023` | `reviews/pr/6xxx/6023-wire-seeds-into-switch/1-6324377f5/` |
+| [6037](https://github.com/gnolang/gno/pull/6037) | `390bffe90` | Villaquiranm | +23-4, 2f | `.worktrees/gno-review-6037` | `reviews/pr/6xxx/6037-map-composite-key-in-loop/1-390bffe90/` |
+| [6038](https://github.com/gnolang/gno/pull/6038) | `3ced3553a` | moul | +126-6, 5f | `.worktrees/gno-review-6038` | `reviews/pr/6xxx/6038-running-a-node-page/1-3ced3553a/` |
+| [6039](https://github.com/gnolang/gno/pull/6039) | `2c817cec4` | moul | +306-27, 10f | `.worktrees/gno-review-6039` | `reviews/pr/6xxx/6039-move-node-operator-docs/1-2c817cec4/` |
+| [6040](https://github.com/gnolang/gno/pull/6040) | `4b05e8faf` | moul | +71-0, 11f | `.worktrees/gno-review-6040` | `reviews/pr/6xxx/6040-skip-heavy-workflows-docs-only/1-4b05e8faf/` |
 
-6030 carries [#6018](https://github.com/gnolang/gno/pull/6018)'s commits, reviewed at `5ceafd2c5`, so
-its round covers only `git diff 5ceafd2c5..098a7b782`, the six files added on top.
+## Coupling, and how it resolved
+
+6038 and 6039 both restructure node-operator documentation, and 6040 gates CI on documentation-only
+paths that both of them create. Three conclusions were re-derived from the diffs rather than taken
+from any one agent's summary, and written into every affected review file.
+
+1. **6039 closes 6038.** 6039's branch carries `3ced3553a` as its first commit and its body carries
+   `Closes #6038` at line 67, so 6038 does not land under its own number. Re-checked at
+   `2c817cec4`: two of 6038's three Warnings survive that head untouched, the release-artifacts
+   bullet at `gnoland-networks.md:35-37` and the one-line installer. Both are carried into the 6039
+   review and draft as Warnings, and the installer one gained a second anchor, because 6039's own
+   diff adds a copy-pasteable `--full` command at `gno.land/cmd/gnoland/README.md:26`. Ran it: exits
+   1 with `no v* release found`. 6038's remaining Warning is absorbed by 6039's relative-link
+   Warning, since `../../misc/deployments` still resolves to `master`'s stale copy on GitHub.
+   Both drafts stay postable; whichever pull request the author acts on, the findings reach them.
+2. **6040 does not constrain 6039.** 6040's review left this conditional: if a file 6039 moves out
+   of `docs/` carries an `embedmd` directive or a link the docs linter was checking, 6039 must keep
+   it under `docs/`. Checked at `2c817cec4`: no `embedmd` in either moved file, `TMKMS.md` carries
+   no markdown link, and all seven relative links the rewritten README adds resolve on disk with a
+   valid `#deployment-files` anchor. The condition does not bind. What survives is a gap for the
+   next edit, recorded in both reviews rather than as a finding on either.
+3. **Merge order is free, and `examples/**` stays gated.** No workflow 6040 touches is a required
+   check, measured from `repos/gnolang/gno/branches/master` and an empty ruleset, so no order leaves
+   a pull request pending. `examples/**` stays outside 6040's documentation-only set, so 6039 keeps
+   the filetest run that covers its `init.gno` golden.
+
+No agent reached a conclusion another contradicted.
 
 ## Environment
 
-No Go toolchain on `PATH` at session start (`bash: go: command not found`), and none installed
-anywhere on the machine. `gno/go.mod` requires `go 1.25.9`; fetched the release tarball into
-`/tmp/go` and exported `PATH=/tmp/go/bin:$PATH` for every run.
+No Go toolchain on `PATH` at session start (`bash: go: command not found`). `gno/go.mod` requires
+`go 1.25.9`; fetched the release tarball into `/tmp/go` and exported `PATH=/tmp/go/bin:$PATH` for
+every run.
 
 ## Results
 
 | PR | Verdict | Findings |
 |---|---|---|
-| 6030 | REQUEST CHANGES | 3 Warnings, 3 Missing tests, 2 Nits, 2 Suggestions |
-| 6023 | REQUEST CHANGES | 2 Warnings, 2 Missing tests, 3 Nits, 1 Suggestion |
+| 6037 | APPROVE (awaiting human confirmation) | 1 Warning, 2 Missing tests, 2 Nits, 1 Suggestion |
+| 6038 | REQUEST CHANGES | 3 Warnings, 6 Nits, 1 Suggestion |
+| 6039 | REQUEST CHANGES | 6 Warnings, 2 Nits, 2 Suggestions (2 Warnings carried from 6038) |
+| 6040 | APPROVE (awaiting human confirmation) | 2 Warnings, 2 Nits, 1 Suggestion |
 
-Both verdicts rest on measured behavior: four tests ship under the rounds' `tests/` directories,
-three of them red at the reviewed sha.
+## Resume / finalize
 
-6030's blocker is that the new `gnoland fastindex verify` exits 0 on a data directory holding no
-store at all, and creates one there, so a CI gate wired to it stays green while auditing nothing.
-6023's two blockers are that the startup dial queues every seed at once, past the
-`max_num_outbound_peers` accounting the thread agreed to, and that the seed fallback converges on
-holding a connection to every configured seed, which the PR's own README says it does not.
-
-No conflict to reconcile: the two PRs touch disjoint subsystems.
-
-## Next
-
-Both drafts are unposted. Posting waits for the literal `post`.
-
----
-
-# Previous run — review all (started 2026-08-01)
-
-Model claude-opus-5, reviewer davd-gzl. Normal (non-deep) mode.
-
-Synced head `30bdd39` (`samouraiworld/main`) before building the set. The working tree first read the
-set from the parent repo's recorded gitlink, `db4e141`, one commit behind that head, which hid the
-already-reviewed 6025; the set below was rebuilt after checking out `main`.
-
-gno master at dispatch: `d1a33f574`.
-
-## External-contribution safety gate
-
-Not applicable. All four PRs come from `MEMBER` accounts (jinoosss, notJoon, Villaquiranm); no
-`FIRST_TIME_CONTRIBUTOR` in the set. 6022 was the one such PR and the user excluded it.
-
-## Dropped
-
-| Reason | PRs |
-|---|---|
-| already reviewed (present in `reviews/pr/`) | 6025 and the rest of the open non-draft set |
-| excluded by the user | 6022 |
-| dependabot | 6021, 6008, 5992, 5990, 5989 |
-| WIP-titled | 5922, 5263, 5223, 4949 |
-| authored by reviewer (davd-gzl) | 6006, 5993, 5950, 5936, 5934 |
-
-None of the four in scope carries a prior review or review comment from `davd-gzl` on GitHub.
-
-## Final set (4)
-
-All four are first rounds. No head-unchanged, already-APPROVED, or patch-id gate applied.
-
-| PR | Head sha | Author | Size | Worktree | Review dir | Mode |
-|---|---|---|---|---|---|---|
-| [6029](https://github.com/gnolang/gno/pull/6029) | `3b5b4a701` | jinoosss | +4282-1700, 46f | `.worktrees/gno-review-6029` | `reviews/pr/6xxx/6029-grc721-token-ledger-teller/1-3b5b4a701/` | normal |
-| [6028](https://github.com/gnolang/gno/pull/6028) | `37182a315` | jinoosss | +342-145, 26f | `.worktrees/gno-review-6028` | `reviews/pr/6xxx/6028-registry-owned-id-generator/1-37182a315/` | normal |
-| [6027](https://github.com/gnolang/gno/pull/6027) | `854b03529` | notJoon | +221-104, 12f | `.worktrees/gno-review-6027` | `reviews/pr/6xxx/6027-slug-alias-registrations/1-854b03529/` | normal |
-| [6020](https://github.com/gnolang/gno/pull/6020) | `764ac4d84` | Villaquiranm | +1447-48, 21f | `.worktrees/gno-review-6020` | `reviews/pr/6xxx/6020-compute-map-keys-once/1-764ac4d84/` | normal |
-
-6029, 6028 and 6027 all touch the token standards. 6028 and 6027 both change how a registration is
-keyed in `grc20reg`, so they are likely to collide; read the pair together when synthesizing.
-
-## Dispatch
-
-One `general-purpose` agent per PR, all in one message. The parent created every worktree and
-checked out every PR head; subagents never run `worktree add`, `gh pr checkout`, or any branch
-switch. Subagents write `review_claude-opus-5_davd-gzl.md` and `comment_claude-opus-5.md`, and do
-not commit, push, regenerate indexes, or post.
-
-Environment: no Go toolchain on `PATH`. go1.25.9 lives at `/tmp/go/bin/go`; agents export
-`PATH=/tmp/go/bin:$PATH` before running any suite.
-
-## Progress
-
-All four returned.
-
-| PR | Verdict | Findings |
-|---|---|---|
-| 6029 | REQUEST CHANGES | 1 Critical, 5 Warnings, 2 Missing tests, 3 Nits, 2 Suggestions |
-| 6028 | NEEDS DISCUSSION | 6 Warnings, 3 Missing tests, 5 Nits, 2 Suggestions |
-| 6027 | NEEDS DISCUSSION | 1 Warning, 1 Missing test, 3 Nits, 2 Suggestions |
-| 6020 | APPROVE | 2 Missing tests, 2 Nits, 2 Suggestions |
-
-6020 notes: the map-key encoding never reaches persisted state. `MapKey` exists only as the in-memory
-`vmap` index type and `copyValueWithRefs` rebuilds a `MapValue` from `List` alone, so the only
-consensus-visible effect is gas, plus one deliberate output change for a composite key holding a NaN
-ahead of an object-bearing field. The build-and-probe flag is derived once per call site from the
-map's static key type, and `grep '\.vmap\['` finds five index accesses, all inside the one build and
-the three accessors, so the build-and-lookup-must-agree hazard is structurally closed. All three new
-realm guards are real: deleting `ensureVmap` from `GetPointerForKey`, `fillMapKeyRefs` before the
-copy in `GetPointerAtIndex`, or the same line in `doOpMapLit` each reddens exactly one of
-`zrealm_map7/8/9` and no sibling. Only `zrealm_map9` fixes a defect present on master, which prints
-`stored key: 1 99`; the other two pass unchanged at the merge base and guard against breakage this
-restructuring itself could cause. Headline findings: the PR summary's gas table reports
-`compute_map_key_concrete_key` as 125449 to 124849, but 125449 is a mid-branch value and the measured
-merge-base number is 135249, making the real delta -7.7% rather than -0.5%, with the 10400
-reconciling as 9800 for the dropped per-write call plus 600 for the prefix; `delete` is the one write
-path the compute-once sweep missed, measured at 104938 wasted gas on a `[1<<18]byte` key; `map51.gno`
-claims to pin the displaced-key handoff but stays green when `mli.Key = key` is deleted, and its
-`-0.0` is the constant `+0`; no filetest persists an interface-keyed map, leaving the prefix-keeping
-branch of the predicate untested across the load path; and `mapKeyOmitType`'s `baseOf` is a no-op
-since `DeclaredType.Kind()` already delegates. PR 5710 drops the `*Machine` parameter this PR relies
-on to keep the lazy build unmetered, so that merge order needs a deliberate decision. APPROVE needs
-human confirmation before it can be posted with `--approve`.
-
-6029 notes: the core `Token`/`PrivateLedger`/`Teller` split tracks grc20 closely and holds up. Hooks
-take no `realm` parameter so an extension cannot re-enter a teller write, state is written before the
-hooks fan out, `IsCanonicalTeller` is present with an embedding-bypass test, and balances use
-`overflow.Add64p`/`Sub64p`. The Critical is in the new `r/demo/grc721reg`: `Register` accepts any
-`grc721.ExtensionView` from the calling realm and `extensionBadges` concatenates the kind string it
-reports straight into `Render`, which lists every registered collection. Proven on chain through
-`gno.land/pkg/integration` with a hostile realm returning a kind carrying a markdown heading and
-link; both land in the shared listing, and the same string corrupts the `register` event's
-comma-joined `extensions` attribute. Section 10 of `docs/resources/gno-ai-contract-review.md`; the
-slug on the same code path is already charset-checked. Lead Warning: `RegisterExtension` has no
-lifecycle guard, so attaching an enumerable after the first mint leaves the core at two tokens and
-the extension at one, and moving a pre-attach token makes `TokenOfOwnerByIndex` answer with a token
-the global list does not hold while the registry still advertises `enumerable`. One candidate finding
-was killed by evidence and dropped to a Suggestion: the published metadata read view returns an
-aliased `Attributes` slice, but an on-chain run showed a foreign realm's write is rejected by the
-readonly taint, so only the in-realm case survives. CI green; the red `Merge Requirements` is the
-approval bot.
-
-6028 notes: the mechanism works, verified live — two post-genesis `grc20factory.New` calls minted
-through grc20reg's shared generator on a running node and got distinct ids, so the cross-realm write
-path holds via borrow rule 2 outside genesis. Three things stop a clean approve. `p/onbloc/identifier`
-documents realm-scoped uniqueness it does not provide: two Generators bound to one realm at one
-height emit byte-identical id streams, and the PR's own `newTestToken` helper produces two tokens
-sharing a `Token.ID()`, the exact defect the PR sets out to remove, with
-`TestNextIDShapeAndDeterminism` asserting the repeat as intended. Registered tokens escape only
-because grc20reg happens to build exactly one Generator. `IdentifierGenerator()` returns a raw
-`*Generator` into grc20reg's persisted state, section 8 of `docs/resources/gno-ai-contract-review.md`:
-a four-line realm holding no token and registering nothing drove `NextID()` fifty times and the
-receipt billed the storage diff to `gno.land/r/demo/defi/grc20reg`. Damage is bounded to a monotonic
-counter, but grc20reg cannot rate-limit or revoke use of its own sequence. And one shared counter
-makes a token id a function of the whole deployment set: inserting one `loadpkg` line ahead of foo20
-moved its id and reddened the golden, so ids are chain-specific and no off-chain artifact can key on
-one. Two `NewToken` doc claims are false, and the `realm.symbol` to `realm.slug` rekey ships with no
-migration while the GovDAO treasury drops unresolvable keys silently.
-
-Merge-order conflict between the two reviews, reconciled before either posts. The 6027 review
-recommended landing 6028 first, the 6028 review recommended landing 6027 first; each had priced only
-the rebase remainder it could see. Grounded against the issues: 6027 fixes issue 5988 by keying on
-the slug, which removes the incidental guard that kept two byte-identical `Token.ID()` values out of
-the registry and so widens issue 6026; 6028 closes 6026 properly with a generator-issued id whose
-issuance `Register` verifies, and does the slug rekey too, so it covers 5988 as well. 6027 first is
-the cheaper rebase but opens the 6026 window for as long as the two are apart, and 6028 carries six
-Warnings so that gap is not obviously short. Both review files now carry the same conclusion: the
-symbol leaves the registry key only once something else enforces id uniqueness, and a third order
-costs neither side, with 6027 shipping a duplicate-id rejection of its own that 6028 then replaces
-with the generator. Both drafts pose the order as a question and assert no order to the authors.
-
-6027 notes: the registry key moves from `realm.symbol` to `realm.slug`, so `registry.Has(key)` now
-guards slug reuse only. Two tokens built from the same caller-supplied seqid carry a byte-identical
-`Token.ID()` and both register under different aliases, which breaks mapping a `Transfer`/`Mint`/
-`Burn`/`Approval` event back to one entry. Delta proven with a filetest: the merge-base rejection
-passes at `d1a33f574` and fails at `854b03529`. That is issue 6026. No in-tree registry key actually
-moves; every updated call site passes its own symbol as the slug. CI green at the head; the red
-`Merge Requirements` is the bot awaiting a review-team approval. The author's own "unnecessary"
-thread on the new `cur.IsCurrent()` guard resolves in their favour: `cross` runs the same predicate
-and aborts first, and no same-realm caller of `Register` exists, shown with a filetest.
-
-Cross-PR, 6027 vs 6028: hard conflict. 6028 rewrites the same `Register` body and nine of 6027's
-twelve files, already contains 6027's slug-keyed aliasing, and additionally closes the duplicate-id
-hole 6027 opens via a registry-owned id generator whose issuance `Register` verifies. Divergences a
-merge must settle: slug required (6027) vs optional (6028); event field `token_path` vs `token_key`;
-origin prefix `rlmPath.symbol.` vs `rlmPath.`; `cur.IsCurrent()` added vs absent; `grc20.NewToken`'s
-signature unchanged vs taking a `*identifier.Generator`. Landing 6028 first leaves 6027 a small
-remainder. Landing 6027 first costs a second event-schema rename and leaves a window where the
-registry accepts colliding ids. The draft recommends 6028 first and puts the order in the Body.
-
-## Finalize
-
-1. Parent commits once: `review: batch of 4 open PRs (6029, 6028, 6027, 6020)`.
-2. Push to `review/pr-5999-r2`, the branch this turn started on; it already carries PR 7. No second
-   PR on this repo.
-3. Nothing reaches GitHub without the literal `post`.
-
-## Carried from the 2026-07-29 batch
-
-- [6002](https://github.com/gnolang/gno/pull/6002) draft verdict is APPROVE and still needs human
-  confirmation before posting with `--approve`.
-- [5991](https://github.com/gnolang/gno/pull/5991) draft verdict is APPROVE and still needs human
-  confirmation before posting with `--approve`.
+1. Reconcile 6038 / 6039 / 6040 merge-order and documentation-path conclusions.
+2. One commit covering all four review dirs plus this file, then push to `origin/main`.
+3. Hand over each `comment_claude-opus-5.md` draft. Post only on the literal `post`.
