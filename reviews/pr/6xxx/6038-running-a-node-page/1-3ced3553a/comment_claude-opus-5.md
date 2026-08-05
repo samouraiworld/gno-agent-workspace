@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Betanet, the row the table marks current, follows neither of the two conventions the new section states. Topaz and Test13 follow both. Repros run at 3ced3553a.
+[Betanet](https://github.com/gnolang/gno/blob/3ced3553a/docs/resources/gnoland-networks.md?plain=1#L7) follows neither convention the new [Deployment files](https://github.com/gnolang/gno/blob/3ced3553a/docs/resources/gnoland-networks.md?plain=1#L19) section states. Topaz and Test13 follow both. Repros run at 3ced3553a.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6038-running-a-node-page/1-3ced3553a/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 

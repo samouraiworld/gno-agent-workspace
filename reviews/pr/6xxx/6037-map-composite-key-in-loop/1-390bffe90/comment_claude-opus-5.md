@@ -2,10 +2,12 @@
 Event: APPROVE
 
 ## Body
-Verified on 390bffe90: reverting the two lines that strip the `.loopvar` suffix, with the exclusion-list change kept, makes [`loopvar_struct_field_2.gno`](https://github.com/gnolang/gno/blob/390bffe90/gnovm/tests/files/loopvar_struct_field_2.gno#L1-L19) · [↗](../../../../../.worktrees/gno-review-6037/gnovm/tests/files/loopvar_struct_field_2.gno#L1-L19) fail with `struct type struct{i int} has no field i.loopvar`. It is the only committed guard on the trim. Seventeen literal shapes, including closure capture and a labeled `continue` over the loop variable's address, print the same under a `gno` built from this branch as under `go run`.
+Two comments state the opposite of what the code does.
 
-- The [`initStaticBlocks1`](https://github.com/gnolang/gno/blob/390bffe90/gnovm/pkg/gnolang/preprocess.go#L194-L197) · [↗](../../../../../.worktrees/gno-review-6037/gnovm/pkg/gnolang/preprocess.go#L194-L197) contract comment still lists composite-literal keys among the positions the rename skips. A reader who follows it restores the exclusion and reopens [#5910](https://github.com/gnolang/gno/issues/5910).
-- The header of [`loopvar_struct_field_2.gno`](https://github.com/gnolang/gno/blob/390bffe90/gnovm/tests/files/loopvar_struct_field_2.gno#L4) · [↗](../../../../../.worktrees/gno-review-6037/gnovm/tests/files/loopvar_struct_field_2.gno#L4) says the test checks that composite keys are not renamed. It now checks that the rename is undone.
+- The [`initStaticBlocks1`](https://github.com/gnolang/gno/blob/390bffe90/gnovm/pkg/gnolang/preprocess.go#L194-L197) · [↗](../../../../../.worktrees/gno-review-6037/gnovm/pkg/gnolang/preprocess.go#L194-L197) contract comment lists composite-literal keys among the positions the rename skips.
+- The header of [`loopvar_struct_field_2.gno`](https://github.com/gnolang/gno/blob/390bffe90/gnovm/tests/files/loopvar_struct_field_2.gno#L4) · [↗](../../../../../.worktrees/gno-review-6037/gnovm/tests/files/loopvar_struct_field_2.gno#L4) says the test checks that composite keys are not renamed.
+
+Verified on 390bffe90: seventeen literal shapes match `go run`, and reverting the `.loopvar` strip makes [that filetest](https://github.com/gnolang/gno/blob/390bffe90/gnovm/tests/files/loopvar_struct_field_2.gno#L1-L19) · [↗](../../../../../.worktrees/gno-review-6037/gnovm/tests/files/loopvar_struct_field_2.gno#L1-L19) fail with `struct type struct{i int} has no field i.loopvar`.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6037-map-composite-key-in-loop/1-390bffe90/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 

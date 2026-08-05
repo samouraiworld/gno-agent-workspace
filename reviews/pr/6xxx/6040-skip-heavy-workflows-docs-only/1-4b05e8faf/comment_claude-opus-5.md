@@ -2,9 +2,9 @@
 Event: APPROVE
 
 ## Body
-Replayed the path filters over the whole tracked tree at 4b05e8faf and at its merge base, and the before and after sets match the table in the description row for row, including `ci / val-scenarios` surviving on [#6039](https://github.com/gnolang/gno/pull/6039). `master` carries no required status checks, `required_status_checks` is empty on both `contexts` and `checks`, so a pull request that starts no workflow merges instead of hanging.
+[`_ci-go.yml`](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/_ci-go.yml#L1), [`_ci-gno.yml`](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/_ci-gno.yml#L1) and the root [`Makefile`](https://github.com/gnolang/gno/blob/4b05e8faf/Makefile#L104) are in no workflow's `paths`. They define lint, build and test for every module, and after this they start [actionlint](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/meta-actions-lint.yml#L10-L11) and nothing else.
 
-No dir workflow lists [`_ci-go.yml`](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/_ci-go.yml#L1) or [`_ci-gno.yml`](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/_ci-gno.yml#L1) in its `paths`, and those two define lint, build and test for every module. A change to either used to fall through to [`ci / e2e`](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/ci-e2e.yml#L9-L24) and [`deploy / pages`](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/deploy-pages.yml#L16-L23); after this it starts [actionlint](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/meta-actions-lint.yml#L10-L11) and nothing else. The root [`Makefile`](https://github.com/gnolang/gno/blob/4b05e8faf/Makefile#L104) is in the same position, and it holds the `tidy` target [`ci / codegen-verify`](https://github.com/gnolang/gno/blob/4b05e8faf/.github/workflows/ci-codegen-verify.yml#L39) runs.
+Verified on 4b05e8faf: replayed the filters over every tracked file at this head and at the merge base, and the trigger sets match the description's table row for row.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6040-skip-heavy-workflows-docs-only/1-4b05e8faf/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 

@@ -2,9 +2,9 @@
 Event: REQUEST_CHANGES
 
 ## Body
-[`tm2/adr/adr-003-tmkms-compat.md:262`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L262) still links the guide by its old path, and names it again at [line 117](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L117) and [line 237](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L237). Nothing catches it: [`docs/Makefile:2`](https://github.com/gnolang/gno/blob/2c817cec4/docs/Makefile#L2) runs the link checker with `-path` set to `docs/`, so `tm2/adr/` is never scanned.
+[`tm2/adr/adr-003-tmkms-compat.md:262`](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L262) still links the guide by its old path, and names it again at [line 117](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L117) and [line 237](https://github.com/gnolang/gno/blob/2c817cec4/tm2/adr/adr-003-tmkms-compat.md?plain=1#L237). No job catches it: [`docs/Makefile:2`](https://github.com/gnolang/gno/blob/2c817cec4/docs/Makefile#L2) scopes the link checker to `docs/`.
 
-Verified on 2c817cec4: a `gnoland` built from this branch emits the listen addresses, flags, defaults and secrets keys the README quotes.
+Verified on 2c817cec4: a `gnoland` built from this branch emits the flags, defaults and secrets keys the README quotes.
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6039-move-node-operator-docs/1-2c817cec4/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 
