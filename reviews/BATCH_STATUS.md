@@ -77,7 +77,7 @@ every run.
 |---|---|---|
 | 6037 | APPROVE (awaiting human confirmation) | 1 Warning, 2 Missing tests, 2 Nits, 1 Suggestion |
 | 6038 | REQUEST CHANGES | 3 Warnings, 6 Nits, 1 Suggestion |
-| 6039 | REQUEST CHANGES | 6 Warnings, 2 Nits, 2 Suggestions (2 Warnings carried from 6038) |
+| 6039 | REQUEST CHANGES | 7 Warnings, 2 Nits, 2 Suggestions (2 Warnings carried from 6038) |
 | 6040 | APPROVE (awaiting human confirmation) | 2 Warnings, 2 Nits, 1 Suggestion |
 
 ## Resume / finalize
