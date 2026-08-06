@@ -5,7 +5,11 @@ Knowledge base and review workspace for [gnolang/gno](https://github.com/gnolang
 ## Repo Layout
 
 - `gno/` — gnolang/gno submodule
-- `skills/` — AI skill definitions
+- `skills/` — AI skill definitions. `skills/core/` is a submodule of
+  [`davd-gzl/skills`](https://github.com/davd-gzl/skills), the canonical shared
+  rules; the top-level files carry the gno deltas and point at it. Edit core
+  rules there and bump the pin; edit gno deltas here. Run
+  `git submodule update --init skills/core` after cloning or pulling.
 - `reviews/pr/` — PR review reports
 - `reports/weekly/` — Weekly team reports (Samourai)
 - `reports/weekly-ux/` — Weekly UX team reports (a/ux label)

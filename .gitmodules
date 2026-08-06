@@ -1,3 +1,6 @@
 [submodule "gno"]
 	path = gno
 	url = https://github.com/gnolang/gno
+[submodule "skills/core"]
+	path = skills/core
+	url = https://github.com/davd-gzl/skills.git
