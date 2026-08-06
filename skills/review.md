@@ -163,5 +163,5 @@ Post with `./scripts/post-pr-review.py <number> <path-to-comment.md>` instead of
 
 Two gno items on top of the core list:
 
-1. Every `## <path>:<line>` header carries both links, `[gh](...)` then `[↗](...)`, and its path is a bare token.
-2. The Full review line is a `blob/` (not `tree/`) URL ending with `[↗](review_<model>_<reviewer>.md)`.
+- Every `## <path>:<line>` header carries both links, `[gh](...)` then `[↗](...)`, and its path is a bare token.
+- The Full review line is a `blob/` (not `tree/`) URL ending with `[↗](review_<model>_<reviewer>.md)`.
