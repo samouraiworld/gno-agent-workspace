@@ -7,6 +7,8 @@ argument-hint: "[date expression]"
 # Weekly UX Report
 
 Generate the a/ux team weekly status report for the `gnolang/gno` repository.
+The mechanism is `skills/core/report.md`; everything below is the a/ux
+specifics.
 
 **Input:** `$ARGUMENTS` — optional date expression for the report end-date (default: today). Examples: `weekly-ux-report`, `weekly-ux-report last week`. Parse to YYYY-MM-DD. The report covers a rolling 7-day window ending on that date.
 
@@ -35,16 +37,7 @@ Content categories (1-7) are **omitted if empty**. All other sections always app
 
 ## Classification rules
 
-For non-draft, open PRs, assign to the **first matching** content category:
-
-1. **Documentation** — title starts with `docs` or `docs:`.
-2. **Packages** — title contains `(example`, `(avl)`, `(govdao)`, `(grc20reg)`, `(daokit)`, `(examples)`, or refers to `r/sys/`, `r/docs/` realms.
-3. **GnoVM / TM2** — title contains `(gnovm)`, `(tm2)`, `(consensus)`, `(autofile)`, `(bank)`, or touches core VM/TM2 internals.
-4. **Gnoweb** — title contains `(gnoweb)` or `gnoweb`.
-5. **Tools** — title contains a known tool/contrib name: `gnokey`, `gnokms`, `gnofaucet`, `gnogenesis`, `gnohealth`, `gnokeykc`, `gnomd`, `gnomigrate`, `gnobr`, `gnobro`, `github-bot`, `tx-archive`.
-6. **Other** — everything else.
-
-Rules are checked in order 1→6.
+The classification table of `skills/weekly-report.md`, minus its Security row, first match wins.
 
 ## Emoji indicators
 
@@ -93,15 +86,13 @@ Filter the result to only issues with `createdAt >= <start-date>`.
 
 ### 2. Load last week's context
 
-Find the previous report directory. Sort by directory name, never `ls -td` (mtime), and skip the current end-date's own directory:
-
 ```bash
 ls -d reports/weekly-ux/*/ | sort -r | grep -v "/$END_DATE/$" | head -1
 ```
 
-Read `context.md` from it. The previous `report.md` is NOT read. If the previous directory is more than 7 days before the end-date, flag it to the user before producing the report: `🆕` detection depends on it.
+Read `context.md` from it. The previous `report.md` is NOT read.
 
-**`🆕` detection:** a PR is "new this week" if its number does not appear in last week's `context.md`.
+**`🆕` detection:** a PR is "new this week" if its number does not appear in last week's `context.md` — a delta from the core, which never sources 🆕 there.
 
 ### 3. Carry forward context
 
@@ -113,18 +104,15 @@ Build the new `context.md` listing **every open PR** from the data.
 - Note after colon is optional. Keep notes short. They appear in parentheses in the report.
 - Title suffix is appended for human readability.
 
-**For each open PR**, write a line using:
-1. Carried-forward entry from last week's `context.md` (preserving priority and note) — never overwrite manual entries with auto-detected ones
-2. Auto-detected note if no manual entry: `isDraft` → `In progress`, `CHANGES_REQUESTED` → `Changes requested`, `don't merge` label → `Don't merge`, `APPROVED` → `Approved`, `review/triage-pending` label → `Waiting for first review`
-3. Bare entry (`<number>:`) if nothing to carry or detect
+**Auto-detect table** (first match, after the core's carry-forward rule): `isDraft` → `In progress`, `CHANGES_REQUESTED` → `Changes requested`, `don't merge` label → `Don't merge`, `APPROVED` → `Approved`, `review/triage-pending` label → `Waiting for first review`.
 
-**Ordering:** group with blank lines: `highlight` → `high` → `Approved` → `Changes requested` → `In progress` → `Don't merge` → other annotated → `Waiting for first review` → bare. Within each group, sort by PR number ascending.
+**Ordering:** group with blank lines: `highlight` → `high` → `Approved` → `Changes requested` → `In progress` → `Don't merge` → other annotated → `Waiting for first review` → bare. Ascending PR number within groups.
 
-**Write the file** to `reports/weekly-ux/YYYY-MM-DD/context.md` (creating the directory if needed) **before** presenting it. Then show the user the file contents and ask if they want to add or edit any annotations or priorities before generating the report. Wait for their response.
+**Write the file** to `reports/weekly-ux/YYYY-MM-DD/context.md`; the core context gate applies.
 
 ### 4. Produce the new report
 
-First re-read `reports/weekly-ux/YYYY-MM-DD/context.md` from disk, even after approval: the user edits it between steps, and the on-disk file is the source of truth for priorities and notes. Then use it and fresh data only. Filter merged PRs to those with `mergedAt` within the 7-day window. Follow this template (content categories omitted if empty):
+Use `context.md`, re-read per the core rule, and fresh data only. Filter merged PRs to those with `mergedAt` within the 7-day window. Follow this template (content categories omitted if empty):
 
 ```markdown
 From DD/MM to DD/MM  **: a/ux (UX team)**
@@ -188,12 +176,7 @@ From DD/MM to DD/MM  **: a/ux (UX team)**
 - **Ordering within sections:** `⚠️` → `✅` → plain → `🚫` → `📥`. Within each group: fixes before features, features before chores; same tier: older first.
 - Highlight entries may use free-text formatting.
 - `NOTE` is always left empty — team fills manually.
-- Do NOT fabricate PRs. Only include PRs present in the data.
 
-### 5. Save
+### 5. Save & present
 
-Write to `reports/weekly-ux/YYYY-MM-DD/report.md` and `context.md` (using the report end-date).
-
-### 6. Present to user
-
-Show the report. Highlight `🆕` PRs and any that disappeared from last week's context.
+Write to `reports/weekly-ux/YYYY-MM-DD/report.md` and `context.md`, report end-date; present per the core rule.

@@ -6,7 +6,9 @@ argument-hint: "[date expression]"
 
 # Weekly Report
 
-Generate the Samourai team weekly status report.
+Generate the Samourai team weekly status report. The mechanism — context gate,
+carry-forward, re-read from disk, no fabricated entries, highlight rules — is
+`skills/core/report.md`; everything below is the Samourai weekly specifics.
 
 **Input:** `$ARGUMENTS` — optional date expression for the report end-date (default: today). Examples: `weekly-report last week`, `weekly-report week of 1st march`. Parse to YYYY-MM-DD. Weeks run Mon–Sun. Pass via `--end-date YYYY-MM-DD`.
 
@@ -30,7 +32,7 @@ Artifacts land in `reports/weekly/YYYY-MM-DD/` (period end-date): `context.md`, 
 - **Mergers** (only their approvals count for ✅): `thehowl`, `moul`, `jeronimoalbi`, `gfanton`, `ltzmaxwell`, `sw360cab`, `alexiscolin`, `aeddi`, `zivkovicmilos`, `jaekwon`, `nemanjantic`, `ajnavarro`, `Kouteki`, `NotJoon`, `tbruyelle`
 - **Repos:** `gnolang/gno`, `samouraiworld/gnomonitoring`
 
-A renamed GitHub handle returns zero PRs with no error, silently dropping that member. On a missing-PR complaint, verify handles via `gh api users/<login>` first. `Villaquiranm` appears as "Miguel" in manual cross-repo entries (same person).
+Verify handles per the core rule with `gh api users/<login>`. `Villaquiranm` appears as "Miguel" in manual cross-repo entries, same person.
 
 ## Classification rules
 
@@ -124,16 +126,12 @@ For each login: if missing from **Mergers** and not a **Samourai** member, add i
 
 ### 3. Load last week's context
 
-Sort by directory name. Never `ls -td` (mtime).
-
 ```bash
 ls -d reports/weekly/*/ | sort -r | grep -v "/$END_DATE/$" | head -1
 ./scripts/parse-context.sh <path>/context.md
 ```
 
-Previous `context.md` is for carry-forward priorities/manual notes only — not for 🆕. If the previous directory is more than 7 days before `END_DATE`, flag it to the user before producing the report.
-
-The Highlight section comes from the user, not from this repo: ask for the block if the request doesn't carry it. Read the previous `report.md` **⭐ Highlight** block only as the fallback when none is supplied (see step 5). Do not rebuild the Highlight from `context.md`.
+🆕 comes from `createdAt`, never from the previous context. The Highlight block follows the core rule; do not rebuild it from `context.md`.
 
 ### 4. Build new context.md
 
@@ -159,13 +157,11 @@ A note may carry the manual `recurrent-conflict` token (see *Conflict tracking &
 
 **Ordering** (blank line between groups): `highlight` → `high` → `Approved` → `Changes requested` → `In progress` → `Don't merge` → other annotated → `Waiting for first review` → bare. Ascending PR number within groups.
 
-**Save** to `reports/weekly/YYYY-MM-DD/context.md`, present to user, and **wait for edits** before generating the report.
+**Save** to `reports/weekly/YYYY-MM-DD/context.md`; the core context gate applies.
 
 ### 5. Produce report.md
 
-First re-read `reports/weekly/YYYY-MM-DD/context.md` from disk, even after approval: the user edits it between steps. The on-disk file is the source of truth for priorities and notes.
-
-Use `context.md` + JSON data. The seven category sections (Security through Other) are omitted when empty; all other sections always appear.
+Use `context.md`, re-read per the core rule, plus the JSON data. The seven category sections (Security through Other) are omitted when empty; all other sections always appear.
 
 ```markdown
 Verified by:
@@ -249,13 +245,12 @@ From DD/MM to DD/MM  **: Samourai crew**
 - AI `REQUEST CHANGES` PRs and drafts route to the In Progress subsections per *AI review routing*; no per-line AI marker.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - **In Progress subsections** (**Not approved by AI**, **Draft**) order by emoji tier ⚠️ → ✅ → plain → 💥 → 🚫 (each line assigned to its highest tier). Within each tier: fixes → features → chores, older first.
-- **Highlight section:** the user supplies the block each week (curated outside this repo); ask for it if not given. Reproduce the entries verbatim, including merged and closed ones. Refresh only the emoji prefixes from current JSON; never add, drop, or reorder entries, and never rewrite a title. Falls back to the previous `report.md`'s **⭐ Highlight** block when the user supplies nothing. `context.md` `highlight:` lines are not a source for this section. Highlight entries may use free-text formatting.
+- **Highlight section:** core rule; `context.md` `highlight:` lines are not a source, entries may use free-text formatting, merged and closed ones stay.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
-- Do NOT fabricate PRs.
 
 ### 6. Save & present
 
-Write `reports/weekly/YYYY-MM-DD/report.md` and `context.md` (period end-date). Show the report, highlight 🆕 PRs and any that disappeared from last week.
+Write `reports/weekly/YYYY-MM-DD/report.md` and `context.md`, period end-date; present per the core rule.
 
 ### 7. Discord conflict ping
 
