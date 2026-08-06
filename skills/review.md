@@ -447,7 +447,7 @@ Event: APPROVE | REQUEST_CHANGES | COMMENT
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<review-file-path> [↗](review_<model>_<reviewer>.md)
 
-## <path>:<line>
+## <path>:<line> [gh](<blob-url>) · [↗](<worktree-path>)
 <1-3 sentences: the problem and why it matters>
 
 <details><summary>repro</summary>
@@ -482,7 +482,7 @@ Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/<rev
 
 Walk these steps, in order, for every finding:
 
-1. **Anchor.** One `## <path>:<line>` section per finding, all severities; ranges `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Read those exact lines in the worktree first; the anchor must cover exactly the lines the sentence talks about. Append the local IDE link: `## <path>:<start>-<end> [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The upload script strips everything after the first space.
+1. **Anchor.** One `## <path>:<line>` section per finding, all severities; ranges `## <path>:<start>-<end>`. Line numbers reference the PR head commit (side RIGHT). Read those exact lines in the worktree first; the anchor must cover exactly the lines the sentence talks about. Append the blob link and the local IDE link, in that order: `## <path>:<start>-<end> [gh](https://github.com/gnolang/gno/blob/<short-sha>/<path>#L<start>-L<end>) · [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The path stays a bare token, never a link, or the anchor regex rejects the header. `.worktrees/` is gitignored, so `[↗]` is dead for anyone reading the draft on GitHub and `[gh]` is the one that resolves there. The upload script strips everything after the first space.
 2. **Opener.** `Critical:` / `Nit:` / `Suggestion:` prefix matching the review file's severity band, then the TL;DR. A Warning gets NO prefix: it opens directly with the TL;DR. A missing-test finding opens `Missing test:` plus the uncovered scenario in one clause. The bracketed plain-English priority tag is dropped everywhere.
 3. **Sentences.** Hard cap 1-3 visible sentences (code blocks and `<details>` don't count; no headers, no bold). Order: the gap and its stake first, evidence second, fix sentence last. Count the sentences before moving on; over 3 → cut evidence, not the gap.
 4. **Fix sentence.** Default to none: state the problem and stop. Add one only when the remedy is genuinely non-obvious and changes what the author would do; name the desired outcome, never the implementation path or an internal symbol ("reject those too", not "call `evalStaticTypeOf` and branch on the `Func` field"). Never a fix sentence whose remedy the problem statement already implies ("the doc comment describes the wrong function" needs no "rewrite it").
@@ -548,7 +548,7 @@ Nit: this says `Tree.Size` is a field, but [`Size` is a method](https://github.c
 
 Verify each line of the draft before handing it over:
 
-1. Every `## <path>:<line>` header ends with its worktree `[↗](...)` link.
+1. Every `## <path>:<line>` header carries both links, `[gh](...)` then `[↗](...)`, and its path is a bare token.
 2. The Full review line is a `blob/` (not `tree/`) URL ending with `[↗](review_<model>_<reviewer>.md)`.
 3. Body names at most three checks, each a runtime check the tests don't/can't cover (no static-analysis reasoning, no test-covered claim), none CI-visible, and neither recaps nor counts anchored findings.
 4. No repro block whose output is only a passing run.

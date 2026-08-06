@@ -7,7 +7,7 @@ Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6032 26c788ff2
 
 **TL;DR:** Integration test scripts for a realm used to sit in one big shared folder, far from the realm they test. This moves 11 of them next to the code they exercise and teaches the test runner to find scripts in both places.
 
-**Verdict: REQUEST CHANGES** — the new second root is resolved through `GNOROOT`, so a developer whose `GNOROOT` points elsewhere loses all 11 moved tests with a green run (1 Warning, 1 Missing test, 2 Suggestions, 1 Nit).
+**Verdict: REQUEST CHANGES** — the new second root is resolved through `GNOROOT`, so a developer whose `GNOROOT` points elsewhere loses all 11 moved tests with a green run (1 Warning, 1 Missing test, 3 Suggestions, 2 Nits).
 
 ## Verify first
 
@@ -66,6 +66,14 @@ None.
 
 ## Suggestions
 
+- **[a migration sweep leaves the scripts behind]** `examples/Makefile:56-57` — `make -C examples fix` migrates a package's `.gno` files and walks past the script now sitting beside them.
+  <details><summary>details</summary>
+
+  The target passes [`.`](https://github.com/gnolang/gno/blob/26c788ff2/examples/Makefile#L56-L57) · [↗](../../../../../.worktrees/gno-review-6032/examples/Makefile#L56-L57), a directory, and [`gno fix` takes a `.txtar` only as an explicit file target](https://github.com/gnolang/gno/blob/26c788ff2/gnovm/cmd/gno/fix.go#L92-L93) · [↗](../../../../../.worktrees/gno-review-6032/gnovm/cmd/gno/fix.go#L92-L93). Run at 26c788ff2, `go run ./gnovm/cmd/gno fix -diff -v ./examples/gno.land/r/gnoland/wugnot` prints `./examples/gno.land/r/gnoland/wugnot/wugnot.gno` and nothing else, though `wugnot.txtar` sits in that directory.
+
+  Nothing swept the scripts in their old home either, so this is not a regression. It becomes visible here because the change puts them inside the tree that target walks, so the next [rewrite to a new API](https://github.com/gnolang/gno/blob/26c788ff2/gnovm/cmd/gno/fix.go#L37-L38) · [↗](../../../../../.worktrees/gno-review-6032/gnovm/cmd/gno/fix.go#L37-L38) would leave a package's script on the old one.
+  </details>
+
 - **[a script in the platform folder can be skipped in silence]** `gnovm/pkg/integration/testscript.go:66-67` — `.txt` scripts stop being discovered under `testdata/` too, though the reason given for dropping them only holds next to real code.
   <details><summary>details</summary>
 
@@ -79,6 +87,12 @@ None.
   </details>
 
 ## Nits
+
+- **[a unique name still fails the suite]** `examples/README.md:26-27` — [unique across the whole tree](https://github.com/gnolang/gno/blob/26c788ff2/examples/README.md?plain=1#L26-L27) · [↗](../../../../../.worktrees/gno-review-6032/examples/README.md#L26-L27) reads as the `examples/` tree, and the namespace also covers `gno.land/pkg/integration/testdata/`.
+  <details><summary>details</summary>
+
+  [`docs/resources/gno-testing.md:184-186`](https://github.com/gnolang/gno/blob/26c788ff2/docs/resources/gno-testing.md?plain=1#L184-L186) · [↗](../../../../../.worktrees/gno-review-6032/docs/resources/gno-testing.md#L184-L186) says "both locations" and is right; the `examples/README.md` wording is the one a realm author reads first. A realm-local `params.txtar` is unique inside `examples/` and collides with [`testdata/params.txtar`](https://github.com/gnolang/gno/blob/26c788ff2/gno.land/pkg/integration/testdata/params.txtar#L1) · [↗](../../../../../.worktrees/gno-review-6032/gno.land/pkg/integration/testdata/params.txtar#L1), which fails discovery for the whole suite.
+  </details>
 
 - **[the two lists drift without anything noticing]** `gno.land/pkg/integration/update_gas_wanted.sh:57` — the comment above it says to keep the roots in sync with `FindTestScripts`, but the two walkers disagree on hidden directories.
   <details><summary>details</summary>
