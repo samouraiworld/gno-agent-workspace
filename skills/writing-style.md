@@ -34,6 +34,21 @@ description: Use when writing or editing gno docs, code comments, or PR review c
 - Scannable, without losing anything. The reader must get the whole picture in one pass and reach the detail only if they want it. Lead with the state in one line. Put anything with repeating structure (findings left out, jobs run, commits) in a table, one row each, the consequence in the last column, never as prose paragraphs. Keep the reasoning behind a `<details>` block rather than cutting it: completeness lives there, speed lives above it. A reader who stops after the tables still knows what happened, what is fixed, and what is not.
 - In a review, lead with the verdict only where no separate field already states it. The review file Summary opens with a short phrase like "Looks good." or "Correct fix."; the comment draft's `Event:` line carries the verdict, so its body never restates it and goes straight to substance. Everything else, including what the PR does, comes after. One finding per block headed by its file:line. State the problem directly; if it is written, it is meant to be read. Do not soften a finding with an opener like "Optional" or "non-blocking"; the severity-band prefix `skills/review.md` requires on non-Warning inline comments (`Critical:` / `Missing test:` / `Nit:` / `Suggestion:`) is the only label, and it stays. State the problem, never the fix; a human or an agent works the fix out. Keep CI and merge noise out of the findings.
 
+## Pass
+
+Run this over every drafted artifact as the last step of writing it, against the file and not from memory. Where the artifact's own skill mandates a loop, `skills/pr-body.md` for one, run that loop first and this pass over its result. Report the outcome in the reply: what it changed, or that a full pass changed nothing.
+
+Take the checks in order. Each is a search over the draft, not an impression of it.
+
+1. **Mechanical bans.** Search the draft for the em-dash, `U+2014`, and for `(`. Every hit is a rewrite: a colon, a period or a comma for the first, a reworked sentence for the second. This check is first because it is the only one that cannot be argued with.
+2. **Verification padding.** For every claim that something passes, open the workflow file and find the job that already runs it. Delete the claim if the job exists. What survives names the reason the job cannot reach it.
+3. **Unlinked names.** List every file, symbol, package, PR, issue and project named in the draft. The first appearance of each carries a link. A link into code carries `#L37` or `#L35-L42` on a `blob` URL pinned to a sha; read the range back before shipping it.
+4. **Sign-posting.** Search for "see below", "as mentioned", "the section above", and any sentence whose only job is to carry a link. Restructure so the content sits where the reader needs it.
+5. **Budget.** Count the words against the shape's own budget. Past it, cut; never restructure.
+6. **Bare adjectives.** Search for "sound", "correct", "safe", "fine", "nothing broken". Replace each with the check that was run and what it showed.
+
+A pass that changes nothing is the exit condition. A pass never run is not the same thing, and reporting one as the other is worse than skipping it.
+
 ## Short form
 
 A one-line comment, a question, a chat reply. The rules above still hold, but the register is clipped.
