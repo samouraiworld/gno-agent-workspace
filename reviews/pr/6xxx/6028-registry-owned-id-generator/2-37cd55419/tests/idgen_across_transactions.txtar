@@ -1,0 +1,44 @@
+# Run: from a gno checkout:
+# gh pr checkout 6028 -R gnolang/gno && git checkout 37cd55419
+# curl -fsSL -o gno.land/pkg/integration/testdata/idgen_across_transactions.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6028-registry-owned-id-generator/2-37cd55419/tests/idgen_across_transactions.txtar
+# go test -v -run 'TestTestdata/idgen_across_transactions' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/idgen_across_transactions.txtar
+#
+# grc20reg.idSeq is written only through nextIDSeq, called from another realm's
+# frame, so every id the registry issues depends on that write surviving the
+# transaction that made it. Each Mint below runs in its own transaction.
+# The codes are 0000001 and 0000002 because nothing else in this genesis draws
+# from the counter.
+
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/idprobe $WORK
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/idprobe -func Mint -args 'AAA' -gas-fee 1000000ugnot -gas-wanted 40000000 -chainid=tendermint_test test1
+stdout OK!
+stdout '"key":"id","value":"gno.land/r/idprobe.AAA.gno.land/r/demo/defi/grc20reg:0000001"'
+
+gnokey maketx call -pkgpath gno.land/r/idprobe -func Mint -args 'BBB' -gas-fee 1000000ugnot -gas-wanted 40000000 -chainid=tendermint_test test1
+stdout OK!
+stdout '"key":"id","value":"gno.land/r/idprobe.BBB.gno.land/r/demo/defi/grc20reg:0000002"'
+
+-- gnomod.toml --
+module = "gno.land/r/idprobe"
+gno = "0.9"
+
+-- idprobe.gno --
+package idprobe
+
+import (
+	"chain"
+
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+func Mint(cur realm, symbol string) {
+	tok, _ := grc20.NewToken("Probe", symbol, 4, grc20reg.IdentifierGenerator(cross(cur)), cur)
+	chain.Emit("probe_id", "id", tok.ID())
+}
