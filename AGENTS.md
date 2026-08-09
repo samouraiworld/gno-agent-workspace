@@ -20,6 +20,15 @@ Knowledge base and review workspace for [gnolang/gno](https://github.com/gnolang
 
 When given a PR number or URL, read and follow `skills/review.md`.
 
+**Every gno review uses this repo's `skills/review.md`, whatever the target repo is.** That file is
+the delta; the core it overrides is the submodule beside it at `skills/core/review.md`, and the
+delta wins wherever the two disagree. Read both, in that order, and never the core alone: it is
+repo-agnostic by design and carries none of the gno rules, so a review written against it comes
+out confident and well-formed in the wrong house style, missing the comment anchor format, the
+`Fix:` sentence, the banned finding classes and the repro conventions. Nothing in the output
+announces the miss, which is what makes it worth stating here. The rule holds for a fork or a
+mirror of gno as much as for `gnolang/gno` itself: the target changes, the skill does not.
+
 When asked to **review all** (e.g. "review all", "review all non-reviewed recent PRs"), read and follow `skills/review.md` — see its "Review all" section: review every open, non-draft PR whose number is absent from `reviews/pr/`, excluding `WIP`-titled and dependabot PRs unless explicitly included.
 
 When asked for a **parallel**, **red-team / blue-team**, or **deeper** review of a single PR (or "review and loop until perfect"), read and follow `skills/review.md` — see its "Deep mode" section.
