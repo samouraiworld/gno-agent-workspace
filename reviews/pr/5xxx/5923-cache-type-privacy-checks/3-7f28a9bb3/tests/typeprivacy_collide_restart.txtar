@@ -1,0 +1,81 @@
+# Run: from a gno checkout:
+# gh pr checkout 5923 -R gnolang/gno && git checkout 7f28a9bb3
+# curl -fsSL -o gno.land/pkg/integration/testdata/typeprivacy_collide_restart.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5923-cache-type-privacy-checks/3-7f28a9bb3/tests/typeprivacy_collide_restart.txtar
+# go test -v -run 'TestTestdata/typeprivacy_collide_restart$' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/typeprivacy_collide_restart.txtar
+#
+# The same call, twice, differing only in whether the node restarted in
+# between. Both must be rejected. At 7f28a9bb3 the first is accepted and the
+# second rejected, so the outcome of one transaction turns on how long the node
+# has been up. Green at the merge base ddb752cac.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/pub -pkgpath gno.land/r/zz/pub -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/warm -pkgpath gno.land/r/zz/warm -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/priv -pkgpath gno.land/r/zz/priv -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/zz/warm -func Warm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stdout OK!
+
+# Warm cache. Accepted at 7f28a9bb3, which is the failure.
+! gnokey maketx call -pkgpath gno.land/r/zz/priv -func Leak -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot persist object of type defined in the private realm gno.land/r/zz/priv'
+
+gnoland restart
+
+# Cold cache, identical call: rejected.
+! gnokey maketx call -pkgpath gno.land/r/zz/priv -func Leak -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot persist object of type defined in the private realm gno.land/r/zz/priv'
+
+-- pub/gnomod.toml --
+module = "gno.land/r/zz/pub"
+gno = "0.9"
+
+-- pub/pub.gno --
+package pub
+
+var Slot any
+
+func Save(cur realm, v any) {
+	Slot = v
+}
+
+-- warm/gnomod.toml --
+module = "gno.land/r/zz/warm"
+gno = "0.9"
+
+-- warm/warm.gno --
+package warm
+
+import "gno.land/r/zz/pub"
+
+func Warm(cur realm) {
+	var arr [3]*struct {
+		N int
+	}
+	pub.Save(cross(cur), arr)
+}
+
+-- priv/gnomod.toml --
+module = "gno.land/r/zz/priv"
+gno = "0.9"
+private = true
+
+-- priv/priv.gno --
+package priv
+
+import "gno.land/r/zz/pub"
+
+func Leak(cur realm) {
+	var arr [3]*struct {
+		N int
+	}
+	pub.Save(cross(cur), arr)
+}

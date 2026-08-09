@@ -1,0 +1,74 @@
+# Does the typeHasPrivateDep cache change billed gas when the type graph
+# reaches a package the measured call never touches?
+#
+# Run: from a local clone of gnolang/gno at the PR head:
+#   cp zz_typecache_foreign_pkg_gas.txtar gno.land/pkg/integration/testdata/
+#   go test ./gno.land/pkg/integration/ -run 'TestTestdata/zz_typecache_foreign_pkg_gas' -v 2>&1 | grep 'GAS USED'
+#   rm gno.land/pkg/integration/testdata/zz_typecache_foreign_pkg_gas.txtar
+#
+# Call 2 runs with a warm type-privacy cache, call 3 after a restart with
+# a cold one. Both are the identical no-op write. If the two GAS USED
+# numbers differ, cache warmth (node-local, restart-reset, never part of
+# consensus state) is visible in billed gas.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/thing -pkgpath gno.land/p/test/thing -gas-fee 1000001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/tc -pkgpath gno.land/r/test/tc -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Call 1: warm-up (real value change, not gas-compared).
+gnokey maketx call -pkgpath gno.land/r/test/tc -func Touch -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Call 2: no-op write, same process, type-privacy cache warm.
+gnokey maketx call -pkgpath gno.land/r/test/tc -func Touch -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout 'GAS USED'
+
+gnoland restart
+
+# Call 3: identical no-op write, fresh process, type-privacy cache cold.
+gnokey maketx call -pkgpath gno.land/r/test/tc -func Touch -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout 'GAS USED'
+
+-- thing/gnomod.toml --
+module = "gno.land/p/test/thing"
+gno = "0.9"
+
+-- thing/thing.gno --
+package thing
+
+type Thing struct {
+	A int
+	B string
+}
+
+-- tc/gnomod.toml --
+module = "gno.land/r/test/tc"
+gno = "0.9"
+
+-- tc/tc.gno --
+package tc
+
+import "gno.land/p/test/thing"
+
+type Wrapper struct {
+	T    thing.Thing
+	Name string
+}
+
+var current = &Wrapper{
+	T:    thing.Thing{A: 1, B: "x"},
+	Name: "same-every-time",
+}
+
+// Touch rewrites Name with the value it already holds: a no-op write that
+// still goes through the full update/re-encode and save path. It never
+// mentions the thing package, so the measured call has no reason to load
+// gno.land/p/test/thing other than the type-privacy walk.
+func Touch(cur realm) string {
+	current.Name = "same-every-time"
+	return current.Name
+}
