@@ -1,0 +1,79 @@
+# Run: from a gno checkout:
+# gh pr checkout 5923 -R gnolang/gno && git checkout 7f28a9bb3
+# curl -fsSL -o gno.land/pkg/integration/testdata/typecache_foreign_gas.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5923-cache-type-privacy-checks/3-7f28a9bb3/tests/typecache_foreign_gas.txtar
+# go test -v -run 'TestTestdata/typecache_foreign_gas' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/typecache_foreign_gas.txtar
+#
+# hold holds a value whose type is declared in typ, a realm hold never
+# imports, so a tx that only touches hold never loads typ's PackageValue.
+# The type-privacy walk's isPkgPrivateFromPkgPath(typ) is then a cold
+# backend read, charged as I/O + amino-decode gas — unless the memoized
+# verdict skips the walk. Calls 3 (warm) and 4 (cold, after restart) are
+# the identical no-op write and must report identical GAS USED.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/hold -pkgpath gno.land/r/zz/hold -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/typ -pkgpath gno.land/r/zz/typ -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Seed hold.Slot with a *typ.Data.
+gnokey maketx call -pkgpath gno.land/r/zz/typ -func Seed -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Call 1: warm-up, real byte-size change, also populates the verdict.
+gnokey maketx call -pkgpath gno.land/r/zz/hold -func Touch -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Call 2: no-op write, same process, verdict warm.
+gnokey maketx call -pkgpath gno.land/r/zz/hold -func Touch -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout 'GAS USED:'
+
+gnoland restart
+
+# Call 3: identical no-op write, fresh process, verdict cold.
+gnokey maketx call -pkgpath gno.land/r/zz/hold -func Touch -gas-fee 1000001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout 'GAS USED:'
+
+-- hold/gnomod.toml --
+module = "gno.land/r/zz/hold"
+gno = "0.9"
+
+-- hold/hold.gno --
+package hold
+
+var (
+	Slot any
+	Name = "init"
+)
+
+func Put(cur realm, v any) {
+	Slot = v
+}
+
+func Touch(cur realm) string {
+	Name = "same-every-time"
+	return Name
+}
+
+-- typ/gnomod.toml --
+module = "gno.land/r/zz/typ"
+gno = "0.9"
+
+-- typ/typ.gno --
+package typ
+
+import "gno.land/r/zz/hold"
+
+type Data struct {
+	N      int
+	hidden int
+}
+
+func Seed(cur realm) string {
+	hold.Put(cross(cur), &Data{N: 1, hidden: 2})
+	return "seeded"
+}
