@@ -250,7 +250,7 @@ From DD/MM to DD/MM  **: Samourai crew**
 - AI `REQUEST CHANGES` PRs and drafts route to the In Progress subsections per *AI review routing*; no per-line AI marker.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - **In Progress subsections** (**Not approved by AI**, **Draft**) order by emoji tier ⚠️ → ✅ → plain → 💥 → 🚫 (each line assigned to its highest tier). Within each tier: fixes → features → chores, older first.
-- **Highlight section:** core rule; `context.md` `highlight:` lines are not a source, entries may use free-text formatting, merged and closed ones stay.
+- **Highlight section:** core rule; `context.md` `highlight:` lines are not a source, entries may use free-text formatting. A merged or closed PR drops out, overriding the core rule's *never drop*: it is already carried by **🎉 PR Merged**, and listing it twice reads as still open.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
 
 ### 6. Save & present

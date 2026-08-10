@@ -18,7 +18,6 @@ From 03/08 to 10/08  **: Samourai crew**
 
 - ✅ test(misc/e2e): add gnovm audit and e2e regression scripts - https://github.com/gnolang/gno/pull/5663 - louis14448
 - ✅ fix(gnovm): meter gas correctly for switch case - https://github.com/gnolang/gno/pull/5217 - davd-gzl
-- ✅ docs(examples): add READMEs for p/nt packages - https://github.com/gnolang/gno/pull/5950 - davd-gzl
 - 📥 💥 docs: concise AI contract review guide follow-up - https://github.com/gnolang/gno/pull/5936 - davd-gzl
 - fix(gnolang): allow indirect cur-call through a local func variable - https://github.com/gnolang/gno/pull/5689 - omarsy
 - ✅ 💥 feat(gnovm): source-level gas profiler ("gas pprof") - https://github.com/gnolang/gno/pull/5967 - omarsy
