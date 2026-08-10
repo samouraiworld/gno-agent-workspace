@@ -251,7 +251,7 @@ From DD/MM to DD/MM  **: Samourai crew**
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
 - **In Progress subsections** (**Not approved by AI**, **Draft**) order by emoji tier ⚠️ → ✅ → plain → 💥 → 🚫 (each line assigned to its highest tier). Within each tier: fixes → features → chores, older first.
 - **Highlight section:** core rule; `context.md` `highlight:` lines are not a source, entries may use free-text formatting. A merged or closed PR drops out, overriding the core rule's *never drop*: it is already carried by **🎉 PR Merged**, and listing it twice reads as still open. A Highlight entry appears only there, never also in a category section.
-- **The previous `report.md` on disk is not the block the team published.** They add, bold and reorder entries after generation, and the edit never comes back to the repo, so falling back to the file silently drops whatever they added. Ask for the block, paste the answer in, and write it back into the previous period's `report.md` so the next fallback is true.
+- **The Highlight block lives on the publishing platform, not here.** The report is posted elsewhere and the team edits Highlight there, so the previous period's `report.md` in this repo is always behind: falling back to it silently drops whatever they added. Ask for the block every period, and write the answer back into the previous period's `report.md` so the record stops drifting.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
 
 ### 6. Save & present
