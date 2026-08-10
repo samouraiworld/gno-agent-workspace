@@ -32,7 +32,19 @@ Artifacts land in `reports/weekly/YYYY-MM-DD/` (period end-date): `context.md`, 
 - **Mergers** (only their approvals count for ✅): `thehowl`, `moul`, `jeronimoalbi`, `gfanton`, `ltzmaxwell`, `sw360cab`, `alexiscolin`, `aeddi`, `zivkovicmilos`, `jaekwon`, `nemanjantic`, `ajnavarro`, `Kouteki`, `NotJoon`, `tbruyelle`
 - **Repos:** `gnolang/gno`, `gnolang/docs.gno.land`, `samouraiworld/gnomonitoring`
 
-Verify handles per the core rule with `gh api users/<login>`. `Villaquiranm` appears as "Miguel" in manual cross-repo entries, same person.
+Verify handles per the core rule with `gh api users/<login>`.
+
+The `Verified by:` names are not handles and do not resolve by eye — map them here, never guess from a first name:
+
+| Verified by | Handle | Also appears as |
+|---|---|---|
+| David | `davd-gzl` | |
+| Ghost | `omarsy` | `6h057` |
+| Lours | `louis14448` | |
+| Mikecito | `Villaquiranm` | Miguel |
+| zôÖma | `zxxma` | |
+
+`WaDadidou` has no `Verified by:` line. Removing a handle from **Samourai** does not remove a `Verified by:` line: ask which line, if any, goes with it.
 
 ## Classification rules
 
@@ -170,6 +182,7 @@ Verified by:
 - [ ]  David
 - [ ]  Ghost
 - [ ]  Lours
+- [ ]  Mikecito
 - [ ]  zôÖma
 
 **Quick Intro Context:**
