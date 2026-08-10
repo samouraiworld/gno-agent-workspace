@@ -28,9 +28,9 @@ Artifacts land in `reports/weekly/YYYY-MM-DD/` (period end-date): `context.md`, 
 
 ## Team & Repos
 
-- **Samourai:** `davd-gzl`, `omarsy`, `mvallenet`, `Villaquiranm`, `WaDadidou`, `zxxma`, `louis14448`, `AmozPay` (keep in sync with `scripts/weekly-report.sh`)
+- **Samourai:** `davd-gzl`, `omarsy`, `Villaquiranm`, `WaDadidou`, `zxxma`, `louis14448` (keep in sync with `scripts/weekly-report.sh`)
 - **Mergers** (only their approvals count for ✅): `thehowl`, `moul`, `jeronimoalbi`, `gfanton`, `ltzmaxwell`, `sw360cab`, `alexiscolin`, `aeddi`, `zivkovicmilos`, `jaekwon`, `nemanjantic`, `ajnavarro`, `Kouteki`, `NotJoon`, `tbruyelle`
-- **Repos:** `gnolang/gno`, `samouraiworld/gnomonitoring`
+- **Repos:** `gnolang/gno`, `gnolang/docs.gno.land`, `samouraiworld/gnomonitoring`
 
 Verify handles per the core rule with `gh api users/<login>`. `Villaquiranm` appears as "Miguel" in manual cross-repo entries, same person.
 
@@ -163,12 +163,13 @@ A note may carry the manual `recurrent-conflict` token (see *Conflict tracking &
 
 Use `context.md`, re-read per the core rule, plus the JSON data. The seven category sections (Security through Other) are omitted when empty; all other sections always appear.
 
+`context.md` and the seven category sections cover `gnolang/gno` only. Every other repo gets its own section carrying its open PRs, then a `Merged:` sublist for the ones merged this period: `gnolang/docs.gno.land` under *Docs site*, `samouraiworld/gnomonitoring` under *Validators / Infrastructure Tools*. Emoji indicators apply there too; AI review routing does not.
+
 ```markdown
 Verified by:
 - [ ]  David
 - [ ]  Ghost
 - [ ]  Lours
-- [ ]  Mikecito
 - [ ]  zôÖma
 
 **Quick Intro Context:**
@@ -226,6 +227,10 @@ From DD/MM to DD/MM  **: Samourai crew**
 ---
 
 **🎉 PR Merged**
+
+---
+
+**📚 Docs site (/gnolang/docs.gno.land)**
 
 ---
 

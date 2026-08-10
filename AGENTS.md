@@ -58,7 +58,9 @@ mkdir -p ~/bin && curl -fsSL -o ~/bin/jq https://github.com/jqlang/jq/releases/d
 export PATH="$HOME/bin:$PATH"
 ```
 
-The full fetch takes about four minutes: it walks every open PR one `gh pr view` at a time.
+The full fetch takes about four minutes: it walks every open PR one GraphQL call at a time.
+
+`:: Done. Open PRs: 0` with no error is a token-scope failure, not an empty week. `gh pr list --json reviewRequests` resolves `login` on the Team variant, which needs `read:org`; without it the whole call fails and every member silently contributes zero PRs. Check with `gh auth status` (`! Missing required token scopes: 'read:org'`). The script now asks for requested reviewers through its own GraphQL query restricted to the User variant, so no scope beyond `repo` is needed. Never accept a zero count from that line — compare against last week's `context.md`.
 
 ## Weekly UX Report
 

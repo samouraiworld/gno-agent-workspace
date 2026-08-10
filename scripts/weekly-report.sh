@@ -33,10 +33,10 @@ DAYS=7
 END_DATE=""
 
 # Team GitHub usernames (override via env)
-: "${TEAM_MEMBERS:=davd-gzl omarsy mvallenet Villaquiranm WaDadidou zxxma louis14448 AmozPay}"
+: "${TEAM_MEMBERS:=davd-gzl omarsy Villaquiranm WaDadidou zxxma louis14448}"
 
 # Repos to track (override via env)
-: "${REPOS:=gnolang/gno samouraiworld/gnomonitoring}"
+: "${REPOS:=gnolang/gno gnolang/docs.gno.land samouraiworld/gnomonitoring}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 die()  { echo "ERROR: $*" >&2; exit 1; }
@@ -108,14 +108,18 @@ for repo in $REPOS; do
   # --- Open PRs by team members ---
   for member in $TEAM_MEMBERS; do
     MEMBER_FILE="$TEMP_DIR/member_open.json"
+    # `reviewRequests` is NOT requested here: gh's own query asks `login` on the
+    # Team variant, which needs the `read:org` scope. Without it the whole call
+    # fails and the member silently contributes zero PRs. It is fetched per PR
+    # below, restricted to the User variant.
     gh pr list --repo "$repo" --author "$member" --state open \
-      --json number,title,author,labels,createdAt,updatedAt,url,isDraft,reviewRequests,reviewDecision,body,mergeable \
+      --json number,title,author,labels,createdAt,updatedAt,url,isDraft,reviewDecision,body,mergeable \
       --limit 200 2>/dev/null \
       | jq '[.[] | {
           number, title, url, createdAt, updatedAt, isDraft, reviewDecision,
           author: .author.login,
           labels: [.labels[].name],
-          reviewRequests: [.reviewRequests[] | .login // .slug // .name],
+          reviewRequests: [],
           body, mergeable
         }]' > "$MEMBER_FILE" 2>/dev/null || echo "[]" > "$MEMBER_FILE"
     jq -s '.[0] + .[1]' "$OPEN_FILE" "$MEMBER_FILE" > "$TEMP_DIR/tmp.json" && mv "$TEMP_DIR/tmp.json" "$OPEN_FILE"
@@ -154,19 +158,37 @@ for repo in $REPOS; do
   jq '[group_by(.number)[] | first]' "$OPEN_FILE" > "$TEMP_DIR/tmp.json" && mv "$TEMP_DIR/tmp.json" "$OPEN_FILE"
   jq '[group_by(.number)[] | first]' "$MERGED_FILE" > "$TEMP_DIR/tmp.json" && mv "$TEMP_DIR/tmp.json" "$MERGED_FILE"
 
-  # --- Fetch review stats and mergeable status for ALL open PRs ---
+  # --- Fetch review stats, mergeable status and requested reviewers for ALL open PRs ---
   ALL_PR_NUMBERS=$(jq -r '.[].number' "$OPEN_FILE")
   if [[ -n "$ALL_PR_NUMBERS" ]]; then
     PR_COUNT=$(echo "$ALL_PR_NUMBERS" | wc -l | tr -d ' ')
     info "Fetching review stats + mergeable for $PR_COUNT open PRs in $repo ..."
     ENRICHED_FILE="$TEMP_DIR/enriched_open.json"
     cp "$OPEN_FILE" "$ENRICHED_FILE"
+    REPO_OWNER="${repo%%/*}"
+    REPO_NAME="${repo##*/}"
 
     for pr_num in $ALL_PR_NUMBERS; do
       REVIEW_FILE="$TEMP_DIR/reviews_${pr_num}.json"
-      gh pr view "$pr_num" --repo "$repo" --json reviews,mergeable \
-        --jq '{reviews: [.reviews[] | {author: .author.login, state: .state}], mergeable: .mergeable}' \
-        > "$REVIEW_FILE" 2>/dev/null || echo '{"reviews":[],"mergeable":"UNKNOWN"}' > "$REVIEW_FILE"
+      gh api graphql -F owner="$REPO_OWNER" -F name="$REPO_NAME" -F number="$pr_num" -f query='
+        query($owner:String!, $name:String!, $number:Int!) {
+          repository(owner:$owner, name:$name) {
+            pullRequest(number:$number) {
+              mergeable
+              reviews(last:100) { nodes { author { login } state } }
+              reviewRequests(first:50) {
+                nodes { requestedReviewer { ... on User { login } } }
+              }
+            }
+          }
+        }' \
+        --jq '.data.repository.pullRequest | {
+          reviews: [.reviews.nodes[] | {author: .author.login, state: .state}],
+          mergeable: .mergeable,
+          reviewRequests: [.reviewRequests.nodes[].requestedReviewer.login // empty]
+        }' \
+        > "$REVIEW_FILE" 2>/dev/null \
+        || echo '{"reviews":[],"mergeable":"UNKNOWN","reviewRequests":[]}' > "$REVIEW_FILE"
 
       # Compute review stats: last review per author = their official status.
       # Includes approver usernames so AI can check core team vs Samourai.
@@ -182,10 +204,12 @@ for repo in $REPOS; do
       ' "$REVIEW_FILE")
 
       MERGEABLE=$(jq -r '.mergeable' "$REVIEW_FILE")
+      REQUESTS=$(jq -c '.reviewRequests' "$REVIEW_FILE")
 
-      # Inject reviewStats and accurate mergeable into the matching PR object
+      # Inject reviewStats, accurate mergeable and reviewRequests into the matching PR object
       jq --argjson num "$pr_num" --argjson stats "$STATS" --arg merge "$MERGEABLE" \
-        '[.[] | if .number == $num then . + {reviewStats: $stats, mergeable: $merge} else . end]' \
+        --argjson requests "$REQUESTS" \
+        '[.[] | if .number == $num then . + {reviewStats: $stats, mergeable: $merge, reviewRequests: $requests} else . end]' \
         "$ENRICHED_FILE" > "$TEMP_DIR/tmp.json" && mv "$TEMP_DIR/tmp.json" "$ENRICHED_FILE"
     done
 
