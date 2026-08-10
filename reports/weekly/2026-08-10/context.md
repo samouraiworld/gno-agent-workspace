@@ -1,5 +1,4 @@
 5217 highlight: Approved - `fix(gnovm): meter gas correctly for switch case`
-5663 highlight: Approved - `test(misc/e2e): add gnovm audit and e2e regression scripts`
 5689 highlight: - `test(gnovm): cover indirect cur-call through a local func variable`
 5936 highlight: Waiting for first review - `docs: concise AI contract review guide follow-up`
 5967 highlight: Approved - `feat(gnovm): source-level gas profiler ("gas pprof")`
@@ -8,6 +7,7 @@
 5049 high: - `fix(gnokey): inject block height when not provided in ABCI requests`
 5230 high: Waiting for first review - `feat(bank): `TotalCoin` - track total supply of a denom`
 
+5663: Approved - `test(misc/e2e): add gnovm audit and e2e regression scripts`
 5874: Approved - `fix(valopers): validate auth-list members, sanitize description, reject negative min fee`
 5963: Approved - `fix(gnovm): correct GotoJump stmt-stack truncation for goto out of nested loops`
 5993: Approved - `docs: fix grc20.NewToken examples that do not compile`
