@@ -17,6 +17,7 @@ From 27/07 to 03/08  **: Samourai crew**
 
 **⭐ Highlight**
 
+- **fix(gno.land): type-check production files only at AddPackage -** https://github.com/gnolang/gno/pull/6025 - omarsy
 - ✅ test(misc/e2e): add gnovm audit and e2e regression scripts - https://github.com/gnolang/gno/pull/5663 - louis14448
 - ✅ fix(gnovm): meter gas correctly for switch case - https://github.com/gnolang/gno/pull/5217 - davd-gzl
 - ✅ docs(examples): add READMEs for p/nt packages - https://github.com/gnolang/gno/pull/5950 - davd-gzl
