@@ -4,3 +4,4 @@
 [submodule "skills/core"]
 	path = skills/core
 	url = https://github.com/davd-gzl/skills.git
+	branch = main
