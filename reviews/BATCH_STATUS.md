@@ -65,21 +65,34 @@ cycle handling in the same file (`gnovm/pkg/gnolang/preprocess.go`). Reconcile t
 against each other before the batch commit: a rule one PR states and another contradicts is one
 conclusion re-derived from the source, written into every affected review file.
 
+## Environment
+
+No Go toolchain on `PATH` at session start (`bash: go: command not found`), and every dispatched
+agent inherits that, so a batch run reports eleven failed test suites and zero real results.
+`gno/go.mod` requires `go 1.25.9`; the release tarball is unpacked at `/tmp/go` and both binaries
+are linked onto `~/bin`, which is already on `PATH` for every subprocess. Check `go version` before
+dispatch. Recorded in `AGENTS.md`.
+
 ## Progress
+
+Sixteen agents dispatched: nine normal reviews, four lenses on 6062 (red team, blue team,
+correctness, consensus impact) and three on 5814 (red team, blue team, correctness). The two deep
+PRs still owe their synthesize step, critic pass and claim-verification gate after the lenses
+return.
 
 | PR | Agent | Review file | comment.md | Final check + QA | Committed |
 |---|---|---|---|---|---|
-| 6062 | not started | — | — | — | — |
-| 6061 | not started | — | — | — | — |
-| 6060 | not started | — | — | — | — |
-| 6058 | not started | — | — | — | — |
-| 6057 | not started | — | — | — | — |
-| 6056 | not started | — | — | — | — |
-| 6054 | not started | — | — | — | — |
-| 6053 | not started | — | — | — | — |
-| 6048 | not started | — | — | — | — |
-| 6035 | not started | — | — | — | — |
-| 5814 | not started | — | — | — | — |
+| 6062 | 4 lenses dispatched | — | — | — | — |
+| 6061 | dispatched | — | — | — | — |
+| 6060 | dispatched | — | — | — | — |
+| 6058 | dispatched | — | — | — | — |
+| 6057 | dispatched | — | — | — | — |
+| 6056 | dispatched | — | — | — | — |
+| 6054 | dispatched | — | — | — | — |
+| 6053 | dispatched | — | — | — | — |
+| 6048 | dispatched | — | — | — | — |
+| 6035 | dispatched | — | — | — | — |
+| 5814 | 3 lenses dispatched | — | — | — | — |
 
 ## Resume
 
@@ -90,9 +103,10 @@ Every worktree already exists with its PR checked out, so nothing in the setup h
    `git -C .worktrees/gno-review-<number> rev-parse --short=9 HEAD` against the Head sha column. A
    moved head means a re-review round, not a first round: run the patch-id gate in
    `skills/core/review.md`.
-3. Dispatch only the PRs whose Progress row is `not started`, one `general-purpose` agent each,
+3. `go version` must print `go1.25.9`; if not, re-run the install in the Environment section above.
+4. Dispatch only the PRs whose Progress row is `not started`, one `general-purpose` agent each,
    with the prompt in the *Parallel dispatch* section of `skills/review.md`. Every prompt names its
    worktree and forbids `worktree add` and `gh pr checkout`.
-4. As each returns, run the *Final check* and both QA agents over its draft, then fill its Progress
+5. As each returns, run the *Final check* and both QA agents over its draft, then fill its Progress
    row.
-5. Reconcile the coupled set above, then one commit and one push for the whole batch.
+6. Reconcile the coupled set above, then one commit and one push for the whole batch.
