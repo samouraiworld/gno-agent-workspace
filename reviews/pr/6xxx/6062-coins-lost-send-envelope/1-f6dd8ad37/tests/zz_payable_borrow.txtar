@@ -1,0 +1,155 @@
+# The payable check credits the wrong realm when the envelope is read through
+# an object another realm owns. Both directions reproduce at f6dd8ad37; at the
+# merge base 754780601 the refusal case succeeds instead.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6062 -R gnolang/gno && git checkout f6dd8ad37
+# cp zz_payable_borrow.txtar gno.land/pkg/integration/testdata/
+# go test ./gno.land/pkg/integration/ -run 'TestTestdata/zz_payable_borrow$' -v
+# rm gno.land/pkg/integration/testdata/zz_payable_borrow.txtar
+
+loadpkg gno.land/p/test/tok $WORK/tok
+loadpkg gno.land/r/test/host $WORK/host
+loadpkg gno.land/r/test/helper $WORK/helper
+loadpkg gno.land/r/test/payee $WORK/payee
+loadpkg gno.land/r/test/shop $WORK/shop
+
+adduser alice
+
+gnoland start
+
+## OVER-CREDIT. payee is the entry realm and never reads the envelope. It
+## calls helper, which reads it through an object payee owns, so the read
+## is attributed to payee. Accepted, and the 400ugnot strands in payee.
+gnokey maketx call -pkgpath gno.land/r/test/payee -func Ignores -send 400ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test alice
+stdout OK!                            # IS:     the read is credited to payee, which never looked
+# ! gnokey maketx call -pkgpath gno.land/r/test/payee -func Ignores -send 400ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test alice
+# stderr 'never read the send-envelope'  # SHOULD: same outcome as payable_callee_read.txtar
+
+## The coins are sitting in payee, which has no idea it was paid.
+gnokey maketx call -pkgpath gno.land/r/test/payee -func Balance -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stdout 'balance=400'
+
+## FALSE REFUSAL. shop is the entry realm, is paid, and reads its own
+## envelope, through an object host owns. The read is attributed to host,
+## so the payment is refused.
+! gnokey maketx call -pkgpath gno.land/r/test/shop -func Buy -send 400ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test alice
+stderr 'never read the send-envelope'  # IS:     shop read its own envelope and is refused
+# gnokey maketx call -pkgpath gno.land/r/test/shop -func Buy -send 400ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test alice
+# stdout 'bought=400'                  # SHOULD: same outcome as BuyDirect below
+
+## Same realm, same coins, same requirement, read directly: accepted.
+gnokey maketx call -pkgpath gno.land/r/test/shop -func BuyDirect -send 400ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test alice
+stdout 'bought=400'
+
+-- tok/gnomod.toml --
+module = "gno.land/p/test/tok"
+gno = "0.9"
+
+-- tok/tok.gno --
+package tok
+
+import "chain/runtime/unsafe"
+
+// T is an ordinary shared type. Its method reads the ambient envelope.
+type T struct{ n int }
+
+func New() *T { return &T{} }
+
+func (t *T) Peek() int64 {
+	return unsafe.OriginSend().AmountOf("ugnot")
+}
+
+-- host/gnomod.toml --
+module = "gno.land/r/test/host"
+gno = "0.9"
+
+-- host/host.gno --
+package host
+
+import "gno.land/p/test/tok"
+
+var shared = tok.New()
+
+func Get(cur realm) *tok.T { return shared }
+
+-- payee/gnomod.toml --
+module = "gno.land/r/test/payee"
+gno = "0.9"
+
+-- payee/payee.gno --
+package payee
+
+import (
+	"strconv"
+
+	"chain/banker"
+	"chain/runtime/unsafe"
+
+	"gno.land/p/test/tok"
+	"gno.land/r/test/helper"
+)
+
+var mine = tok.New()
+
+// Ignores never reads the envelope. It hands helper an object this realm
+// owns; helper's read is attributed here by the borrow rules.
+func Ignores(cur realm) string {
+	return helper.Use(cross(cur), mine)
+}
+
+func Balance(cur realm) string {
+	me := unsafe.CurrentRealm().Address()
+	return "balance=" + strconv.FormatInt(
+		banker.NewReadonlyBanker().GetCoins(me).AmountOf("ugnot"), 10)
+}
+
+-- helper/gnomod.toml --
+module = "gno.land/r/test/helper"
+gno = "0.9"
+
+-- helper/helper.gno --
+package helper
+
+import (
+	"strconv"
+
+	"gno.land/p/test/tok"
+)
+
+func Use(cur realm, t *tok.T) string {
+	return "helper-saw=" + strconv.FormatInt(t.Peek(), 10)
+}
+
+-- shop/gnomod.toml --
+module = "gno.land/r/test/shop"
+gno = "0.9"
+
+-- shop/shop.gno --
+package shop
+
+import (
+	"strconv"
+
+	"chain/runtime/unsafe"
+
+	"gno.land/r/test/host"
+)
+
+// Buy reads this realm's own envelope through an object host owns.
+func Buy(cur realm) string {
+	amt := host.Get(cross(cur)).Peek()
+	if amt < 400 {
+		panic("underpaid")
+	}
+	return "bought=" + strconv.FormatInt(amt, 10)
+}
+
+// BuyDirect is the same requirement, read directly.
+func BuyDirect(cur realm) string {
+	amt := unsafe.OriginSend().AmountOf("ugnot")
+	if amt < 400 {
+		panic("underpaid")
+	}
+	return "bought=" + strconv.FormatInt(amt, 10)
+}

@@ -75,24 +75,40 @@ dispatch. Recorded in `AGENTS.md`.
 
 ## Progress
 
-Sixteen agents dispatched: nine normal reviews, four lenses on 6062 (red team, blue team,
-correctness, consensus impact) and three on 5814 (red team, blue team, correctness). The two deep
-PRs still owe their synthesize step, critic pass and claim-verification gate after the lenses
-return.
+The first dispatch of sixteen agents died on `You've hit your session limit`, eight of them
+before writing anything. It was re-run with two: 6062 and 5814, each one agent running the full
+workflow. Both carry `Model: claude-opus-5` and not `(deep)` — the lens dispatch, the critic pass
+and the claim-verification gate never ran, so the metadata does not claim them. The other nine are
+untouched, worktrees built and checked out.
+
+Three worktrees carry one uncommitted file each from a dead agent, 6061, 6057 and 6053, plus a
+`tests/` directory under `reviews/pr/6xxx/6053-persistent-peer-cap-claim/`. Left in place per the
+never-clean rule; read them before the next round, since a dead agent's partial work is recorded
+nowhere else.
 
 | PR | Agent | Review file | comment.md | Final check + QA | Committed |
 |---|---|---|---|---|---|
-| 6062 | 4 lenses dispatched | — | — | — | — |
-| 6061 | dispatched | — | — | — | — |
-| 6060 | dispatched | — | — | — | — |
-| 6058 | dispatched | — | — | — | — |
-| 6057 | dispatched | — | — | — | — |
-| 6056 | dispatched | — | — | — | — |
-| 6054 | dispatched | — | — | — | — |
-| 6053 | dispatched | — | — | — | — |
-| 6048 | dispatched | — | — | — | — |
-| 6035 | dispatched | — | — | — | — |
-| 5814 | 3 lenses dispatched | — | — | — | — |
+| 6062 | done | `1-f6dd8ad37/review_claude-opus-5_davd-gzl.md` | `Event: COMMENT` | both passes applied | yes |
+| 6061 | not started | — | — | — | — |
+| 6060 | not started | — | — | — | — |
+| 6058 | not started | — | — | — | — |
+| 6057 | not started | — | — | — | — |
+| 6056 | not started | — | — | — | — |
+| 6054 | not started | — | — | — | — |
+| 6053 | not started | — | — | — | — |
+| 6048 | not started | — | — | — | — |
+| 6035 | not started | — | — | — | — |
+| 5814 | done | `1-e5ed12eec/review_claude-opus-5_davd-gzl.md` | `Event: COMMENT` | both passes applied | yes |
+
+## Results
+
+| PR | Verdict | Findings |
+|---|---|---|
+| [6062](https://github.com/gnolang/gno/pull/6062) | NEEDS DISCUSSION | 1 Warning, 1 Missing test, 3 Nits |
+| [5814](https://github.com/gnolang/gno/pull/5814) | COMMENT | 1 Warning, 2 Missing tests, 1 Nit, 1 Suggestion |
+
+Both drafts are `Event: COMMENT` and unposted. 6062's Warning is a decision the author already
+raised in the PR body, and 5814's predates the branch, so neither is a REQUEST CHANGES.
 
 ## Resume
 

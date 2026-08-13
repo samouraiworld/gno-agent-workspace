@@ -1,0 +1,165 @@
+# Four routes that try to carry a BankerTypeOriginSend banker past the end of
+# its message. All four abort at f6dd8ad37; at the merge base 754780601 route 1
+# persists and route 5 is the shape the type exists for.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6062 -R gnolang/gno && git checkout f6dd8ad37
+# cp zz_originsend_escape.txtar gno.land/pkg/integration/testdata/
+# go test ./gno.land/pkg/integration/ -run 'TestTestdata/zz_originsend_escape$' -v
+# rm gno.land/pkg/integration/testdata/zz_originsend_escape.txtar
+
+loadpkg gno.land/r/test/keeper $WORK/keeper
+loadpkg gno.land/r/test/esc $WORK/esc
+
+adduser attacker
+
+gnoland start
+
+## Provision the victim realm with a treasury worth draining.
+gnokey maketx call -pkgpath gno.land/r/test/esc -func Fund -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test attacker
+stdout OK!
+
+## ROUTE 1: closure capture. The banker never appears as a field; it is
+## captured by a func literal assigned to a package-level var.
+! gnokey maketx call -pkgpath gno.land/r/test/esc -func SaveClosure -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test attacker
+stderr 'cannot persist realm value'
+
+## ROUTE 2: behind a pointer, inside a struct, inside a slice.
+! gnokey maketx call -pkgpath gno.land/r/test/esc -func SaveDeep -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test attacker
+stderr 'cannot persist realm value'
+
+## ROUTE 3: as a map value.
+! gnokey maketx call -pkgpath gno.land/r/test/esc -func SaveMap -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test attacker
+stderr 'cannot persist realm value'
+
+## ROUTE 4: as a bound method value (esc.b.SendCoins stored as a func).
+! gnokey maketx call -pkgpath gno.land/r/test/esc -func SaveMethod -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test attacker
+stderr 'cannot persist realm value'
+
+## Nothing survived any route.
+gnokey maketx call -pkgpath gno.land/r/test/esc -func Revive -args 500000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test attacker
+stdout 'revive=nothing-saved'
+
+## ROUTE 5: hand the banker to another realm and let THAT realm spend it
+## from the recipient's address within the same message. Allowed by design.
+gnokey maketx call -pkgpath gno.land/r/test/esc -func Delegate -args 5 -send 5ugnot -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test attacker
+stdout OK!
+
+## Treasury untouched by every failed route; route 5 forwarded its own 5.
+gnokey maketx call -pkgpath gno.land/r/test/esc -func Report -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test attacker
+stdout 'balance=1000000'
+
+-- esc/gnomod.toml --
+module = "gno.land/r/test/esc"
+gno = "0.9"
+
+-- esc/esc.gno --
+package esc
+
+import (
+	"strconv"
+
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
+
+	"gno.land/r/test/keeper"
+)
+
+type box struct {
+	b banker.Banker
+}
+
+var (
+	spender func(to address, amount int64)
+	boxes   []*box
+	byName  map[string]banker.Banker
+	sender  func(from, to address, amt chain.Coins)
+)
+
+func Fund(cur realm) { _ = unsafe.OriginSend() }
+
+// ROUTE 1: the banker lives only in a closure's capture list.
+func SaveClosure(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	me := unsafe.CurrentRealm().Address()
+	spender = func(to address, amount int64) {
+		b.SendCoins(me, to, chain.Coins{{"ugnot", amount}})
+	}
+}
+
+// ROUTE 2: pointer -> struct -> slice.
+func SaveDeep(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	boxes = append(boxes, &box{b: b})
+}
+
+// ROUTE 3: map value.
+func SaveMap(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	if byName == nil {
+		byName = make(map[string]banker.Banker)
+	}
+	byName["x"] = b
+}
+
+// ROUTE 4: bound method value.
+func SaveMethod(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	sender = b.SendCoins
+}
+
+// Revive tries every stash. Reached only if a route above persisted.
+func Revive(cur realm, amount int64) string {
+	me := unsafe.CurrentRealm().Address()
+	to := unsafe.OriginCaller()
+	if spender != nil {
+		spender(to, amount)
+		return "revive=closure"
+	}
+	if len(boxes) > 0 {
+		boxes[0].b.SendCoins(me, to, chain.Coins{{"ugnot", amount}})
+		return "revive=deep"
+	}
+	if byName != nil {
+		if b, ok := byName["x"]; ok {
+			b.SendCoins(me, to, chain.Coins{{"ugnot", amount}})
+			return "revive=map"
+		}
+	}
+	if sender != nil {
+		sender(me, to, chain.Coins{{"ugnot", amount}})
+		return "revive=method"
+	}
+	return "revive=nothing-saved"
+}
+
+// ROUTE 5: same-message delegation, the shape the type exists for.
+func Delegate(cur realm, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	me := unsafe.CurrentRealm().Address()
+	keeper.SpendNow(cross(cur), b, me, amount)
+}
+
+func Report(cur realm) string {
+	me := unsafe.CurrentRealm().Address()
+	return "balance=" + strconv.FormatInt(
+		banker.NewReadonlyBanker().GetCoins(me).AmountOf("ugnot"), 10)
+}
+
+-- keeper/gnomod.toml --
+module = "gno.land/r/test/keeper"
+gno = "0.9"
+
+-- keeper/keeper.gno --
+package keeper
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
+)
+
+func SpendNow(cur realm, b banker.Banker, from address, amount int64) {
+	b.SendCoins(from, unsafe.OriginCaller(), chain.Coins{{"ugnot", amount}})
+}
