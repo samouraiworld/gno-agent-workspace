@@ -22,14 +22,13 @@ This workspace has no `projects/` tree; the core's `projects/<repo>/reviews/<slu
 
 ## Worktree
 
-Replaces the core's checkout handling. Never review in the `gno/` submodule (stale detached HEAD); greps, lint and tests all run in the worktree.
+The core's worktree rule, with the gno paths:
 
 - `git -C gno fetch origin master`, then one worktree per PR:
   ```bash
   git -C gno worktree add ../.worktrees/gno-review-<number> origin/master
   cd <workspace-root>/.worktrees/gno-review-<number> && gh pr checkout <number> -R gnolang/gno
   ```
-- When the path already exists (a prior round), `worktree add` fails: reuse it and only re-run the checkout. A reused worktree may carry unrelated uncommitted edits — leave them; never stash, clean, or revert.
 - After the review, ask the user before opening the worktree in VSCode (`code <workspace-root>/.worktrees/gno-review-<number>`).
 - Confirm symbol existence with `gno lint` from the worktree source (`go run ../gnovm/cmd/gno lint ./path`), never IDE diagnostics; sanity-check that lint typechecks by feeding it a bogus symbol.
 
@@ -49,14 +48,12 @@ done < /tmp/open_nondraft.txt
 - Sync this repo per the `AGENTS.md` sync rule before the `ls reviews/pr/` above, and state the synced head when confirming the set. Diverged and unsyncable: derive the set read-only from the remote tree (`git ls-tree -r --name-only <remote>/<branch> -- reviews/pr/`), never from the working tree.
 - Exactly 200 rows back from `gh pr list` means `--limit` clipped the list; re-run higher.
 - Exclude `WIP*` titles and dependabot PRs (`app/dependabot`) unless the user includes them. Confirm the final list with the user before reviewing more than one PR.
-- Exclude PRs authored by the reviewer; name them as available on request. A self-review is a single-PR run the user asks for by number, never batch scope.
 - Exclude PRs the reviewer already reviewed on GitHub, whatever the state and whether or not `reviews/pr/` holds a file. Check both surfaces per PR, drop on any hit, and name the dropped PRs:
   ```bash
   gh api repos/gnolang/gno/pulls/<num>/reviews --jq '[.[]|select(.user.login=="<reviewer>")|.state]|join(",")'
   gh api repos/gnolang/gno/pulls/<num>/comments --jq '[.[]|select(.user.login=="<reviewer>")]|length'
   ```
 - Any PR whose `author_association` is `FIRST_TIME_CONTRIBUTOR` gets a static danger pass over the raw diff before any review work, nothing executed: build and dependency surface touched (`.github/workflows`, Makefile, `go.mod`, `go.sum`, `package.json`, Dockerfile, `*.sh`); `os/exec`, `net/http`, `net.Dial`, `syscall`, `go:generate`, `go:embed`, Go `unsafe`, base64 or hex decode, environment or credential reads, filesystem writes; Trojan Source (non-ASCII added lines, bidirectional overrides, zero-width characters, homoglyphs). Record the result per PR in `reviews/BATCH_STATUS.md` and carry any non-malicious risk into that PR's review.
-- When the run also covers already-reviewed PRs whose head advanced: keep only heads whose change is real PR content — compare patch-ids per the core's re-review gate; drop patch-id-equal base-only moves and any PR the reviewer already APPROVED on GitHub.
 - Write `reviews/BATCH_STATUS.md` before dispatch and update it as agents return: the confirmed scope; dropped PRs grouped by reason; the final set as a table (PR, head sha, last reviewed sha and next round for re-reviews, worktree path, review dir); the resume steps. Commit it with the batch. Parallel-dispatch conflicts and their resolution are recorded here too.
 
 ## Parallel dispatch
@@ -65,15 +62,14 @@ The subagent prompt names the worktree: "The worktree already exists at `<worktr
 
 ## Deep mode
 
-Each lens agent's prompt also tells it to load `skills/invariant-catalog.md` and check the catalog classes in its lens; a large gno PR earns a consensus-impact lens. In the synthesize step, confirm every invariant-catalog class was covered by at least one lens; walk any uncovered class against the diff before finalizing. The commit message may suffix `(deep)`.
+The catalog the core's lens rule names is `skills/invariant-catalog.md`. A large gno PR earns a consensus-impact lens. The commit message may suffix `(deep)`.
 
 ## Run tests
 
 - Run the packages the diff reaches, and read CI for the rest. A module-wide suite, `go test ./gnovm/...` or `./gno.land/...`, runs past an hour here and is killed before it reports, so the review ends holding nothing. This overrides the core's *Reproduce the failure* rule to run the project's own test commands: the CI workflow's invocation is the reference for how a package is called, not for how much to run.
-- `.gno` packages: `gno test -v ./path/to/package`. When the PR touches the GnoVM or the `gno` tool itself, run from the worktree source (`go run ./gnovm/cmd/gno test ...` at the worktree root): an installed `gno` binary tests under the VM it was built from, not the PR's.
+- `.gno` packages: `gno test -v ./path/to/package`. When the PR touches the GnoVM or the `gno` tool itself, the core's run-from-source rule reads `go run ./gnovm/cmd/gno test ...` at the worktree root.
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
 - `-run` splits its pattern on `/`, one regex per subtest level. A filetest under a subdirectory is `-run 'TestFiles/types/foo.gno$'`; an alternation may never span a `/`, or it silently matches nothing. One `-run` per test when comparing results.
-- A local Go newer than CI's drifts `go/types` message text and reddens filetests unrelated to the PR; baseline on the merge-base per the core rule.
 - Example-package tests on a branch that also modifies a stdlib: run `gno test` with `GNOROOT=<worktree-root>`, else new stdlib symbols fail preprocessing (`name X not declared`).
 - gno's `Merge Requirements` bot is a commit status, not a check run.
 - Live-boot targets here: `contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`. Boot from the worktree and exercise the changed behavior (gnodev plus `curl` for gnoweb; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader and tooling changes).
@@ -111,9 +107,9 @@ Core rules apply; the gno test shapes:
 
 - Every `file:line` reference is a dual link: `` [`file:line`](https://github.com/gnolang/gno/blob/<short-sha>/<path>#L<line>) · [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<line>) `` — GitHub blob URL at the reviewed sha plus local worktree `↗`. `.worktrees/` is gitignored, so `[↗]` is dead on GitHub and the blob link is the one that resolves there. Converter for old reviews: `./scripts/convert-review-links.py`; it also recomputes each review's `<status>` on every run.
 - comment.md anchor headers append both links, in order: `## <path>:<start>-<end> [gh](<blob-url>) · [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The path stays a bare token, never a link, or the anchor regex rejects the header. The upload script strips everything after the first space, and strips every `[↗](...)` at post time.
-- The comment.md `Full review:` line is `https://github.com/samouraiworld/gno-agent-workspace/blob/main/<review-file-path>` followed by a relative `[↗](review_<model>_<reviewer>.md)`.
+- comment.md carries no `Full review:` line, overriding the core's Body format and its Final check. Anything load-bearing goes in the finding or its collapsed block.
+- A `Refactor:` comment ships only the lines that change, at most a three-line hunk, never a full patch or a test run. The whole patch goes under `tests/` and the review file links it.
 - Repro blocks open with `# from a local clone of gnolang/gno:` then `gh pr checkout <N> -R gnolang/gno`.
-- comment.md prose shas (the `Verified on <sha>` pin, `Repros run at <sha>`) go bare for the gnolang/gno hovercard; the review file keeps its own shas as-is, since a bare gno sha would not resolve in this repo.
 
 ## Output
 
@@ -131,8 +127,7 @@ For a patch-id-equal base-only move, `./scripts/reanchor-round.py <number> <new-
 ## Calibration
 
 - gno's linter config is `.github/golangci.yml`, `default: none` with an explicit enable list; check it before flagging a style convention.
-- Never flag contribution-policy compliance (the `AGENTS.md` ADR requirement, commit conventions). Never flag or critique the ADR — its wording, symbols it names, claims it makes; do not reference "the ADR" or editorialize "as the ADR claims". If the underlying code is wrong, the finding is about the code; when a code or test comment repeats a stale claim, anchor the finding on that comment.
-- A small but genuine metering bug (a constant that is wrong, a dropped guard) is a Warning even when the impact is a couple of gas.
+- The governing document the core's no-critique rule covers is the ADR, and the contribution policy is the `AGENTS.md` ADR requirement plus the commit conventions.
 
 ## Rules
 
@@ -156,13 +151,13 @@ Post with `./scripts/post-pr-review.py <number> <path-to-comment.md>` instead of
 - It pre-validates anchors against the PR diff and reports invalid ones — move those into Body, or re-run with `--skip-invalid`. `--dry-run` prints the payload without posting.
 - APPROVE needs the `--approve` flag; the script refuses it otherwise.
 - After a successful post it writes the URLs back into comment.md itself; commit and push the updated draft.
-- Re-running on a draft carrying a `Posted:` line rewrites the posted review in place instead of duplicating it. Anchors without a `[posted]` link abort: comments cannot be added to an existing review.
+- The script enforces the core's re-post rule: a draft carrying `Posted:` rewrites the posted review in place, and an anchor with no `[posted]` link aborts it.
 - If the author already has a pending (unsubmitted) review on the PR, the script folds the draft's comments into it and submits in place.
-- A review-body reaction (`#pullrequestreview-<id>`) is not in the REST reactions API: resolve the node id (`gh api repos/gnolang/gno/pulls/<pr>/reviews --jq '.[] | select(.id==<id>) | .node_id'`), then `gh api graphql -f query='mutation($id:ID!){addReaction(input:{subjectId:$id,content:THUMBS_UP}){reaction{content}}}' -f id=<node-id>`. Skip targets where `viewerHasReacted` is already true.
 
 ## Final check
 
 Two gno items on top of the core list:
 
 - Every `## <path>:<line>` header carries both links, `[gh](...)` then `[↗](...)`, and its path is a bare token.
-- The Full review line is a `blob/` (not `tree/`) URL ending with `[↗](review_<model>_<reviewer>.md)`.
+- No `Full review:` line anywhere in comment.md.
+- No `Refactor:` comment carries more than its changed lines.
