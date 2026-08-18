@@ -1,0 +1,56 @@
+Alternative to the two-guard shape at 055d85cbc: drop the initStaticBlocks1
+check and let the existing Reserve guard compare the base name, so the
+".loopvar" rename no longer hides a three-clause for init.
+
+  # from a local clone of gnolang/gno:
+  gh pr checkout 5981 -R gnolang/gno && git checkout 055d85cbc
+  git apply <this file>
+  go test -run 'TestFiles$' ./gnovm/pkg/gnolang/
+
+At 055d85cbc the whole TestFiles suite is green; with this patch applied the
+only failure is the golden position in iota_identifier_forinit.gno, which moves
+from the whole for statement (4:2-6:3) to its init clause (4:6-15). Update that
+line and the suite is green again.
+
+diff --git a/gnovm/pkg/gnolang/nodes.go b/gnovm/pkg/gnolang/nodes.go
+index 984b5f3ae..f338f047c 100644
+--- a/gnovm/pkg/gnolang/nodes.go
++++ b/gnovm/pkg/gnolang/nodes.go
+@@ -2318,12 +2318,14 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
+ 
+ // Set type to nil, only reserving the name.
+ func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
+-	// iota is a non-shadowable builtin; reject binding it as a receiver,
+-	// parameter, named result, type-switch guard, short-var-define, or
+-	// range key/value name. (uverse's own "iota" registration goes through
+-	// Define2 directly, bypassing Reserve, so it is unaffected.)
+-	if nx.Name == iotaIdentifier {
+-		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", nx.Name))
++	// iota is a non-shadowable builtin; reject binding it at every site that
++	// reserves a name: receiver, parameter, named result, type-switch guard,
++	// short-var-define, range key/value, and three-clause for init, which
++	// initStaticBlocks1 has already renamed to "iota.loopvar" by this point.
++	// (uverse's own "iota" registration goes through Define2 directly,
++	// bypassing Reserve, so it is unaffected.)
++	if name := Name(strings.TrimSuffix(string(nx.Name), ".loopvar")); name == iotaIdentifier {
++		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", name))
+ 	}
+ 	_, exists := sb.GetLocalIndex(nx.Name)
+ 	if !exists {
+diff --git a/gnovm/pkg/gnolang/preprocess.go b/gnovm/pkg/gnolang/preprocess.go
+index d59644758..0b325148f 100644
+--- a/gnovm/pkg/gnolang/preprocess.go
++++ b/gnovm/pkg/gnolang/preprocess.go
+@@ -296,12 +296,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
+ 						if strings.HasSuffix(string(ln), ".loopvar") {
+ 							continue
+ 						}
+-						// iota is a non-shadowable builtin. Reject it here,
+-						// before it's renamed to "iota.loopvar" and slips
+-						// past the Reserve() guard in initStaticBlocks2.
+-						if ln == iotaIdentifier {
+-							panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", ln))
+-						}
+ 						nx.Name += ".loopvar"
+ 						f[ln] = true
+ 					}
