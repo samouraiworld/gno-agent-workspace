@@ -1,3 +1,5 @@
+Posted: https://github.com/gnolang/gno/pull/5981#discussion_r3660033767
+
 Corrected text for the open thread https://github.com/gnolang/gno/pull/5981#discussion_r3660033767, whose posted body counts three forms and is now four. Apply with:
 
 ```bash

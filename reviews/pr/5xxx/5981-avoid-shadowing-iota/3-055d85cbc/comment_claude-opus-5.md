@@ -1,4 +1,5 @@
 # Review: PR [#5981](https://github.com/gnolang/gno/pull/5981)
+Posted: https://github.com/gnolang/gno/pull/5981#pullrequestreview-4963616850
 Event: APPROVE
 
 ## Body
@@ -8,7 +9,7 @@ Left to do: the two inline items, and one call worth stating in the description,
 
 `gno lint` reports the [new rejection](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/preprocess.go#L303) as a normal file and line diagnostic, not a panic trace, the same as the ones raised from [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2326).
 
-## gnovm/pkg/gnolang/preprocess.go:299-304 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/preprocess.go#L299-L304) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/preprocess.go#L299)
+## gnovm/pkg/gnolang/preprocess.go:299-304 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/preprocess.go#L299-L304) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/preprocess.go#L299) [posted](https://github.com/gnolang/gno/pull/5981#discussion_r3806178339)
 Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325) sees this name as `iota.loopvar`, so trimming that suffix there covers the `for` init, closes [this older comment](https://github.com/gnolang/gno/pull/5981#discussion_r3660033759) at its own anchor, and lets this block come out.
 
 <details><summary>patch</summary>
@@ -45,7 +46,7 @@ Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gn
 ```
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:20 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/preprocess.go#L20) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/preprocess.go#L20)
+## gnovm/pkg/gnolang/preprocess.go:20 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/preprocess.go#L20) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/preprocess.go#L20) [posted](https://github.com/gnolang/gno/pull/5981#discussion_r3806178351)
 Nit: [`def("iota", undefined)`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/uverse.go#L761) is the last `"iota"` literal in this package, and the line this constant is named for.
 
 ## SKIP gnovm/pkg/gnolang/nodes.go:2325 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/nodes.go#L2325)
