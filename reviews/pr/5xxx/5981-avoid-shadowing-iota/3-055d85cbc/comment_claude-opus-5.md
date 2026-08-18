@@ -10,6 +10,9 @@ Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gn
 <details><summary>patch</summary>
 
 ```diff
+--- a/gnovm/pkg/gnolang/nodes.go
++++ b/gnovm/pkg/gnolang/nodes.go
+ func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
 -	// iota is a non-shadowable builtin; reject binding it as a receiver,
 -	// parameter, named result, type-switch guard, short-var-define, or
 -	// range key/value name. (uverse's own "iota" registration goes through
@@ -21,6 +24,20 @@ Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gn
 +	// Define2, bypassing Reserve, so it is unaffected.
 +	if name := Name(strings.TrimSuffix(string(nx.Name), ".loopvar")); name == iotaIdentifier {
 +		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", name))
+ 	}
+
+--- a/gnovm/pkg/gnolang/preprocess.go
++++ b/gnovm/pkg/gnolang/preprocess.go
+ 						if strings.HasSuffix(string(ln), ".loopvar") {
+ 							continue
+ 						}
+-						// iota is a non-shadowable builtin. Reject it here,
+-						// before it's renamed to "iota.loopvar" and slips
+-						// past the Reserve() guard in initStaticBlocks2.
+-						if ln == iotaIdentifier {
+-							panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", ln))
+-						}
+ 						nx.Name += ".loopvar"
 ```
 </details>
 
