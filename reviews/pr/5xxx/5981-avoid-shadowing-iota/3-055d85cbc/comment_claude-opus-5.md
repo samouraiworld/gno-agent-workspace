@@ -1,11 +1,15 @@
 # Review: PR [#5981](https://github.com/gnolang/gno/pull/5981)
-Event: COMMENT
+Event: APPROVE
 
 ## Body
+After fixing this, this LGTM.
+
+Left to do: the two inline items, and a maintainer call on whether the VM may stop accepting the nine forms that run on master today, which [this thread](https://github.com/gnolang/gno/pull/5981#discussion_r3660033767) carries.
+
 `gno lint` reports both rejection paths as `gnoPreprocessError`, the `for` init one from the first static pass rather than [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325).
 
 ## gnovm/pkg/gnolang/preprocess.go:299-304 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/preprocess.go#L299-L304) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/preprocess.go#L299)
-Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325) sees this name as `iota.loopvar`, so trimming that suffix there covers the `for` init and this block comes out.
+Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325) sees this name as `iota.loopvar`, so trimming that suffix there covers the `for` init, closes [this older comment](https://github.com/gnolang/gno/pull/5981#discussion_r3660033759) at its own anchor, and lets this block come out.
 
 <details><summary>patch</summary>
 
@@ -42,7 +46,7 @@ Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gn
 </details>
 
 ## gnovm/pkg/gnolang/preprocess.go:20 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/preprocess.go#L20) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/preprocess.go#L20)
-Nit: [`def("iota", undefined)`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/uverse.go#L761) is the literal this constant should have replaced.
+Nit: [`def("iota", undefined)`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/uverse.go#L761) is the last `"iota"` literal in this package, and the line this constant is named for.
 
 ## SKIP gnovm/pkg/gnolang/nodes.go:2325 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/nodes.go#L2325)
 Already raised: https://github.com/gnolang/gno/pull/5981#discussion_r3660033767

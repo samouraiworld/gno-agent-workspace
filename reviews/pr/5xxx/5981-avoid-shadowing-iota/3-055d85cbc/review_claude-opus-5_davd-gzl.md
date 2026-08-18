@@ -11,6 +11,8 @@ Round 3. The head advanced af3accbce → 055d85cbc and the patch-ids differ, so 
 
 `iota` is the counter that steps through a `const` block. Go also lets the same word be an ordinary variable, parameter or field name anywhere else, and gno half-allowed that: some spellings ran, some died with an internal message naming no fix, and which was which depended on whether the name was ever read. This branch picks one answer and applies it at every site that binds a name, rejecting `iota` at the declaration with the wording gno already uses for `var iota`. Two checks do the rejecting rather than one, because a three-clause `for` init is renamed by an earlier pass before the main check can see it.
 
+Posted event: APPROVE, the user's call; the verdict below is the reviewer's and does not move.
+
 **Verdict: NEEDS DISCUSSION** — every binding form now rejects consistently and round 2's `for`-init hole is closed, so what is left is a maintainer call: nine forms that compile and run on master stop compiling here, and node startup re-preprocesses every stored package with no per-package recover (1 Warning, 2 Nits, 1 Suggestion).
 
 ## Verify first
@@ -89,7 +91,7 @@ The guard in `Reserve` sits before the existing-name lookup, so it fires for eve
 
 ## Existing threads
 
-- [r3660033759](https://github.com/gnolang/gno/pull/5981#discussion_r3660033759), the round 2 `for`-init Warning, is fixed by this head and left for the author to resolve. Its text stays true of the `Reserve` line it anchors, which is why it reads as live.
+- [r3660033759](https://github.com/gnolang/gno/pull/5981#discussion_r3660033759), the round 2 `for`-init Warning, is fixed by this head and left for the author to resolve. Its text stays true of the `Reserve` line it anchors, which is why it reads as live, and the Suggestion below closes it there.
 - [r3660033767](https://github.com/gnolang/gno/pull/5981#discussion_r3660033767), the compatibility Warning, is open and its posted count of three forms is now four.
 - [r3660033770](https://github.com/gnolang/gno/pull/5981#discussion_r3660033770), the message Nit, is open and unchanged.
 
