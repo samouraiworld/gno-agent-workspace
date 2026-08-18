@@ -4,7 +4,7 @@ Event: APPROVE
 ## Body
 After fixing this, this LGTM.
 
-Left to do: the two inline items, and a maintainer call on whether the VM may stop accepting the nine forms that run on master today, which [this thread](https://github.com/gnolang/gno/pull/5981#discussion_r3660033767) carries.
+Left to do: the two inline items, and one call worth stating in the description, either Go's rule, where `iota` is an ordinary name outside a const block, or this branch's, which blocks every binding site. Blocking all of them is the consistent rule, and it costs the [nine forms](https://github.com/gnolang/gno/pull/5981#discussion_r3660033767) that compile on master today.
 
 `gno lint` reports both rejection paths as `gnoPreprocessError`, the `for` init one from the first static pass rather than [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325).
 
