@@ -108,7 +108,7 @@ Core rules apply; the gno test shapes:
 - Every `file:line` reference is a dual link: `` [`file:line`](https://github.com/gnolang/gno/blob/<short-sha>/<path>#L<line>) · [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<line>) `` — GitHub blob URL at the reviewed sha plus local worktree `↗`. `.worktrees/` is gitignored, so `[↗]` is dead on GitHub and the blob link is the one that resolves there. Converter for old reviews: `./scripts/convert-review-links.py`; it also recomputes each review's `<status>` on every run.
 - comment.md anchor headers append both links, in order: `## <path>:<start>-<end> [gh](<blob-url>) · [↗](../../../../../.worktrees/gno-review-<number>/<path>#L<start>)`. The path stays a bare token, never a link, or the anchor regex rejects the header. The upload script strips everything after the first space, and strips every `[↗](...)` at post time.
 - comment.md carries no `Full review:` line, overriding the core's Body format and its Final check. Anything load-bearing goes in the finding or its collapsed block.
-- A `Refactor:` comment ships only the lines that change, at most a three-line hunk, never a full patch or a test run. The whole patch goes under `tests/` and the review file links it.
+- A code comment a `Refactor:` finding proposes runs to three lines at most, whatever the comment it replaces did. The full patch goes under `tests/` and the review file links it.
 - Repro blocks open with `# from a local clone of gnolang/gno:` then `gh pr checkout <N> -R gnolang/gno`.
 
 ## Output
@@ -160,4 +160,4 @@ Two gno items on top of the core list:
 
 - Every `## <path>:<line>` header carries both links, `[gh](...)` then `[↗](...)`, and its path is a bare token.
 - No `Full review:` line anywhere in comment.md.
-- No `Refactor:` comment carries more than its changed lines.
+- No code comment proposed by a `Refactor:` finding runs past three lines.

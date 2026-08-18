@@ -13,10 +13,10 @@ from the whole for statement (4:2-6:3) to its init clause (4:6-15). Update that
 line and the suite is green again.
 
 diff --git a/gnovm/pkg/gnolang/nodes.go b/gnovm/pkg/gnolang/nodes.go
-index 984b5f3ae..f338f047c 100644
+index 984b5f3ae..627f0d2a2 100644
 --- a/gnovm/pkg/gnolang/nodes.go
 +++ b/gnovm/pkg/gnolang/nodes.go
-@@ -2318,12 +2318,14 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
+@@ -2318,12 +2318,11 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
  
  // Set type to nil, only reserving the name.
  func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
@@ -26,12 +26,9 @@ index 984b5f3ae..f338f047c 100644
 -	// Define2 directly, bypassing Reserve, so it is unaffected.)
 -	if nx.Name == iotaIdentifier {
 -		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", nx.Name))
-+	// iota is a non-shadowable builtin; reject binding it at every site that
-+	// reserves a name: receiver, parameter, named result, type-switch guard,
-+	// short-var-define, range key/value, and three-clause for init, which
-+	// initStaticBlocks1 has already renamed to "iota.loopvar" by this point.
-+	// (uverse's own "iota" registration goes through Define2 directly,
-+	// bypassing Reserve, so it is unaffected.)
++	// iota is a non-shadowable builtin. A three-clause for init reaches here
++	// renamed to "iota.loopvar"; uverse's own registration goes through
++	// Define2, bypassing Reserve, so it is unaffected.
 +	if name := Name(strings.TrimSuffix(string(nx.Name), ".loopvar")); name == iotaIdentifier {
 +		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", name))
  	}
