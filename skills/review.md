@@ -69,6 +69,7 @@ Each lens agent's prompt also tells it to load `skills/invariant-catalog.md` and
 
 ## Run tests
 
+- Run the packages the diff reaches, and read CI for the rest. A module-wide suite, `go test ./gnovm/...` or `./gno.land/...`, runs past an hour here and is killed before it reports, so the review ends holding nothing. This overrides the core's *Reproduce the failure* rule to run the project's own test commands: the CI workflow's invocation is the reference for how a package is called, not for how much to run.
 - `.gno` packages: `gno test -v ./path/to/package`. When the PR touches the GnoVM or the `gno` tool itself, run from the worktree source (`go run ./gnovm/cmd/gno test ...` at the worktree root): an installed `gno` binary tests under the VM it was built from, not the PR's.
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
 - `-run` splits its pattern on `/`, one regex per subtest level. A filetest under a subdirectory is `-run 'TestFiles/types/foo.gno$'`; an alternation may never span a `/`, or it silently matches nothing. One `-run` per test when comparing results.
