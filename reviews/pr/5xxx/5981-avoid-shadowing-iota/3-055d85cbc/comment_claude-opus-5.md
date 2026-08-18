@@ -2,12 +2,12 @@
 Event: COMMENT
 
 ## Body
-`gno lint` reports both rejection paths as `gnoPreprocessError` with the file and range rather than a raw panic, and the `for` init reaches that diagnostic from the first static pass, outside [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325).
+`gno lint` reports both rejection paths as `gnoPreprocessError`, the `for` init one from the first static pass rather than [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325).
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5981-avoid-shadowing-iota/3-055d85cbc/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 
 ## gnovm/pkg/gnolang/preprocess.go:299-304 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/preprocess.go#L299-L304) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/preprocess.go#L299)
-Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325) already sees this name as `iota.loopvar`, so trimming that suffix before its equality test covers the three-clause `for` init too and lets this block come out.
+Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325) sees this name as `iota.loopvar`, so trimming that suffix there covers the `for` init and this block comes out.
 
 <details><summary>patch</summary>
 
@@ -52,7 +52,7 @@ Refactor: [`Reserve`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gn
  					}
 ```
 
-Applied on this head, 30 binding forms run through both builds give the same verdict on every row, and `go test -run 'TestFiles$' ./gnovm/pkg/gnolang/` is green except one golden line: the `for`-init error moves from the whole statement to its init clause, which is where the same error already points for `iota := 5`.
+All 30 binding forms give the same verdict on both builds, and `go test -run 'TestFiles$' ./gnovm/pkg/gnolang/` is green except one golden line: the `for`-init error moves from the whole statement to its init clause, where the same error already points for `iota := 5`.
 
 ```
 --- Expected
@@ -64,14 +64,14 @@ Applied on this head, 30 binding forms run through both builds give the same ver
 </details>
 
 ## gnovm/pkg/gnolang/preprocess.go:20 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/preprocess.go#L20) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/preprocess.go#L20)
-Nit: this constant leaves one `"iota"` literal behind, [`def("iota", undefined)`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/uverse.go#L761), the line that registers the builtin.
+Nit: [`def("iota", undefined)`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/uverse.go#L761) is the literal this constant should have replaced.
 
 ## SKIP gnovm/pkg/gnolang/nodes.go:2325 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2325) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/nodes.go#L2325)
 Already raised: https://github.com/gnolang/gno/pull/5981#discussion_r3660033767
 
-Master compiles and runs nine forms this head rejects, and node startup re-preprocesses every stored package with no per-package recover, so an on-chain package using one of them fails at boot rather than at its next call. The open thread carries this finding. Its posted text counts three forms. The head has four. The correction is drafted at `thread_r3660033767_edit.md`.
+Master runs nine forms this head rejects, and node startup re-preprocesses every stored package with no per-package recover, so an on-chain package using one fails at boot. The open thread counts three forms. The head has four. Correction drafted at `thread_r3660033767_edit.md`.
 
 ## SKIP gnovm/pkg/gnolang/nodes.go:2326 [gh](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/nodes.go#L2326) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/nodes.go#L2326)
 Already raised: https://github.com/gnolang/gno/pull/5981#discussion_r3660033770
 
-Nit: the message says builtin identifiers cannot be shadowed, and `func f(len int) int { return len }` still compiles. Unchanged at this head, so nothing new posts.
+Nit: the message says builtin identifiers cannot be shadowed, and `func f(len int) int { return len }` still compiles. Unchanged at this head.

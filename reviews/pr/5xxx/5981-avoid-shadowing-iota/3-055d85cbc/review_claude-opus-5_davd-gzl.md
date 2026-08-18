@@ -64,7 +64,7 @@ The guard in `Reserve` sits before the existing-name lookup, so it fires for eve
   `func f(len int) int { return len }` compiles and prints `3` at this head, and round 2 measured the same for 38 of the 39 user-spellable names in [`makeUverseNode`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/uverse.go#L746) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/uverse.go#L746), which is the set [`isUverseName`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/misc.go#L175-L178) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/misc.go#L175-L178) reads. An author who meets the new message on a parameter named `iota` will conclude the same holds for `len`. Raised in round 2 as [thread r3660033770](https://github.com/gnolang/gno/pull/5981#discussion_r3660033770) and unchanged at this head, so nothing new is posted. Fix: name `iota` in the message.
   </details>
 
-- **[the constant leaves its own definition site spelling the string]** `gnovm/pkg/gnolang/preprocess.go:20` — this constant leaves one `"iota"` literal behind, `def("iota", undefined)`, the line that registers the builtin.
+- **[the constant leaves its own definition site spelling the string]** `gnovm/pkg/gnolang/preprocess.go:20` — `def("iota", undefined)` is the literal this constant should have replaced.
   <details><summary>details</summary>
 
   After this diff the only remaining `"iota"` literal in the package is [`def("iota", undefined)`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/pkg/gnolang/uverse.go#L761) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/pkg/gnolang/uverse.go#L761), which is the line the constant is about. `blankIdentifier` beside it has the same shape and the same gap. Fix: spell it `def(iotaIdentifier, undefined)`.
@@ -72,7 +72,7 @@ The guard in `Reserve` sits before the existing-name lookup, so it fires for eve
 
 ## Suggestions
 
-- **[one guard where the branch has two]** `gnovm/pkg/gnolang/preprocess.go:299-304` — `Reserve` already sees this name as `iota.loopvar`, so trimming that suffix before its equality test covers the three-clause `for` init too and lets this block come out.
+- **[one guard where the branch has two]** `gnovm/pkg/gnolang/preprocess.go:299-304` — `Reserve` sees this name as `iota.loopvar`, so trimming that suffix there covers the `for` init and this block comes out.
   <details><summary>details</summary>
 
   `Reserve` already sees the `for`-init name, as `iota.loopvar`. Trimming that suffix before the equality test makes the existing guard fire on it, which removes the six-line block at the rename site and leaves one place to read and one to keep correct; the comment on `Reserve` then lists every binding form instead of all but one. [`tests/single_guard.patch`](tests/single_guard.patch) is the change, net four lines shorter. Applied at 055d85cbc it leaves all 30 rows of [`tests/iota_binding_sweep.sh`](tests/iota_binding_sweep.sh) identical and the whole `TestFiles` suite green except one golden line: the error on a `for` init moves from the whole statement, `4:2-6:3`, to its init clause, `4:6-15`, which is where the same error already points for `iota := 5`. Fix: apply the patch and update that line in [`iota_identifier_forinit.gno:10`](https://github.com/gnolang/gno/blob/055d85cbc/gnovm/tests/files/iota_identifier_forinit.gno#L10) · [↗](../../../../../.worktrees/gno-review-5981/gnovm/tests/files/iota_identifier_forinit.gno#L10).
