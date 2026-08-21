@@ -1,0 +1,43 @@
+// Patch for gnovm/cmd/gno/lint.go, replacing isStdlibDir. The shipped version
+// compares lexical absolute paths, so a stdlib directory reached through a
+// symlink does not match the root and every Go directive in it is reported as
+// a lint error. Resolving both sides makes the two spellings compare equal.
+//
+// Run: from a gno checkout:
+//   gh pr checkout 6078 -R gnolang/gno && git checkout 5e2a310bb
+//   # apply the replacement below to gnovm/cmd/gno/lint.go, then:
+//   root=$(pwd); go build -o "$root/gnobin" ./gnovm/cmd/gno
+//   ln -sfn "$root" /tmp/gnolink && cd /tmp/gnolink/gnovm/stdlibs
+//   GNOROOT=$root "$root/gnobin" lint ./math/bits   # silent, exit 0
+//   cd "$root" && go test -run TestLintApp ./gnovm/cmd/gno/
+//   rm -f /tmp/gnolink "$root/gnobin"
+//
+// At 5e2a310bb the lint call prints gnoDirectiveError on bits.gno and exits 1.
+// With this patch it is silent, and TestLintApp stays green.
+
+// resolvedPath returns p as an absolute path with every symlink resolved, so
+// two spellings of the same directory compare equal.
+func resolvedPath(p string) (string, error) {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(abs)
+}
+
+func isStdlibDir(rootDir, dir string) bool {
+	abs, err := resolvedPath(dir)
+	if err != nil {
+		return false
+	}
+	for _, rel := range []string{"gnovm/stdlibs", "gnovm/tests/stdlibs"} {
+		root, err := resolvedPath(filepath.Join(rootDir, filepath.FromSlash(rel)))
+		if err != nil {
+			continue
+		}
+		if abs == root || strings.HasPrefix(abs, root+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
