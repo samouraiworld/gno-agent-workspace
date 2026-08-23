@@ -12,7 +12,7 @@ Running the gno test suites on a workstation can exhaust its memory, because the
 
 ## Verdict: REQUEST CHANGES
 
-The cgroup reading counts reclaimable page cache as used, so the suite this change protects runs 42% longer inside a container than it does on master, and the controller stops responding at the one reading that means the machine really is out of memory. 3 Warnings, 7 Nits, 3 Missing tests, 5 Suggestions.
+The cgroup reading counts reclaimable page cache as used, so the suite this change protects runs 42% longer inside a container than it does on master, and the controller stops responding at the one reading that means the machine really is out of memory. 3 Warnings, 7 Nits, 3 Missing tests, 5 Suggestions; 14 posted, 4 held as comment-wording or unreachable.
 
 ## Verify first
 
@@ -155,11 +155,11 @@ The same flag on `./gno.land/p/moul/...` with `GOMAXPROCS=2`, where it is a rais
   ```
   </details>
 
-- **[unfloored counter]** `gno.land/pkg/integration/testscript_gnoland.go:220` — `release` decrements without a floor, so a second release for one slot drives `running` negative and admits a node past `max` for the rest of the run. Unreachable today, `slot.held` at [line 266](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) gating the acquire, and the guard and the counter sit in different functions with no test between them. Fix: floor the decrement at zero.
+- **[unfloored counter]** `gno.land/pkg/integration/testscript_gnoland.go:220` — `release` decrements without a floor, so a second release for one slot drives `running` negative and admits a node past `max` for the rest of the run. Unreachable today, `slot.held` at [line 266](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) gating the acquire, and the guard and the counter sit in different functions with no test between them. Fix: floor the decrement at zero. Not posted: nothing reaches it today.
 
-- **[the comment names a reading the function never takes]** `tm2/pkg/testutils/parallel.go:14` — `defaultMaxParallel` is documented as the count used "when the machine's memory can't be read", while `MaxParallel` returns `min(GOMAXPROCS, 4)` unconditionally and calls `ReadMemInfo` nowhere. Fix: call it the static cap the suites that must fix their pool size up front take.
+- **[the comment names a reading the function never takes]** `tm2/pkg/testutils/parallel.go:14` — `defaultMaxParallel` is documented as the count used "when the machine's memory can't be read", while `MaxParallel` returns `min(GOMAXPROCS, 4)` unconditionally and calls `ReadMemInfo` nowhere. Fix: call it the static cap the suites that must fix their pool size up front take. Not posted: comment wording, with no behaviour behind it.
 
-- **[the pool is not sized by memory]** `gnovm/pkg/gnolang/files_test.go:61` — "the pool is sized by memory rather than by GOMAXPROCS" describes a feedback loop that lives only in `nodeBudget`; the pool takes `min(GOMAXPROCS, 4)`. Posted as its own comment: fixing the `parallel.go:14` wording leaves this line untouched.
+- **[the pool is not sized by memory]** `gnovm/pkg/gnolang/files_test.go:61` — "the pool is sized by memory rather than by GOMAXPROCS" describes a feedback loop that lives only in `nodeBudget`; the pool takes `min(GOMAXPROCS, 4)`. Not posted: comment wording, with no behaviour behind it, and fixing the `parallel.go:14` wording leaves this line untouched.
 
 - **[a constant quoted from the wrong end of the range]** `gno.land/pkg/integration/testscript_gnoland.go:74` — `nodeMemCost` is described as "~580 MiB measured over the range above, rounded up", which is the average across the endpoints; the marginal cost is 973 MiB per node between two and four nodes, the band the shrunken allowance actually lives in.
   <details><summary>details</summary>
@@ -167,7 +167,7 @@ The same flag on `./gno.land/p/moul/...` with `GOMAXPROCS=2`, where it is a rais
   From the six-point table in the description: 973 MiB per node from two to four, 717 from four to six, 512 from six to eight, 307 from eight to twelve, 666 from twelve to sixteen, 592 across the whole span. A growth threshold set below the local marginal cost admits a node the machine cannot pay for. Fix: quote it as the average across the measured range, or take it from the low end where the growth decision is made.
   </details>
 
-- **[the reason given is not the reason]** `gno.land/pkg/integration/testscript_gnoland.go:259` — the comment justifies holding the token to the end of the script by a deadlock in which "every holder waiting for one more would deadlock once the budget is full", which cannot happen: [`gnoland start`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L447-L451) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L447-L451) rejects a second node for the same script, so no script ever needs two tokens. The behaviour is right and the token is genuinely held to the end. Fix: give the real reason, that a script stopping and restarting would otherwise queue behind fresh scripts.
+- **[the reason given is not the reason]** `gno.land/pkg/integration/testscript_gnoland.go:259` — the comment justifies holding the token to the end of the script by a deadlock in which "every holder waiting for one more would deadlock once the budget is full", which cannot happen: [`gnoland start`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L447-L451) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L447-L451) rejects a second node for the same script, so no script ever needs two tokens. The behaviour is right and the token is genuinely held to the end. Fix: give the real reason, that a script stopping and restarting would otherwise queue behind fresh scripts. Not posted: the behaviour is right and only the comment's stated reason is wrong.
 
 ## Missing Tests
 

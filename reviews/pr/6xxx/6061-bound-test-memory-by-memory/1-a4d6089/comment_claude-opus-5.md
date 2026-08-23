@@ -411,10 +411,14 @@ Nit: `nodeMemCost` at 640 MiB under-charges the two-to-four band a shrunken allo
 ## gno.land/pkg/integration/testscript_gnoland.go:199 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L199) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L199)
 Nit: a failed reading skips this stamp, so every blocked script retakes the reading five times a second, a `vm_stat` subprocess each on darwin. Stamping before the read covers the failed reading too.
 
-## gno.land/pkg/integration/testscript_gnoland.go:220 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L220) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L220)
+## SKIP gno.land/pkg/integration/testscript_gnoland.go:220 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L220) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L220)
+Not posted: `slot.held` makes a second release unreachable, so this is hardening with no path to it.
+
 Nit: `release` decrements without a floor, so a second release for one slot drives `running` negative and admits a node past the allowance for the rest of the run, [`slot.held`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) the only guard against that today.
 
-## gno.land/pkg/integration/testscript_gnoland.go:259-263 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L259-L263) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L259-L263)
+## SKIP gno.land/pkg/integration/testscript_gnoland.go:259-263 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L259-L263) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L259-L263)
+Not posted: the behaviour is right and only the comment's stated reason is wrong.
+
 Nit: the comment blames a deadlock that cannot happen, [`gnoland start`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L447-L451) rejecting a second node for the same script. Only the reason is wrong: a script stopping and restarting would otherwise queue behind fresh scripts.
 
 ## gno.land/pkg/integration/testscript_gnoland.go:271 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L271) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L271)
@@ -491,10 +495,14 @@ actual  : []string{"budget release", "node stop"}
 ```
 </details>
 
-## gnovm/pkg/gnolang/files_test.go:61 [gh](https://github.com/gnolang/gno/blob/a4d6089/gnovm/pkg/gnolang/files_test.go#L61) · [↗](../../../../../.worktrees/gno-review-6061/gnovm/pkg/gnolang/files_test.go#L61)
+## SKIP gnovm/pkg/gnolang/files_test.go:61 [gh](https://github.com/gnolang/gno/blob/a4d6089/gnovm/pkg/gnolang/files_test.go#L61) · [↗](../../../../../.worktrees/gno-review-6061/gnovm/pkg/gnolang/files_test.go#L61)
+Not posted: comment wording, with no behaviour behind it.
+
 Nit: the pool is sized by [`min(GOMAXPROCS, 4)`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L40-L45), and the memory-driven sizing this describes lives only in [`nodeBudget`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L114).
 
-## tm2/pkg/testutils/parallel.go:14-15 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L14-L15) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel.go#L14-L15)
+## SKIP tm2/pkg/testutils/parallel.go:14-15 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L14-L15) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel.go#L14-L15)
+Not posted: comment wording, with no behaviour behind it.
+
 Nit: the comment calls `defaultMaxParallel` the count used when memory cannot be read, while [`MaxParallel`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L40-L45) returns `min(GOMAXPROCS, 4)` and reads no memory.
 
 ## gno.land/pkg/integration/testscript_gnoland.go:72 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L72) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L72)
