@@ -92,10 +92,24 @@ Four concurrent is the ceiling worth trying next, and a live-boot target counts 
 | 6068 | done | `1-304f09a7a/review_claude-opus-5_davd-gzl.md` | `Event: REQUEST_CHANGES` | both passes applied | pending |
 | 6067 | killed | — | — | — | — |
 | 6060 | killed | — | — | — | — |
-| 6058 | killed | — | — | — | — |
+| 6058 | done (deep, re-run) | `1-391840aa7/review_claude-opus-5_davd-gzl.md` | `Event: REQUEST_CHANGES` | both passes applied | yes |
 | 6056 | killed | — | — | — | — |
 | 6048 | killed | — | — | — | — |
 | 6035 | killed | — | — | — | — |
+
+## 6058, re-run in deep mode
+
+Re-dispatched on its own after the batch died, three lenses (red, blue, correctness) each in its own
+worktree at `.worktrees/gno-6058-lens-{red,blue,corr}`, all three left pristine. Reconciliation
+against the coupled PRs, which the Coupling section above asked for:
+
+- [#6056](https://github.com/gnolang/gno/pull/6056) merged as `0cf310707` while this ran, so the
+  branch's first commit duplicates merged code; the hunks are byte-identical and the merge is clean.
+- The allocation change the red lens measured belongs to that commit, so it reproduces at current
+  master and is not caused by this branch. Comparison worktree `.worktrees/gno-master-6058`.
+- [#6060](https://github.com/gnolang/gno/pull/6060) fixes the `const` divergence this review's one
+  Warning names, and its body says it was found while reviewing 6058. Merged into this head in
+  `.worktrees/gno-6058-plus-6060`: `TestFiles` green in full.
 
 ## Left in the 6068 worktree
 
