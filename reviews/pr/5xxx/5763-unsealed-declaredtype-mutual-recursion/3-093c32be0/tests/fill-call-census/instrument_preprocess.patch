@@ -1,0 +1,45 @@
+diff --git home/davd/Projects/agent-workspace/projects/gno-agent-workspace/checkout/.worktrees/gno-review-5763/gnovm/pkg/gnolang/preprocess.go tmp/rev5763/instr/gnovm/pkg/gnolang/preprocess.go
+index f8c8ce143..7a3b145c4 100644
+--- home/davd/Projects/agent-workspace/projects/gno-agent-workspace/checkout/.worktrees/gno-review-5763/gnovm/pkg/gnolang/preprocess.go
++++ tmp/rev5763/instr/gnovm/pkg/gnolang/preprocess.go
+@@ -3,6 +3,7 @@ package gnolang
+ import (
+ 	"fmt"
+ 	"maps"
++	"os"
+ 	"math"
+ 	"math/big"
+ 	"reflect"
+@@ -3074,10 +3075,20 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
+ 						// place and reuse it so the dependent observes the
+ 						// completed underlying type instead of an orphaned
+ 						// empty one.
++						if os.Getenv("FILLPROBE") != "" && dstT.Base != nil {
++							pre := -1
++							if st, ok := dstT.Base.(*StructType); ok {
++								pre = len(st.Fields)
++							}
++							fmt.Fprintf(os.Stderr, "FILLPRE name=%s dstBase=%T@%p srcBase=%T@%p dstFieldsBefore=%d dstState=[%s] srcState=[%s]\n", n.Name, dstT.Base, dstT.Base, tmp2.Base, tmp2.Base, pre, probeEmptiness(dstT.Base), probeEmptiness(tmp2.Base))
++						}
+ 						if dstT.Base != nil && fillTypeInPlace(dstT.Base, tmp2.Base) {
+ 							tmp2.Base = dstT.Base
+ 						}
+ 						*dstT = *tmp2
++						if os.Getenv("SEALPROBE") != "" {
++							fmt.Fprintf(os.Stderr, "DSTSEAL name=%s ptr=%p sealed=%v\n", n.Name, dstT, dstT.sealed)
++						}
+ 					}
+ 				case PrimitiveType:
+ 					dstTV.V = TypeValue{Type: tmp}
+@@ -5501,6 +5512,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
+ 				}
+ 				// sanity check.
+ 				if tv := last.GetSlot(store, tx.Name, true); tv != nil {
++					if os.Getenv("SEALPROBE") != "" {
++						if dt0, ok0 := tv.GetType().(*DeclaredType); ok0 && !dt0.sealed {
++							fmt.Fprintf(os.Stderr, "TRYPRE decl=%s rhs=%s unsealedPtr=%p\n", d.GetDeclNames(), tx.Name, dt0)
++						}
++					}
+ 					// t may be an unsealed *DeclaredType during
+ 					// mutual type-decl recursion (e.g.
+ 					// `type T1 struct{Next *T2}; type T2 T1`);

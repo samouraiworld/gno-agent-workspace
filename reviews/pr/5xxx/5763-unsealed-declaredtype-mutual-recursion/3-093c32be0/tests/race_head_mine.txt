@@ -1,0 +1,254 @@
+# go test -race -count=1 -run TestZZUverseBaseRace ./gnovm/pkg/gnolang/
+# Paths are repo-relative; the absolute build path has been stripped.
+
+==================
+WARNING: DATA RACE
+Write at 0x000002662d10 by goroutine 29:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*DeclaredType).TypeID()
+      gnovm/pkg/gnolang/types.go:2032 +0x164
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*defaultStore).SetCacheType()
+      gnovm/pkg/gnolang/store.go:821 +0x46
+  github.com/gnolang/gno/gnovm/pkg/gnolang.InitStoreCaches()
+      gnovm/pkg/gnolang/store.go:1314 +0x1bd
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewStore()
+      gnovm/pkg/gnolang/store.go:229 +0x414
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewMachineWithOptions()
+      gnovm/pkg/gnolang/machine.go:180 +0x2e4
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewMachine()
+      gnovm/pkg/gnolang/machine.go:69 +0xf4
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace.func1()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:48 +0xb1
+
+Previous read at 0x000002662d10 by goroutine 28:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*DeclaredType).TypeID()
+      gnovm/pkg/gnolang/types.go:2031 +0x4b
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*defaultStore).SetCacheType()
+      gnovm/pkg/gnolang/store.go:821 +0x46
+  github.com/gnolang/gno/gnovm/pkg/gnolang.InitStoreCaches()
+      gnovm/pkg/gnolang/store.go:1314 +0x1bd
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewStore()
+      gnovm/pkg/gnolang/store.go:229 +0x414
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewMachineWithOptions()
+      gnovm/pkg/gnolang/machine.go:180 +0x2e4
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewMachine()
+      gnovm/pkg/gnolang/machine.go:69 +0xf4
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace.func1()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:48 +0xb1
+
+Goroutine 29 (running) created at:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:45 +0x64
+  testing.tRunner()
+      /usr/lib/go/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /usr/lib/go/src/testing/testing.go:2101 +0x38
+
+Goroutine 28 (running) created at:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:45 +0x64
+  testing.tRunner()
+      /usr/lib/go/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /usr/lib/go/src/testing/testing.go:2101 +0x38
+==================
+==================
+WARNING: DATA RACE
+Write at 0x000002662d10 by goroutine 28:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*DeclaredType).TypeID()
+      gnovm/pkg/gnolang/types.go:2032 +0x164
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*defaultStore).SetCacheType()
+      gnovm/pkg/gnolang/store.go:821 +0x46
+  github.com/gnolang/gno/gnovm/pkg/gnolang.InitStoreCaches()
+      gnovm/pkg/gnolang/store.go:1314 +0x1bd
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewStore()
+      gnovm/pkg/gnolang/store.go:229 +0x414
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewMachineWithOptions()
+      gnovm/pkg/gnolang/machine.go:180 +0x2e4
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewMachine()
+      gnovm/pkg/gnolang/machine.go:69 +0xf4
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace.func1()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:48 +0xb1
+
+Previous read at 0x000002662d10 by goroutine 29:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*DeclaredType).TypeID()
+      gnovm/pkg/gnolang/types.go:2039 +0x2f0
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*defaultStore).SetCacheType()
+      gnovm/pkg/gnolang/store.go:821 +0x46
+  github.com/gnolang/gno/gnovm/pkg/gnolang.InitStoreCaches()
+      gnovm/pkg/gnolang/store.go:1314 +0x1bd
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewStore()
+      gnovm/pkg/gnolang/store.go:229 +0x414
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewMachineWithOptions()
+      gnovm/pkg/gnolang/machine.go:180 +0x2e4
+  github.com/gnolang/gno/gnovm/pkg/gnolang.NewMachine()
+      gnovm/pkg/gnolang/machine.go:69 +0xf4
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace.func1()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:48 +0xb1
+
+Goroutine 28 (running) created at:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:45 +0x64
+  testing.tRunner()
+      /usr/lib/go/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /usr/lib/go/src/testing/testing.go:2101 +0x38
+
+Goroutine 29 (running) created at:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:45 +0x64
+  testing.tRunner()
+      /usr/lib/go/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /usr/lib/go/src/testing/testing.go:2101 +0x38
+==================
+==================
+WARNING: DATA RACE
+Read at 0x0000026617d0 by goroutine 28:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.embedDepth()
+      gnovm/pkg/gnolang/types.go:1973 +0x1b8
+  github.com/gnolang/gno/gnovm/pkg/gnolang.embedDepth()
+      gnovm/pkg/gnolang/types.go:1953 +0x20d
+  github.com/gnolang/gno/gnovm/pkg/gnolang.validateEmbedDepth()
+      gnovm/pkg/gnolang/types.go:2011 +0x4c
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*DeclaredType).Seal()
+      gnovm/pkg/gnolang/types.go:1620 +0x6c
+  github.com/gnolang/gno/gnovm/pkg/gnolang.preprocess1.func1()
+      gnovm/pkg/gnolang/preprocess.go:3068 +0x18bc
+  github.com/gnolang/gno/gnovm/pkg/gnolang.transcribe()
+      gnovm/pkg/gnolang/transcribe.go:706 +0x2bf9
+  github.com/gnolang/gno/gnovm/pkg/gnolang.Transcribe()
+      gnovm/pkg/gnolang/transcribe.go:133 +0x104
+  github.com/gnolang/gno/gnovm/pkg/gnolang.preprocess1()
+      gnovm/pkg/gnolang/preprocess.go:751 +0x46b
+  github.com/gnolang/gno/gnovm/pkg/gnolang.Preprocess()
+      gnovm/pkg/gnolang/preprocess.go:695 +0x124
+  github.com/gnolang/gno/gnovm/pkg/gnolang.predefineRecursively2()
+      gnovm/pkg/gnolang/preprocess.go:5353 +0x55d
+  github.com/gnolang/gno/gnovm/pkg/gnolang.predefineRecursively()
+      gnovm/pkg/gnolang/preprocess.go:5274 +0x22c
+  github.com/gnolang/gno/gnovm/pkg/gnolang.PredefineFileSet()
+      gnovm/pkg/gnolang/preprocess.go:82 +0x688
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*Machine).runFileDecls()
+      gnovm/pkg/gnolang/machine.go:720 +0x4a8
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*Machine).RunFiles()
+      gnovm/pkg/gnolang/machine.go:598 +0x304
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace.func1()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:51 +0x204
+
+Previous write at 0x0000026617d0 by goroutine 29:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.fillTypeInPlace()
+      gnovm/pkg/gnolang/types.go:1577 +0x9d
+  github.com/gnolang/gno/gnovm/pkg/gnolang.preprocess1.func1()
+      gnovm/pkg/gnolang/preprocess.go:3077 +0x195a
+  github.com/gnolang/gno/gnovm/pkg/gnolang.transcribe()
+      gnovm/pkg/gnolang/transcribe.go:706 +0x2bf9
+  github.com/gnolang/gno/gnovm/pkg/gnolang.Transcribe()
+      gnovm/pkg/gnolang/transcribe.go:133 +0x104
+  github.com/gnolang/gno/gnovm/pkg/gnolang.preprocess1()
+      gnovm/pkg/gnolang/preprocess.go:751 +0x46b
+  github.com/gnolang/gno/gnovm/pkg/gnolang.Preprocess()
+      gnovm/pkg/gnolang/preprocess.go:695 +0x124
+  github.com/gnolang/gno/gnovm/pkg/gnolang.predefineRecursively2()
+      gnovm/pkg/gnolang/preprocess.go:5353 +0x55d
+  github.com/gnolang/gno/gnovm/pkg/gnolang.predefineRecursively()
+      gnovm/pkg/gnolang/preprocess.go:5274 +0x22c
+  github.com/gnolang/gno/gnovm/pkg/gnolang.PredefineFileSet()
+      gnovm/pkg/gnolang/preprocess.go:82 +0x688
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*Machine).runFileDecls()
+      gnovm/pkg/gnolang/machine.go:720 +0x4a8
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*Machine).RunFiles()
+      gnovm/pkg/gnolang/machine.go:598 +0x304
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace.func1()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:51 +0x204
+
+Goroutine 28 (running) created at:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:45 +0x64
+  testing.tRunner()
+      /usr/lib/go/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /usr/lib/go/src/testing/testing.go:2101 +0x38
+
+Goroutine 29 (finished) created at:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:45 +0x64
+  testing.tRunner()
+      /usr/lib/go/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /usr/lib/go/src/testing/testing.go:2101 +0x38
+==================
+==================
+WARNING: DATA RACE
+Read at 0x0000026617c0 by goroutine 28:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.fillTypeInPlace()
+      gnovm/pkg/gnolang/types.go:1577 +0x8e
+  github.com/gnolang/gno/gnovm/pkg/gnolang.preprocess1.func1()
+      gnovm/pkg/gnolang/preprocess.go:3077 +0x195a
+  github.com/gnolang/gno/gnovm/pkg/gnolang.transcribe()
+      gnovm/pkg/gnolang/transcribe.go:706 +0x2bf9
+  github.com/gnolang/gno/gnovm/pkg/gnolang.Transcribe()
+      gnovm/pkg/gnolang/transcribe.go:133 +0x104
+  github.com/gnolang/gno/gnovm/pkg/gnolang.preprocess1()
+      gnovm/pkg/gnolang/preprocess.go:751 +0x46b
+  github.com/gnolang/gno/gnovm/pkg/gnolang.Preprocess()
+      gnovm/pkg/gnolang/preprocess.go:695 +0x124
+  github.com/gnolang/gno/gnovm/pkg/gnolang.predefineRecursively2()
+      gnovm/pkg/gnolang/preprocess.go:5353 +0x55d
+  github.com/gnolang/gno/gnovm/pkg/gnolang.predefineRecursively()
+      gnovm/pkg/gnolang/preprocess.go:5274 +0x22c
+  github.com/gnolang/gno/gnovm/pkg/gnolang.PredefineFileSet()
+      gnovm/pkg/gnolang/preprocess.go:82 +0x688
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*Machine).runFileDecls()
+      gnovm/pkg/gnolang/machine.go:720 +0x4a8
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*Machine).RunFiles()
+      gnovm/pkg/gnolang/machine.go:598 +0x304
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace.func1()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:51 +0x204
+
+Previous write at 0x0000026617c0 by goroutine 29:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.fillTypeInPlace()
+      gnovm/pkg/gnolang/types.go:1577 +0x9d
+  github.com/gnolang/gno/gnovm/pkg/gnolang.preprocess1.func1()
+      gnovm/pkg/gnolang/preprocess.go:3077 +0x195a
+  github.com/gnolang/gno/gnovm/pkg/gnolang.transcribe()
+      gnovm/pkg/gnolang/transcribe.go:706 +0x2bf9
+  github.com/gnolang/gno/gnovm/pkg/gnolang.Transcribe()
+      gnovm/pkg/gnolang/transcribe.go:133 +0x104
+  github.com/gnolang/gno/gnovm/pkg/gnolang.preprocess1()
+      gnovm/pkg/gnolang/preprocess.go:751 +0x46b
+  github.com/gnolang/gno/gnovm/pkg/gnolang.Preprocess()
+      gnovm/pkg/gnolang/preprocess.go:695 +0x124
+  github.com/gnolang/gno/gnovm/pkg/gnolang.predefineRecursively2()
+      gnovm/pkg/gnolang/preprocess.go:5353 +0x55d
+  github.com/gnolang/gno/gnovm/pkg/gnolang.predefineRecursively()
+      gnovm/pkg/gnolang/preprocess.go:5274 +0x22c
+  github.com/gnolang/gno/gnovm/pkg/gnolang.PredefineFileSet()
+      gnovm/pkg/gnolang/preprocess.go:82 +0x688
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*Machine).runFileDecls()
+      gnovm/pkg/gnolang/machine.go:720 +0x4a8
+  github.com/gnolang/gno/gnovm/pkg/gnolang.(*Machine).RunFiles()
+      gnovm/pkg/gnolang/machine.go:598 +0x304
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace.func1()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:51 +0x204
+
+Goroutine 28 (running) created at:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:45 +0x64
+  testing.tRunner()
+      /usr/lib/go/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /usr/lib/go/src/testing/testing.go:2101 +0x38
+
+Goroutine 29 (finished) created at:
+  github.com/gnolang/gno/gnovm/pkg/gnolang.TestZZUverseBaseRace()
+      gnovm/pkg/gnolang/zz_uverserace_test.go:45 +0x64
+  testing.tRunner()
+      /usr/lib/go/src/testing/testing.go:2036 +0x21c
+  testing.(*T).Run.gowrap1()
+      /usr/lib/go/src/testing/testing.go:2101 +0x38
+==================
+--- FAIL: TestZZUverseBaseRace (0.00s)
+    testing.go:1712: race detected during execution of test
+FAIL
+FAIL	github.com/gnolang/gno/gnovm/pkg/gnolang	0.047s
+FAIL

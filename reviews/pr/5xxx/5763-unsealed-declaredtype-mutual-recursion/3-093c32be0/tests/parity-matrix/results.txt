@@ -1,0 +1,32 @@
+Go vs gno on mutual type-decl recursion, 7 base kinds x {defined, alias} x {T1 first, T2 first}.
+go1.26.5 / gno built from gnolang/gno at 093c32be0 (head) and 0397fc87f (merge-base).
+
+CASE                             GO       GNO-HEAD   GNO-BASE   NOTE
+structptr_def_t1first            accept   accept     reject     fixed by this PR
+structptr_def_t2first            accept   accept     accept     
+structptr_alias_t1first          accept   accept     reject     fixed by this PR
+structptr_alias_t2first          accept   reject     reject     DIVERGES from Go (also at merge-base: pre-existing)
+slice_def_t1first                accept   accept     reject     fixed by this PR
+slice_def_t2first                accept   accept     accept     
+slice_alias_t1first              accept   accept     reject     fixed by this PR
+slice_alias_t2first              accept   reject     reject     DIVERGES from Go (also at merge-base: pre-existing)
+map_def_t1first                  accept   accept     reject     fixed by this PR
+map_def_t2first                  accept   accept     accept     
+map_alias_t1first                accept   accept     reject     fixed by this PR
+map_alias_t2first                accept   reject     reject     DIVERGES from Go (also at merge-base: pre-existing)
+funct_def_t1first                accept   accept     reject     fixed by this PR
+funct_def_t2first                accept   accept     accept     
+funct_alias_t1first              accept   accept     reject     fixed by this PR
+funct_alias_t2first              accept   reject     reject     DIVERGES from Go (also at merge-base: pre-existing)
+iface_def_t1first                accept   accept     accept     
+iface_def_t2first                accept   accept     accept     
+iface_alias_t1first              accept   accept     accept     
+iface_alias_t2first              accept   reject     reject     DIVERGES from Go (also at merge-base: pre-existing)
+ptr_def_t1first                  accept   accept     reject     fixed by this PR
+ptr_def_t2first                  accept   accept     accept     
+ptr_alias_t1first                accept   accept     reject     fixed by this PR
+ptr_alias_t2first                accept   reject     reject     DIVERGES from Go (also at merge-base: pre-existing)
+arrayptr_def_t1first             accept   accept     reject     fixed by this PR
+arrayptr_def_t2first             accept   accept     accept     
+arrayptr_alias_t1first           accept   accept     reject     fixed by this PR
+arrayptr_alias_t2first           accept   reject     reject     DIVERGES from Go (also at merge-base: pre-existing)

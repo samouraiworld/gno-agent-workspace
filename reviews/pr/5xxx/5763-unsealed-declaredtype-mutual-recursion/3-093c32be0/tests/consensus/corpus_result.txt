@@ -1,0 +1,23 @@
+# PR 5763 corpus type-encoding differential
+# merge-base 0397fc87f vs head 093c32be0, and head+dst!=src guard
+# harness: corpus_type_encoding_test.go
+
+$ diff base_types.txt head_types.txt
+(no output: identical)
+
+$ diff base_types.txt guard_types.txt   # head with the dst != tmp2.Base guard added
+(no output: identical)
+
+counts:
+  packages: # packages: 136
+  types:    343
+
+TestFiles + TestStdlibs, head 093c32be0 vs head + the dst != tmp2.Base guard,
+same toolchain (go1.26.5, the repo pins 1.25.9 so these 10 are Go type-checker
+message-wording noise; CI is green on this sha):
+
+  head:  FAIL redeclaration3, redeclaration4, redeclaration_global1, switch13,
+         type41, types/add_f0, types/and_f0, types/eql_0b4, types/eql_0f0,
+         types/or_f0
+  guard: identical list
+

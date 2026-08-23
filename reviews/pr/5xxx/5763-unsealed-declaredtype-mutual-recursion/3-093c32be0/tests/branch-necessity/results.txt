@@ -1,0 +1,24 @@
+Which fillTypeInPlace branch each shape depends on, at gnolang/gno 093c32be0.
+Each column is a build of the branch with exactly one `case *<Kind>:` deleted
+from fillTypeInPlace (gnovm/pkg/gnolang/types.go); `remove_branch.py` does the
+edit. BROKEN = the program gno accepts at head no longer runs correctly.
+
+CASE                   HEAD   StructType ArrayType SliceType MapType InterfaceType FuncType PointerType
+structptr_derived      OK     BROKEN     OK        OK        OK      OK            OK       OK
+slice_derived          OK     OK         OK        BROKEN    OK      OK            OK       OK
+map_derived            OK     OK         OK        OK        BROKEN  OK            OK       OK
+funct_derived          OK     OK         OK        OK        OK      OK            BROKEN   OK
+arrayptr_derived       OK     OK         BROKEN    OK        OK      OK            OK       OK
+iface_rec              OK     OK         OK        OK        OK      BROKEN        OK       OK
+ptr_deref              OK     OK         OK        OK        OK      OK            OK       BROKEN
+
+All seven branches are load-bearing. gnovm/tests/files/decltype_mutual.gno
+pins only the StructType one: with the SliceType branch deleted the whole
+TestFiles suite still fails on exactly the same 10 tests as the unmodified
+tree (all go/types message diffs from a go1.26.5 toolchain against a repo
+pinned to go 1.25.9), and no extra test notices.
+
+Failure modes with the branch removed:
+  InterfaceType  main/iface_rec.gno:15:10-13: missing field M in main.T2
+  PointerType    runtime error: invalid memory address or nil pointer dereference
+                 (a bare Go panic, outside the VM Exception machinery)

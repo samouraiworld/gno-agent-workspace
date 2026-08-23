@@ -1,0 +1,24 @@
+ZZACCEPT	plain-struct	ACCEPT
+ZZACCEPT	derived	ACCEPT
+ZZACCEPT	self-recursive	ACCEPT
+ZZACCEPT	mutual-ptr	ACCEPT
+ZZACCEPT	mutual-ptr-swapped	ACCEPT
+ZZACCEPT	mutual-value-illegal	REJECT	testdata/testdata.gno:2:6-35: invalid recursive type: T1 -> T2 -> T1:
+ZZACCEPT	mutual-slice	ACCEPT
+ZZACCEPT	mutual-map	ACCEPT
+ZZACCEPT	mutual-array	ACCEPT
+ZZACCEPT	mutual-func	ACCEPT
+ZZACCEPT	mutual-iface	ACCEPT
+ZZACCEPT	mutual-ptrbase	ACCEPT
+ZZACCEPT	chan-decl	REJECT	testdata.gno:2:8: channels are not permitted
+ZZACCEPT	chan-derived	REJECT	testdata.gno:2:8: channels are not permitted
+ZZACCEPT	alias	ACCEPT
+ZZACCEPT	alias-then-derived	ACCEPT
+ZZACCEPT	uverse-derived	ACCEPT
+ZZACCEPT	prim-derived	ACCEPT
+ZZACCEPT	self-cycle-illegal	REJECT	testdata/testdata.gno:2:6-9: invalid recursive type: T -> T:
+ZZACCEPT	two-cycle-illegal	REJECT	testdata/testdata.gno:2:6-9: invalid recursive type: A -> B -> A:
+ZZACCEPT	embed-mutual	ACCEPT
+ZZACCEPT	chain3	ACCEPT
+ZZACCEPT	threeway	ACCEPT
+ZZACCEPT	local-scope-mutual	REJECT	testdata/testdata.gno:3:7-37: name T2 not defined in fileset with files [testdata.gno]:

@@ -1,0 +1,30 @@
+FILLPRE name=Sample dstBase=*gnolang.StructType@0x3f13573936e0 srcBase=*gnolang.StructType@0x3f1357393740 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=1]
+FILLPROBE dst=*gnolang.StructType@0x3f13573936e0 src=*gnolang.StructType@0x3f1357393740 same=false filled=true dstFieldsAfter=1
+FILLPRE name=errorString dstBase=*gnolang.StructType@0x3f1357399bc0 srcBase=*gnolang.StructType@0x3f1357399e00 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=1]
+FILLPROBE dst=*gnolang.StructType@0x3f1357399bc0 src=*gnolang.StructType@0x3f1357399e00 same=false filled=true dstFieldsAfter=1
+FILLPRE name=joinError dstBase=*gnolang.StructType@0x3f13574b6180 srcBase=*gnolang.StructType@0x3f13574b61e0 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=1]
+FILLPROBE dst=*gnolang.StructType@0x3f13574b6180 src=*gnolang.StructType@0x3f13574b61e0 same=false filled=true dstFieldsAfter=1
+FILLPRE name=Interface dstBase=*gnolang.InterfaceType@0x3f1357584050 srcBase=*gnolang.InterfaceType@0x3f1357584370 dstFieldsBefore=-1 dstState=[iface/methods=0] srcState=[iface/methods=3]
+FILLPROBE dst=*gnolang.InterfaceType@0x3f1357584050 src=*gnolang.InterfaceType@0x3f1357584370 same=false filled=true dstFieldsAfter=-1
+FILLPRE name=lessSwap dstBase=*gnolang.StructType@0x3f135749c420 srcBase=*gnolang.StructType@0x3f135749c480 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=2]
+FILLPROBE dst=*gnolang.StructType@0x3f135749c420 src=*gnolang.StructType@0x3f135749c480 same=false filled=true dstFieldsAfter=2
+FILLPRE name=reverse dstBase=*gnolang.StructType@0x3f135749c4e0 srcBase=*gnolang.StructType@0x3f135749c540 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=1]
+FILLPROBE dst=*gnolang.StructType@0x3f135749c4e0 src=*gnolang.StructType@0x3f135749c540 same=false filled=true dstFieldsAfter=1
+FILLPRE name=IntSlice dstBase=*gnolang.SliceType@0x3f1357539a70 srcBase=*gnolang.SliceType@0x3f1357539bc0 dstFieldsBefore=-1 dstState=[slice/eltNil=true] srcState=[slice/eltNil=false]
+FILLPROBE dst=*gnolang.SliceType@0x3f1357539a70 src=*gnolang.SliceType@0x3f1357539bc0 same=false filled=true dstFieldsAfter=-1
+FILLPRE name=Float64Slice dstBase=*gnolang.SliceType@0x3f1357539c20 srcBase=*gnolang.SliceType@0x3f1357539d70 dstFieldsBefore=-1 dstState=[slice/eltNil=true] srcState=[slice/eltNil=false]
+FILLPROBE dst=*gnolang.SliceType@0x3f1357539c20 src=*gnolang.SliceType@0x3f1357539d70 same=false filled=true dstFieldsAfter=-1
+FILLPRE name=StringSlice dstBase=*gnolang.SliceType@0x3f1357539dd0 srcBase=*gnolang.SliceType@0x3f13575ec030 dstFieldsBefore=-1 dstState=[slice/eltNil=true] srcState=[slice/eltNil=false]
+FILLPROBE dst=*gnolang.SliceType@0x3f1357539dd0 src=*gnolang.SliceType@0x3f13575ec030 same=false filled=true dstFieldsAfter=-1
+FILLPRE name=acceptRange dstBase=*gnolang.StructType@0x3f1357b00a80 srcBase=*gnolang.StructType@0x3f1357b00ba0 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=2]
+FILLPROBE dst=*gnolang.StructType@0x3f1357b00a80 src=*gnolang.StructType@0x3f1357b00ba0 same=false filled=true dstFieldsAfter=2
+FILLPRE name=NumError dstBase=*gnolang.StructType@0x3f1357b05da0 srcBase=*gnolang.StructType@0x3f1357c00060 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=3]
+FILLPROBE dst=*gnolang.StructType@0x3f1357b05da0 src=*gnolang.StructType@0x3f1357c00060 same=false filled=true dstFieldsAfter=3
+FILLPRE name=decimal dstBase=*gnolang.StructType@0x3f1357c00180 srcBase=*gnolang.StructType@0x3f1357c002a0 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=5]
+FILLPROBE dst=*gnolang.StructType@0x3f1357c00180 src=*gnolang.StructType@0x3f1357c002a0 same=false filled=true dstFieldsAfter=5
+FILLPRE name=leftCheat dstBase=*gnolang.StructType@0x3f1357c00420 srcBase=*gnolang.StructType@0x3f1357c00540 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=2]
+FILLPROBE dst=*gnolang.StructType@0x3f1357c00420 src=*gnolang.StructType@0x3f1357c00540 same=false filled=true dstFieldsAfter=2
+FILLPRE name=floatInfo dstBase=*gnolang.StructType@0x3f1357c00660 srcBase=*gnolang.StructType@0x3f1357c007e0 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=3]
+FILLPROBE dst=*gnolang.StructType@0x3f1357c00660 src=*gnolang.StructType@0x3f1357c007e0 same=false filled=true dstFieldsAfter=3
+FILLPRE name=decimalSlice dstBase=*gnolang.StructType@0x3f1357c00900 srcBase=*gnolang.StructType@0x3f1357c00a20 dstFieldsBefore=0 dstState=[struct/fields=0] srcState=[struct/fields=3]
+FILLPROBE dst=*gnolang.StructType@0x3f1357c00900 src=*gnolang.StructType@0x3f1357c00a20 same=false filled=true dstFieldsAfter=3

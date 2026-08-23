@@ -1,0 +1,29 @@
+Census of every fillTypeInPlace call during `go test -run TestFiles ./gnovm/pkg/gnolang/`
+at gnolang/gno 093c32be0, instrumented per fill-call-census/*.patch.
+
+total calls: 3167
+dst == src (self-copy, no-op): 325
+dst != src (placeholder filled): 2842
+
+dst kinds seen:
+   *gnolang.StructType          1939
+   *gnolang.InterfaceType       492
+   gnolang.PrimitiveType        306
+   *gnolang.FuncType            230
+   *gnolang.SliceType           134
+   *gnolang.ArrayType           29
+   *gnolang.MapType             23
+   *gnolang.PointerType         14
+
+dst kind != src kind (would take the silent `return false` path): 0
+
+dst != src AND dst was NOT an empty placeholder (a real overwrite of live content): 0
+
+dstState distribution for the dst != src calls:
+   struct/fields=0                    1932
+   iface/methods=0                    483
+   func/params=0/results=0            229
+   slice/eltNil=true                  134
+   array/len=0/eltNil=true            28
+   map/keyNil=true/valNil=true        23
+   ptr/eltNil=true                    13

@@ -1,0 +1,11 @@
+Same shapes, read through the DERIVED type T2 rather than T1.
+Values, not just accept/reject. go1.26.5 vs gno at 093c32be0 and 0397fc87f.
+
+CASE                 GO             GNO-HEAD       GNO-BASE
+structptr_derived    7 8 / ok       7 8 / ok       panic: should 
+slice_derived        1 1 / ok       1 1 / ok       panic: should 
+map_derived          1 1 / ok       1 1 / ok       panic: should 
+funct_derived        true / ok      true / ok      panic: should 
+iface_derived        42 / ok        42 / ok        42 / ok
+ptr_derived          true / ok      true / ok      panic: should 
+arrayptr_derived     2 true / ok    2 true / ok    panic: should 

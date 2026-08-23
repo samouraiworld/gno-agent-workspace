@@ -1,0 +1,59 @@
+diff --git home/davd/Projects/agent-workspace/projects/gno-agent-workspace/checkout/.worktrees/gno-review-5763/gnovm/pkg/gnolang/types.go tmp/rev5763/instr/gnovm/pkg/gnolang/types.go
+index 66c0ce2f2..39ae57273 100644
+--- home/davd/Projects/agent-workspace/projects/gno-agent-workspace/checkout/.worktrees/gno-review-5763/gnovm/pkg/gnolang/types.go
++++ tmp/rev5763/instr/gnovm/pkg/gnolang/types.go
+@@ -2,6 +2,7 @@ package gnolang
+ 
+ import (
+ 	"fmt"
++	"os"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -1551,6 +1552,19 @@ func declareWith(pkgPath string, parent BlockNode, name Name, b Type) *DeclaredT
+ // Returns false (no copy) for value-kind bases such as PrimitiveType, which are
+ // immutable and never suffer this staleness.
+ func fillTypeInPlace(dst, src Type) bool {
++	r := fillTypeInPlace0(dst, src)
++	if os.Getenv("FILLPROBE") != "" {
++		same := fmt.Sprintf("%p", dst) == fmt.Sprintf("%p", src)
++		n := -1
++		if st, ok := dst.(*StructType); ok {
++			n = len(st.Fields)
++		}
++		fmt.Fprintf(os.Stderr, "FILLPROBE dst=%T@%p src=%T@%p same=%v filled=%v dstFieldsAfter=%d\n", dst, dst, src, src, same, r, n)
++	}
++	return r
++}
++
++func fillTypeInPlace0(dst, src Type) bool {
+ 	switch dst := dst.(type) {
+ 	case *StructType:
+ 		if src, ok := src.(*StructType); ok {
+@@ -3064,3 +3078,26 @@ func getDeclaredPkgID(t Type) PkgID {
+ 		}
+ 	}
+ }
++
++
++// probeEmptiness reports a coarse "is this placeholder still empty" signal for
++// the base kinds fillTypeInPlace handles. Review instrumentation only.
++func probeEmptiness(t Type) string {
++	switch ct := t.(type) {
++	case *StructType:
++		return fmt.Sprintf("struct/fields=%d", len(ct.Fields))
++	case *ArrayType:
++		return fmt.Sprintf("array/len=%d/eltNil=%v", ct.Len, ct.Elt == nil)
++	case *SliceType:
++		return fmt.Sprintf("slice/eltNil=%v", ct.Elt == nil)
++	case *MapType:
++		return fmt.Sprintf("map/keyNil=%v/valNil=%v", ct.Key == nil, ct.Value == nil)
++	case *InterfaceType:
++		return fmt.Sprintf("iface/methods=%d", len(ct.Methods))
++	case *FuncType:
++		return fmt.Sprintf("func/params=%d/results=%d", len(ct.Params), len(ct.Results))
++	case *PointerType:
++		return fmt.Sprintf("ptr/eltNil=%v", ct.Elt == nil)
++	}
++	return fmt.Sprintf("%T", t)
++}
