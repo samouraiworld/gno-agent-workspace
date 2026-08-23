@@ -94,7 +94,7 @@ func main() {
 </details>
 
 ## gnovm/pkg/gnolang/uverse.go:1249 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/uverse.go#L1249) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/uverse.go#L1249)
-Suggestion: `delete` computes the map key twice, once here and once in [`DeleteForKey`](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1104-L1117). That second call costs 104938 gas on a `[1<<18]byte` key, and `DeleteForKey` already returns nil for an absent key.
+Suggestion: `delete` computes the map key twice, once here and once in [`DeleteForKey`](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1104-L1117), which costs 104938 gas on a `[1<<18]byte` key. `DeleteForKey` can return the removed entry's value alongside its key, so this probe goes.
 
 ## SKIP gnovm/pkg/gnolang/values_test.go:433 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values_test.go#L433) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values_test.go#L433)
 Nit: `baseOf` decides nothing here, since `(*DeclaredType).Kind` returns `dt.Base.Kind()`. Dropped as comment-level.
