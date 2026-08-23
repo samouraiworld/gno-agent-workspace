@@ -58,7 +58,7 @@ Before, [`tryPredefine`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg
 
   A census at the fill site over the stock `gnovm/tests/files` corpus counted 3,182 calls, of which 3 had a nil destination, so the skipped-guard path is reachable from the existing suite and not only from a constructed case.
 
-  The shape is a member of the class this PR sweeps: the title is mutual type-decl recursion, and this is mutual type-decl recursion one hop longer than the case that was fixed. Fix: reject rather than skip. When `dstT.Base` is nil at finalize, raise a positioned preprocessor error naming the declaration instead of storing the nil, or order the finalize so a dependent never runs before its source has a base. Repro: [`tests/adv_decltype_chain3_dependent_first.gno`](tests/adv_decltype_chain3_dependent_first.gno), package form in [`tests/nilbase_package_repro.sh`](tests/nilbase_package_repro.sh).
+  The shape is a member of the class this PR sweeps, and not by argument: on the merge-base the rejection comes from `preprocess.go:5499`, which is the `panic("should not happen")` inside the `if !dt.sealed` block that this diff deletes. Same call site, same guard, one hop longer than the case that was fixed. Fix: reject rather than skip. When `dstT.Base` is nil at finalize, raise a positioned preprocessor error naming the declaration instead of storing the nil, or order the finalize so a dependent never runs before its source has a base. Repro: [`tests/adv_decltype_chain3_dependent_first.gno`](tests/adv_decltype_chain3_dependent_first.gno), package form in [`tests/nilbase_package_repro.sh`](tests/nilbase_package_repro.sh).
   </details>
 
 ### Repro
