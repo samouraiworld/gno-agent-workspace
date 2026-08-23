@@ -2,13 +2,40 @@
 Event: REQUEST_CHANGES
 
 ## Body
-- `ci / codegen-verify` is red: `contribs/gnodev`, `contribs/gnobro` and `contribs/gnogenesis` are untidy against the new dependency, and the first two stop building for darwin.
-- The description says the opt-out stores in `TestFiles` keep the total from quietly doubling, while the code, and the comment beside them, bound it at twice the pool size.
+- The description says the total cannot quietly double, while [the second semaphore](https://github.com/gnolang/gno/blob/a4d6089/gnovm/pkg/gnolang/files_test.go#L76) bounds it at exactly twice the pool size.
 
-Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6061-bound-test-memory-by-memory/1-a4d6089/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
+## tm2/pkg/testutils/parallel_linux.go:64 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L64) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L64)
+`memory.max - memory.current` charges the reclaimable page cache as used, so a container reading its own testdata starves itself: the suite takes 262.8s against 185.0s on master. Take `inactive_file` and `slab_reclaimable` off `memory.current` and the container figure matches [`MemAvailable`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L52-L55).
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+# run this inside a container with a memory.max set.
+gh pr checkout 6061 -R gnolang/gno
+GNO_TEST_TRACE_BUDGET=1 go test -run TestTestdata -timeout 45m ./gno.land/pkg/integration/
+grep -E '^(file|inactive_file|slab_reclaimable) ' /sys/fs/cgroup/memory.stat
+awk '/MemAvailable/' /proc/meminfo
+```
+
+The allowance collapses to its floor while the kernel still reports 4 GiB available, and nothing follows t+24.5s. Timestamps added to the trace:
+
+```
+t+   2.6s nodeBudget: limit=6 running=5 max=6 avail=4.53GiB reserve=2.50GiB
+t+  21.4s nodeBudget: limit=5 running=5 max=6 avail=2.42GiB reserve=2.50GiB
+t+  22.4s nodeBudget: limit=4 running=5 max=6 avail=2.26GiB reserve=2.50GiB
+t+  23.4s nodeBudget: limit=3 running=4 max=6 avail=2.26GiB reserve=2.50GiB
+t+  24.5s nodeBudget: limit=2 running=3 max=6 avail=2.08GiB reserve=2.50GiB
+t+ 262.8s peak RSS 4031 MiB, wall 262.8s
+```
+
+Sampled every two seconds across a run of the same suite on this host, the cgroup's `file` counter grew from 0.70 GiB to 1.43 GiB from the suite reading its own testdata, the clamped reading fell under the reserve in 33 of 133 samples, and `/proc/meminfo`'s `MemAvailable` fell under it in none.
+
+On this host at one instant: `memory.max` 10.00 GiB, `memory.current` 9.77 GiB, `inactive_file` plus `slab_reclaimable` 3.26 GiB, so `Available` reads 0.23 GiB where a reclaim-aware figure is 3.49 GiB and the reserve is 2.50 GiB.
+</details>
 
 ## examples/Makefile:28 [gh](https://github.com/gnolang/gno/blob/a4d6089/examples/Makefile#L28) · [↗](../../../../../.worktrees/gno-review-6061/examples/Makefile#L28)
-On a host with fewer than four cores a flat `4` raises the worker count and the memory rather than capping them, [`gno test -p`](https://github.com/gnolang/gno/blob/a4d6089/gnovm/cmd/gno/test.go#L282-L286) clamping only against the package count. Deriving it from `testutils.MaxParallel()` would hold it to `min(GOMAXPROCS, 4)` and bound the CI invocation, which passes no `-p` at all.
+A flat `4` raises the worker count on any host under four cores, since [`gno test -p`](https://github.com/gnolang/gno/blob/a4d6089/gnovm/cmd/gno/test.go#L282-L286) clamps only against the package count: two cores peak at 1097 MiB against 602 MiB on master. Deriving it from [`testutils.MaxParallel()`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L40-L45) holds it to `min(GOMAXPROCS, 4)`.
 
 <details><summary>repro</summary>
 
@@ -28,6 +55,7 @@ for p in 2 4; do
   done
   echo "-p $p: peak $((peak / 1024)) MiB, wall $((SECONDS - start))s"
 done
+rm -f /tmp/gno
 ```
 
 The new default costs 82% more memory than the old one on two cores, and is slower:
@@ -39,7 +67,7 @@ The new default costs 82% more memory than the old one on two cores, and is slow
 </details>
 
 ## tm2/pkg/testutils/parallel_linux.go:51 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L51) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L51)
-A cgroup at its limit clamps `Available` to zero, which this reports as a failed reading and [`resize`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L193-L195) then ignores, so the budget stops responding at maximum pressure while one spare byte would have walked it to the floor. Letting `ok` mean the figures were read leaves the shrink arm to handle zero, which it already does.
+The allowance freezes at exactly the pressure it exists for: a cgroup at its limit clamps `Available` to zero, which this line reports as a failed reading for [`resize`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L193-L195) to discard. The shrink arm already handles a reading of zero, so `ok` need only mean the figures were read.
 
 <details><summary>repro</summary>
 
@@ -80,7 +108,7 @@ go test -run TestZeroAvailableFreeze -v ./gno.land/pkg/integration/
 rm gno.land/pkg/integration/zz_freeze_test.go
 ```
 
-Both budgets are saturated and ticked 25 times with the settle window expired:
+Both budgets are saturated and ticked 25 times with the settle window expired, and the zero reading holds the allowance at 8 where one spare byte walks it to the floor of 2:
 
 ```
 zero-available: limit=8
@@ -88,37 +116,8 @@ one-byte-available: limit=2
 ```
 </details>
 
-## tm2/pkg/testutils/parallel_linux.go:60-67 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L60-L67) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L60-L67)
-`memory.max - memory.current` counts the reclaimable page cache as used, where the [`MemAvailable` it narrows](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L52-L55) counts it as free, so a container reads as starved and the allowance walks to its floor: the full `TestTestdata` reached two nodes 22 seconds in and stayed there, 262.8s against 185.0s on master. Subtracting `inactive_file` and `slab_reclaimable` from `memory.current` makes the container reading mean what `MemAvailable` means.
-
-<details><summary>repro</summary>
-
-```bash
-# from a local clone of gnolang/gno, inside a container with a memory.max:
-gh pr checkout 6061 -R gnolang/gno
-GNO_TEST_TRACE_BUDGET=1 go test -run TestTestdata -timeout 45m ./gno.land/pkg/integration/
-grep -E '^(file|inactive_file|slab_reclaimable) ' /sys/fs/cgroup/memory.stat
-awk '/MemAvailable/' /proc/meminfo
-```
-
-The allowance collapses while the kernel still reports 4 GiB available. Timestamps added to the trace:
-
-```
-t+   2.6s nodeBudget: limit=6 running=5 max=6 avail=4.53GiB reserve=2.50GiB
-t+  21.4s nodeBudget: limit=5 running=5 max=6 avail=2.42GiB reserve=2.50GiB
-t+  22.4s nodeBudget: limit=4 running=5 max=6 avail=2.26GiB reserve=2.50GiB
-t+  23.4s nodeBudget: limit=3 running=4 max=6 avail=2.26GiB reserve=2.50GiB
-t+  24.5s nodeBudget: limit=2 running=3 max=6 avail=2.08GiB reserve=2.50GiB
-t+ 262.8s peak RSS 4031 MiB, wall 262.8s
-```
-
-Nothing follows t+24.5s. Sampled every two seconds across a run of the same suite on this host, the cgroup's `file` counter grew from 0.70 GiB to 1.43 GiB from the suite reading its own testdata, the clamped reading fell under the reserve in 33 of 133 samples, and `/proc/meminfo`'s `MemAvailable` fell under it in none.
-
-On this host at one instant: `memory.max` 10.00 GiB, `memory.current` 9.77 GiB, `inactive_file` plus `slab_reclaimable` 3.26 GiB, so `Available` reads 0.23 GiB where a reclaim-aware figure is 3.49 GiB and the reserve is 2.50 GiB.
-</details>
-
 ## gno.land/pkg/integration/testscript_gnoland.go:162-166 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L162-L166) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L162-L166)
-Missing test: `acquire` itself, and the count admitted under contention. Every case drives `tryAcquire` directly, so the blocking poll loop has no coverage.
+Missing test: the blocking poll loop in `acquire` and the count admitted under contention, every existing case driving `tryAcquire` directly.
 
 <details><summary>test cases</summary>
 
@@ -179,7 +178,7 @@ func TestNodeBudgetConcurrentAdmission(t *testing.T) {
 </details>
 
 ## gno.land/pkg/integration/testscript_gnoland.go:193-195 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L193-L195) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L193-L195)
-Missing test: a `resize` whose reading fails. [`TestNodeBudgetStaticWhenMemoryUnknown`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/node_budget_test.go#L107-L120) reads as coverage of it but leaves `reserve` zero, so the function returns at its first line and `readMem` is never called.
+Missing test: a `resize` whose reading fails, [`TestNodeBudgetStaticWhenMemoryUnknown`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/node_budget_test.go#L107-L120) leaving `reserve` zero so `readMem` is never called.
 
 <details><summary>test cases</summary>
 
@@ -207,8 +206,8 @@ func TestNodeBudgetShrinksWhenReadingFails(t *testing.T) {
 ```
 </details>
 
-## tm2/pkg/testutils/parallel_linux.go:89-111 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L89-L111) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L89-L111)
-Missing test: `cgroupDir` and the `/proc/meminfo` parser hard-code their paths, so no test can reach either, and deleting the whole host-namespace fallback leaves the package green. Threading a root prefix through `ReadMemInfo`, `cgroupMemory` and `cgroupDir` is twelve lines and takes the file from 82.1% to 96.6%.
+## tm2/pkg/testutils/parallel_linux.go:89 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L89) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L89)
+Missing test: `cgroupDir` and the `/proc/meminfo` parser hard-code their paths, so deleting [the host-namespace fallback](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L108) leaves the package green. Twelve lines thread a root prefix through `ReadMemInfo`, `cgroupMemory` and `cgroupDir`, taking the file from 82.1% to 96.6%.
 
 <details><summary>test cases</summary>
 
@@ -395,7 +394,7 @@ func TestReadMemInfoClampsToCgroup(t *testing.T) {
 </details>
 
 ## gno.land/pkg/integration/testscript_gnoland.go:74-76 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L74-L76) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L74-L76)
-Nit: 580 MiB is the average across the table's endpoints, while the marginal cost between two and four nodes, the band a shrunken allowance sits in, is 973 MiB, so the growth threshold admits a node the machine cannot pay for.
+Nit: `nodeMemCost` at 640 MiB under-charges the two-to-four band a shrunken allowance sits in, where a node costs 973 MiB rather than the ~580 MiB averaged over the whole range.
 
 <details><summary>the table's own marginal costs</summary>
 
@@ -409,23 +408,17 @@ Nit: 580 MiB is the average across the table's endpoints, while the marginal cos
 ```
 </details>
 
-## gno.land/pkg/integration/testscript_gnoland.go:196-199 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L196-L199) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L196-L199)
-Nit: a reading that fails skips this stamp, so every blocked script retakes it five times a second, which on darwin is the `vm_stat` subprocess the pacing exists to avoid. Stamping before the read covers both paths.
+## gno.land/pkg/integration/testscript_gnoland.go:199 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L199) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L199)
+Nit: a failed reading skips this stamp, so every blocked script retakes the reading five times a second, a `vm_stat` subprocess each on darwin. Stamping before the read covers the failed reading too.
 
-<details><summary>repro</summary>
-
-Twenty polls of a budget sitting inside the hysteresis band, against twenty polls of one whose reading fails:
-
-```
-readable-in-band=1 reads, unreadable=20 reads
-```
-</details>
+## gno.land/pkg/integration/testscript_gnoland.go:220 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L220) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L220)
+Nit: `release` decrements without a floor, so a second release for one slot drives `running` negative and admits a node past the allowance for the rest of the run, [`slot.held`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) the only guard against that today.
 
 ## gno.land/pkg/integration/testscript_gnoland.go:259-263 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L259-L263) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L259-L263)
-Nit: the deadlock given as the reason for holding the token cannot happen, [`gnoland start`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L447-L451) rejecting a second node for the same script. The behaviour is right; the reason is that a script stopping and restarting would otherwise queue behind fresh scripts.
+Nit: the comment blames a deadlock that cannot happen, [`gnoland start`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L447-L451) rejecting a second node for the same script. Only the reason is wrong: a script stopping and restarting would otherwise queue behind fresh scripts.
 
 ## gno.land/pkg/integration/testscript_gnoland.go:271 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L271) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L271)
-Nit: testscript runs deferred functions in reverse and the node teardown is registered before this release, so the token goes back while the node is still alive and a waiting script is admitted against it. Releasing inside the deferred function that stops the node keeps the token covering the node it accounts for.
+Nit: [testscript runs deferred functions in reverse](https://github.com/rogpeppe/go-internal/blob/v1.15.0/testscript/testscript.go#L912-L918) and the node teardown registers before this line, so the token goes back with the node still running. The release belongs inside the deferred function that stops the node.
 
 <details><summary>repro</summary>
 
@@ -490,7 +483,7 @@ go test -run TestNodeSlotReleaseOrder ./gno.land/pkg/integration/
 rm gno.land/pkg/integration/zz_order_test.go
 ```
 
-The two functions are registered at the two positions the code uses:
+The two functions are registered at the two positions the code uses, and the token comes back first:
 
 ```
 expected: []string{"node stop", "budget release"}
@@ -498,20 +491,23 @@ actual  : []string{"budget release", "node stop"}
 ```
 </details>
 
-## tm2/pkg/testutils/parallel.go:14-18 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L14-L18) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel.go#L14-L18)
-Nit: `defaultMaxParallel` is described as the count used when memory cannot be read, while [`MaxParallel`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L40-L45) returns `min(GOMAXPROCS, 4)` unconditionally and reads no memory. The same claim sits in [`files_test.go:61`](https://github.com/gnolang/gno/blob/a4d6089/gnovm/pkg/gnolang/files_test.go#L61), where "the pool is sized by memory rather than by GOMAXPROCS" describes a feedback loop that lives only in `nodeBudget`.
+## gnovm/pkg/gnolang/files_test.go:61 [gh](https://github.com/gnolang/gno/blob/a4d6089/gnovm/pkg/gnolang/files_test.go#L61) · [↗](../../../../../.worktrees/gno-review-6061/gnovm/pkg/gnolang/files_test.go#L61)
+Nit: the pool is sized by [`min(GOMAXPROCS, 4)`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L40-L45), and the memory-driven sizing this describes lives only in [`nodeBudget`](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L114).
+
+## tm2/pkg/testutils/parallel.go:14-15 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L14-L15) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel.go#L14-L15)
+Nit: the comment calls `defaultMaxParallel` the count used when memory cannot be read, while [`MaxParallel`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L40-L45) returns `min(GOMAXPROCS, 4)` and reads no memory.
 
 ## gno.land/pkg/integration/testscript_gnoland.go:72 [gh](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L72) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L72)
-Suggestion: the floor is half the concurrency CI validates, and climbing back out needs a reading 0.625 GiB above the reserve, so a transient dip pins the suite at two nodes for the rest of the run. Stopping the shrink at `MaxParallel()` and going below only after several consecutive readings under the reserve would keep a dip from being permanent.
+Suggestion: a transient dip pins the suite at two nodes for the rest of the run, since climbing back out needs a reading 0.625 GiB above the reserve. A dip costs seconds instead once the shrink stops at [`MaxParallel()`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L40-L45) and goes below it only after several consecutive readings under the reserve.
 
 ## go.mod:29 [gh](https://github.com/gnolang/gno/blob/a4d6089/go.mod#L29) · [↗](../../../../../.worktrees/gno-review-6061/go.mod#L29)
-Suggestion: `github.com/pbnjay/memory` last changed in July 2021, and the container limits this branch writes by hand have been [an open issue](https://github.com/pbnjay/memory/issues/12) on it since February 2025. `golang.org/x/sys` is already in the graph and covers the darwin and windows readings in two calls.
+Suggestion: [`github.com/pbnjay/memory`](https://github.com/pbnjay/memory) last changed in July 2021, forks a `vm_stat` subprocess per reading on darwin, and carries [an open issue](https://github.com/pbnjay/memory/issues/12) for the container limits this branch writes by hand. `golang.org/x/sys` is already in the graph and covers the darwin and windows readings in two calls.
 
-## tm2/pkg/testutils/parallel.go:47-57 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L47-L57) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel.go#L47-L57)
-Suggestion: this type and the [readings that fill it](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L16-L52) describe the machine, not any test, so holding them in a package `gnodev` and `gnobro` reach is what pulls a memory library into their module graphs. A package about the operating system would hold them, leaving the worker-count helpers here.
+## tm2/pkg/testutils/parallel.go:47-48 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L47-L48) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel.go#L47-L48)
+Suggestion: this type describes the machine rather than any test, so every module reaching the worker-count helpers beside it takes a memory library into its graph, `contribs/gnodev` and `contribs/gnobro` included. Its own package takes the type and [the readings that fill it](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L16-L52), leaving the worker-count helpers in `testutils`.
 
-## tm2/pkg/testutils/parallel_linux.go:74-87 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L74-L87) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L74-L87)
-Suggestion: cgroup limits are hierarchical, so a systemd slice or a Kubernetes pod cgroup can carry the `memory.max` while the leaf this reads says `max`, and the clamp is skipped: the suite then sizes itself against the whole host under a limit that will kill it. Walking from the leaf to the mount root and taking the smallest limit found covers the nested case.
+## tm2/pkg/testutils/parallel_linux.go:79 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L79) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L79)
+Suggestion: the suite sizes itself against the whole host when an ancestor cgroup carries the `memory.max` and the leaf this reads says `max`. Take the smallest limit found from the leaf up to the mount root, which covers a systemd slice and a Kubernetes pod alike.
 
 ## tm2/pkg/testutils/parallel_linux.go:97 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L97) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L97)
-Suggestion: a cgroup v1 container has no unified `0::` line, so `ReadMemInfo` returns the host figures with `ok` true and the budget ramps against memory it does not have, though the description promises a static budget there. Either reading `memory.limit_in_bytes` or reporting no reading under v1 would stop that ramp.
+Suggestion: a cgroup v1 container has no unified `0::` line, so [`ReadMemInfo`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L48-L51) returns the host figures with `ok` true and the budget ramps against memory it does not have. Reading `memory.limit_in_bytes` under v1 keeps the budget static as the description promises, and so does reporting no reading at all.

@@ -12,7 +12,7 @@ Running the gno test suites on a workstation can exhaust its memory, because the
 
 ## Verdict: REQUEST CHANGES
 
-The cgroup reading counts reclaimable page cache as used, so the suite this change protects runs 42% longer inside a container than it does on master, and the controller stops responding at the one reading that means the machine really is out of memory. 3 Warnings, 6 Nits, 3 Missing tests, 5 Suggestions.
+The cgroup reading counts reclaimable page cache as used, so the suite this change protects runs 42% longer inside a container than it does on master, and the controller stops responding at the one reading that means the machine really is out of memory. 3 Warnings, 7 Nits, 3 Missing tests, 5 Suggestions.
 
 ## Verify first
 
@@ -73,7 +73,7 @@ The same flag on `./gno.land/p/moul/...` with `GOMAXPROCS=2`, where it is a rais
   reserve=Total/4=2.50GiB shrinks=true (corrected would shrink=false)
   ```
 
-  What the controller then does, from its own trace over the full suite, timestamps added:
+  What the controller then does, from [`tests/trace-run.md`](tests/trace-run.md), its own trace over the full suite with timestamps added:
 
   ```
   t+   2.6s nodeBudget: limit=6 running=5 max=6 avail=4.53GiB reserve=2.50GiB
@@ -155,9 +155,11 @@ The same flag on `./gno.land/p/moul/...` with `GOMAXPROCS=2`, where it is a rais
   ```
   </details>
 
-- **[unfloored counter]** `gno.land/pkg/integration/testscript_gnoland.go:220` — `release` decrements without a floor, so a second release for one slot drives `running` negative and admits a node past `max` for the rest of the run. Unreachable today, `slot.held` at [line 266](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) gating the acquire, and the guard and the counter sit in different functions with no test between them. Fix: floor the decrement at zero. Not posted: nothing reaches it today.
+- **[unfloored counter]** `gno.land/pkg/integration/testscript_gnoland.go:220` — `release` decrements without a floor, so a second release for one slot drives `running` negative and admits a node past `max` for the rest of the run. Unreachable today, `slot.held` at [line 266](https://github.com/gnolang/gno/blob/a4d6089/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L266-L268) gating the acquire, and the guard and the counter sit in different functions with no test between them. Fix: floor the decrement at zero.
 
-- **[the comment names a reading the function never takes]** `tm2/pkg/testutils/parallel.go:14` — `defaultMaxParallel` is documented as the count used "when the machine's memory can't be read", while `MaxParallel` returns `min(GOMAXPROCS, 4)` unconditionally and calls `ReadMemInfo` nowhere. The same slip sits at [`files_test.go:61`](https://github.com/gnolang/gno/blob/a4d6089/gnovm/pkg/gnolang/files_test.go#L61) · [↗](../../../../../.worktrees/gno-review-6061/gnovm/pkg/gnolang/files_test.go#L61), where "the pool is sized by memory rather than by GOMAXPROCS" describes a feedback loop that lives only in `nodeBudget`. Fix: call it the static cap the suites that must fix their pool size up front take.
+- **[the comment names a reading the function never takes]** `tm2/pkg/testutils/parallel.go:14` — `defaultMaxParallel` is documented as the count used "when the machine's memory can't be read", while `MaxParallel` returns `min(GOMAXPROCS, 4)` unconditionally and calls `ReadMemInfo` nowhere. Fix: call it the static cap the suites that must fix their pool size up front take.
+
+- **[the pool is not sized by memory]** `gnovm/pkg/gnolang/files_test.go:61` — "the pool is sized by memory rather than by GOMAXPROCS" describes a feedback loop that lives only in `nodeBudget`; the pool takes `min(GOMAXPROCS, 4)`. Posted as its own comment: fixing the `parallel.go:14` wording leaves this line untouched.
 
 - **[a constant quoted from the wrong end of the range]** `gno.land/pkg/integration/testscript_gnoland.go:74` — `nodeMemCost` is described as "~580 MiB measured over the range above, rounded up", which is the average across the endpoints; the marginal cost is 973 MiB per node between two and four nodes, the band the shrunken allowance actually lives in.
   <details><summary>details</summary>
