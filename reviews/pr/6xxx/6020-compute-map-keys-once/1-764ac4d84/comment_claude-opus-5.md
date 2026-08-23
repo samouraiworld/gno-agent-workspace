@@ -1,15 +1,24 @@
 # Review: PR [#6020](https://github.com/gnolang/gno/pull/6020)
-Event: APPROVE
+Event: COMMENT
 
 ## Body
-The merge-base number for [`compute_map_key_concrete_key.gno`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/tests/files/gas/compute_map_key_concrete_key.gno#L22) is 135249. The summary table gives 125449, which is the value after the write-dedup commit, so the golden's real delta against d1a33f574 is 7.7%. Of the 10400, 9800 is the dropped second [`ComputeMapKey`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/values.go#L1881) per write and 600 is the prefix.
+LGTM, but this collides with [#5710](https://github.com/gnolang/gno/pull/5710), now merged: it meters `ComputeMapKey` on the realm-restore path by keeping the eager `vmap` build.
+- The merge-base number for [`compute_map_key_concrete_key.gno`](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/tests/files/gas/compute_map_key_concrete_key.gno#L22) is 135249, not the 125449 the summary table reports, which puts that golden's delta at 7.7% rather than the 0.5% shown.
 
-Checked on 764ac4d84: deleting the [`mv.ensureVmap` line](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/values.go#L1057), the [`fillMapKeyRefs` line before the copy](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/values.go#L2461), or [the same line in the map-literal path](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/op_expressions.go#L587) each reddens exactly one of the new realm filetests, a different one each time.
+<details><summary>checks that held</summary>
+
+Deleting the [`mv.ensureVmap` line](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1057), the [`fillMapKeyRefs` line before the copy](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L2461), or [the same line in the map-literal path](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/op_expressions.go#L587) each reddens exactly one of the new realm filetests, a different one each time.
+
+`grep -rn '\.vmap\[' --include='*.go' gnovm/` returns five lines, all inside the one build and the three accessors, so nothing indexes the map outside the paths that pass the flag.
+</details>
 
 Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6020-compute-map-keys-once/1-764ac4d84/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 
-## gnovm/pkg/gnolang/values.go:1031 [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values.go#L1031)
-Missing test: an interface-keyed map read back from the store, where the lazy build has to keep the TypeID prefix. [`map52.gno`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/tests/files/map52.gno) covers interface keys inside one execution and [`zrealm_map6.gno`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/tests/files/zrealm_map6.gno) covers the round trip for a concrete key, but no `// PKGPATH:` filetest has an interface-kinded key type. A build that dropped the prefix there would merge `int(1)` and `int64(1)` into one entry and miss every probe with nothing red.
+## gnovm/pkg/gnolang/values.go:1037 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1037) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values.go#L1037)
+Suggestion: the nil meter leaves this build free, where [#5710](https://github.com/gnolang/gno/pull/5710) charges the eager build it replaces. Keep the build lazy, but pass the gas meter into `ensureVmap`.
+
+## gnovm/pkg/gnolang/values.go:1031 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1031) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values.go#L1031)
+Missing test: no realm filetest has a map keyed by an interface. Dropping the prefix there would merge `int(1)` and `int64(1)` into one entry with nothing red.
 
 <details><summary>test cases</summary>
 
@@ -52,8 +61,8 @@ func main(cur realm) {
 ```
 </details>
 
-## gnovm/tests/files/map51.gno:3-6 [↗](../../../../../.worktrees/gno-review-6020/gnovm/tests/files/map51.gno#L3-L6)
-Missing test: a stored key that is actually observed to change. Deleting `mli.Key = key` from [`GetPointerForKey`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/values.go#L1066) leaves this file green, because every assertion here reads the stored value rather than the stored key. The untyped constant `-0.0` is `+0`, as [`float9.gno`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/tests/files/float9.gno#L1-L3) documents, so the map never receives a negative zero either.
+## gnovm/tests/files/map51.gno:3-6 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/tests/files/map51.gno#L3-L6) [↗](../../../../../.worktrees/gno-review-6020/gnovm/tests/files/map51.gno#L3-L6)
+Missing test: every assertion here reads the stored value rather than the stored key, so deleting `mli.Key = key` from [`GetPointerForKey`](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1066) leaves this file green.
 
 <details><summary>test cases</summary>
 
@@ -84,11 +93,8 @@ func main() {
 ```
 </details>
 
-## gnovm/pkg/gnolang/values_test.go:433 [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values_test.go#L433)
-Nit: the `baseOf` unwrap in [the predicate](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/values.go#L1871-L1872) decides nothing. [`(*DeclaredType).Kind`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/types.go#L1515-L1517) returns `dt.Base.Kind()`, so `baseOf(mt.Key).Kind()` and `mt.Key.Kind()` agree for every input. Dropping it changes no result across [`TestMapKeyOmitType`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/values_test.go#L401) and every map and gas filetest this PR adds.
+## gnovm/pkg/gnolang/uverse.go:1249 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/uverse.go#L1249) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/uverse.go#L1249)
+Suggestion: `delete` computes the map key twice, once here and once in [`DeleteForKey`](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1104-L1117). That second call costs 104938 gas on a `[1<<18]byte` key, and `DeleteForKey` already returns nil for an absent key.
 
-## gnovm/pkg/gnolang/uverse.go:1249 [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/uverse.go#L1249)
-Suggestion: `delete` still computes the map key twice, once here and once in [`DeleteForKey`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/values.go#L1104-L1117). On a `[1<<18]byte` key that second call is 104938 gas, a fifth of the whole program. `DeleteForKey` already returns nil when the key is absent, which is the only thing this probe decides.
-
-## gnovm/pkg/gnolang/values.go:1037 [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values.go#L1037)
-Suggestion: [#5710](https://github.com/gnolang/gno/pull/5710) drops the `*Machine` parameter from [`ComputeMapKey`](https://github.com/gnolang/gno/blob/764ac4d84/gnovm/pkg/gnolang/values.go#L1881) and reads the meter off the `Store` instead. The nil `*Machine` here is what keeps the whole-map build free. Merged after this, #5710 turns that build into a metered first-touch spike sized by the whole map, and it lands silently because the nil argument still compiles.
+## SKIP gnovm/pkg/gnolang/values_test.go:433 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values_test.go#L433) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values_test.go#L433)
+Nit: `baseOf` decides nothing here, since `(*DeclaredType).Kind` returns `dt.Base.Kind()`. Dropped as comment-level.
