@@ -1,4 +1,5 @@
-# Review: PR [#6020](https://github.com/gnolang/gno/pull/6020)
+# Review: [#6020](https://github.com/gnolang/gno/pull/6020)
+Posted: https://github.com/gnolang/gno/pull/6020#pullrequestreview-5002874060
 Event: COMMENT
 
 ## Body
@@ -12,12 +13,11 @@ Deleting the [`mv.ensureVmap` line](https://github.com/Villaquiranm/gno/blob/cho
 `grep -rn '\.vmap\[' --include='*.go' gnovm/` returns five lines, all inside the one build and the three accessors, so nothing indexes the map outside the paths that pass the flag.
 </details>
 
-Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6020-compute-map-keys-once/1-764ac4d84/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 
-## gnovm/pkg/gnolang/values.go:1037 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1037) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values.go#L1037)
+## gnovm/pkg/gnolang/values.go:1037 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1037) · [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values.go#L1037) [posted](https://github.com/gnolang/gno/pull/6020#discussion_r3839120967)
 Suggestion: the nil meter leaves this build free, where [#5710](https://github.com/gnolang/gno/pull/5710) charges the eager build it replaces. Keep the build lazy, but pass the gas meter into `ensureVmap`.
 
-## gnovm/pkg/gnolang/values.go:1031 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1031) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values.go#L1031)
+## gnovm/pkg/gnolang/values.go:1031 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1031) · [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values.go#L1031) [posted](https://github.com/gnolang/gno/pull/6020#discussion_r3839121016)
 Missing test: no realm filetest has a map keyed by an interface. Dropping the prefix there would merge `int(1)` and `int64(1)` into one entry with nothing red.
 
 <details><summary>test cases</summary>
@@ -61,7 +61,7 @@ func main(cur realm) {
 ```
 </details>
 
-## gnovm/tests/files/map51.gno:3-6 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/tests/files/map51.gno#L3-L6) [↗](../../../../../.worktrees/gno-review-6020/gnovm/tests/files/map51.gno#L3-L6)
+## gnovm/tests/files/map51.gno:3-6 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/tests/files/map51.gno#L3-L6) · [↗](../../../../../.worktrees/gno-review-6020/gnovm/tests/files/map51.gno#L3-L6) [posted](https://github.com/gnolang/gno/pull/6020#discussion_r3839121060)
 Missing test: every assertion here reads the stored value rather than the stored key, so deleting `mli.Key = key` from [`GetPointerForKey`](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1066) leaves this file green.
 
 <details><summary>test cases</summary>
@@ -93,8 +93,8 @@ func main() {
 ```
 </details>
 
-## gnovm/pkg/gnolang/uverse.go:1249 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/uverse.go#L1249) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/uverse.go#L1249)
+## gnovm/pkg/gnolang/uverse.go:1249 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/uverse.go#L1249) · [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/uverse.go#L1249) [posted](https://github.com/gnolang/gno/pull/6020#discussion_r3839121093)
 Suggestion: `delete` computes the map key twice, once here and once in [`DeleteForKey`](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values.go#L1104-L1117), which costs 104938 gas on a `[1<<18]byte` key. `DeleteForKey` can return the removed entry's value alongside its key, so this probe goes.
 
-## SKIP gnovm/pkg/gnolang/values_test.go:433 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values_test.go#L433) [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values_test.go#L433)
+## SKIP gnovm/pkg/gnolang/values_test.go:433 [gh](https://github.com/Villaquiranm/gno/blob/chore/optimize-map-gas/gnovm/pkg/gnolang/values_test.go#L433) · [↗](../../../../../.worktrees/gno-review-6020/gnovm/pkg/gnolang/values_test.go#L433)
 Nit: `baseOf` decides nothing here, since `(*DeclaredType).Kind` returns `dt.Base.Kind()`. Dropped as comment-level.
