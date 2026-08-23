@@ -2,12 +2,13 @@
 Event: REQUEST_CHANGES
 
 ## Body
-Mutual type-decl recursion resolves correctly for two types across all seven base kinds, in both declaration orders, byte-identical to Go on 51 program pairs. It stops working at three.
+Two-type mutual recursion resolves on all seven base kinds and in both declaration orders; three types do not.
 
-- The description's "## Changes" lists two files, and the third is where the fix lives. Dropping the panic alone leaves the dependent observing an empty base; [`types.go`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/types.go#L1545-L1592)'s `fillTypeInPlace` is what resolves the cycle, and it is +49 of the 82 added lines. Someone reading the body approves a one-line revert of a stale assertion and merges a change that makes the predefine-time base pointer canonical for every named type in every package: 2,848 of 3,182 finalizations over `gnovm/tests/files` keep it instead of the one built at finalize. The body's `realm.go:1788` citation is also off by a section, the sealed gate being at [`realm.go:1810`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/realm.go#L1810).
+- The "## Changes" list names two files, and the third is where the fix lives: [`fillTypeInPlace`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/types.go#L1553) is +49 of the 82 added lines, and it makes the predefine-time base pointer canonical for [every named type](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/preprocess.go#L3077), 2848 of 3182 finalizations across `gnovm/tests/files`, not only recursive ones.
+- The [`realm.go:1788`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/realm.go#L1788) citation points inside `fillType`'s `*FuncType` case; the sealed gate is at [`realm.go:1810`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/realm.go#L1810).
 
 ## gnovm/pkg/gnolang/preprocess.go:3077 [gh](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/preprocess.go#L3077) · [↗](../../../../../.worktrees/gno-review-5763/gnovm/pkg/gnolang/preprocess.go#L3077)
-Critical: this guard skips the fill whenever `dstT.Base` is nil, and the next line writes that nil into the slot. Three types in a cycle reach it, where the dependent finalizes before its source has a base. Nothing downstream asserts otherwise: `gno lint` exits 0 on the package, and the failure resurfaces in `copyTypeWithRefs` with no file or line. Fix: reject a nil `dstT.Base` here with a positioned error.
+Critical: a three-type cycle reaches this guard with `dstT.Base` nil, which skips the fill and lets the next line store that nil, and `gno lint` then exits 0 on the package.
 
 <details><summary>repro</summary>
 
@@ -15,10 +16,7 @@ Critical: this guard skips the fill whenever `dstT.Base` is nil, and the next li
 # from a local clone of gnolang/gno:
 gh pr checkout 5763 -R gnolang/gno
 mkdir -p examples/gno.land/p/demo/nilbase
-cat > examples/gno.land/p/demo/nilbase/gnomod.toml <<'EOF'
-module = "gno.land/p/demo/nilbase"
-gno = "0.9"
-EOF
+printf 'module = "gno.land/p/demo/nilbase"\ngno = "0.9"\n' > examples/gno.land/p/demo/nilbase/gnomod.toml
 cat > examples/gno.land/p/demo/nilbase/nilbase.gno <<'EOF'
 package nilbase
 
@@ -44,13 +42,14 @@ func TestHello(t *testing.T) {
 	}
 }
 EOF
+ROOT=$(git rev-parse --show-toplevel)
 cd examples/gno.land/p/demo/nilbase
-GNOROOT=$(git rev-parse --show-toplevel) go run $(git rev-parse --show-toplevel)/gnovm/cmd/gno lint . ; echo "lint exit: $?"
-GNOROOT=$(git rev-parse --show-toplevel) go run $(git rev-parse --show-toplevel)/gnovm/cmd/gno test . 2>&1 | head -8
-cd - >/dev/null && rm -rf examples/gno.land/p/demo/nilbase
+GNOROOT=$ROOT go run $ROOT/gnovm/cmd/gno lint . ; echo "lint exit: $?"
+GNOROOT=$ROOT go run $ROOT/gnovm/cmd/gno test . 2>&1 | head -6
+cd "$ROOT" && rm -rf examples/gno.land/p/demo/nilbase
 ```
 
-The lint exit code is the finding: master rejects this package with a positioned error, and here it passes.
+The exit code is the finding: master rejects this package at `nilbase.gno:3:6-11` and here it passes.
 
 ```
 lint exit: 0
@@ -60,11 +59,11 @@ github.com/gnolang/gno/gnovm/pkg/gnolang.copyTypeWithRefs({0x0?, 0x0?})
 github.com/gnolang/gno/gnovm/pkg/gnolang.(*defaultStore).SetType(...)
 ```
 
-The same three types as a filetest are valid Go printing `7 8 9`, and abort here with `runtime error: invalid memory address or nil pointer dereference` out of `elideCompositeElements`, where `baseOf` returns nil and the type switch falls to `default`.
+The same three types run as a filetest are valid Go printing `7 8 9`, and abort with `invalid memory address or nil pointer dereference` inside [`elideCompositeElements`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/preprocess.go#L5823), where `baseOf` returns nil and the switch falls to `default`. A census over `gnovm/tests/files` counts 3 nil destinations in 3182 calls, so the path is reachable from the stock suite.
 </details>
 
 ## gnovm/pkg/gnolang/types.go:1577 [gh](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/types.go#L1577) · [↗](../../../../../.worktrees/gno-review-5763/gnovm/pkg/gnolang/types.go#L1577)
-`type E error` makes the destination and the source one pointer, so this arm runs `*dst = *dst` on the process-global uverse object that no package owns. Two goroutines preprocessing that declaration race on it. Fix: add the pointer-inequality test the doc comment already assumes, `dstT.Base != nil && dstT.Base != tmp2.Base && fillTypeInPlace(...)`, a no-op in exactly the case that touches a foreign object.
+`type E error` gives this arm the same pointer for `dst` and `src`, so it writes the process-global [uverse](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/uverse.go#L483) object that no package owns, and two goroutines preprocessing that declaration race on it.
 
 <details><summary>repro</summary>
 
@@ -100,7 +99,7 @@ go test -race -count=1 -run TestZZUverseBaseRace ./gnovm/pkg/gnolang/ 2>&1 | gre
 rm gnovm/pkg/gnolang/zz_uverserace_test.go
 ```
 
-Four races here against two on the merge-base, and the two new ones name `fillTypeInPlace`. Applying the guard above returns the count to two with no `fillTypeInPlace` frame, and leaves every mutual-recursion filetest passing.
+Four races here against two on the merge-base, and the new ones name `fillTypeInPlace` at a fixed static address.
 
 ```
 4
@@ -110,16 +109,28 @@ Write at 0x0000026617d0 by goroutine 29:
   github.com/gnolang/gno/gnovm/pkg/gnolang.preprocess1.func1()
       gnovm/pkg/gnolang/preprocess.go:3077
 ```
+
+The guard proposed below returns the count to two with no `fillTypeInPlace` frame, and leaves `decltype_mutual.gno` and a seven-kind fixture passing.
 </details>
 
+## gnovm/pkg/gnolang/preprocess.go:3077-3079 [gh](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/preprocess.go#L3077-L3079) · [↗](../../../../../.worktrees/gno-review-5763/gnovm/pkg/gnolang/preprocess.go#L3077)
+This guard is missing the pointer-inequality test the helper's doc comment already assumes, a no-op in every case except the one that writes a foreign object.
+
+```suggestion
+						if dstT.Base != nil && dstT.Base != tmp2.Base && fillTypeInPlace(dstT.Base, tmp2.Base) {
+							tmp2.Base = dstT.Base
+						}
+```
+
 ## gnovm/pkg/gnolang/preprocess.go:5504 [gh](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/preprocess.go#L5504) · [↗](../../../../../.worktrees/gno-review-5763/gnovm/pkg/gnolang/preprocess.go#L5504)
-Removing this guard widens what a node accepts, so an unupgraded node rejects a `MsgAddPackage` that an upgraded one writes, and there is no height gate or language-version switch on the path. Fix: name the coordinated upgrade in the description. Then confirm no failed `addpkg` of a mutual-recursion package sits in replayed history, since such a block re-executes as a success and hands a syncing node a different AppHash.
+Dropping this guard widens what a node accepts with no height gate or language-version switch on the path, so a block carrying a failed `MsgAddPackage` of a mutual-recursion package re-executes as a success and hands a syncing node a different AppHash.
 
 <details><summary>repro</summary>
 
 ```bash
 # from a local clone of gnolang/gno:
 gh pr checkout 5763 -R gnolang/gno
+ROOT=$(git rev-parse --show-toplevel)
 cat > /tmp/mutual.gno <<'EOF'
 package mutual
 
@@ -130,35 +141,37 @@ type T1 struct {
 
 type T2 T1
 EOF
-base=$(git merge-base origin/master HEAD)
-for ref in "$base" HEAD; do
-  git stash -q -u 2>/dev/null || true
+for ref in $(git merge-base origin/master HEAD) HEAD; do
   git checkout -q "$ref"
   printf '%s: ' "$ref"
   mkdir -p examples/gno.land/p/demo/mutual
   cp /tmp/mutual.gno examples/gno.land/p/demo/mutual/mutual.gno
   printf 'module = "gno.land/p/demo/mutual"\ngno = "0.9"\n' > examples/gno.land/p/demo/mutual/gnomod.toml
-  (cd examples/gno.land/p/demo/mutual && GNOROOT=$(git rev-parse --show-toplevel) \
-     go run $(git rev-parse --show-toplevel)/gnovm/cmd/gno lint . >/dev/null 2>&1 \
+  (cd examples/gno.land/p/demo/mutual && GNOROOT=$ROOT go run $ROOT/gnovm/cmd/gno lint . >/dev/null 2>&1 \
      && echo ACCEPTED || echo REJECTED)
   rm -rf examples/gno.land/p/demo/mutual
 done
 git checkout -q -
 ```
 
-The two lines disagree, which is the finding: the same package is rejected by one binary and accepted by the other.
+The disagreement is the finding: one binary rejects the package the other writes to state.
 
 ```
-0397fc87f…: REJECTED
+0397fc87f: REJECTED
 HEAD: ACCEPTED
 ```
 </details>
 
 ## gnovm/tests/files/decltype_mutual.gno:1-19 [gh](https://github.com/gnolang/gno/blob/093c32be0/gnovm/tests/files/decltype_mutual.gno?plain=1#L1-L19) · [↗](../../../../../.worktrees/gno-review-5763/gnovm/tests/files/decltype_mutual.gno#L1-L19)
-Missing test: the six non-struct `fillTypeInPlace` arms. Removing all six leaves the filetest suite unchanged. Removing the `*StructType` arm fails this file, with `struct type struct{} has no field Val`. One arm of seven is pinned, and the other six can regress unnoticed. Fix: add a mutual pair per base kind, slice, map, array, func, pointer and interface.
+Missing test: this file pins one of the seven arms of [`fillTypeInPlace`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/types.go#L1560-L1588), and removing the other six leaves the suite at exactly the failures it already has.
+
+<details><summary>mutation</summary>
+
+Deleting the `*ArrayType`, `*SliceType`, `*MapType`, `*InterfaceType`, `*FuncType` and `*PointerType` arms together changes no test result. Deleting the [`*StructType`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/types.go#L1555) arm alone fails this file with `struct type struct{} has no field Val`. A mutual pair per base kind passes here and aborts on master, so each is a behaviour this branch adds that nothing asserts.
+</details>
 
 ## gnovm/tests/files/decltype_mutual.gno:17-19 [gh](https://github.com/gnolang/gno/blob/093c32be0/gnovm/tests/files/decltype_mutual.gno?plain=1#L17-L19) · [↗](../../../../../.worktrees/gno-review-5763/gnovm/tests/files/decltype_mutual.gno#L17-L19)
-Missing test: what the cycle writes to state, which is the property the change turns on now that both halves share one `*StructType`. Fix: add a `// PKGPATH:` variant with `// Types:` and `// Realm:` so the two halves' distinct TypeIDs and the persisted object diff are pinned rather than only stdout.
+Missing test: what the cycle writes to state, which is the property that moves now that both halves share one `*StructType`; a `// PKGPATH:` variant with `// Types:` and `// Realm:` pins the two TypeIDs and the persisted diff.
 
 ## gnovm/pkg/gnolang/preprocess.go:5508 [gh](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/preprocess.go#L5508) · [↗](../../../../../.worktrees/gno-review-5763/gnovm/pkg/gnolang/preprocess.go#L5508)
-Suggestion: a forward alias still fails preprocessing here, and the message changes. Go accepts `type A = B` above `type B struct{...}`. Inside a mutual pair, the abort lands on `StaticBlock.Define2(A) cannot change .V` instead of the guard removed here. That user reads a static-block invariant's name, not their own type's. Fix: call the forward alias out of scope in the description, or land a filetest pinning the ordering.
+Suggestion: Go accepts `type A = B` above `type B struct{...}`, and in a mutual pair it now aborts on [`StaticBlock.Define2`](https://github.com/gnolang/gno/blob/093c32be0/gnovm/pkg/gnolang/nodes.go#L2396) rather than the guard removed here, so that user reads a static-block invariant's name and not their own type's; a filetest pinning the ordering gives the next pass a target.
