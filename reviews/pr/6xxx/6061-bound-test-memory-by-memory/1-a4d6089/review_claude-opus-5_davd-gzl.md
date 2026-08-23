@@ -51,12 +51,16 @@ Full `TestTestdata`, 188 scripts, this host, cgroup limit 10.00 GiB:
 | peak RSS | 1945 MiB | 1353 MiB |
 | wall | 37.5s | 35.5s |
 
-The same flag on `./gno.land/p/moul/...` with `GOMAXPROCS=2`, where it is a raise:
+The same flag on `./gno.land/p/moul/...` with `GOMAXPROCS=2`, where it is a raise. Six-core container first, then the same block re-run on a 16-core host:
 
 | | `-p 2` | `-p 4` |
 |---|---|---|
-| peak RSS | 602 MiB | 1097 MiB |
-| wall | 7s | 11s |
+| peak RSS, six-core container | 602 MiB | 1097 MiB |
+| wall, six-core container | 7s | 11s |
+| peak RSS, 16-core host | 658 MiB | 1113 MiB |
+| wall, 16-core host | 2s | 2s |
+
+The memory penalty reproduces on both; the wall-time penalty is the container's alone, so only the memory claim is posted.
 
 ## Warnings (should fix)
 
@@ -125,8 +129,8 @@ The same flag on `./gno.land/p/moul/...` with `GOMAXPROCS=2`, where it is a rais
   ```
 
   ```
-  -p 2: peak 602 MiB, wall 7s
-  -p 4: peak 1097 MiB, wall 11s
+  -p 2: peak 658 MiB, wall 2s
+  -p 4: peak 1113 MiB, wall 2s
   ```
   </details>
 
@@ -305,6 +309,23 @@ The same flag on `./gno.land/p/moul/...` with `GOMAXPROCS=2`, where it is a rais
 - **[operating-system introspection in a test-helper package]** `tm2/pkg/testutils/parallel.go:47` — `MemInfo` and the [readings that fill it](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L16-L52) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L16-L52) describe the machine rather than any test, and this package's placement is what puts a memory library into the module graph of `gnodev` and `gnobro`. Fix: move the type and the platform files to a package about the operating system and leave the worker-count helpers here.
 
 ## Verified
+
+Re-verified against the head on a 16-core host with no cgroup limit, every finding re-run where the host allows it:
+
+- The cgroup clamp charges reclaimable cache: under a real `systemd-run --user --scope -p MemoryMax=2G` holding 1.81 GiB of page cache, `ReadMemInfo` reports `Available` 0.154 GiB where a reclaim-aware figure is 1.960 GiB, and the reserve of 0.50 GiB makes the controller shrink. This replaces the container-only repro in the posted comment.
+- Zero available freezes the ramp: `limit=8` after 25 saturated ticks with `ok=false`, against `limit=2` with one spare byte.
+- The proposed `TestNodeBudgetShrinksWhenReadingFails` fails on this head: `limit` 8 where 2 is correct.
+- `TestNodeBudgetStaticWhenMemoryUnknown` leaves `reserve` zero and calls `readMem` zero times.
+- Unpaced readings on the failure path: 1 read over 20 polls in the hysteresis band, 20 reads over 20 polls when the reading fails.
+- `release` without a floor drives `running` to -1 after one acquire and two releases.
+- Coverage on the head: `acquire` 0.0%, `resize` 83.3%, with block `193.9,195.3` at count 0.
+- Deferred order: the token is released before the node stops, `[budget release, node stop]` against the required `[node stop, budget release]`.
+- Deleting the host-namespace fallback at line 108 and replacing it with `return "", false` leaves `go test ./tm2/pkg/testutils/` green.
+- `go mod why -m github.com/pbnjay/memory` from `contribs/gnodev` and `contribs/gnobro` both resolve through `gno.land/pkg/integration` and `tm2/pkg/testutils`.
+- The `examples` `-p` block re-run verbatim: 658 MiB at `-p 2` against 1113 MiB at `-p 4`, wall time equal.
+
+Not re-runnable here, carried from the original six-core container: the full `TestTestdata` wall times and the trace, since this host has no `memory.max`.
+
 
 - The budget admits no more than its allowance under contention: 64 goroutines against a limit of four peaked at four admitted and drained to zero, under `-race`.
 - `go test -race` is clean on `tm2/pkg/testutils` and on the new `gno.land/pkg/integration` cases.

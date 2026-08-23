@@ -2,23 +2,80 @@
 Event: REQUEST_CHANGES
 
 ## Body
-- The description says the total cannot quietly double, while [the second semaphore](https://github.com/gnolang/gno/blob/a4d6089/gnovm/pkg/gnolang/files_test.go#L76) bounds it at exactly twice the pool size.
+The two static caps hold on this host, and the ramping controller does not.
 
 ## tm2/pkg/testutils/parallel_linux.go:64 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L64) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L64)
-`memory.max - memory.current` charges the reclaimable page cache as used, so a container reading its own testdata starves itself: the suite takes 262.8s against 185.0s on master. Take `inactive_file` and `slab_reclaimable` off `memory.current` and the container figure matches [`MemAvailable`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L52-L55).
+`memory.max - memory.current` charges the reclaimable page cache as used, so a 2 GiB cgroup holding 1.81 GiB of cache reads as 0.154 GiB free and the allowance walks to its floor. Take `inactive_file` and `slab_reclaimable` off `memory.current` and the container figure matches [`MemAvailable`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L52-L55).
 
 <details><summary>repro</summary>
 
 ```bash
 # from a local clone of gnolang/gno:
-# run this inside a container with a memory.max set.
 gh pr checkout 6061 -R gnolang/gno
-GNO_TEST_TRACE_BUDGET=1 go test -run TestTestdata -timeout 45m ./gno.land/pkg/integration/
-grep -E '^(file|inactive_file|slab_reclaimable) ' /sys/fs/cgroup/memory.stat
-awk '/MemAvailable/' /proc/meminfo
+cat > tm2/pkg/testutils/zz_cache_test.go <<'EOF'
+package testutils
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+func TestCgroupCacheCharge(t *testing.T) {
+	rel := ""
+	bz, _ := os.ReadFile("/proc/self/cgroup")
+	for _, l := range strings.Split(string(bz), "\n") {
+		if r, ok := strings.CutPrefix(strings.TrimSpace(l), "0::"); ok {
+			rel = r
+		}
+	}
+	base := "/sys/fs/cgroup" + rel
+	read := func(n string) uint64 {
+		b, _ := os.ReadFile(base + "/" + n)
+		v, _ := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
+		return v
+	}
+	var reclaim uint64
+	sb, _ := os.ReadFile(base + "/memory.stat")
+	for _, l := range strings.Split(string(sb), "\n") {
+		if f := strings.Fields(l); len(f) == 2 && (f[0] == "inactive_file" || f[0] == "slab_reclaimable") {
+			v, _ := strconv.ParseUint(f[1], 10, 64)
+			reclaim += v
+		}
+	}
+	limit, cur := read("memory.max"), read("memory.current")
+	mi, _ := ReadMemInfo()
+	used := cur - min(cur, reclaim)
+	var corrected uint64
+	if limit > used {
+		corrected = limit - used
+	}
+	const G = 1 << 30
+	fmt.Printf("memory.max %.2fGiB  memory.current %.2fGiB  reclaimable %.2fGiB\n",
+		float64(limit)/G, float64(cur)/G, float64(reclaim)/G)
+	fmt.Printf("ReadMemInfo Available %.3fGiB  reclaim-aware %.3fGiB  reserve %.2fGiB  shrinks=%v\n",
+		float64(mi.Available)/G, float64(corrected)/G, float64(mi.Total/4)/G, mi.Available < mi.Total/4)
+}
+EOF
+systemd-run --user --scope -p MemoryMax=2G --quiet -- bash -c '
+  d=$HOME/.cache/gno-cgroup-repro && mkdir -p $d
+  for i in $(seq 1 18); do dd if=/dev/urandom of=$d/f$i bs=1M count=100 status=none; done
+  sync && cat $d/* >/dev/null
+  go test -count=1 -run TestCgroupCacheCharge -v ./tm2/pkg/testutils/
+  rm -rf $d'
+rm tm2/pkg/testutils/zz_cache_test.go
 ```
 
-The allowance collapses to its floor while the kernel still reports 4 GiB available, and nothing follows t+24.5s. Timestamps added to the trace:
+Every byte the cgroup holds is cache the kernel would drop on demand, and the reserve is a quarter of the limit, so the controller shrinks against memory that is free:
+
+```
+memory.max 2.00GiB  memory.current 1.85GiB  reclaimable 1.81GiB
+ReadMemInfo Available 0.154GiB  reclaim-aware 1.960GiB  reserve 0.50GiB  shrinks=true
+```
+
+What that costs the suite it protects, from a full `TestTestdata` run under `GNO_TEST_TRACE_BUDGET=1` in a 10.00 GiB cgroup, timestamps added:
 
 ```
 t+   2.6s nodeBudget: limit=6 running=5 max=6 avail=4.53GiB reserve=2.50GiB
@@ -29,13 +86,11 @@ t+  24.5s nodeBudget: limit=2 running=3 max=6 avail=2.08GiB reserve=2.50GiB
 t+ 262.8s peak RSS 4031 MiB, wall 262.8s
 ```
 
-Sampled every two seconds across a run of the same suite on this host, the cgroup's `file` counter grew from 0.70 GiB to 1.43 GiB from the suite reading its own testdata, the clamped reading fell under the reserve in 33 of 133 samples, and `/proc/meminfo`'s `MemAvailable` fell under it in none.
-
-On this host at one instant: `memory.max` 10.00 GiB, `memory.current` 9.77 GiB, `inactive_file` plus `slab_reclaimable` 3.26 GiB, so `Available` reads 0.23 GiB where a reclaim-aware figure is 3.49 GiB and the reserve is 2.50 GiB.
+Nothing follows t+24.5s: the allowance reached its floor in 22 seconds and stayed there for 91% of the run, against 185.0s at 5011 MiB on master. Sampled every two seconds across that run, the cgroup's `file` counter grew from 0.70 GiB to 1.43 GiB from the suite reading its own testdata, the clamped reading fell under the reserve in 33 of 133 samples, and `/proc/meminfo`'s `MemAvailable` fell under it in none.
 </details>
 
 ## examples/Makefile:28 [gh](https://github.com/gnolang/gno/blob/a4d6089/examples/Makefile#L28) · [↗](../../../../../.worktrees/gno-review-6061/examples/Makefile#L28)
-A flat `4` raises the worker count on any host under four cores, since [`gno test -p`](https://github.com/gnolang/gno/blob/a4d6089/gnovm/cmd/gno/test.go#L282-L286) clamps only against the package count: two cores peak at 1097 MiB against 602 MiB on master. Deriving it from [`testutils.MaxParallel()`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L40-L45) holds it to `min(GOMAXPROCS, 4)`.
+A flat `4` raises the worker count on any host under four cores, since [`gno test -p`](https://github.com/gnolang/gno/blob/a4d6089/gnovm/cmd/gno/test.go#L282-L286) clamps only against the package count: two cores peak at 1113 MiB against 658 MiB on master. Deriving it from [`testutils.MaxParallel()`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel.go#L40-L45) holds it to `min(GOMAXPROCS, 4)`.
 
 <details><summary>repro</summary>
 
@@ -58,11 +113,11 @@ done
 rm -f /tmp/gno
 ```
 
-The new default costs 82% more memory than the old one on two cores, and is slower:
+The new default costs 69% more memory than the old one on two cores, at the same wall time:
 
 ```
--p 2: peak 602 MiB, wall 7s
--p 4: peak 1097 MiB, wall 11s
+-p 2: peak 658 MiB, wall 2s
+-p 4: peak 1113 MiB, wall 2s
 ```
 </details>
 
@@ -518,4 +573,4 @@ Suggestion: this type describes the machine rather than any test, so every modul
 Suggestion: the suite sizes itself against the whole host when an ancestor cgroup carries the `memory.max` and the leaf this reads says `max`. Take the smallest limit found from the leaf up to the mount root, which covers a systemd slice and a Kubernetes pod alike.
 
 ## tm2/pkg/testutils/parallel_linux.go:97 [gh](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L97) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L97)
-Suggestion: a cgroup v1 container has no unified `0::` line, so [`ReadMemInfo`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L48-L51) returns the host figures with `ok` true and the budget ramps against memory it does not have. Reading `memory.limit_in_bytes` under v1 keeps the budget static as the description promises, and so does reporting no reading at all.
+Suggestion: a cgroup v1 container has no unified `0::` line, so [`ReadMemInfo`](https://github.com/gnolang/gno/blob/a4d6089/tm2/pkg/testutils/parallel_linux.go#L48-L51) returns the host figures with `ok` true and the budget ramps against memory it does not have. Reading `memory.limit_in_bytes` under v1 keeps the budget static, and so does reporting no reading at all.
