@@ -4,10 +4,10 @@ Event: COMMENT
 ## Body
 [AI review]
 
-- Nit: the `nameIndex` contract comment at [`nodes.go:1671-1678`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1671-L1678) still names `Define2` as the append path and as what maintains the map; after this branch `Define2` never appends and `Reserve` is a second entry into `defineNew`.
+- Nit: the `nameIndex` comment at [`nodes.go:1671-1678`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1671-L1678) names `Define2` as the append path, and after this branch `Define2` never appends; `defineNew` does.
 
 ## gnovm/pkg/gnolang/nodes.go:2341 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2341) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2341)
-A use of the outer name before a `const` shadow prints the copy slot's zero value where Go prints the outer one, because this append puts the name in `Consts` and [`getLocalIsConst`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1916-L1918) matches it with no notion of position. [#6060](https://github.com/gnolang/gno/pull/6060) is what settles it, so the order the two land in decides whether master carries the divergence.
+A use of the outer name before a `const` shadow prints 0 where Go prints the outer value, because this append records the name in `Consts` and [`getLocalIsConst`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1916-L1918) matches it by name alone. [#6060](https://github.com/gnolang/gno/pull/6060) fixes it, so this branch ships the wrong value unless that one lands first.
 
 <details><summary>repro</summary>
 
@@ -49,7 +49,7 @@ The `// Output:` block is what `go run` prints for the same source. The run fail
 
 The same divergence appears in an `if` branch, an `else` branch, a clause reached by `fallthrough`, and through a closure called before the shadow. It is not confined to `println`: `x := v * 2` before a `const v = 3` in a clause whose init is `v := 10` returns 0 rather than 20.
 
-The name-keyed `Consts` predates this branch, and an ordinary nested block prints `0` too. What is new is that a case body reaches it: the same file answers `StaticBlock.Define2(v) cannot change const status` at the merge base.
+The name-keyed `Consts` predates this branch, and an ordinary nested block prints `0` too. What is new is that a case body reaches it at all: the same file answers `StaticBlock.Define2(v) cannot change const status` at the merge base.
 
 Merging 6830e2549 into this head reports no conflict and turns the file green, with `switch52.gno` still passing:
 
@@ -58,11 +58,11 @@ Merging 6830e2549 into this head reports no conflict and turns the file green, w
 --- PASS: TestFiles/switch58.gno (0.00s)
 ```
 
-Refusing the append here when `isConst` is set restores the merge base's rejection and reddens `switch52.gno` instead, so position-sensitive const resolution is the only shape that satisfies both.
+Refusing the append here when `isConst` is set brings the old rejection back and reddens `switch52.gno`, which this branch adds. Only position-sensitive const resolution passes both.
 </details>
 
 ## gnovm/pkg/gnolang/op_exec.go:736 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L736) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/op_exec.go#L736)
-Every `fallthrough` charges allocation gas for the target clause's whole name set on a slice [`growBlockValues`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L2879-L2881) only re-slices within capacity, because lowering `len(b.Values)` here makes [`ExpandWith`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L3149-L3151) size its `AllocateBlockItems` call against the switch's own count rather than the previous clause's.
+Accounted allocation grows with the length of a `fallthrough` chain while the block does not, because this truncation makes [`ExpandWith`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L3149-L3151) size its `AllocateBlockItems` call against the switch's own name count rather than the block's current length.
 
 <details><summary>repro</summary>
 
@@ -84,11 +84,11 @@ ZZ chain-10x4         allocDelta=4200    gasDelta=35950     cycleDelta=33315
 ZZ chain-50x4         allocDelta=10600   gasDelta=153270    cycleDelta=148275
 ```
 
-[`Allocate`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/alloc.go#L327-L349) both charges gas and counts toward `maxBytes`, which drives the GC callback. `cap(b.Values)` does not move, so `GetShallowSize` and the storage deposit are unaffected.
+On that path [`growBlockValues`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L2879-L2881) re-slices inside the capacity already there, so nothing is allocated for the charge, and [`Allocate`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/alloc.go#L327-L355) both charges gas and counts toward `maxBytes`, which drives the GC callback. `cap(b.Values)` does not move, so `GetShallowSize` and the storage deposit are unaffected.
 </details>
 
 ## gnovm/pkg/gnolang/preprocess.go:1007 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1007) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L1007)
-Missing test: no filetest constructs a type switch, so the move from three `last.Define` calls to a write at `numFauxCopiedNames()` is uncovered, and so is the call site the `NameSource` comparison in `Reserve` exists for.
+Missing test: no filetest shadows a name inside a type switch, so this write is never exercised on a clause block that carries one.
 
 <details><summary>test cases</summary>
 
@@ -127,11 +127,11 @@ func main() {
 </details>
 
 ## gnovm/pkg/gnolang/nodes.go:2003-2011 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2003-L2011) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2003)
-Missing test: nothing covers the move to last-wins, and a filetest cannot cover it, because reverting this map to first-wins makes `Reserve` append a third slot for the same name and program output never moves.
+Missing test: nothing covers last-wins here, and no filetest can: put first-wins back and a filetest with a wide shadowing clause still passes.
 
 <details><summary>test cases</summary>
 
-`GetLocalIndex` does diverge on the revert, so the assertion belongs on the two branches directly. Add to `gnovm/pkg/gnolang/nodes_test.go`, with `"fmt"` in the import block:
+`GetLocalIndex` itself does diverge on the revert, so the assertion belongs on the two branches directly. Add to `gnovm/pkg/gnolang/nodes_test.go`, with `"fmt"` in the import block:
 
 ```go
 func TestStaticBlock_GetLocalIndex_LastWinsPastThreshold(t *testing.T) {
@@ -174,7 +174,7 @@ Green at the head. With the map restored to first-wins:
 </details>
 
 ## gnovm/pkg/gnolang/nodes.go:2333-2339 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2333-L2339) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2333)
-Suggestion: this branch is unreachable and the `Define2` rejection its comment names never happens, because the type switch variable is reserved at [`preprocess.go:567`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L567) right after the copy loop has made exactly `Parent.GetNumNames()` slots, so its index equals `numFauxCopiedNames()` and the `idx >= sb.numFauxCopiedNames()` return above always fires first.
+Suggestion: this branch never runs, because the type switch variable is reserved at [`preprocess.go:567`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L567) at exactly `numFauxCopiedNames()` and the `idx >= sb.numFauxCopiedNames()` return above it always fires first.
 
 ```suggestion
 		}
@@ -193,7 +193,7 @@ Replacing the branch body with `panic("ZZ NSTypeSwitch branch reached")` and run
 </details>
 
 ## gnovm/pkg/gnolang/nodes.go:2365-2370 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2365-L2370) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2365)
-Suggestion: nothing ties `idx` to `n` in a shipped build, so a boundary that drifts mis-types a name instead of panicking, and the tag that would catch it is built by [`gnovm/Makefile:118`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/Makefile#L118) and by no workflow.
+Suggestion: no shipped build ties `idx` to `n`, so a boundary that drifts mis-types a name instead of panicking, and `debugAssert` is a [`make` target](https://github.com/gnolang/gno/blob/391840aa7/gnovm/Makefile#L118) that no workflow runs.
 
 ```suggestion
 	if sb.Names[idx] != n {
@@ -212,8 +212,8 @@ Missing test: four shapes reach the new append and none of the eight new files c
 
 - an `else if`, which opens its own faux block with its own init
 - a shadow in a `default` clause
-- two init names with only one of them shadowed
-- leaving a shadowing clause by labelled `break` or `goto`, which takes the `GOTO` arm of [`op_exec.go:708-717`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L708-L717) and restores frames without touching `b.Values`
+- two init names with only one shadowed
+- leaving a shadowing clause by labelled `break` or `goto`, which takes the `GOTO` arm of [`op_exec.go:708-717`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L708-L717) and never touches `b.Values`
 
 <details><summary>test cases</summary>
 
@@ -375,7 +375,7 @@ Nit: `Reserve` has sixteen call sites, at `preprocess.go` lines 409, 439, 450, 4
 ```
 
 ## gnovm/adr/pr6058_faux_block_shadowing.md:81-87 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L81-L87) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L81)
-Nit: the slot index is the only thing stopping the type switch variable from being shadowed, which this paragraph offers as the weaker alternative, and the `NSTypeSwitch` test it credits instead never runs.
+Nit: this paragraph credits the `NSTypeSwitch` test, which never runs, and dismisses the slot index, which is what holds.
 
 ```suggestion
 A **type switch's variable is deliberately left unshadowable**. Go declares it
@@ -387,7 +387,7 @@ is reserved at exactly `numFauxCopiedNames()`, so the
 ```
 
 ## gnovm/adr/pr6058_faux_block_shadowing.md:142-147 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L142-L147) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L142)
-Nit: no workflow builds `debugAssert`, so the check enforces nothing on a pull request or in a shipped binary, and the amino decoder appends to `Names` as well, at [`pb3_gen.go:12685`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/pb3_gen.go#L12685) and 12707.
+Nit: no workflow builds `debugAssert`, so the check enforces nothing on a pull request or in a shipped build, and `defineNew` is not the only append path: the amino decoder appends to `Names` at [`pb3_gen.go:12685`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/pb3_gen.go#L12685) and 12707.
 
 ```suggestion
 - Only a faux case block holds a name twice, and `defineNew` is the one path

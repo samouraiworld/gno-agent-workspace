@@ -99,7 +99,7 @@ Gas for the 50-clause case: 153270, 153270, 150379. VM cycles are identical on a
   [`ExpandWith`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L3149-L3151) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/values.go#L3149) computes `newNames` against that rather than against the previous clause's count and calls
   `AllocateBlockItems` for the target clause's whole set. On that path
   [`growBlockValues`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L2879-L2881) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/values.go#L2879) re-slices inside the existing capacity, so nothing is allocated for the charge, and
-  [`Allocate`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/alloc.go#L327-L349) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/alloc.go#L327) both charges gas and counts toward `maxBytes`, which drives the GC callback. Accounted bytes grow
+  [`Allocate`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/alloc.go#L327-L355) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/alloc.go#L327) both charges gas and counts toward `maxBytes`, which drives the GC callback. Accounted bytes grow
   with the chain length while the footprint does not, per the table above. `cap(b.Values)` does not
   move, so `GetShallowSize` and the storage deposit are unaffected. This does not block the branch:
   the line arrives through [#6056](https://github.com/gnolang/gno/pull/6056) and the head and current
@@ -109,13 +109,14 @@ Gas for the 50-clause case: 153270, 153270, 150379. VM cycles are identical on a
 
 ## Missing Tests
 
-- **[coverage]** `gnovm/tests/files/switch53.gno` — no filetest reaches a type switch, and the branch rewrites where the type switch variable is defined.
+- **[coverage]** `gnovm/tests/files/switch53.gno` — no filetest shadows a name inside a type switch, and the branch rewrites where the type switch variable is defined.
   <details><summary>details</summary>
 
   `defineSwitchVar` in [`preprocess.go:1004-1010`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1004-L1010) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L1004) replaces three `last.Define` calls with a write to the slot at `numFauxCopiedNames()`, and the
   `NameSource` comparison in `Reserve` names the type switch variable's call site as the reason it
-  compares by declaration rather than by pointer. Nothing in `switch47.gno` through `switch53.gno` or
-  `if9.gno` constructs one. [`tests/typeswitch11.gno`](tests/typeswitch11.gno) covers a clause body
+  compares by declaration rather than by pointer. Twenty-one filetests reach that write and
+  `switch11.gno` pins its slot with a `Preprocessed:` golden, but none of them shadows a name inside
+  the type switch, and none of the eight new files builds one at all. [`tests/typeswitch11.gno`](tests/typeswitch11.gno) covers a clause body
   shadowing the type switch's init name and the type switch variable itself shadowing one; it panics
   at the merge base with `cannot change .T; was string, new int` and passes at the head, and its
   `// Output:` is `go run`'s.

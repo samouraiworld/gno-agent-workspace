@@ -68,6 +68,7 @@ The catalog the core's lens rule names is `skills/invariant-catalog.md`. A large
 ## Run tests
 
 - Run the packages the diff reaches, and read CI for the rest. A module-wide suite, `go test ./gnovm/...` or `./gno.land/...`, runs past an hour here and is killed before it reports, so the review ends holding nothing. This overrides the core's *Reproduce the failure* rule to run the project's own test commands: the CI workflow's invocation is the reference for how a package is called, not for how much to run.
+- Run named tests, never a sweep. A bare `-run 'TestFiles'` is three minutes and repeating it is the main cost of a round: name the files, `-run 'TestFiles/(switch52|if9).gno$'`, and take a whole-suite claim from the one run that earned it rather than running it again.
 - `.gno` packages: `gno test -v ./path/to/package`. When the PR touches the GnoVM or the `gno` tool itself, the core's run-from-source rule reads `go run ./gnovm/cmd/gno test ...` at the worktree root.
 - `.go` packages: `go test -v -run 'relevant' ./path/to/package/...`
 - `-run` splits its pattern on `/`, one regex per subtest level. A filetest under a subdirectory is `-run 'TestFiles/types/foo.gno$'`; an alternation may never span a `/`, or it silently matches nothing. One `-run` per test when comparing results.
