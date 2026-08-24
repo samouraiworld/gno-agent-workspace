@@ -139,7 +139,7 @@ For a patch-id-equal base-only move, `./scripts/reanchor-round.py <number> <new-
 
 ## PR overview (`overview.html`)
 
-Generate `overview.html` when the subject is complex: the change spans subsystems, hinges on concepts a reader must first learn, or its behavior lands faster as a diagram or simulator than prose (VM semantics, type-system rules, state flows, protocol changes). Skip for simple PRs — docs-only, mechanical refactors, small localized fixes — unless the user explicitly asks. An explicit user ask wins in both directions.
+Generate `overview.html` for every PR, before the review file, per the core's *Overview*. The format is the delta: HTML here, markdown there. Nothing about the subject exempts a PR — the judgement call this replaces answered "skip" for subjects a reader could not follow.
 
 - Write it at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.html`, NOT inside the round directory: it explains the PR, not one commit. Single self-contained HTML file, inline CSS/JS, zero external requests, light theme only, generating model in the `<title>` and the visible subtitle.
 - Explainer only — zero review state: no verdict, no findings, no reviewed sha, no round references. Exactly one pointer to the review: a `Review files` link to the PR directory tree on GitHub.
