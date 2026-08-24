@@ -1,11 +1,13 @@
 # Review: [#6058](https://github.com/gnolang/gno/pull/6058)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
-- The `nameIndex` contract comment at [`nodes.go:1671-1678`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1671-L1678) still names `Define2` as the append path and as what maintains the map; after this branch `Define2` never appends and `Reserve` is a second entry into `defineNew`.
+[AI review]
+
+- Nit: the `nameIndex` contract comment at [`nodes.go:1671-1678`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1671-L1678) still names `Define2` as the append path and as what maintains the map; after this branch `Define2` never appends and `Reserve` is a second entry into `defineNew`.
 
 ## gnovm/pkg/gnolang/nodes.go:2341 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2341) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2341)
-A `const` shadow reaches `Consts` through this append, and [`getLocalIsConst`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1916-L1918) matches by name, so a use of the outer name textually before the declaration const-folds against the copy's value-less slot and yields the zero value where Go yields the outer one. [#6060](https://github.com/gnolang/gno/pull/6060) is what settles it, so the order the two land in decides whether master carries the divergence.
+A use of the outer name before a `const` shadow prints the copy slot's zero value where Go prints the outer one, because this append puts the name in `Consts` and [`getLocalIsConst`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1916-L1918) matches it with no notion of position. [#6060](https://github.com/gnolang/gno/pull/6060) is what settles it, so the order the two land in decides whether master carries the divergence.
 
 <details><summary>repro</summary>
 
@@ -60,7 +62,7 @@ Refusing the append here when `isConst` is set restores the merge base's rejecti
 </details>
 
 ## gnovm/pkg/gnolang/op_exec.go:736 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L736) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/op_exec.go#L736)
-Lowering `len(b.Values)` here makes [`ExpandWith`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L3149-L3151) size its `AllocateBlockItems` call against the switch's own name count rather than the previous clause's, so every `fallthrough` charges allocation gas for the target clause's whole set on a slice [`growBlockValues`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L2879-L2881) only re-slices within capacity.
+Every `fallthrough` charges allocation gas for the target clause's whole name set on a slice [`growBlockValues`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L2879-L2881) only re-slices within capacity, because lowering `len(b.Values)` here makes [`ExpandWith`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L3149-L3151) size its `AllocateBlockItems` call against the switch's own count rather than the previous clause's.
 
 <details><summary>repro</summary>
 
@@ -82,7 +84,7 @@ ZZ chain-10x4         allocDelta=4200    gasDelta=35950     cycleDelta=33315
 ZZ chain-50x4         allocDelta=10600   gasDelta=153270    cycleDelta=148275
 ```
 
-The VM cycle count is identical to the pre-truncation figures on every row, so the whole delta is allocation accounting. [`Allocate`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/alloc.go#L327-L349) both charges gas and counts toward `maxBytes`, which drives the GC callback. `cap(b.Values)` does not move, so `GetShallowSize` and the storage deposit are unaffected.
+[`Allocate`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/alloc.go#L327-L349) both charges gas and counts toward `maxBytes`, which drives the GC callback. `cap(b.Values)` does not move, so `GetShallowSize` and the storage deposit are unaffected.
 </details>
 
 ## gnovm/pkg/gnolang/preprocess.go:1007 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1007) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L1007)
@@ -171,27 +173,27 @@ Green at the head. With the map restored to first-wins:
 ```
 </details>
 
-## gnovm/pkg/gnolang/nodes.go:2334-2339 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2334-L2339) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2334)
-Suggestion: the type switch variable is reserved at [`preprocess.go:567`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L567) right after the copy loop has made exactly `Parent.GetNumNames()` slots, so its index equals `numFauxCopiedNames()` and the return four lines above always fires first, which leaves this branch unreachable and its `Define2` rejection never performed.
+## gnovm/pkg/gnolang/nodes.go:2333-2339 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2333-L2339) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2333)
+Suggestion: this branch is unreachable and the `Define2` rejection its comment names never happens, because the type switch variable is reserved at [`preprocess.go:567`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L567) right after the copy loop has made exactly `Parent.GetNumNames()` slots, so its index equals `numFauxCopiedNames()` and the `idx >= sb.numFauxCopiedNames()` return above always fires first.
 
 ```suggestion
+		}
 ```
 
 <details><summary>what the deletion was run against</summary>
 
-Replacing the branch body with a panic and running the `switch`, `typeswitch`, `if`, `type` and `select` filetest families never reached it. With the branch deleted, `TestFiles` is green in full, and `TestStaticBlock`, `TestRunMemPackage`, `TestDebug` and `TestPreprocess` pass.
+Replacing the branch body with `panic("ZZ NSTypeSwitch branch reached")` and running `TestFiles` in full reaches it zero times. With the branch deleted the same suite is green, along with `TestStaticBlock`, `TestRunMemPackage`, `TestDebug` and `TestPreprocess`.
 
-`switch t := x.(type) { case int: t := 5 }` is rejected by `go/types`, carrying Go's own wording, at the head and at the merge base alike:
+`switch t := x.(type) { case int: t := 5 }` is still rejected, by `go/types` and in Go's own wording:
 
 ```
-main/zzts1.gno:7:5: no new variables on left side of :=
+// TypeCheckError:
+// main/zzts2.gno:7:5: no new variables on left side of :=
 ```
-
-So [`pr6058_faux_block_shadowing.md:81-88`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L81-L88) argues the opposite of what holds: the slot index is the only thing stopping it, and that is enough.
 </details>
 
 ## gnovm/pkg/gnolang/nodes.go:2365-2370 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2365-L2370) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2365)
-Suggestion: `debugAssert` is built by [`gnovm/Makefile:118`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/Makefile#L118) and by no workflow, so in every shipped build this function is two writes with nothing tying `idx` to `n`, and a boundary that drifts mis-types a name instead of panicking.
+Suggestion: nothing ties `idx` to `n` in a shipped build, so a boundary that drifts mis-types a name instead of panicking, and the tag that would catch it is built by [`gnovm/Makefile:118`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/Makefile#L118) and by no workflow.
 
 ```suggestion
 	if sb.Names[idx] != n {
@@ -202,13 +204,16 @@ Suggestion: `debugAssert` is built by [`gnovm/Makefile:118`](https://github.com/
 
 <details><summary>what it costs</summary>
 
-The two call sites are [`preprocess.go:1009`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1009) and [`preprocess.go:4022`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L4022), both at preprocess time and neither in the VM loop, so the check costs one `Name` comparison per copied name per clause and nothing for an `if` or `switch` with no init statement. With the wrapper dropped and a second copy of the check made unconditional, `TestFiles` is green in full and never trips it.
-
-Same paragraph: `pr6058_faux_block_shadowing.md:142-147` reads "enforced, not just documented" for the `defineNew` assertion, which holds for a local run and for no check and no shipped binary.
+The two call sites are [`preprocess.go:1009`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1009) and [`preprocess.go:4022`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L4022), both at preprocess time and neither in the VM loop, so the check costs one `Name` comparison per copied name per clause and nothing for an `if` or `switch` with no init statement. With the wrapper dropped, `TestFiles` is green in full and never trips it.
 </details>
 
 ## gnovm/tests/files/if9.gno:1 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/tests/files/if9.gno#L1) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/tests/files/if9.gno#L1)
-Missing test: four shapes reach the new append and none of the eight new files covers them, an `else if`, a shadow in a `default` clause, two init names with one shadowed, and leaving a shadowing clause by labelled `break` or `goto`, which takes the `GOTO` arm of [`op_exec.go:708-717`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L708-L717) and restores frames without touching `b.Values`.
+Missing test: four shapes reach the new append and none of the eight new files covers them.
+
+- an `else if`, which opens its own faux block with its own init
+- a shadow in a `default` clause
+- two init names with only one of them shadowed
+- leaving a shadowing clause by labelled `break` or `goto`, which takes the `GOTO` arm of [`op_exec.go:708-717`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L708-L717) and restores frames without touching `b.Values`
 
 <details><summary>test cases</summary>
 
@@ -363,8 +368,32 @@ func main() {
 </details>
 
 ## gnovm/adr/pr6058_faux_block_shadowing.md:58 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L58) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L58)
-Nit: the `Reserve` call sites number sixteen, at `preprocess.go` lines 409, 439, 450, 456, 481, 517, 525, 532, 540, 549, 563, 567, 577, 585, 594 and 777, and line 143's sole-append claim has one more exception, the amino decoder appending to `Names` at [`pb3_gen.go:12685`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/pb3_gen.go#L12685) and 12707.
+Nit: `Reserve` has sixteen call sites, at `preprocess.go` lines 409, 439, 450, 456, 481, 517, 525, 532, 540, 549, 563, 567, 577, 585, 594 and 777.
 
 ```suggestion
    Every one of the sixteen `Reserve` call sites passes a stable triple, but
+```
+
+## gnovm/adr/pr6058_faux_block_shadowing.md:81-87 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L81-L87) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L81)
+Nit: the slot index is the only thing stopping the type switch variable from being shadowed, which this paragraph offers as the weaker alternative, and the `NSTypeSwitch` test it credits instead never runs.
+
+```suggestion
+A **type switch's variable is deliberately left unshadowable**. Go declares it
+in each clause's own block, so a clause body redeclaring it is an error, not a
+shadow, and `go/types` rejects the program with "no new variables on left side
+of :=" exactly as before. Nothing in `Reserve` has to enforce that: the variable
+is reserved at exactly `numFauxCopiedNames()`, so the
+`idx >= numFauxCopiedNames()` return above it always fires first.
+```
+
+## gnovm/adr/pr6058_faux_block_shadowing.md:142-147 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L142-L147) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L142)
+Nit: no workflow builds `debugAssert`, so the check enforces nothing on a pull request or in a shipped binary, and the amino decoder appends to `Names` as well, at [`pb3_gen.go:12685`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/pb3_gen.go#L12685) and 12707.
+
+```suggestion
+- Only a faux case block holds a name twice, and `defineNew` is the one path
+  that can append the second slot. A `debugAssert` check there panics on any
+  duplicate at or past the boundary, which `make -C gnovm test.debugAssert`
+  runs and no workflow does. A full `-tags debugAssert` filetest run does not
+  trip it, and its failure set is identical to the base commit's apart from the
+  three new tests, which the base fails for lack of the fix.
 ```

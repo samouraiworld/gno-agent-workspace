@@ -22,7 +22,7 @@ declaration is reached.
 and a `const` shadow is the one that does not: a use of the outer name before it yields a zero value
 where the merge base refused to compile the program, which [#6060](https://github.com/gnolang/gno/pull/6060)
 settles and this branch alone does not, so the merge order needs saying (2 warnings, 3 missing
-tests, 3 suggestions, 2 nits).
+tests, 2 suggestions, 5 nits).
 
 ## Verify first
 
@@ -149,52 +149,37 @@ Gas for the 50-clause case: 153270, 153270, 150379. VM cycles are identical on a
 
 ## Suggestions
 
-- **[dead code]** `gnovm/pkg/gnolang/nodes.go:2334-2339` — the `NSTypeSwitch` branch cannot be reached, and the comment above it plus the ADR paragraph behind it name a rejection that never happens.
+- **[dead code]** `gnovm/pkg/gnolang/nodes.go:2333-2339` — the `NSTypeSwitch` branch cannot be reached, so the `Define2` rejection its comment names never happens.
   <details><summary>details</summary>
 
   The type switch variable is reserved at
   [`preprocess.go:567`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L567) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L567) right after the copy loop has created exactly `Parent.GetNumNames()` slots, so its index equals
-  `numFauxCopiedNames()` and the return four lines above fires first. Two independent probes replaced
-  the branch body with a panic and ran the `switch`, `typeswitch`, `if`, `type` and `select` filetest
-  families: never reached. Deleting the branch leaves `TestFiles` green in full, along with
-  `TestStaticBlock`, `TestRunMemPackage`, `TestDebug` and `TestPreprocess`, and takes `Reserve` from 28
-  lines to 22. `leave it to Define2 to reject` is also
-  the wrong mechanism: `switch t := x.(type) { case int: t := 5 }` is rejected by `go/types`, with
-  Go's own `no new variables on left side of :=`, at the head and at the merge base alike. Fix: delete
-  the branch, and reword
-  [`pr6058_faux_block_shadowing.md:81-88`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L81-L88) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L81) to say the slot index is what holds, since that paragraph argues the opposite.
+  `numFauxCopiedNames()` and the `idx >= sb.numFauxCopiedNames()` return above always fires first.
+  Replacing the branch body with a panic and running `TestFiles` in full reaches it zero times.
+  Deleting the branch leaves that suite green, along with `TestStaticBlock`, `TestRunMemPackage`,
+  `TestDebug` and `TestPreprocess`, and takes `Reserve` from 28 lines to 22. The program the comment
+  says `Define2` rejects is rejected by `go/types` instead, in Go's own wording,
+  `main/zzts2.gno:7:5: no new variables on left side of :=`. Fix: delete the branch.
   </details>
 
-- **[hardening]** `gnovm/pkg/gnolang/nodes.go:2365-2370` — `defineFauxCopy`'s only check is compiled out of every shipped build, and no CI job builds the tag.
+- **[hardening]** `gnovm/pkg/gnolang/nodes.go:2365-2370` — `defineFauxCopy`'s only check is compiled out of every shipped build.
   <details><summary>details</summary>
 
   Without `debugAssert` the function is two writes with nothing tying `idx` to `n`, so a boundary that
-  ever drifts mis-types a name instead of panicking. `debugAssert` appears in one recipe,
-  [`gnovm/Makefile:118`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/Makefile#L118) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/Makefile#L118), and no workflow calls it:
-  [`ci-dir-gnovm.yml`](https://github.com/gnolang/gno/blob/391840aa7/.github/workflows/ci-dir-gnovm.yml) delegates to `_ci-go.yml`, whose test step passes no `-tags`. The check is cheap enough to keep
-  on: the two call sites are [`preprocess.go:1009`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1009) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L1009) and [`preprocess.go:4022`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L4022) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L4022), both
+  ever drifts mis-types a name instead of panicking. The check is cheap enough to keep on: the two
+  call sites are [`preprocess.go:1009`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1009) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L1009) and [`preprocess.go:4022`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L4022) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L4022), both
   at preprocess time and neither in the VM loop, so it costs one `Name` comparison per copied name per
-  clause and nothing for a statement with no init. `TestFiles` is green in full with it unconditional
-  and never trips it.
-  `pr6058_faux_block_shadowing.md:142-147` reads "enforced, not just documented", which holds for a
-  local run and not for any check or any shipped binary. Fix: drop the `if debugAssert` wrapper here,
-  and say in the ADR that the `defineNew` assertion is local-only.
-  </details>
-
-- **[docs]** `gnovm/adr/pr6058_faux_block_shadowing.md:58` — two counts in the ADR do not match the tree.
-  <details><summary>details</summary>
-
-  "the eleven `Reserve` call sites" is sixteen, all in `preprocess.go`, at lines 409, 439, 450, 456,
-  481, 517, 525, 532, 540, 549, 563, 567, 577, 585, 594 and 777. The argument the sentence makes still
-  holds, since every one of the sixteen passes a stable triple. Line 143's "`defineNew` is the sole
-  append path" has one more exception: the amino decoder appends to `Names` at
-  [`pb3_gen.go:12685`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/pb3_gen.go#L12685) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/pb3_gen.go#L12685) and 12707, which the `nameIndex` field comment already carves out and the ADR does not.
+  clause and nothing for a statement with no init. `TestFiles` is green in full with the wrapper
+  dropped and never trips it. Fix: drop the `if debugAssert` wrapper here.
   </details>
 
 ## Nits
 
 - **[decay]** `gnovm/pkg/gnolang/op_exec.go:736` — `ss.GetNumNames()` open-codes the boundary `numFauxCopiedNames` defines, and the two are equal only because `pushInitBlock` sets the clause block's parent to `ss`.
-- **[decay]** `gnovm/pkg/gnolang/nodes.go:1671-1678` — the `nameIndex` contract comment still names `Define2` as the append path and as the thing that maintains the map. After this branch `Define2` never appends; `defineNew` does, and `Reserve` is a second entry to it. Outside the diff, so not posted.
+- **[docs]** `gnovm/adr/pr6058_faux_block_shadowing.md:58` — "the eleven `Reserve` call sites" is sixteen, all in `preprocess.go`, at lines 409, 439, 450, 456, 481, 517, 525, 532, 540, 549, 563, 567, 577, 585, 594 and 777. The argument the sentence makes holds, since every one of the sixteen passes a stable triple.
+- **[docs]** [`gnovm/adr/pr6058_faux_block_shadowing.md:81-87`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L81-L87) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L81) — the paragraph credits the `NSTypeSwitch` test with keeping the type switch variable unshadowable and offers the slot index as the weaker alternative. The slot index is what holds, and the test never runs.
+- **[docs]** [`gnovm/adr/pr6058_faux_block_shadowing.md:142-147`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L142-L147) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L142) — "enforced, not just documented" holds for a local run and for no check and no shipped binary, since no workflow builds `debugAssert`; and "`defineNew` is the sole append path" has one more exception, the amino decoder appending to `Names` at [`pb3_gen.go:12685`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/pb3_gen.go#L12685) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/pb3_gen.go#L12685) and 12707.
+- **[decay]** `gnovm/pkg/gnolang/nodes.go:1671-1678` — the `nameIndex` contract comment still names `Define2` as the append path and as the thing that maintains the map. After this branch `Define2` never appends; `defineNew` does, and `Reserve` is a second entry to it. Outside the diff, so it goes in the comment's Body.
 
 ## Verified
 
