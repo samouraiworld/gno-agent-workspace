@@ -1,0 +1,134 @@
+# PR [#6028](https://github.com/gnolang/gno/pull/6028): feat(grc20): token identity via a registry-owned id generator
+
+URL: https://github.com/gnolang/gno/pull/6028
+Author: jinoosss | Base: master | Files: 23 | +454 -135
+Reviewed by: davd-gzl | Model: claude-opus-5 | Commit: 0a9e403fd (latest)
+Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6028 0a9e403fd`
+
+Round 3. Head advanced 37cd55419 to 0a9e403fd: a master merge plus four commits, one of them a revert of its own predecessor. Three round 2 Warnings are resolved. Master is merged, so `newtoken_event_filetest.gno` now compiles against the generator signature and drives its duplicate through a counter that never advances; `NewToken`'s doc carries the id the code builds; `node_initial_height_test.go` is byte-identical to master again. Carried: the write handle on the registry's counter, now measured at 801 bytes of permanent storage per generator a caller keeps, and the chain-wide mint order behind every id. Three comment-wording findings carry unposted, and one is new.
+
+## Overview
+
+A GRC20 token carries a text identifier that goes into every event it emits, and until this change the creating realm chose the tail of that identifier itself, so one realm could hand two tokens the same one. The change moves the numbering into the token registry: `grc20reg` keeps a counter, hands out an `IDGenerator` that draws from it, and stamps the issuing realm's package path into the identifier ahead of the number. `Register` then accepts only tokens whose identifier came from its own counter. A realm that will never register can still build a generator over its own counter, and its tokens carry its own path instead, so a registry-issued identifier and a self-issued one can never read alike. The generator holds the counter as a function rather than a field, which is what stops a caller copying the struct and replaying the sequence.
+
+```
+  /r/probe                              /r/demo/defi/grc20reg
+  ┌──────────────────────┐              ┌────────────────────────────┐
+  │ IdentifierGenerator( │              │ idSeq seqid.ID             │  never leaves
+  │   cross(cur))  ──────┼─────────────▶│ nextIDSeq func             │
+  │                      │              └────────────┬───────────────┘
+  │ gen = {packagePath:  │◀── returns ───────────────┘
+  │        "…/grc20reg", │      the function value, not the counter
+  │        nextID: ──────┼──┐
+  │                    } │  │
+  │                      │  │ ① g.NextID() from /r/probe's frame
+  │ a, b := *gen, *gen   │  └──▶ declaring-realm borrow: idSeq++ commits on grc20reg
+  │   both hold the same │
+  │   function           │  ② keeping gen persists it under grc20reg, not /r/probe
+  └──────────────────────┘
+```
+
+**Verdict: REQUEST CHANGES** — the identifier mechanism holds against every attack tried, including the copy-replay that drew the standing changes-requested, but edge ② puts unreleasable storage on `grc20reg` at the discretion of any realm that calls it, which the branch introduces and ships (2 Warnings, 4 Nits, 1 Missing test, 3 Suggestions).
+
+## Verify first
+
+- [`examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:32-34`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L32-L34) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L32-L34) — confirm that a caller keeping the returned pointer is meant to grow `grc20reg`'s storage. Deploy a realm whose package var holds fifty of them and read the receipt: `grc20reg` takes 40,051 bytes against the caller's 11,222.
+- [`examples/gno.land/p/demo/tokens/grc20/token.gno:68`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L68) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L68) — confirm this is the identifier you want on every GRC20 event. Run `go test ./gno.land/pkg/integration/ -run 'TestTestdata/grc20_registry_emit' -v`: the `token` attribute reads `gno.land/r/demo/defi/foo20.FOO.gno.land/r/demo/defi/grc20reg:0000001`, 68 characters against master's 38.
+- [`examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:67-69`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L67-L69) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L67-L69) — confirm the check reads the registry's own path. Register a token built from a self-made generator and see it rejected, which [`TestRegisterRejectsSelfIssuedID`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L63-L74) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L63-L74) pins.
+
+## Summary
+
+`Token.ID()` is the value a token puts in its `Transfer`, `Approval`, `Mint` and `Burn` events, and on master its trailing component is a `seqid.ID` the creating realm supplies, so a realm passing `0` twice gets two tokens announcing one identity. [`grc20.IDGenerator`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/idgenerator.gno#L11-L14) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/idgenerator.gno#L11-L14) holds a package path and a `func() string`, never a counter, and [`grc20reg.IdentifierGenerator`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L32-L34) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L32-L34) hands out one backed by [`nextIDSeq`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L38-L40) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L38-L40), so a copy of the struct copies the function and advances the same `idSeq`.
+
+[`NewToken` splices `gen.packagePath` into the id](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L68) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L68) ahead of the code, and [`validID`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/idgenerator.gno#L57-L59) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/idgenerator.gno#L57-L59) keeps `:` out of the code, so a realm that reads a registry-issued code off chain state and replays it verbatim lands on a different id. Nothing a caller controls reaches the separator: a package path is built from [`Re_domain` and `Re_name`](https://github.com/gnolang/gno/blob/0a9e403fd/gnovm/pkg/gnolang/mempackage.go#L67-L70) · [↗](../../../../../.worktrees/gno-review-6028/gnovm/pkg/gnolang/mempackage.go#L67-L70), both lowercase alphanumerics plus `.`, `_` and `-`, and a symbol runs through the same [`validSlugText`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L107-L117) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L107-L117) charset the code does. The registry key stays master's `rlmPath.symbol` and `slug` is emitted and nothing else.
+
+Reading order: `p/demo/tokens/grc20/idgenerator.gno`, `p/demo/tokens/grc20/token.gno`, `r/demo/defi/grc20reg/grc20reg.gno`, then the six call-site realms, then the tests, filetests and txtars.
+
+## Examples
+
+| Written as | Before this PR | After |
+|---|---|---|
+| `foo20` token id | `gno.land/r/demo/defi/foo20.FOO.0000000` | `gno.land/r/demo/defi/foo20.FOO.gno.land/r/demo/defi/grc20reg:0000001` |
+| second token from the same realm, self-issued | `gno.land/r/probe.DUP.0000000`, duplicate reachable | `gno.land/r/probe.DUP.gno.land/r/probe:0000001` |
+| `foo20` registry key | `gno.land/r/demo/defi/foo20.FOO` | unchanged |
+| `fqname.Parse` of a token id | `gno.land/r/demo/defi/foo20` and `FOO.0000000` | whole string, empty name |
+
+## Fix
+
+`NewToken` swaps its `id seqid.ID` parameter for `gen *IDGenerator`, rejects both `nil` and the externally constructible `&IDGenerator{}` by [checking the function field](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L58-L62) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L58-L62), and records `gen.packagePath` in the new [`identifierPath`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/types.gno#L92-L93) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/types.gno#L92-L93) field. `Register` keeps master's origin prefix check and adds [`token.IdentifierPath() != cur.PkgPath()`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L67-L69) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L67-L69). Only `grc20reg` can build a generator carrying `grc20reg`'s path, because [`NewIDGenerator`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/idgenerator.gno#L24-L39) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/idgenerator.gno#L24-L39) reads the path off a live `IsCurrent` frame. [`&Token{`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L70) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L70) appears once in the package, so `NewToken` is the only way an id comes into existence.
+
+## Benchmarks / Numbers
+
+| What a caller does with the generator | Bytes on `grc20reg` | Bytes on the caller |
+|---|---|---|
+| 50 `NextID()` calls, nothing kept | 10 | 0 |
+| keeps 1 generator in a package var | 812 | 140 |
+| keeps 50 generators in a slice | 40,051 | 11,222 |
+
+## Warnings (should fix)
+
+- **[the registry pays for objects its callers keep]** `examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:32-34` — a realm that stores the returned generator puts about 801 bytes on `grc20reg` per generator, permanently, and `grc20reg` holds no reference to any of them, so it can never release that storage.
+  <details><summary>details</summary>
+
+  The pointer is allocated inside `grc20reg`'s crossing frame, so persisting it from another realm roots the object under `grc20reg` rather than under the realm that kept it. Measured on a live node: one generator held in a package var bills 812 bytes to `gno.land/r/demo/defi/grc20reg` and 140 to the holder, and fifty held in a slice bill 40,051 against 11,222, so the caller pays 22 percent of the storage its own state created. The deposit comes out of the caller's account, which bounds the rate but not the total, and a later transaction drawing on the stored generator still reaches the counter, [repro](comment_claude-opus-5.md). Nothing in the tree caps a realm's storage, so the effect is an unreleasable footprint rather than a stall. Fix: return the code from a crossing function on `grc20reg` instead of a pointer, so nothing a caller can persist is ever allocated under the registry.
+  </details>
+
+- **[a token's id depends on what the rest of the chain minted first]** `examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:19` — one counter serves every realm, so `foo20.FOO.…:0000001` means the first token the registry ever issued rather than `foo20`'s first, and the same realm deployed on two chains gets two different ids.
+  <details><summary>details</summary>
+
+  The plain sequence is easier to misread than the hashed form round 1 saw, because a per-realm counter is what the shape suggests. The branch already pays for it: [`grc20factory_test.gno`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20factory/grc20factory_test.gno#L41-L44) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20factory/grc20factory_test.gno#L41-L44) gave up asserting exact ids and asserts a prefix and a difference instead, with a comment saying the suffix depends on creation order. Nothing off chain, from docs to indexer fixtures to front-end config, can key on a token id without also pinning the chain, which is a defensible trade for one global sequence and is stated nowhere. Fix: say in the `grc20reg` doc that an id is assigned at deployment and is specific to the chain.
+  </details>
+
+## Nits
+
+- **[the id shape given without the part that carries the provenance]** `examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:43` — [the `Register` doc](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L43) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L43) and [the comment above the prefix check](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L60-L61) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L60-L61) both write the id as `rlmPath.symbol.<id>`, leaving out the issuer segment that is the reason [the check below](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L67-L69) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L67-L69) exists. Round 2 raised the same defect against `NewToken`'s doc, which this round fixed. Not posted, per the rule that a comment's own wording stays in the review file.
+- **[a duplicate id blamed on the wrong realm]** `examples/gno.land/p/demo/tokens/grc20/token.gno:36-38` — [the new doc paragraph](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L32-L40) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L32-L40) says a repeated `Token.ID()` means "the realm's nextID is degenerate", and the id now names the issuer, which is a different realm whenever the token was built from a registry's generator. The reader can tell the two apart from the id itself, which is the property worth stating. Not posted, same rule.
+- **[the comment names a guarantee the next line spends]** `examples/gno.land/p/demo/tokens/grc20/idgenerator.gno:54-56` — [`validID`'s comment](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/idgenerator.gno#L54-L56) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/idgenerator.gno#L54-L56) says banning `.` and `/` keeps ids unambiguous for downstream parsers, and [`NewToken`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L68) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L68) then concatenates a package path carrying both. The ban does real work on `:` and on the code's own shape, which is not the work the comment claims. Confirmed behaviorally: [`fqname.Parse`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/nt/fqname/v0/fqname.gno#L17-L43) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/nt/fqname/v0/fqname.gno#L17-L43) splits master's `gno.land/r/demo/defi/foo20.FOO.0000000` into `gno.land/r/demo/defi/foo20` and `FOO.0000000`, and returns the branch's id whole with an empty name. Not posted, same rule.
+- **[a function described as a closure]** `examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:36-37` — [`nextIDSeq`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L36-L40) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L36-L40) is a package-level function reading a package-level var, and both it and [the `idSeq` comment](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L19) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L19) call it a closure over the counter. What puts the write on `grc20reg` is where it was declared, which the rest of the same sentence says. Not posted, same rule.
+
+## Missing Tests
+
+- **[the property everything rests on is pinned only at genesis]** `examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno:173-189` — no test shows the registry's counter surviving a transaction boundary, so the one thing making two registry-issued ids differ is unasserted outside genesis.
+  <details><summary>details</summary>
+
+  [`TestCopyingTheGeneratorCannotReplayAnID`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L173-L189) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L173-L189) is the reproduction of [issue 6026](https://github.com/gnolang/gno/issues/6026) and every other test in the file runs inside one transaction, where `idSeq` never has to persist. The only multi-transaction coverage is [`grc20_registry_emit.txtar`](https://github.com/gnolang/gno/blob/0a9e403fd/gno.land/pkg/integration/testdata/grc20_registry_emit.txtar#L19) · [↗](../../../../../.worktrees/gno-review-6028/gno.land/pkg/integration/testdata/grc20_registry_emit.txtar#L19), whose only token is minted at genesis by `foo20`'s `init`. The write is cross-realm and lands on `grc20reg` through the declaring-realm borrow, which a VM change can alter without any unit test noticing. The ready-to-add test is [`tests/idgen_across_transactions.txtar`](tests/idgen_across_transactions.txtar); it mints from a foreign realm in two separate transactions and passes at 0a9e403fd.
+  </details>
+
+## Suggestions
+
+- **[the identifier now travels twice per token]** `examples/gno.land/p/demo/tokens/grc20/token.gno:68` — a registered token's id grows from 38 characters to 68, and the 30 added characters are the same for every registered token, since [`Register`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L67-L69) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L67-L69) rejects anything else.
+  <details><summary>details</summary>
+
+  [The comment above it](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L63-L67) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L63-L67) gives the reason and it holds: events carry only the id, so the issuer has to travel in it or a self-issued token replaying a registry code is indistinguishable. What it buys is one bit for the registered population, registry-issued against self-issued, paid on every `Transfer`, `Approval`, `Mint` and `Burn` of every token forever. The master merge brought a second carrier: [the `NewToken` event](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L80-L86) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L80-L86) announces the same id at construction, so the issuer could be its own attribute there and leave the id at master's length.
+  </details>
+
+- **[a guard the same function's other reader has]** `examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:58` — [`Register`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L58) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L58) reads `cur.Previous().PkgPath()` with no `cur.IsCurrent()` before it, while the new check nine lines down reads `cur.PkgPath()` and rests on the same frame being genuine.
+  <details><summary>details</summary>
+
+  This matches master and no path reaches it: the preprocessor admits only `cur` or `cross(rlm)` there and `cross()` validates `IsCurrent` itself, which is why [the invariant catalog's `current-guard` rule](https://github.com/samouraiworld/gno-agent-workspace/blob/main/skills/invariant-catalog.md?plain=1#L54-L56) treats a bare hit as unproven. Adding the guard leaves `r/demo/defi/grc20reg`, `r/demo/defi/grc20factory`, `r/demo/defi/foo20` and `r/gnoland/wugnot` green, and removing it again leaves the same four green, so it costs nothing either way. Not posted: the line sits outside every diff hunk, so an anchor there is rejected and takes the whole review with it.
+  </details>
+
+- **[building a registrable token needs a registry import]** `examples/gno.land/p/demo/tokens/grc20/token.gno:27` — the only way to get a token `grc20reg` will accept is to import `/r/demo/defi/grc20reg` and fetch its generator, so a `/p/` standard's useful contract runs through one named realm.
+  <details><summary>details</summary>
+
+  Raised by [@moul](https://github.com/gnolang/gno/pull/6028#pullrequestreview-3583044847) and unchanged by the rewrite, which answered the other half of the same point by moving `IDGenerator` into `grc20` itself rather than importing `p/onbloc/identifier`. No realm gains an import it did not already have, since each was already calling `grc20reg.Register`, and `grc20` stays compilable without `grc20reg`. Where it shows is [tokenhub's how-to-register snippet](https://github.com/gnolang/gno/blob/0a9e403fd/examples/quarantined/gno.land/r/matijamarjanovic/tokenhub/render.gno#L59-L70) · [↗](../../../../../.worktrees/gno-review-6028/examples/quarantined/gno.land/r/matijamarjanovic/tokenhub/render.gno#L59-L70), which now tells a reader to import a registry in order to build a token.
+  </details>
+
+## Verified
+
+- A realm keeping the generator in its own state moves the storage onto the registry. One held generator bills 812 bytes to `gno.land/r/demo/defi/grc20reg` and 140 to the holder; fifty held in a slice bill 40,051 and 11,222. A second transaction calling `NextID()` on the stored pointer returns `0000001` and adds 5 more bytes to `grc20reg`.
+- The copy-replay reproduction stays dead across a transaction boundary. Two mints from a foreign realm in separate transactions returned `gno.land/r/idprobe.AAA.gno.land/r/demo/defi/grc20reg:0000001` and `gno.land/r/idprobe.BBB.gno.land/r/demo/defi/grc20reg:0000002`, [`tests/idgen_across_transactions.txtar`](tests/idgen_across_transactions.txtar).
+- A realm holding no token and registering nothing advanced the sequence fifty times for a 10-byte diff on `grc20reg`, so the function value is a write handle rather than a read-only draw.
+- The balance assertion [`storage_deposit_price_change.txtar` widened](https://github.com/gnolang/gno/blob/0a9e403fd/gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar#L37) · [↗](../../../../../.worktrees/gno-review-6028/gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar#L37) still gates what it is there for. The observed balance is `9999814979500ugnot` and the six-digit prefix admits a 10,000,000,000 ugnot window, so it catches the 50,032,600 ugnot deposit going unpaid while absorbing any storage shift below five billion. The commit message puts that headroom at five million.
+- The `gno lint` run over `p/demo/tokens/grc20`, `r/demo/defi/grc20reg` and `r/demo/defi/grc20factory` typechecks rather than exiting quietly, confirmed by replacing `MaxIDLen` with a bogus constant and seeing `undefined: MaxIDLenBogusXYZ (code=gnoTypeCheckError)`.
+- Green at 0a9e403fd: `p/demo/tokens/grc20`, `r/demo/defi/grc20reg`, `r/demo/defi/grc20factory`, `p/nt/treasury/v0`, `r/gov/dao/v3/treasury/test`, the two quarantined consumers, the `grc20_registry_emit` and `storage_deposit_price_change` txtars, and the test under [`tests/`](tests/).
+
+## Existing threads
+
+- [@moul](https://github.com/gnolang/gno/pull/6028#pullrequestreview-3583044847), CHANGES_REQUESTED, open. Five objections, four answered by the rewrite: the copy-replay defeat, the registry rekey, the hash carrying no weight, and the two incompatible usage patterns. The fifth, that a token realm should not need a hard dependency on `grc20reg`, is unchanged and overlaps the third Suggestion. The review closed by redirecting to [PR 6042](https://github.com/gnolang/gno/pull/6042) and [PR 6043](https://github.com/gnolang/gno/pull/6043); 6042 has since merged as [`18018c6a3`](https://github.com/gnolang/gno/commit/18018c6a3) and is in this branch through the master merge, and 6043 was closed unmerged by its own author.
+- [@Villaquiranm](https://github.com/gnolang/gno/pull/6028#discussion_r3726703656), answered by the author, no overlap with these findings.
+
+## Open questions
+
+- Detection is on master and prevention is not, so the question this PR answers is no longer the one it was opened with. The merged [`NewToken` event](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L80-L86) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L80-L86) makes every construction announceable and gives an indexer a complete rule; this branch stops the duplicate existing for registered tokens and leaves it reachable for self-issued ones, which [`newtoken_event_filetest.gno`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/filetests/newtoken_event_filetest.gno#L17-L26) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/filetests/newtoken_event_filetest.gno#L17-L26) now demonstrates on the branch itself through a counter that never advances. Not posted: which of the two the project wants is a maintainer call the author cannot make alone.
+- `slug` survives as a parameter that is validated, emitted and keys nothing, which is master's behaviour too. Worth folding into whatever settles the registry's lookup surface, together with the wrappers [PR 5962](https://github.com/gnolang/gno/pull/5962) added. Deferred scope, no decision needed here.
