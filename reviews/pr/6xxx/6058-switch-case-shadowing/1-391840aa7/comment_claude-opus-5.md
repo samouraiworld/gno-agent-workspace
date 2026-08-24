@@ -6,61 +6,6 @@ Event: COMMENT
 
 - Nit: the `nameIndex` comment at [`nodes.go:1671-1678`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1671-L1678) names `Define2` as the append path, and after this branch `Define2` never appends; `defineNew` does.
 
-## gnovm/pkg/gnolang/nodes.go:2341 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2341) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2341)
-A use of the outer name before a `const` shadow prints 0 where Go prints the outer value, because this append records the name in `Consts` and [`getLocalIsConst`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L1916-L1918) matches it by name alone. [#6060](https://github.com/gnolang/gno/pull/6060) fixes it, so this branch ships the wrong value unless that one lands first.
-
-<details><summary>repro</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 6058 -R gnolang/gno
-cat > gnovm/tests/files/switch58.gno <<'GNO'
-package main
-
-func main() {
-	switch v := 1; v {
-	case 1:
-		println(v)
-		const v = "c"
-		println(v)
-	}
-}
-
-// Output:
-// 1
-// c
-GNO
-go test ./gnovm/pkg/gnolang/ -run 'TestFiles/switch58.gno$' -count=1
-rm gnovm/tests/files/switch58.gno
-```
-
-The `// Output:` block is what `go run` prints for the same source. The run fails:
-
-```
---- FAIL: TestFiles/switch58.gno (0.00s)
-    files_test.go:135: Output diff:
-        --- Expected
-        +++ Actual
-        @@ -1,2 +1,2 @@
-        -1
-        +0
-         c
-```
-
-The same divergence appears in an `if` branch, an `else` branch, a clause reached by `fallthrough`, and through a closure called before the shadow. It is not confined to `println`: `x := v * 2` before a `const v = 3` in a clause whose init is `v := 10` returns 0 rather than 20.
-
-The name-keyed `Consts` predates this branch, and an ordinary nested block prints `0` too. What is new is that a case body reaches it at all: the same file answers `StaticBlock.Define2(v) cannot change const status` at the merge base.
-
-Merging 6830e2549 into this head reports no conflict and turns the file green, with `switch52.gno` still passing:
-
-```
---- PASS: TestFiles/switch52.gno (0.00s)
---- PASS: TestFiles/switch58.gno (0.00s)
-```
-
-Refusing the append here when `isConst` is set brings the old rejection back and reddens `switch52.gno`, which this branch adds. Only position-sensitive const resolution passes both.
-</details>
-
 ## gnovm/pkg/gnolang/op_exec.go:736 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L736) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/op_exec.go#L736)
 Accounted allocation grows with the length of a `fallthrough` chain while the block does not, because this truncation makes [`ExpandWith`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L3149-L3151) size its `AllocateBlockItems` call against the switch's own name count rather than the block's current length.
 
@@ -396,4 +341,17 @@ Nit: no workflow builds `debugAssert`, so the check enforces nothing on a pull r
   runs and no workflow does. A full `-tags debugAssert` filetest run does not
   trip it, and its failure set is identical to the base commit's apart from the
   three new tests, which the base fails for lack of the fix.
+```
+
+## gnovm/adr/pr6058_faux_block_shadowing.md:161-166 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L161-L166) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L161)
+Nit: master rejects that program with `StaticBlock.Define2(v) cannot change const status`, so a case body reaching the divergence at all is new here; the nested block shares the mechanism, not the reachability.
+
+```suggestion
+  const". The mechanism is not new: an ordinary nested block
+  (`v := 1; { println(v); const v = "c" }`) misbehaves identically on master,
+  because the shadow's `Consts` entry exists from `initStaticBlocks` on while
+  `GetIsConst` has no notion of statement position. What is new is that a case
+  body reaches it at all: master rejects the same program outright with
+  `StaticBlock.Define2(v) cannot change const status`. #6060 closes it for both
+  block kinds.
 ```

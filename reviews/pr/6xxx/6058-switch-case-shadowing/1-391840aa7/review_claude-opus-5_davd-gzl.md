@@ -18,11 +18,10 @@ from the last entry, so the copy and the shadow hold their own values. A use of 
 redeclaration still finds the outer one, because the second entry carries no type until the
 declaration is reached.
 
-**Verdict: REQUEST CHANGES** — the shadowing fix matches Go on every shape measured against `go run`,
-and a `const` shadow is the one that does not: a use of the outer name before it yields a zero value
-where the merge base refused to compile the program, which [#6060](https://github.com/gnolang/gno/pull/6060)
-settles and this branch alone does not, so the merge order needs saying (2 warnings, 3 missing
-tests, 2 suggestions, 5 nits).
+**Verdict: COMMENT** — the shadowing fix matches Go on every shape measured against `go run`, and a
+`const` shadow is the one that does not, which the ADR documents and the author's own
+[#6060](https://github.com/gnolang/gno/pull/6060) closes, so it is a merge-order call they have
+already made rather than a change to ask for (2 warnings, 3 missing tests, 2 suggestions, 6 nits).
 
 ## Verify first
 
@@ -80,14 +79,16 @@ Gas for the 50-clause case: 153270, 153270, 150379. VM cycles are identical on a
   through a closure called before the shadow. The name-keyed lookup predates the branch, and an
   ordinary nested block prints `0` at the merge base as well, which is what the ADR's parity argument
   rests on. What the branch changes is that a case body reaches it at all, and reaches it without a
-  diagnostic. [#6060](https://github.com/gnolang/gno/pull/6060) replaces the name-keyed const checks
+  diagnostic, and `pr6058_faux_block_shadowing.md:161` states the opposite, that the divergence is
+  "not introduced here". [#6060](https://github.com/gnolang/gno/pull/6060) replaces the name-keyed const checks
   with `GetIsConstAt` on the NameExpr's resolved path, and its body names this branch as where the
   bug was found; merging 6830e2549 into this head reports no conflict and turns
   [`tests/switch58.gno`](tests/switch58.gno) green with `switch52.gno` still passing. Refusing the
   append here when `isConst` is set restores the merge base's rejection and reddens `switch52.gno`,
   which the branch itself adds, so position-sensitive resolution is the only shape that satisfies
-  both. Fix: land [#6060](https://github.com/gnolang/gno/pull/6060) first, or say in the body that
-  this one carries the divergence until it does. Measurements in
+  both. Both pull requests are the author's, and 6060's body says they compose without depending on
+  each other, so the order is theirs to pick; what goes out is the ADR correction alone. Fix: drop
+  "not introduced here" from the ADR bullet. Measurements in
   [`tests/const-shadow.md`](tests/const-shadow.md) and
   [`tests/const-shadow-with-6060.md`](tests/const-shadow-with-6060.md).
   </details>
@@ -178,6 +179,7 @@ Gas for the 50-clause case: 153270, 153270, 150379. VM cycles are identical on a
 
 - **[decay]** `gnovm/pkg/gnolang/op_exec.go:736` — `ss.GetNumNames()` open-codes the boundary `numFauxCopiedNames` defines, and the two are equal only because `pushInitBlock` sets the clause block's parent to `ss`.
 - **[docs]** `gnovm/adr/pr6058_faux_block_shadowing.md:58` — "the eleven `Reserve` call sites" is sixteen, all in `preprocess.go`, at lines 409, 439, 450, 456, 481, 517, 525, 532, 540, 549, 563, 567, 577, 585, 594 and 777. The argument the sentence makes holds, since every one of the sixteen passes a stable triple.
+- **[docs]** `gnovm/adr/pr6058_faux_block_shadowing.md:161-166` — "This divergence is **not introduced here**" holds for the mechanism and not for the construct the ADR is about: master rejects a `const` shadow in a case body with `StaticBlock.Define2(v) cannot change const status`, where this branch accepts it and prints the zero value.
 - **[docs]** [`gnovm/adr/pr6058_faux_block_shadowing.md:81-87`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L81-L87) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L81) — the paragraph credits the `NSTypeSwitch` test with keeping the type switch variable unshadowable and offers the slot index as the weaker alternative. The slot index is what holds, and the test never runs.
 - **[docs]** [`gnovm/adr/pr6058_faux_block_shadowing.md:142-147`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L142-L147) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L142) — "enforced, not just documented" holds for a local run and for no check and no shipped binary, since no workflow builds `debugAssert`; and "`defineNew` is the sole append path" has one more exception, the amino decoder appending to `Names` at [`pb3_gen.go:12685`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/pb3_gen.go#L12685) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/pb3_gen.go#L12685) and 12707.
 - **[decay]** `gnovm/pkg/gnolang/nodes.go:1671-1678` — the `nameIndex` contract comment still names `Define2` as the append path and as the thing that maintains the map. After this branch `Define2` never appends; `defineNew` does, and `Reserve` is a second entry to it. Outside the diff, so it goes in the comment's Body.
