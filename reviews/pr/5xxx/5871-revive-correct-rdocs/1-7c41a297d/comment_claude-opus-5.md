@@ -1,11 +1,14 @@
 # Review: PR [#5871](https://github.com/gnolang/gno/pull/5871)
-Event: REQUEST_CHANGES
+Posted: https://github.com/gnolang/gno/pull/5871#pullrequestreview-5016272715
+Event: COMMENT
 
 ## Body
+[AI review]
+
 - [`r/docs/security_patterns`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L61) guards `assertAdmin` with `cur.IsCurrent()` on the frame's own `cur` and [advertises that check as defence one](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L37-L39), while [the new index](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/home/home.gno#L49) links it as the security page. That realm and the `current-guard` rule arrived together in [#5835](https://github.com/gnolang/gno/pull/5835), so the guard and the rule are one decision: deleting it while the rule stands puts the realm back on the harness's vulnerable side.
 - [`p/samcrew/piechart/README.md`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/p/samcrew/piechart/README.md?plain=1#L40) links `/r/docs/charts:piechart`, and `charts` is deleted here rather than revived. Absent packages account for the gauge half, which imports `p/samcrew/gauge`; the piechart half imports [`p/samcrew/piechart`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/p/samcrew/piechart/piechart.gno#L1), which is in the tree.
 
-## AGENTS.md:108 [gh](https://github.com/gnolang/gno/blob/7c41a297d/AGENTS.md?plain=1#L108) · [↗](../../../../../.worktrees/gno-review-5871/AGENTS.md#L108)
+## AGENTS.md:108 [gh](https://github.com/gnolang/gno/blob/7c41a297d/AGENTS.md?plain=1#L108) · [↗](../../../../../.worktrees/gno-review-5871/AGENTS.md#L108) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3850704344)
 [`misc/audit-pattern-harness`](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/README.md?plain=1#L59) merged a day before this branch's base and still enforces the rule this line reverses, and its [`current-guard` fixture pair](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) names a crossing function reading its own first `cur` as the vulnerable side. Running that rule over `examples/gno.land/r/docs/` at this head reports 24 hits across 12 files, every one a first `cur`, so the tree ends up with two merged statements of one security rule that disagree and the executable one left alone.
 
 <details><summary>repro</summary>
@@ -82,7 +85,7 @@ unexpected panic: cross: rlm is not the current cur (stale capture or sibling fr
 ```
 </details>
 
-## examples/gno.land/r/docs/routing/routing.gno:29 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/routing/routing.gno#L29) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/routing/routing.gno#L29)
+## examples/gno.land/r/docs/routing/routing.gno:29 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/routing/routing.gno#L29) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/routing/routing.gno#L29) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3850704358)
 [`mux.Router.Render`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/p/nt/mux/v0/router.gno#L44) reads `reqParts[i]` before it breaks out on the `*` segment, so a one-segment request against this two-segment pattern indexes past the end and `/r/docs/routing:wildcard` answers "Error: internal error". That URL is one segment up from [the one this realm's index links](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/routing/routing.gno#L46), and the realm is the only live one registering a wildcard route.
 
 ```suggestion
@@ -116,7 +119,7 @@ msg="unable to fetch realm" error="RPC node response error: runtime error: slice
 ```
 </details>
 
-## examples/gno.land/r/docs/complexargs/complexargs.gno:74 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/complexargs/complexargs.gno#L74) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/complexargs/complexargs.gno#L74)
+## examples/gno.land/r/docs/complexargs/complexargs.gno:74 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/complexargs/complexargs.gno#L74) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/complexargs/complexargs.gno#L74) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3850704373)
 `InlineText` escapes a backtick to `` \` `` and a backslash is literal inside a code span, so one backtick in this name closes the span early and the leftover backtick pairs with the next one along the line. The [helper table](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno#L53) names `InlineCode` for this slot, and the same pairing already sits at [`registry.gno:149`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/registry/registry.gno#L149) and [`userprofile.gno:123`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/userprofile/userprofile.gno#L123), where the value is the URL path itself.
 
 ```suggestion
@@ -155,7 +158,7 @@ rm $d/zz-codespan-inlinetext.txtar $d/zz-codespan-inlinecode.txtar
 ```
 </details>
 
-## examples/gno.land/r/docs/minisocial/v2/posts.gno:85-86 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/minisocial/v2/posts.gno#L85-L86) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/minisocial/v2/posts.gno#L85)
+## examples/gno.land/r/docs/minisocial/v2/posts.gno:85-86 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/minisocial/v2/posts.gno#L85-L86) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/minisocial/v2/posts.gno#L85) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3850704382)
 Missing test: restoring master's `post.updatedAt.After(post.createdAt.Add(time.Minute * 10))` here leaves the suite green, because a post that was never edited carries `updatedAt == createdAt` and passes that check at any age.
 
 <details><summary>test cases</summary>
@@ -182,13 +185,13 @@ func TestUpdateWindowClosesAfterTenMinutes(cur realm, t *testing.T) {
 On master's comparison it reports `error mismatch, expected update window expired, got %!s(<nil>)`.
 </details>
 
-## examples/gno.land/r/docs/soliditypatterns/banker/banker.gno:23 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/soliditypatterns/banker/banker.gno#L23) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/soliditypatterns/banker/banker.gno#L23)
+## examples/gno.land/r/docs/soliditypatterns/banker/banker.gno:23 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/soliditypatterns/banker/banker.gno#L23) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/soliditypatterns/banker/banker.gno#L23) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3850704387)
 Missing test: nothing asserts that this guard refuses the `maketx run` script `IsUser()` would admit, which is the whole distinction the page teaches. `banker` and [`reentrancy`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy.gno#L1) are the two soliditypatterns realms that move coins and the two still shipping no `_test.gno`, while `counter`, `ownable` and `statelock` each gained one here.
 
-## examples/gno.land/r/docs/minisocial/v1/posts_test.gno:36-45 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/minisocial/v1/posts_test.gno#L36-L45) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/minisocial/v1/posts_test.gno#L36)
+## examples/gno.land/r/docs/minisocial/v1/posts_test.gno:36-45 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/minisocial/v1/posts_test.gno#L36-L45) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/minisocial/v1/posts_test.gno#L36) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3850704390)
 Nit: [`admin_test.gno`'s `TestResetPostsUnauthorized`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/minisocial/v1/admin_test.gno#L13-L28) asserts the same rejection and adds a survival check on top. [`resetPostsForTest`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/minisocial/v1/posts_test.gno#L12-L16) exists for this one call, and its comment promises an isolation the file's other two tests never take.
 
-## examples/gno.land/r/docs/home/home_test.gno:31 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/home/home_test.gno#L31) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/home/home_test.gno#L31)
+## examples/gno.land/r/docs/home/home_test.gno:31 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/home/home_test.gno#L31) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/home/home_test.gno#L31) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3850704395)
 Nit: the closing paren narrows this entry, so a link written with a sub-path such as `/r/docs/avl_pager:2` walks through the assertion.
 
 ```suggestion
