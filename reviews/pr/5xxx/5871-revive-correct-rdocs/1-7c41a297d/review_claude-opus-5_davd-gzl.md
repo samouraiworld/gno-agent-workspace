@@ -51,7 +51,25 @@ Reading order: `AGENTS.md` and the three files under `docs/resources/`, then `cr
 - **[the sweep stops before the copy of the rule that runs]** `AGENTS.md:108` — [`misc/audit-pattern-harness`](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/README.md?plain=1#L59) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/README.md#L59) merged the day before this branch's base and still enforces the rule this line reverses, reporting 24 hits over the realms the branch revives.
   <details><summary>details</summary>
 
-  The `current_guard` rule flags any `.Previous()` not preceded by `.IsCurrent()` in the same function, and its [fixture pair](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) names a crossing function reading its own first `cur` as the vulnerable side and the added guard as the fix. That fixture is not vulnerable. Deploying it verbatim and taking every route to its body with a non-current first `cur` fails four times: `cross(cur.Previous())` and a bare derived realm are both rejected at preprocess, and a derived realm bound to a name or laundered through a non-crossing helper is rejected by `cross` itself with `cross: rlm is not the current cur (stale capture or sibling frame)`. On the two routes that do arrive, a user transaction crossing in and a realm crossing in, the guard would have read `true`. Script in [`tests/first_cur_cannot_be_forged.sh`](tests/first_cur_cannot_be_forged.sh). Running the merged rule over `examples/gno.land/r/docs/` at this head reports 24 hits across 12 files, every one of them a first `cur`, `banker.gno:23` and `registry.gno:46` among them. So the tree carries two merged statements of one security rule that disagree, and the executable one is the copy this branch leaves alone. Fix: retire the `current-guard` slice, or narrow it to a realm value that is not the frame's own `cur`, in this change or a follow-up that lands with it.
+  The `current_guard` rule flags any `.Previous()` not preceded by `.IsCurrent()` in the same function, and its [fixture pair](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) names a crossing function reading its own first `cur` as the vulnerable side and the added guard as the fix. That fixture is not vulnerable. Deployed verbatim as a realm, every way of holding a realm value that is not the frame's own token is refused before it reaches the body, and every way of arriving reads `true`, so the guard can never fire. Rows measured by [`tests/first_cur_cannot_be_forged.sh`](tests/first_cur_cannot_be_forged.sh):
+
+  | # | Route | Refused at | Outcome |
+  |---|---|---|---|
+  | 1 | `r := unsafe.CurrentRealm(); F(cross(r))` | type-check | `runtime.Realm does not implement gno0p9.realm (missing method IsCurrent)` |
+  | 2 | `r := unsafe.PreviousRealm(); F(cross(r))` | type-check | same as 1 |
+  | 3 | call `F` from `Render`, no realm in scope | type-check | `not enough arguments in call to F` |
+  | 4 | `F(cross(cur.Previous()))` | preprocess | `cross argument must be a bare realm-typed identifier` |
+  | 5 | `p := cur.Previous(); F(p)` | preprocess | ``only `cur` or `cross(rlm)` are allowed as the first argument`` |
+  | 6 | `p := cur.Previous(); F(cross(p))` | runtime, in `cross` | `cross: rlm is not the current cur (stale capture or sibling frame)` |
+  | 7 | `h(0, cur.Previous())` then `F(cross(rlm))` in `h` | runtime, in `cross` | same as 6 |
+  | 8 | `var saved realm; saved = cur`, reused next tx | finalize | `cannot persist realm value: realm values are ephemeral and tied to a call frame` |
+  | 9 | closure capturing `cur`, kept in realm state | finalize | same as 8 |
+  | 10 | `F(cross(cur))` from a user transaction | arrives | `IsCurrent() == true` |
+  | 11 | `F(cross(cur))` realm to realm | arrives | `IsCurrent() == true` |
+  | 12 | `r := cur; F(cross(r))` | arrives | `IsCurrent() == true` |
+  | 13 | `init(cur realm)` then `F(cross(cur))` | arrives | `IsCurrent() == true` |
+
+  Rows 1 and 2 never reach the realm type system at all: `unsafe.CurrentRealm()` and `unsafe.PreviousRealm()` return `runtime.Realm`, a plain struct. Running the merged rule over `examples/gno.land/r/docs/` at this head reports 24 hits across 12 files, every one of them a first `cur`, `banker.gno:23` and `registry.gno:46` among them. So the tree carries two merged statements of one security rule that disagree, and the executable one is the copy this branch leaves alone. Fix: retire the `current-guard` slice, or narrow it to a realm value that is not the frame's own `cur`, in this change or a follow-up that lands with it.
   </details>
 
 - **[a live sub-page cannot render]** `examples/gno.land/r/docs/routing/routing.gno:29` — `/r/docs/routing:wildcard`, the parent of the URL this realm's own index links, answers "Error: internal error" instead of the wildcard handler.

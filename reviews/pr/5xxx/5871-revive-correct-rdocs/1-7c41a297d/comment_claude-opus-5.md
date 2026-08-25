@@ -10,7 +10,25 @@ Event: REQUEST_CHANGES
 
 <details><summary>repro</summary>
 
-The merged fixture is not vulnerable. Two of the four routes to its body never compile: `cross(cur.Previous())` gives `cross argument must be a bare realm-typed identifier (a name, not an expression)`, and passing a derived realm with no `cross` gives ``only `cur` or `cross(rlm)` are allowed as the first argument to a crossing function``. The two that compile are below, the harder one laundering the value through a non-crossing helper first.
+The merged fixture is not vulnerable. Thirteen routes to its first `cur`, deployed verbatim as a realm:
+
+| # | Route | Refused at | Outcome |
+|---|---|---|---|
+| 1 | `r := unsafe.CurrentRealm(); F(cross(r))` | type-check | `runtime.Realm does not implement gno0p9.realm (missing method IsCurrent)` |
+| 2 | `r := unsafe.PreviousRealm(); F(cross(r))` | type-check | same as 1 |
+| 3 | call `F` from `Render`, no realm in scope | type-check | `not enough arguments in call to F` |
+| 4 | `F(cross(cur.Previous()))` | preprocess | `cross argument must be a bare realm-typed identifier` |
+| 5 | `p := cur.Previous(); F(p)` | preprocess | ``only `cur` or `cross(rlm)` are allowed as the first argument`` |
+| 6 | `p := cur.Previous(); F(cross(p))` | runtime, in `cross` | `cross: rlm is not the current cur (stale capture or sibling frame)` |
+| 7 | `h(0, cur.Previous())` then `F(cross(rlm))` in `h` | runtime, in `cross` | same as 6 |
+| 8 | `var saved realm; saved = cur`, reused next tx | finalize | `cannot persist realm value: realm values are ephemeral and tied to a call frame` |
+| 9 | closure capturing `cur`, kept in realm state | finalize | same as 8 |
+| 10 | `F(cross(cur))` from a user transaction | arrives | `IsCurrent() == true` |
+| 11 | `F(cross(cur))` realm to realm | arrives | `IsCurrent() == true` |
+| 12 | `r := cur; F(cross(r))` | arrives | `IsCurrent() == true` |
+| 13 | `init(cur realm)` then `F(cross(cur))` | arrives | `IsCurrent() == true` |
+
+Rows 1 and 2 never reach the realm type system: `unsafe.CurrentRealm()` and `unsafe.PreviousRealm()` return `runtime.Realm`, a plain struct. Rows 7, 10 and 11 are below.
 
 ```bash
 # from a local clone of gnolang/gno:
