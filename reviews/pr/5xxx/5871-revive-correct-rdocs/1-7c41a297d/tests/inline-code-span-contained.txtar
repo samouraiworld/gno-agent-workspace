@@ -1,0 +1,15 @@
+// The same input through InlineCode, the helper the sanitize package's own
+// "Picking the right helper" table names for a code span. Its fence outscans
+// the backticks in the content, so the sentence keeps its shape.
+// Measured at 7c41a297d against gno.land/pkg/gnoweb/markdown.
+//
+// Run: as for inline-code-span-breakout.txtar, beside it.
+
+// MARKDOWNFUNC: InlineCode
+// CONTEXT: No service with address %s and name `svc` is registered.
+-- input.md --
+g1`evil
+-- output.md --
+``g1`evil``
+-- output.html --
+<p>No service with address <code>g1`evil</code> and name <code>svc</code> is registered.</p>

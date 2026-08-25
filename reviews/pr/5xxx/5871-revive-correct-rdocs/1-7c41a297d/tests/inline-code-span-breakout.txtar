@@ -1,0 +1,20 @@
+// Reproduces registry.gno:149's "Service Not Found" sentence with a backtick
+// in the caller-controlled address segment. InlineText escapes the backtick to
+// \`, a backslash is literal inside a code span, so the span closes early and
+// the stray backtick pairs with the next one in the sentence.
+// Measured at 7c41a297d against gno.land/pkg/gnoweb/markdown.
+//
+// Run: from a gno checkout:
+//   gh pr checkout 5871 -R gnolang/gno && git checkout 7c41a297d
+//   cp <this file> gno.land/pkg/gnoweb/markdown/golden/sanitize/
+//   go test ./gno.land/pkg/gnoweb/markdown/ -run TestSanitizeIntegration
+//   rm gno.land/pkg/gnoweb/markdown/golden/sanitize/inline-code-span-breakout.txtar
+
+// MARKDOWNFUNC: InlineText
+// CONTEXT: No service with address `%s` and name `svc` is registered.
+-- input.md --
+g1`evil
+-- output.md --
+g1\`evil
+-- output.html --
+<p>No service with address <code>g1\</code>evil<code>and name</code>svc` is registered.</p>
