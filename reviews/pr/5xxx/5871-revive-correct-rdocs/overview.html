@@ -83,6 +83,12 @@ func H(_ int, rlm realm) {             // _ int keeps rlm out of first place,
 
 <p>The change deletes the first-<code>cur</code> checks across the revived realms, keeps the one on the secondary parameter in the <code>crossing</code> realm and teaches it as the case that counts, and rewrites the same rule in <code>AGENTS.md</code> and three files under <code>docs/resources/</code>.</p>
 
+<h3>The rule has a fifth copy, and it runs</h3>
+
+<p><code>misc/audit-pattern-harness</code> merged the day before this change's base. It is a set of heuristic text-scan rules, each with a vulnerable and a fixed fixture, and one of them, <code>current-guard</code>, flags any <code>.Previous()</code> not preceded by <code>.IsCurrent()</code> in the same function. Its vulnerable fixture is a crossing function reading its own first <code>cur</code>, and its fixed fixture is that function with the guard added, which is the arrangement the four prose documents above now reverse. Run against the realms this change revives, the rule reports 24 hits.</p>
+
+<p>Which of the two is right is settled by what the VM accepts rather than by which document is newer. A crossing function's first argument may only be the literal <code>cur</code> or <code>cross(name)</code>, the preprocessor rejects anything else in that position, and <code>cross</code> checks at runtime that the name it was handed is the live frame's own token. So there is no expression a caller can write that reaches such a function with a first <code>cur</code> whose <code>IsCurrent()</code> is false.</p>
+
 <h3>The related fix in <code>soliditypatterns/ownable</code></h3>
 
 <p>Separate from the deletions, one realm authenticated through a stack walk. Solidity's <code>msg.sender</code> ports naturally but wrongly to a non-crossing helper reading <code>unsafe.PreviousRealm()</code>: no crossing happened, so that call names whichever realm was previous before the caller's own call, and an intermediate realm can launder the owner check. The demo now derives the owner from <code>cur.Previous().Address()</code> inside the crossing function, and carries a warning saying why the natural port is unsafe.</p>

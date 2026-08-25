@@ -2,8 +2,67 @@
 Event: REQUEST_CHANGES
 
 ## Body
-- [`r/docs/security_patterns`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L61) guards `assertAdmin` with `cur.IsCurrent()` on the frame's own `cur`, which is the guard this branch deletes from twelve realm functions and [now calls dead code](https://github.com/gnolang/gno/blob/7c41a297d/docs/resources/gno-ai-contract-review.md?plain=1#L24-L27). Its page [advertises that check as defence one](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L37-L39), and [the new index](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/home/home.gno#L49) links it as the security page, so the learning path ends on the counterexample.
+- [`r/docs/security_patterns`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L61) guards `assertAdmin` with `cur.IsCurrent()` on the frame's own `cur` and [advertises that check as defence one](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/security_patterns/security_patterns.gno#L37-L39), while [the new index](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/home/home.gno#L49) links it as the security page. That realm and the `current-guard` rule arrived together in [#5835](https://github.com/gnolang/gno/pull/5835), so the guard and the rule are one decision: deleting it while the rule stands puts the realm back on the harness's vulnerable side.
 - [`p/samcrew/piechart/README.md`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/p/samcrew/piechart/README.md?plain=1#L40) links `/r/docs/charts:piechart`, and `charts` is deleted here rather than revived. Absent packages account for the gauge half, which imports `p/samcrew/gauge`; the piechart half imports [`p/samcrew/piechart`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/p/samcrew/piechart/piechart.gno#L1), which is in the tree.
+
+## AGENTS.md:108 [gh](https://github.com/gnolang/gno/blob/7c41a297d/AGENTS.md?plain=1#L108) · [↗](../../../../../.worktrees/gno-review-5871/AGENTS.md#L108)
+[`misc/audit-pattern-harness`](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/README.md?plain=1#L59) merged a day before this branch's base and still enforces the rule this line reverses, and its [`current-guard` fixture pair](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) names a crossing function reading its own first `cur` as the vulnerable side. Running that rule over `examples/gno.land/r/docs/` at this head reports 24 hits across 12 files, every one a first `cur`, so the tree ends up with two merged statements of one security rule that disagree and the executable one left alone.
+
+<details><summary>repro</summary>
+
+The merged fixture is not vulnerable. Two of the four routes to its body never compile: `cross(cur.Previous())` gives `cross argument must be a bare realm-typed identifier (a name, not an expression)`, and passing a derived realm with no `cross` gives ``only `cur` or `cross(rlm)` are allowed as the first argument to a crossing function``. The two that compile are below, the harder one laundering the value through a non-crossing helper first.
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 5871 -R gnolang/gno
+mkdir -p examples/gno.land/r/zzprobe/admin examples/gno.land/r/zzprobe/attacker
+printf 'module = "gno.land/r/zzprobe/admin"\ngno = "0.9"\n'    > examples/gno.land/r/zzprobe/admin/gnomod.toml
+printf 'module = "gno.land/r/zzprobe/attacker"\ngno = "0.9"\n' > examples/gno.land/r/zzprobe/attacker/gnomod.toml
+cp misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno examples/gno.land/r/zzprobe/admin/
+cat >> examples/gno.land/r/zzprobe/admin/admin.gno <<'EOF'
+
+func Probe(cur realm) bool { return cur.IsCurrent() }
+EOF
+cat > examples/gno.land/r/zzprobe/attacker/a.gno <<'EOF'
+package attacker
+
+import "gno.land/r/zzprobe/admin"
+
+func Attack(cur realm, next address) { launder(0, cur.Previous(), next) }
+
+func launder(_ int, rlm realm, next address) {
+	admin.TransferOwnership(cross(rlm), next)
+}
+
+func ProbeCrossed(cur realm) bool { return admin.Probe(cross(cur)) }
+EOF
+cat > examples/gno.land/r/zzprobe/attacker/z_run_filetest.gno <<'EOF'
+// PKGPATH: gno.land/r/zzprobe/runx
+package runx
+
+import (
+	"gno.land/r/zzprobe/admin"
+	"gno.land/r/zzprobe/attacker"
+)
+
+func main(cur realm) {
+	println("guard would read, user tx  ->", admin.Probe(cross(cur)))
+	println("guard would read, realm    ->", attacker.ProbeCrossed(cross(cur)))
+	attacker.Attack(cross(cur), address("g1evilevilevilevilevilevilevilevilevil0"))
+}
+EOF
+(cd examples && gno test -v ./gno.land/r/zzprobe/attacker/) 2>&1 | grep -m3 -E 'guard would read|unexpected panic'
+rm -rf examples/gno.land/r/zzprobe
+```
+
+The laundering attempt never reaches the fixture's body, and on the paths that do arrive the guard reads `true`.
+
+```
+guard would read, user tx  -> true
+guard would read, realm    -> true
+unexpected panic: cross: rlm is not the current cur (stale capture or sibling frame)
+```
+</details>
 
 ## examples/gno.land/r/docs/routing/routing.gno:29 [gh](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/routing/routing.gno#L29) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/routing/routing.gno#L29)
 [`mux.Router.Render`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/p/nt/mux/v0/router.gno#L44) reads `reqParts[i]` before it breaks out on the `*` segment, so a one-segment request against this two-segment pattern indexes past the end and `/r/docs/routing:wildcard` answers "Error: internal error". That URL is one segment up from [the one this realm's index links](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/r/docs/routing/routing.gno#L46), and the realm is the only live one registering a wildcard route.
