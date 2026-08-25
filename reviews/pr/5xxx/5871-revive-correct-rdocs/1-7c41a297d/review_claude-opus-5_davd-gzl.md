@@ -48,7 +48,7 @@ Reading order: `AGENTS.md` and the three files under `docs/resources/`, then `cr
 
 ## Warnings (should fix)
 
-- **[the sweep stops before the copy of the rule that runs]** `AGENTS.md:108` — [`misc/audit-pattern-harness`](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/README.md?plain=1#L59) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/README.md#L59) merged the day before this branch's base and still enforces the rule this line reverses, reporting 24 hits over the realms the branch revives.
+- **[the sweep stops before the copy of the rule that runs]** Raised by davd-gzl on `docs/resources/gno-ai-contract-review.md:20`. `AGENTS.md:108` — [`misc/audit-pattern-harness`](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/README.md?plain=1#L59) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/README.md#L59) merged the day before this branch's base and still enforces the rule this line reverses, reporting 24 hits over the realms the branch revives.
   <details><summary>details</summary>
 
   The `current_guard` rule flags any `.Previous()` not preceded by `.IsCurrent()` in the same function, and its [fixture pair](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) names a crossing function reading its own first `cur` as the vulnerable side and the added guard as the fix. That fixture is not vulnerable. Deployed verbatim as a realm, every way of holding a realm value that is not the frame's own token is refused before it reaches the body, and every way of arriving reads `true`, so the guard can never fire. Rows measured by [`tests/first_cur_cannot_be_forged.sh`](tests/first_cur_cannot_be_forged.sh):
@@ -134,6 +134,11 @@ Reading order: `AGENTS.md` and the three files under `docs/resources/`, then `cr
 - The MiniSocial v2 window fix is load-bearing: reverting the comparison to master's and running [`tests/minisocial_v2_update_window_test.gno`](tests/minisocial_v2_update_window_test.gno) gives `error mismatch, expected update window expired, got %!s(<nil>)`.
 - The moved `TestRoutes` case still exercises the file-listing fallback: `/r/demo/disperse` declares no `Render`, and the case asserts the listing rather than a rendered page.
 - Green at 7c41a297d with the go1.25.9 the tree pins: `gno test ./gno.land/r/docs/...` over 30 packages, `gno lint ./gno.land/r/docs/...`, and `go test ./gno.land/pkg/gnoweb/...`.
+
+## Existing threads
+
+- davd-gzl, four comments on the PR at 07:04 to 07:44 UTC, none resolved: keep `charts` quarantined rather than deleting it, which overlaps the piechart README nit without duplicating it; the audit-pattern harness enforces the reverse rule, which is the `AGENTS.md:108` Warning above raised first and in one line, [#discussion_r3850382486](https://github.com/gnolang/gno/pull/5871#discussion_r3850382486); simplify the caller-identity text; make file references hyperlinks. The last two are prose asks this review does not carry.
+- The reviews API returned no reviews when this round was drafted and four comments by the time it posted, so the duplicate check ran against a stale reading. Re-measure the target immediately before posting, not only before drafting.
 
 ## Open questions
 

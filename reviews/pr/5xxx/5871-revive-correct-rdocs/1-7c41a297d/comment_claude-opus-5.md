@@ -9,7 +9,9 @@ Event: COMMENT
 - [`p/samcrew/piechart/README.md`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/p/samcrew/piechart/README.md?plain=1#L40) links `/r/docs/charts:piechart`, and `charts` is deleted here rather than revived. Absent packages account for the gauge half, which imports `p/samcrew/gauge`; the piechart half imports [`p/samcrew/piechart`](https://github.com/gnolang/gno/blob/7c41a297d/examples/gno.land/p/samcrew/piechart/piechart.gno#L1), which is in the tree.
 
 ## AGENTS.md:108 [gh](https://github.com/gnolang/gno/blob/7c41a297d/AGENTS.md?plain=1#L108) · [↗](../../../../../.worktrees/gno-review-5871/AGENTS.md#L108) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3850704344)
-[`misc/audit-pattern-harness`](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/README.md?plain=1#L59) merged a day before this branch's base and still enforces the rule this line reverses, and its [`current-guard` fixture pair](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) names a crossing function reading its own first `cur` as the vulnerable side. Running that rule over `examples/gno.land/r/docs/` at this head reports 24 hits across 12 files, every one a first `cur`, so the tree ends up with two merged statements of one security rule that disagree and the executable one left alone.
+Already raised: https://github.com/gnolang/gno/pull/5871#discussion_r3850382486
+
+The [`current-guard` fixture pair](https://github.com/gnolang/gno/blob/7c41a297d/misc/audit-pattern-harness/fixtures/current-guard/vulnerable/admin.gno#L5-L11) names a crossing function reading its own first `cur` as the vulnerable side, and that fixture is not vulnerable, so the rule this line reverses is the one that should move. Running it over `examples/gno.land/r/docs/` at this head reports 24 hits across 12 files, every one a first `cur`.
 
 <details><summary>repro</summary>
 
