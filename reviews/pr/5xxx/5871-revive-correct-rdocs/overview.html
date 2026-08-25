@@ -44,7 +44,7 @@
 
 <h2>What quarantine was</h2>
 
-<p><code>examples/gno.land/</code> is the set of packages a new chain deploys at genesis. When the test-13 package set was fixed, everything outside it was swept into <code>examples/quarantined/</code>, which still compiles and still runs its tests but is not deployed. The <code>r/docs</code> tree went with it. This change moves thirty units back, with <code>git mv</code>, so each file keeps its history, and deletes <code>examples/quarantined/gno.land/r/docs/</code> entirely.</p>
+<p><code>examples/gno.land/</code> is the set of packages a new chain deploys at genesis. When the test-13 package set was fixed, everything outside it was swept into <code>examples/quarantined/</code>, which still compiles and still runs its tests but is not deployed. The <code>r/docs</code> tree went with it. This change moves thirty units back, with <code>git mv</code>, so each file keeps its history. One realm, <code>charts</code>, stays in quarantine, and three are deleted.</p>
 
 <h3>What each realm did</h3>
 
@@ -52,7 +52,8 @@
 <tr><th>Outcome</th><th>Realms</th></tr>
 <tr><td>Revived</td><td><code>hello</code>, <code>source</code>, <code>home</code>, <code>markdown</code>, <code>moul_md</code>, <code>routing</code>, <code>buttons</code>, <code>txlink</code>, <code>events</code>, <code>complexargs</code>, <code>resolveusers</code>, <code>private</code>, <code>minisocial</code> and its two versions, <code>soliditypatterns</code> and its five demos, <code>composition</code> and its two sub-realms, <code>crossing</code>, <code>factory</code>, <code>mistakes</code>, <code>registry</code>, <code>tdd</code>, <code>userprofile</code></td></tr>
 <tr><td>Folded into a sibling</td><td><code>adder</code> into <code>buttons</code>, <code>img_embed</code> into <code>markdown</code>, <code>optional_render</code> into <code>hello</code></td></tr>
-<tr><td>Dropped</td><td><code>charts</code>, <code>safeobjects</code>, <code>avl_pager</code>, <code>avl_pager_params</code></td></tr>
+<tr><td>Left in quarantine</td><td><code>charts</code></td></tr>
+<tr><td>Deleted</td><td><code>safeobjects</code>, <code>avl_pager</code>, <code>avl_pager_params</code></td></tr>
 </table>
 
 <h2>Concept: which realm value needs checking</h2>
@@ -85,9 +86,9 @@ func H(_ int, rlm realm) {             // _ int keeps rlm out of first place,
 
 <h3>The rule has a fifth copy, and it runs</h3>
 
-<p><code>misc/audit-pattern-harness</code> merged the day before this change's base. It is a set of heuristic text-scan rules, each with a vulnerable and a fixed fixture, and one of them, <code>current-guard</code>, flags any <code>.Previous()</code> not preceded by <code>.IsCurrent()</code> in the same function. Its vulnerable fixture is a crossing function reading its own first <code>cur</code>, and its fixed fixture is that function with the guard added, which is the arrangement the four prose documents above now reverse. Run against the realms this change revives, the rule reports 24 hits.</p>
+<p><code>misc/audit-pattern-harness</code> merged the day before this change's base. It is a set of heuristic text-scan rules, each with a vulnerable and a fixed fixture, and one of them, <code>current-guard</code>, flagged any <code>.Previous()</code> not preceded by <code>.IsCurrent()</code> in the same function. Its fixture pair was a crossing function reading its own first <code>cur</code>, without the guard and with it, which is the arrangement the four prose documents above reverse. This change rewrites the rule to match them: it now flags a secondary <code>rlm realm</code> parameter read before that parameter's own <code>IsCurrent()</code>, and exempts a first-position <code>cur</code>. Both fixtures take the <code>_ int, rlm realm</code> shape, and five other fixtures that opened with the redundant first-<code>cur</code> check lose it.</p>
 
-<p>Which of the two is right is settled by what the VM accepts rather than by which document is newer. A crossing function's first argument may only be the literal <code>cur</code> or <code>cross(name)</code>, the preprocessor rejects anything else in that position, and <code>cross</code> checks at runtime that the name it was handed is the live frame's own token. So there is no expression a caller can write that reaches such a function with a first <code>cur</code> whose <code>IsCurrent()</code> is false.</p>
+<p>Which parameter is worth checking is settled by what the VM accepts. A crossing function's first argument may only be the literal <code>cur</code> or <code>cross(name)</code>, the preprocessor rejects anything else in that position, and <code>cross</code> checks at runtime that the name it was handed is the live frame's own token. So there is no expression a caller can write that reaches such a function with a first <code>cur</code> whose <code>IsCurrent()</code> is false.</p>
 
 <h3>The related fix in <code>soliditypatterns/ownable</code></h3>
 
