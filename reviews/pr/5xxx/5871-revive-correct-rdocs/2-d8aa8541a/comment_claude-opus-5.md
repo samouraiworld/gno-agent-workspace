@@ -1,11 +1,14 @@
 # Review: PR [#5871](https://github.com/gnolang/gno/pull/5871)
-Event: REQUEST_CHANGES
+Posted: https://github.com/gnolang/gno/pull/5871#pullrequestreview-5022414631
+Event: COMMENT
 
 ## Body
+[AI review]
+
 - [`reentrancy.gno:1`](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy.gno#L1) opens with "explains why Gno is not exposed to Solidity-style reentrancy", the claim [line 43](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy.gno#L43) denies, and [`TestRenderDoesNotOverstateSafety`](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy_test.gno#L14) reads `Render("")`, which is the one string the package doc is not in.
 
-## misc/audit-pattern-harness/internal/auditpattern/run.go:300 [gh](https://github.com/gnolang/gno/blob/d8aa8541a/misc/audit-pattern-harness/internal/auditpattern/run.go#L300) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/internal/auditpattern/run.go#L300)
-`guardedRealmParams` fills `guarded` only from a line whose trimmed prefix is `func `, so a realm parameter on a func literal is never checked: [`tellers.gno:17`](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L17) resolves caller identity from `rlm.Previous().Address()` and the rule stays silent. Matching a `func(` literal as well as a `func ` declaration closes it, and `go/parser` closes the one-line-signature limit with it.
+## misc/audit-pattern-harness/internal/auditpattern/run.go:300 [gh](https://github.com/gnolang/gno/blob/d8aa8541a/misc/audit-pattern-harness/internal/auditpattern/run.go#L300) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/internal/auditpattern/run.go#L300) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3855945756)
+Nit: `guardedRealmParams` fills `guarded` only from a line whose trimmed prefix is `func `, so a realm parameter on a func literal is never checked: [`tellers.gno:17`](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L17) resolves caller identity from `rlm.Previous().Address()` and the rule stays silent. No deployed realm depends on the scanner, so this can wait; matching a `func(` literal as well as a `func ` declaration closes it.
 
 <details><summary>repro</summary>
 
@@ -64,8 +67,8 @@ The same body scores a hit as a declaration and none as a literal, which is the 
 `expected/current-guard.yaml` calls the family "secondary realm parameter trusted without IsCurrent", and the README's two documented limits are the same-function scope and the one-line signature, neither of which covers a closure.
 </details>
 
-## misc/audit-pattern-harness/internal/auditpattern/run.go:274 [gh](https://github.com/gnolang/gno/blob/d8aa8541a/misc/audit-pattern-harness/internal/auditpattern/run.go#L274) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/internal/auditpattern/run.go#L274)
-`realmValueRead` matches three of the eleven methods a realm value answers, so a secondary parameter read through `String()`, `Sub()`, `Subpath()` or the four `Is*` predicates passes unguarded: [`r/sys/users/errors.gno:48`](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/sys/users/errors.gno#L48) stores `caller.String()` off one and scores no hit. Treating any `rlm.` selector other than `IsCurrent()` as a read needs no list and does not go stale when the realm type gains a method.
+## misc/audit-pattern-harness/internal/auditpattern/run.go:274 [gh](https://github.com/gnolang/gno/blob/d8aa8541a/misc/audit-pattern-harness/internal/auditpattern/run.go#L274) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/internal/auditpattern/run.go#L274) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3855945766)
+Nit: `realmValueRead` matches three of the eleven methods a realm value answers, so a secondary parameter read through `String()`, `Sub()`, `Subpath()` or the four `Is*` predicates passes unguarded: [`r/sys/users/errors.gno:48`](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/sys/users/errors.gno#L48) stores `caller.String()` off one and scores no hit. Treating any `rlm.` selector other than `IsCurrent()` as a read needs no list and does not go stale when the realm type gains a method.
 
 <details><summary>repro</summary>
 
@@ -120,7 +123,7 @@ Seven of the ten reads are silent. `Sub()` mints a sub-realm identity from the v
 ```
 </details>
 
-## examples/gno.land/r/docs/complexargs/complexargs.gno:74 [gh](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/docs/complexargs/complexargs.gno#L74) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/complexargs/complexargs.gno#L74)
+## examples/gno.land/r/docs/complexargs/complexargs.gno:74 [gh](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/docs/complexargs/complexargs.gno#L74) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/complexargs/complexargs.gno#L74) [posted](https://github.com/gnolang/gno/pull/5871#discussion_r3855945775)
 Missing test: [`z_filetest.gno`](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/docs/complexargs/z_filetest.gno#L11) sets the name to `Bob`, whose golden output is byte-identical under the `InlineText` line this replaces, so nothing holds the fence that survives a backtick in a name any account can set.
 
 <details><summary>test cases</summary>

@@ -6,13 +6,13 @@ Reviewed by: davd-gzl | Model: claude-opus-5 | Commit: d8aa8541a (latest)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-5871 d8aa8541a`
 Overview: [visual overview](../overview.html)
 
-Round 2. The head advanced from 7c41a297d to d8aa8541a over nine commits, all of them answers to round 1. The `current_guard` rule was retargeted at secondary realm parameters, five fixtures teaching the redundant first-`cur` check were rewritten, `r/docs/routing` registers the bare wildcard segment, the `complexargs` code span moved to `sanitize.InlineCode`, MiniSocial v2 and the `banker` guard gained tests, the reentrancy and Render-optional claims were reconciled, and `charts` went back to quarantine. Every round 1 finding is resolved and re-verified here. The two Warnings below are new, both in the rewritten detector.
+Round 2. The head advanced from 7c41a297d to d8aa8541a over nine commits, all of them answers to round 1. The `current_guard` rule was retargeted at secondary realm parameters, five fixtures teaching the redundant first-`cur` check were rewritten, `r/docs/routing` registers the bare wildcard segment, the `complexargs` code span moved to `sanitize.InlineCode`, MiniSocial v2 and the `banker` guard gained tests, the reentrancy and Render-optional claims were reconciled, and `charts` went back to quarantine. Every round 1 finding is resolved and re-verified here. The two detector findings below are new, and neither reaches the realms the branch deploys.
 
 ## Overview
 
 Thirty documentation realms sat in `examples/quarantined/`, where they compile and run their tests but are not part of the package set a chain deploys. This change moves them back under `examples/gno.land/r/docs/` with `git mv` and corrects them on the way. The largest correction is one claim stated in five places: the runtime mints the first `cur realm` of a crossing function per frame, so an `IsCurrent()` check on it can never fail, and only a realm value the caller chose is worth testing. Four of the five copies are prose. The fifth runs, and this round rewrites it: `misc/audit-pattern-harness`'s `current_guard` rule now flags a secondary `rlm realm` parameter read before its own `IsCurrent()`, where before it flagged any `.Previous()` at all.
 
-**Verdict: REQUEST CHANGES** — the retargeted rule aims at the parameter a caller can actually forge, and every round 1 finding is fixed, but the rewrite reads a function's parameters only off a line that starts with `func `, so a realm parameter on a func literal is invisible to it and the caller resolver in [`p/demo/tokens/grc20`](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L17) went from reported at 7c41a297d to silent at this head (2 Warnings, 1 Missing test, 1 Nit).
+**Verdict: COMMENT** — every round 1 finding is fixed, and what is left is the auditing scanner rather than the realms the branch deploys: the rewrite reads a function's parameters only off a line that starts with `func `, so a realm parameter on a func literal is invisible to it and the caller resolver in [`p/demo/tokens/grc20`](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L17) went from reported at 7c41a297d to silent at this head (1 Missing test, 3 Nits).
 
 ## Verify first
 
@@ -37,7 +37,7 @@ Reading order: `misc/audit-pattern-harness/internal/auditpattern/run.go`, then i
 | secondary `rlm realm`, read with `String()`, `Sub()`, `IsUserCall()` | the same | caller's choice | no |
 | secondary `rlm realm` on a func literal, any read | the same | caller's choice | no |
 
-## Warnings (should fix)
+## Nits
 
 - **[a realm parameter on a closure is never scanned]** `misc/audit-pattern-harness/internal/auditpattern/run.go:300` — [`guardedRealmParams`](https://github.com/gnolang/gno/blob/d8aa8541a/misc/audit-pattern-harness/internal/auditpattern/run.go#L303) · [↗](../../../../../.worktrees/gno-review-5871/misc/audit-pattern-harness/internal/auditpattern/run.go#L303) runs only where a trimmed line starts with `func `, so a func literal's realm parameter never enters `guarded` and every read of it passes.
   <details><summary>details</summary>
@@ -77,8 +77,6 @@ Reading order: `misc/audit-pattern-harness/internal/auditpattern/run.go`, then i
 
   Fix: invert the test and treat any `rlm.` selector other than `IsCurrent()` as a read, which needs no list and does not go stale when the realm type gains a method.
   </details>
-
-## Nits
 
 - **[the file opens on the claim it spent a commit removing]** `examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy.gno:1` — the package doc still reads "explains why Gno is not exposed to Solidity-style reentrancy", while [line 43](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy.gno#L43) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy.gno#L43) says it does not make reentrancy impossible. 6501efbab removed the same claim from three passages further down and from `banker`, and [the new test](https://github.com/gnolang/gno/blob/d8aa8541a/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy_test.gno#L14) · [↗](../../../../../.worktrees/gno-review-5871/examples/gno.land/r/docs/soliditypatterns/reentrancy/reentrancy_test.gno#L14) reads `Render("")`, which is the one string the line is not in. Line 1 is outside the diff's hunks, since the file arrives as an 85% rename, so this goes in the Body rather than an anchor.
 
