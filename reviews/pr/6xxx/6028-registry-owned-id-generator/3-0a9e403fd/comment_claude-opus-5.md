@@ -56,7 +56,7 @@ EVENTS:     [{"bytes_delta":40051,"fee_delta":{"denom":"ugnot","amount":4005100}
 </details>
 
 ## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:19 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L19) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L19)
-One counter serves every realm, so `foo20.FOO.…:0000001` names the first token the registry ever issued rather than foo20's first and the same realm on two chains gets two different ids, which [`grc20factory_test.gno`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20factory/grc20factory_test.gno#L41-L44) already works around by asserting a prefix instead of a value.
+One counter serves every realm, so the digits record the registry's own registration order rather than the issuing realm's: [`grc20_registry_emit.txtar`](https://github.com/gnolang/gno/blob/0a9e403fd/gno.land/pkg/integration/testdata/grc20_registry_emit.txtar#L19) pins foo20 at `:0000001` only because that file loads nothing else that registers, and loading wugnot and test20 ahead of it moves foo20 to `:0000003`, so the id a realm gets is not derivable from the realm.
 
 ## examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno:173-189 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L173-L189) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L173)
 Missing test: no test here crosses a transaction boundary, so nothing pins the counter that keeps two registry-issued ids apart.
