@@ -1,10 +1,15 @@
 # Review: PR [#6028](https://github.com/gnolang/gno/pull/6028)
-Event: REQUEST_CHANGES
+Posted: https://github.com/gnolang/gno/pull/6028#pullrequestreview-5027273175
+Event: COMMENT
 
 ## Body
+[Automatic AI review]
+
+Automated pass over the registry-owned id generator, scoped to correctness, storage cost and test coverage. No merge verdict.
+
 The description still specifies the previous design, a `gno.land/p/onbloc/identifier` package with a sha256 plus cford32 code and `slug` as an alias key, none of which the branch carries.
 
-## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:32-34 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L32-L34) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L32)
+## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:32-34 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L32-L34) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L32) [posted](https://github.com/gnolang/gno/pull/6028#discussion_r3860093506)
 A caller that keeps this pointer roots the object under grc20reg rather than under itself, so fifty generators held in a caller's slice bill 40,051 bytes to grc20reg against 11,222 to the caller, and grc20reg references none of them and can never release that storage.
 
 <details><summary>repro</summary>
@@ -55,10 +60,10 @@ EVENTS:     [{"bytes_delta":40051,"fee_delta":{"denom":"ugnot","amount":4005100}
 ```
 </details>
 
-## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:19 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L19) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L19)
+## examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno:19 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L19) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L19) [posted](https://github.com/gnolang/gno/pull/6028#discussion_r3860093518)
 One counter serves every realm, so the digits record the registry's own registration order rather than the issuing realm's: [`grc20_registry_emit.txtar`](https://github.com/gnolang/gno/blob/0a9e403fd/gno.land/pkg/integration/testdata/grc20_registry_emit.txtar#L19) pins foo20 at `:0000001` only because that file loads nothing else that registers, and loading wugnot and test20 ahead of it moves foo20 to `:0000003`, so the id a realm gets is not derivable from the realm.
 
-## examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno:173-189 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L173-L189) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L173)
+## examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno:173-189 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L173-L189) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L173) [posted](https://github.com/gnolang/gno/pull/6028#discussion_r3860093521)
 Missing test: no test here crosses a transaction boundary, so nothing pins the counter that keeps two registry-issued ids apart.
 
 <details><summary>test cases</summary>
@@ -98,7 +103,7 @@ func Mint(cur realm, symbol string) {
 ```
 </details>
 
-## examples/gno.land/p/demo/tokens/grc20/token.gno:68 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L68) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L68)
+## examples/gno.land/p/demo/tokens/grc20/token.gno:68 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L68) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L68) [posted](https://github.com/gnolang/gno/pull/6028#discussion_r3860093530)
 Suggestion: the 30 characters spliced in here are the same for every registered token, since [`Register`](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L67-L69) rejects any other issuer, so carrying the issuer as its own attribute on [the `NewToken` event](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L80-L86) would keep the id at 38 characters rather than 68 on every `Transfer`, `Approval`, `Mint` and `Burn`.
 
 ## SKIP examples/gno.land/p/demo/tokens/grc20/token.gno:27 [gh](https://github.com/gnolang/gno/blob/0a9e403fd/examples/gno.land/p/demo/tokens/grc20/token.gno#L27) · [↗](../../../../../.worktrees/gno-review-6028/examples/gno.land/p/demo/tokens/grc20/token.gno#L27)
