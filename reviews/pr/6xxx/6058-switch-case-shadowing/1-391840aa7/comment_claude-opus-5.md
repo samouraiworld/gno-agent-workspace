@@ -1,10 +1,11 @@
 # Review: [#6058](https://github.com/gnolang/gno/pull/6058)
+Posted: https://github.com/gnolang/gno/pull/6058#pullrequestreview-5031532172
 Event: COMMENT
 
 ## Body
 [AI review]
 
-## gnovm/pkg/gnolang/op_exec.go:736 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L736) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/op_exec.go#L736)
+## gnovm/pkg/gnolang/op_exec.go:736 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L736) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/op_exec.go#L736) [posted](https://github.com/gnolang/gno/pull/6058#discussion_r3863669975)
 Accounted allocation grows with the length of a `fallthrough` chain while the block does not, because this truncation makes [`ExpandWith`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L3149-L3151) size its `AllocateBlockItems` call against the switch's own name count rather than the block's current length. It arrives with [#6056](https://github.com/gnolang/gno/pull/6056) and master measures the same, so the fix belongs there rather than here.
 
 <details><summary>repro</summary>
@@ -30,7 +31,7 @@ ZZ chain-50x4         allocDelta=10600   gasDelta=153270    cycleDelta=148275
 On that path [`growBlockValues`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L2879-L2881) re-slices inside the capacity already there, so nothing is allocated for the charge, and [`Allocate`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/alloc.go#L327-L355) both charges gas and counts toward `maxBytes`, which drives the GC callback. `cap(b.Values)` does not move, so `GetShallowSize` and the storage deposit are unaffected.
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:1007 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1007) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L1007)
+## gnovm/pkg/gnolang/preprocess.go:1007 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1007) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L1007) [posted](https://github.com/gnolang/gno/pull/6058#discussion_r3863670003)
 Missing test: no filetest puts a shadow in a type switch clause, so nothing pins this write to the slot before the shadow rather than after it.
 
 <details><summary>test cases</summary>
@@ -69,7 +70,7 @@ func main() {
 ```
 </details>
 
-## gnovm/pkg/gnolang/nodes.go:2003-2011 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2003-L2011) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2003)
+## gnovm/pkg/gnolang/nodes.go:2003-2011 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2003-L2011) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2003) [posted](https://github.com/gnolang/gno/pull/6058#discussion_r3863670023)
 Missing test: nothing covers last-wins here, and no filetest can, because putting first-wins back leaves a clause wide enough to reach this map still printing the same output.
 
 <details><summary>test cases</summary>
@@ -116,7 +117,7 @@ Green at the head. With the map restored to first-wins:
 ```
 </details>
 
-## gnovm/pkg/gnolang/nodes.go:2333-2339 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2333-L2339) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2333)
+## gnovm/pkg/gnolang/nodes.go:2333-2339 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2333-L2339) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2333) [posted](https://github.com/gnolang/gno/pull/6058#discussion_r3863670031)
 Suggestion: this branch never runs, because the type switch variable is reserved at [`preprocess.go:567`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L567) at exactly `numFauxCopiedNames()` and the `idx >= sb.numFauxCopiedNames()` return above it always fires first.
 
 ```suggestion
@@ -135,7 +136,7 @@ Replacing the branch body with `panic("ZZ NSTypeSwitch branch reached")` and run
 ```
 </details>
 
-## gnovm/pkg/gnolang/nodes.go:2365-2370 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2365-L2370) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2365)
+## gnovm/pkg/gnolang/nodes.go:2365-2370 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/nodes.go#L2365-L2370) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/nodes.go#L2365) [posted](https://github.com/gnolang/gno/pull/6058#discussion_r3863670058)
 Suggestion: no shipped build ties `idx` to `n`, so a boundary that drifts mis-types a name instead of panicking, and `debugAssert` is a [`make` target](https://github.com/gnolang/gno/blob/391840aa7/gnovm/Makefile#L118) that no workflow runs.
 
 ```suggestion
@@ -150,7 +151,7 @@ Suggestion: no shipped build ties `idx` to `n`, so a boundary that drifts mis-ty
 The two call sites are [`preprocess.go:1009`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L1009) and [`preprocess.go:4022`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/preprocess.go#L4022), both at preprocess time and neither in the VM loop, so the check costs one `Name` comparison per copied name per clause and nothing for an `if` or `switch` with no init statement. With the wrapper dropped, `TestFiles` is green in full and never trips it.
 </details>
 
-## gnovm/adr/pr6058_faux_block_shadowing.md:81-87 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L81-L87) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L81)
+## gnovm/adr/pr6058_faux_block_shadowing.md:81-87 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L81-L87) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L81) [posted](https://github.com/gnolang/gno/pull/6058#discussion_r3863670077)
 Nit: this paragraph credits the `NSTypeSwitch` test, which never runs, and dismisses the slot index, which is what holds.
 
 ```suggestion
@@ -162,7 +163,7 @@ is reserved at exactly `numFauxCopiedNames()`, so the
 `idx >= numFauxCopiedNames()` return above it always fires first.
 ```
 
-## gnovm/adr/pr6058_faux_block_shadowing.md:161-166 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L161-L166) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L161)
+## gnovm/adr/pr6058_faux_block_shadowing.md:161-166 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L161-L166) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L161) [posted](https://github.com/gnolang/gno/pull/6058#discussion_r3863670094)
 Nit: master rejects the case-body form, `switch v := 1; v { case 1: println(v); const v = "c" }`, with `StaticBlock.Define2(v) cannot change const status`, so the nested block shares the mechanism and not the reachability.
 
 ```suggestion
