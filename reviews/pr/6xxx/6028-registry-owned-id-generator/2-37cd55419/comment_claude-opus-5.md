@@ -1,5 +1,6 @@
 # Review: PR [#6028](https://github.com/gnolang/gno/pull/6028)
 Event: COMMENT
+Status: superseded. This round reviewed 37cd55419; the head moved to 0a9e403fd and round 3 is posted at https://github.com/gnolang/gno/pull/6028#pullrequestreview-5027273175. Record only, never post.
 
 ## Body
 The copy-replay path is closed, verified on 37cd55419 on a live node: two tokens minted from a foreign realm in two separate transactions came back as `gno.land/r/idprobe.AAA.gno.land/r/demo/defi/grc20reg:0000001` and `gno.land/r/idprobe.BBB.gno.land/r/demo/defi/grc20reg:0000002`, so the counter advances from another realm's frame and survives the transaction boundary.

@@ -1,5 +1,6 @@
 # Review: PR [#6028](https://github.com/gnolang/gno/pull/6028)
 Event: COMMENT
+Status: superseded. This round reviewed 37182a315; the head moved to 0a9e403fd and round 3 is posted at https://github.com/gnolang/gno/pull/6028#pullrequestreview-5027273175. Record only, never post.
 
 ## Body
 The guarantees this design rests on live in comments rather than in code, and two of those comments describe behaviour the code does not have.
