@@ -1,4 +1,5 @@
 # Review: [#6073](https://github.com/gnolang/gno/pull/6073)
+Posted: https://github.com/gnolang/gno/pull/6073#pullrequestreview-5029750455
 Event: COMMENT
 
 ## Body
@@ -6,7 +7,7 @@ Event: COMMENT
 
 Automated pass over the three new extension packages, scoped to the delta over #6072. No design judgement on the wrap-rather-than-embed split and no merge verdict.
 
-## examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno:11 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L11) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L11)
+## examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno:11 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L11) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L11) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190076)
 `NewEnumerable` accepts a core that has already minted, and the collection then carries a global list and per-owner lists that describe different token sets for the rest of its life, with no reindex call to repair it.
 
 <details><summary>repro</summary>
@@ -75,7 +76,7 @@ uassert.Equal: same type but different value
 `coreLedger.ReadToken().TotalSupply()` is public, so the constructor can refuse a non-zero supply and turn this into a deploy-time failure.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/enumerable/types.gno:20 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/types.gno#L20) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/types.gno#L20)
+## examples/gno.land/p/demo/tokens/grc721/enumerable/types.gno:20 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/types.gno#L20) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/types.gno#L20) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190078)
 `allTokens` and `tokenList.ids` are realm-persisted slices, so each movement re-encodes the whole backing array and the extension's share of one mint grows from 1.45M gas in a 100-token collection to 7.26M in a 4000-token one, against a core mint that stays near 1.1M.
 
 <details><summary>repro</summary>
@@ -152,7 +153,7 @@ The mint's own cost is the mint file minus its no-op twin, which pays the same `
 Near 1,490 gas per token already held, against a block cap of 3,000,000,000. The storage byte delta does not move, +8,706 against +8,864, so it is gas rather than deposit. An `avl.Tree` keyed by the index carries both lists in the shape the package already uses for `allIndex` and `ownedIndex`, and swap-and-pop becomes two `Set` calls and a `Remove`.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/metadata/token.gno:45 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L45) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L45)
+## examples/gno.land/p/demo/tokens/grc721/metadata/token.gno:45 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L45) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L45) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190086)
 `TokenMetadata` returns a `Data` whose `Attributes` slice still points at the stored array, so code holding only the read view rewrites the record and no `MetadataUpdate` is emitted for the change.
 
 <details><summary>repro</summary>
@@ -224,7 +225,7 @@ uassert.Equal: strings are different
 A write from another realm stops at the readonly taint instead, `cannot directly modify readonly tainted object`, so the set is code inside the realm that owns the collection.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/metadata/token.gno:81 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L81) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L81)
+## examples/gno.land/p/demo/tokens/grc721/metadata/token.gno:81 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L81) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L81) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190092)
 The setter stores the caller's slice rather than a copy, so the `Data` value an issuer passed in stays a live write handle into chain state after `SetTokenMetadata` returns, and copying on the read path alone leaves this open.
 
 <details><summary>repro</summary>
@@ -257,7 +258,7 @@ uassert.Equal: strings are different
 ```
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/royalty/token.gno:129 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L129) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L129)
+## examples/gno.land/p/demo/tokens/grc721/royalty/token.gno:129 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L129) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L129) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190106)
 `DeleteTokenRoyalty` announces an empty receiver and bps 0 while `resolve` then falls back to the collection default, so an indexer reconstructing policy from `RoyaltyUpdate` pays nothing on a token the chain still charges for.
 
 <details><summary>repro</summary>
@@ -317,10 +318,10 @@ and the output line beneath it:
 EIP-2981 makes `royaltyInfo` the authority for what a payer owes, so emitting the resolved state after the delete, meaning the default where one exists, is what keeps the stream usable.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/royalty/token.gno:165 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L165) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L165)
+## examples/gno.land/p/demo/tokens/grc721/royalty/token.gno:165 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L165) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L165) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190111)
 `OnBurn` performs the same `perToken.Remove` as `DeleteTokenRoyalty` and emits nothing, so the last royalty an indexer holds for that id is one the chain no longer applies, and fixing the delete leaves this path untouched.
 
-## examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno:19 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L19) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L19)
+## examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno:19 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L19) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L19) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190117)
 The constructor captures `core` and no hook ever reads it, so the same extension instance registered on a second core serves both collections and leaves the first with an index entry no burn can clear.
 
 <details><summary>repro</summary>
@@ -390,7 +391,7 @@ uassert.Equal: same type but different value
 Capturing `core.ID()` at construction and rejecting a hook from any other core closes it inside these packages.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno:21 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L21) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L21)
+## examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno:21 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L21) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L21) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190120)
 Refactor: the returned `*Ledger` carries nothing but the three hooks the constructor already wired, and calling them by hand desyncs the index, so returning `*Enumerable` alone drops a value the series never uses, including [#6074](https://github.com/gnolang/gno/pull/6074)'s `NewCollection`, which takes read views only.
 
 <details><summary>details</summary>
@@ -398,7 +399,7 @@ Refactor: the returned `*Ledger` carries nothing but the three hooks the constru
 `metadata` and `royalty` both return a ledger carrying real setters; this one has none. `led.OnBurn(tid)` on a token the core still owns leaves the extension reporting 2 against the core's 3, and `led.OnTransfer(bob, alice, tid)` naming a sender who does not hold the token indexes past the end of that sender's list and faults with `slice index out of bounds: 1 (len=1)`, which gno `recover` catches.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/royalty/token.gno:50 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L50) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L50)
+## examples/gno.land/p/demo/tokens/grc721/royalty/token.gno:50 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L50) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/royalty/token.gno#L50) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190128)
 Suggestion: the guard bounds `salePrice * Bps` rather than the result, so a sale price whose royalty is perfectly representable is refused with the same pair the doc four lines above calls the no-royalty signal.
 
 <details><summary>details</summary>
@@ -420,16 +421,16 @@ Applied in a worktree and run both ways. The package suite stays green, and the 
 | 10000 | 9223372036854775807 | error | 9223372036854775807 |
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/metadata/types.gno:54 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/types.gno#L54) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/types.gno#L54)
+## examples/gno.land/p/demo/tokens/grc721/metadata/types.gno:54 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/types.gno#L54) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/types.gno#L54) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190134)
 Suggestion: the on-chain `Data` store has no reader anywhere, since nothing renders it, no `tokenURI` resolves to it, and neither [#6074](https://github.com/gnolang/gno/pull/6074) nor [#6075](https://github.com/gnolang/gno/pull/6075) calls `TokenMetadata`, so serving it from `TokenURI` when no URI is set is what makes the second store worth its bytes.
 
-## examples/gno.land/p/demo/tokens/grc721/metadata/token.gno:76 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L76) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L76)
+## examples/gno.land/p/demo/tokens/grc721/metadata/token.gno:76 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L76) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L76) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190139)
 Suggestion: nothing caps the trait count or any string length here, where the core validates its own name and symbol, and one token carrying 100 traits measures 550,404 gas and 55,612 storage bytes, which is 5.5 GNOT locked at the default price.
 
-## examples/gno.land/p/demo/tokens/grc721/metadata/token.gno:58 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L58) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L58)
+## examples/gno.land/p/demo/tokens/grc721/metadata/token.gno:58 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L58) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/metadata/token.gno#L58) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190146)
 Nit: `SetTokenURI` accepts the empty string, after which `HasTokenURI` answers true and `TokenURI` returns an empty URI with no error, where EIP-721 asks for an RFC 3986 URI.
 
-## examples/gno.land/p/demo/tokens/grc721/enumerable/token_test.gno:267 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/token_test.gno#L267) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/token_test.gno#L267)
+## examples/gno.land/p/demo/tokens/grc721/enumerable/token_test.gno:267 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-extensions/examples/gno.land/p/demo/tokens/grc721/enumerable/token_test.gno#L267) · [↗](../../../../../.worktrees/gno-review-6073/examples/gno.land/p/demo/tokens/grc721/enumerable/token_test.gno#L267) [posted](https://github.com/gnolang/gno/pull/6073#discussion_r3862190150)
 Missing test: no test attaches more than one extension to a single core ledger, so one burn fanning out to three hook sets, which is what the title claims, is uncovered.
 
 <details><summary>test cases</summary>
