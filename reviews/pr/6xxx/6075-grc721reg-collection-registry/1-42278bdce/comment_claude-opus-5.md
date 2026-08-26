@@ -1,4 +1,5 @@
 # Review: [#6075](https://github.com/gnolang/gno/pull/6075)
+Posted: https://github.com/gnolang/gno/pull/6075#pullrequestreview-5029954687
 Event: COMMENT
 
 ## Body
@@ -6,7 +7,7 @@ Event: COMMENT
 
 Automated pass over the registry realm, scoped to the delta over #6074, with the realm audit checklist walked against it. No design judgement on storing extension views as interface values and no merge verdict.
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:152 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L152) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L152)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:152 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L152) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L152) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3862365272)
 Critical: the kind is a string the registering realm chooses and it reaches the page unescaped, where the name and symbol beside it go through `md.EscapeText`, so one registration writes a heading and a link of the registrant's choosing into the index every visitor reads, and no call removes it.
 
 <details><summary>repro</summary>
@@ -63,7 +64,7 @@ The file carries no golden, so the run prints the page and reports the mismatch.
 `md.InlineCode` is already in the imported package and sizes the fence to contain internal backticks while folding newlines, so it replaces the hand-built span in one line.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:109 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L109) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L109)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:109 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L109) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L109) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3862365287)
 The index walks every entry and registration is open to any realm, so the home page has a ceiling it cannot come back from: 54.8M gas at 100 entries and 165.4M at 300, near 553,000 per entry against a 3,000,000,000 query cap, with no call that removes an entry.
 
 <details><summary>repro</summary>
@@ -125,7 +126,7 @@ cd - && rm -r $B
 Neither file carries a golden, so each run prints its line and reports a mismatch; the gas figure in the summary is what the measurement uses. The loop above also shows the filling: one collection under N slugs, near 559,000 gas per entry, which is the section below.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:42 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L42) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L42)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:42 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L42) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L42) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3862365295)
 Keying on a caller-chosen slug drops the guard `grc20reg` documents on its own key line, so one collection takes as many entries as it likes, each carrying different extension views, and the suffix a reader treats as the symbol is free text.
 
 <details><summary>repro</summary>
@@ -170,7 +171,7 @@ one collection, two keys: gno.land/r/demo/zalias.first | gno.land/r/demo/zalias.
 The repro in the first section shows the other half: a collection whose symbol is `SCAM` renders under the key `…zdeface.BAYC`, in the slot where the sibling puts a symbol it verified.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:47 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L47) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L47)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:47 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L47) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L47) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3862365305)
 Building a new `Collection` here rather than storing the caller's makes the entry a snapshot, so an extension the issuer attaches afterwards never reaches any consumer and the realm cannot correct it, since the key is taken and nothing updates or removes an entry.
 
 <details><summary>repro</summary>
@@ -229,7 +230,7 @@ the registry still lists: 0
 Storing the caller's `*collection.Collection` keeps the two in step, and a call that replaces an entry for its own realm covers the rest.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno:114 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L114) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L114)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno:114 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L114) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L114) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3862365318)
 `testing.SetRealm` inside the `t.Run` closure does not reach the `cur` the subtest closes over, so all three cases register from the registry realm itself and the `realmPath` each carries changes nothing.
 
 <details><summary>repro</summary>
@@ -276,10 +277,10 @@ key: gno.land/r/demo/zprobe_outside.outside
 Hoisting the `SetRealm` and the build above `t.Run` restores the three paths, and asserting the key equals the case's realm path plus its slug pins it, where `NotEqual(t, "", key)` passes for any string.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:52 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L52) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L52)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:52 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L52) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L52) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3862365327)
 Nit: the key goes out as `token_key` where the sibling emits `token_path`, though `consts.gno` says the event mirrors grc20reg for cross-registry consistency, and one line below the kinds go out as a single comma-joined attribute that a kind containing a comma splits wrongly and a kind may contain a comma, so an indexer splitting the field reads one kind as two; nothing bounds the kind's length either, and the only ceiling is the 4096 bytes `chain.Emit` allows, which aborts `Register` with a message that names the event rather than the registry.
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno:388 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L388) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L388)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno:388 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-registry/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L388) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L388) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3862365335)
 Missing test: every extension these tests register has a fixed benign kind, so nothing exercises a kind the registrant chose, and nothing registers one collection under two keys, which are the two behaviours the first and third sections turn on.
 
 <details><summary>test cases</summary>

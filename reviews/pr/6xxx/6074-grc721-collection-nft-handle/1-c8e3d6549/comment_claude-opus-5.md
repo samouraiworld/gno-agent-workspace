@@ -1,4 +1,5 @@
 # Review: [#6074](https://github.com/gnolang/gno/pull/6074)
+Posted: https://github.com/gnolang/gno/pull/6074#pullrequestreview-5029953006
 Event: COMMENT
 
 ## Body
@@ -6,7 +7,7 @@ Event: COMMENT
 
 Automated pass over the collection package, scoped to the delta over #6073. No design judgement on the two-handle split and no merge verdict.
 
-## examples/gno.land/p/demo/tokens/grc721/collection/nft.gno:26 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/nft.gno#L26) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/nft.gno#L26)
+## examples/gno.land/p/demo/tokens/grc721/collection/nft.gno:26 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/nft.gno#L26) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/nft.gno#L26) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3862363696)
 `Wrap` rejects nils and nothing else, so a transposed pair gives an NFT that mints into one collection and publishes the other, with no error at the wrap and none at the mint.
 
 <details><summary>repro</summary>
@@ -61,7 +62,7 @@ published supply 0 | ledger's own supply 1 | published collection on the token i
 ```
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:35 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L35) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L35)
+## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:35 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L35) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L35) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3862363706)
 Two collections built in one realm with the same symbol and sequence id carry the same `Token.ID()`, so a view wired to the other ledger passes this check and the panic below claims an ownership the comparison never established.
 
 <details><summary>repro</summary>
@@ -124,7 +125,7 @@ attached to A: true | it is B's view: true
 A's royalty answers then come from B's storage, and A's own mints never reach that extension's hooks.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:16 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L16) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L16)
+## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:16 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L16) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L16) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3862363718)
 `NewCollection` is exported and `Token()` returns the genuine token, so a holder of a published collection hands on a lookalike carrying the real token and views of its own, and only the concrete type assert tells the two apart.
 
 <details><summary>repro</summary>
@@ -193,13 +194,13 @@ same token pointer: true | advertises royalty: true | passes the concrete assert
 The core package beside this one already answers this shape for another type, with `IsCanonicalTeller`.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/collection/nft.gno:48 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/nft.gno#L48) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/nft.gno#L48)
+## examples/gno.land/p/demo/tokens/grc721/collection/nft.gno:48 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/nft.gno#L48) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/nft.gno#L48) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3862363728)
 Suggestion: an extension is registered on the ledger by its own constructor and recorded here by a second call, so a realm that makes the first call and forgets this one ships an extension that is live, with hooks firing and events emitted, while every consumer reads a collection that has none and the view cannot be recovered, since re-running the constructor panics on the duplicate kind.
 
-## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:31 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L31) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L31)
+## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:31 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L31) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L31) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3862363732)
 Nit: a nil interface is skipped in silence here while a typed nil pointer walks past the guard and faults on the next line, so `NewCollection(tok, (*royalty.Royalty)(nil))` aborts with `runtime error: nil pointer dereference` where every other bad input to this file yields a `collection:` message.
 
-## examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno:166 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno#L166) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno#L166)
+## examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno:166 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-collection/examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno#L166) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno#L166) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3862363741)
 Missing test: nothing attaches an extension after `Collection()` has been handed out, which is both the hazard the doc names and the only way a realm adds an extension after publication, so a later change returning a copy would pass this suite and break every realm that upgrades that way.
 
 <details><summary>test cases</summary>
