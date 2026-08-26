@@ -3,7 +3,7 @@ Posted: https://github.com/gnolang/gno/pull/6058#pullrequestreview-5031532172
 Event: COMMENT
 
 ## Body
-[AI review]
+[AI review, not manually verified]
 
 ## gnovm/pkg/gnolang/op_exec.go:736 [gh](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/op_exec.go#L736) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/op_exec.go#L736) [posted](https://github.com/gnolang/gno/pull/6058#discussion_r3863669975)
 Accounted allocation grows with the length of a `fallthrough` chain while the block does not, because this truncation makes [`ExpandWith`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/values.go#L3149-L3151) size its `AllocateBlockItems` call against the switch's own name count rather than the block's current length. It arrives with [#6056](https://github.com/gnolang/gno/pull/6056) and master measures the same, so the fix belongs there rather than here.
