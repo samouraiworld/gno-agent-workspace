@@ -78,7 +78,12 @@ The catalog the core's lens rule names is `skills/invariant-catalog.md`. A large
 
 ## Review the diff
 
-- **Realm security checklist, mandatory for realm code.** A diff touching `examples/gno.land/r/`, `/p/`, or `/e/` walks `gno/docs/resources/gno-ai-contract-review.md` before findings are written. Add `gno/docs/resources/gno-interrealm.md` when a finding turns on caller identity.
+- **Realm security checklist, mandatory for realm code.** A diff touching `examples/gno.land/r/`, `/p/`, or `/e/` walks every quick check in `docs/resources/gno-ai-contract-review.md` before findings are written, plus `docs/resources/gno-interrealm-v2.md` when a finding turns on caller identity.
+- **Read both docs from the newest copy, not from the worktree.** While [PR 5871](https://github.com/gnolang/gno/pull/5871) is open its branch carries corrections master does not, and the reviewed branch carries whatever its base pinned.
+  ```bash
+  git -C gno fetch origin pull/5871/head:pr5871
+  git -C gno show pr5871:docs/resources/gno-ai-contract-review.md
+  ```
 - **Invariant catalog, mandatory.** For a PR touching gno code (the GnoVM, stdlibs, or `.gno` packages and realms), load `skills/invariant-catalog.md`, walk every class against the diff, and confirm coverage before writing the Output. Skip for docs- or tooling-only PRs. For a PR that adds or changes a realm, also walk that file's *Realm audit patterns*; cite the fixture pair when a finding matches a pattern.
 - **Gno vs Go comparison.** When the PR contains `.gno` code, write an equivalent Go test to verify behavior parity, run both, note discrepancies, save to the same `tests/` directory.
 

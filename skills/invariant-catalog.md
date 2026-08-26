@@ -38,6 +38,11 @@ Every rule is a heuristic line scan, which the harness README states outright. A
 | `exported-pointer-leak` | exported `var X *T` or an exported getter returning `*T` into package state | return a value copy, keep the var unexported |
 | `render-map-iteration` | `Render` ranges over a Go map, so output order is nondeterministic | iterate an `avl.Tree` |
 | `render-markdown` | caller-controlled text concatenated into `Render` output | wrap in `md.EscapeText` |
+| `interface-canonical-assert` | an interface value from an external caller dispatched without a concrete-type assert, so an `Evil{Teller}` embedding passes every interface check | assert canonicity first, `grc20.IsCanonicalTeller(t)` |
+| `exported-pointer-field` | an exported pointer field of a `/p/` struct handed out, readonly taint never firing because method dispatch is not a write | keep the field unexported, return copies |
+| `getcoins-single-denom` | `GetCoins(addr).AmountOf(d)` for one balance, whose cost is set by whoever last sent `addr` a denom | `GetCoin(addr, d)`, unless `d` is unvalidated caller input or the full set is already read |
+
+The last three rows have no harness rule: they come from the quick checks in `gno-ai-contract-review.md`, which `review.md` gates.
 
 ### Caller identity predicates
 
@@ -52,5 +57,7 @@ So a realm that must reject users tests `IsUser()`, and a realm that must accept
 The harness as it stands in PR 5835 has no rule for this direction: `payment-user-call` only fires on an `OriginSend()` with no preceding `IsUserCall()`, so it stays silent on PR 5976. The `realm-only-gate` row above is a local addition sitting uncommitted in the 5835 worktree, not yet offered upstream.
 
 ### On the `current-guard` rule
+
+A crossing function's own first `cur realm` is current by construction, so an `IsCurrent()` check on it is dead code; check every *other* realm value instead, a secondary `rlm realm` on a crossing function or on a non-crossing helper being the shape that carries a forgeable value. Both statements are the spec's, in [`gnovm/adr/interrealm_v2.md`](https://github.com/gnolang/gno/blob/master/gnovm/adr/interrealm_v2.md) and asserted by `gnovm/tests/files/zrealm_iscurrent.gno`.
 
 The rule fires on any `.Previous()` not preceded by `.IsCurrent()` in the same function, which matches nearly every realm in `examples/`: a survey during the [PR 5951](https://github.com/gnolang/gno/pull/5951) review found zero of 28 realm files carrying the guard. The preprocessor also rejects any realm value other than `cur` or `cross(rlm)` in that position, and `cross()` validates `IsCurrent` itself. Treat a bare hit as unproven: file it only with a demonstrated path that reaches the read with a forgeable realm value.

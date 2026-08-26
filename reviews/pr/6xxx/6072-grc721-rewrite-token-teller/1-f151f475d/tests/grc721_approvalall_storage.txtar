@@ -1,0 +1,41 @@
+# SetApprovalForAll(op, false) for a never-approved operator: does it write a
+# permanent AVL node (grief) or no-op like Approve's revoke path? Read bytes_delta.
+
+loadpkg gno.land/p/demo/tokens/grc721
+loadpkg gno.land/r/test/nftstore $WORK/nftstore
+
+adduser alice
+gnoland start
+
+gnokey maketx send -send 90000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+# alice denies an operator she never approved. A true no-op writes 0 bytes.
+gnokey maketx call -pkgpath gno.land/r/test/nftstore -func Deny -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -gas-fee 5000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test alice
+stdout 'OK!'
+stdout 'GAS USED'
+
+-- nftstore/gnomod.toml --
+module = "gno.land/r/test/nftstore"
+gno = "0.9"
+
+-- nftstore/nftstore.gno --
+package nftstore
+
+import "gno.land/p/demo/tokens/grc721"
+
+var (
+	token  *grc721.Token
+	ledger *grc721.PrivateLedger
+)
+
+func init(cur realm) {
+	token, ledger = grc721.NewToken("Store", "STO", 0, cur)
+}
+
+// Deny sets approval-for-all FALSE for an operator alice never approved.
+func Deny(cur realm, op address) {
+	if err := token.CallerTeller().SetApprovalForAll(0, cur, op, false); err != nil {
+		panic(err)
+	}
+}
