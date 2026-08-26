@@ -1,4 +1,5 @@
 # Review: [#6072](https://github.com/gnolang/gno/pull/6072)
+Posted: https://github.com/gnolang/gno/pull/6072#pullrequestreview-5026751967
 Event: COMMENT
 
 ## Body
@@ -6,7 +7,7 @@ Event: COMMENT
 
 Automated pass over the diff, scoped to correctness, state safety and test coverage of the new grc721 core. It makes no design judgement on the Token/PrivateLedger/Teller split and carries no merge verdict.
 
-## examples/gno.land/p/demo/tokens/grc721/token.gno:271 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-core/examples/gno.land/p/demo/tokens/grc721/token.gno#L271) · [↗](../../../../../.worktrees/gno-review-6072/examples/gno.land/p/demo/tokens/grc721/token.gno#L271)
+## examples/gno.land/p/demo/tokens/grc721/token.gno:271 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-core/examples/gno.land/p/demo/tokens/grc721/token.gno#L271) · [↗](../../../../../.worktrees/gno-review-6072/examples/gno.land/p/demo/tokens/grc721/token.gno#L271) [posted](https://github.com/gnolang/gno/pull/6072#discussion_r3859619108)
 `SetApprovalForAll(op, false)` on an operator never approved stores an AVL node instead of removing one, so entries accumulate unbounded and never release, where this file's `Approve` revoke and `setBalance` both remove on clear.
 
 <details><summary>repro</summary>
