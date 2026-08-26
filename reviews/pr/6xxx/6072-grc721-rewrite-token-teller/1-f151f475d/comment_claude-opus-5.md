@@ -4,10 +4,10 @@ Event: COMMENT
 ## Body
 [Automatic AI review]
 
-Automated pass over the diff, scoped to correctness, state safety and test coverage of the new grc721 core. It makes no design judgement on the Token/PrivateLedger/Teller split and carries no merge verdict; treat it as one input beside human review. One state-safety note follows; the rest is in the linked review file.
+Automated pass over the diff, scoped to correctness, state safety and test coverage of the new grc721 core. It makes no design judgement on the Token/PrivateLedger/Teller split and carries no merge verdict.
 
 ## examples/gno.land/p/demo/tokens/grc721/token.gno:271 [gh](https://github.com/jinoosss/gno/blob/refactor/grc721-core/examples/gno.land/p/demo/tokens/grc721/token.gno#L271) · [↗](../../../../../.worktrees/gno-review-6072/examples/gno.land/p/demo/tokens/grc721/token.gno#L271)
-`SetApprovalForAll(operator, false)` for an operator that was never approved stores an AVL node rather than removing one, so operator entries accumulate unbounded and never release, where this file's own `Approve` revoke path and `setBalance` both remove on clear.
+`SetApprovalForAll(op, false)` on an operator never approved stores an AVL node instead of removing one, so entries accumulate unbounded and never release, where this file's `Approve` revoke and `setBalance` both remove on clear.
 
 <details><summary>repro</summary>
 
