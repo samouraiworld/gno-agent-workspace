@@ -146,7 +146,9 @@ Gas for the 50-clause case: 153270, 153270, 150379. VM cycles are identical on a
   at the merge base, all matching `go run` byte for byte: [`if10.gno`](tests/if10.gno),
   [`switch54.gno`](tests/switch54.gno), [`switch55.gno`](tests/switch55.gno) and
   [`switch57.gno`](tests/switch57.gno), the last covering both slots of one name heap-captured in the
-  same clause, which `switch53.gno` splits across two switches.
+  same clause, which `switch53.gno` splits across two switches. Not posted: the branch already ships
+  eight fixtures and every one of these four shapes measured correct, so four more files is breadth a
+  maintainer can decline.
   </details>
 
 ## Suggestions
@@ -178,11 +180,11 @@ Gas for the 50-clause case: 153270, 153270, 150379. VM cycles are identical on a
 ## Nits
 
 - **[decay]** `gnovm/pkg/gnolang/op_exec.go:736` — `ss.GetNumNames()` open-codes the boundary `numFauxCopiedNames` defines, and the two are equal only because `pushInitBlock` sets the clause block's parent to `ss`.
-- **[docs]** `gnovm/adr/pr6058_faux_block_shadowing.md:58` — "the eleven `Reserve` call sites" is sixteen, all in `preprocess.go`, at lines 409, 439, 450, 456, 481, 517, 525, 532, 540, 549, 563, 567, 577, 585, 594 and 777. The argument the sentence makes holds, since every one of the sixteen passes a stable triple.
+- **[docs]** `gnovm/adr/pr6058_faux_block_shadowing.md:58` — "the eleven `Reserve` call sites" is sixteen, all in `preprocess.go`, at lines 409, 439, 450, 456, 481, 517, 525, 532, 540, 549, 563, 567, 577, 585, 594 and 777. The argument the sentence makes holds, since every one of the sixteen passes a stable triple. Not posted: a wrong count in a design record changes nothing a reader does.
 - **[docs]** `gnovm/adr/pr6058_faux_block_shadowing.md:161-166` — "This divergence is **not introduced here**" holds for the mechanism and not for the construct the ADR is about: master rejects a `const` shadow in a case body with `StaticBlock.Define2(v) cannot change const status`, where this branch accepts it and prints the zero value.
 - **[docs]** [`gnovm/adr/pr6058_faux_block_shadowing.md:81-87`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L81-L87) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L81) — the paragraph credits the `NSTypeSwitch` test with keeping the type switch variable unshadowable and offers the slot index as the weaker alternative. The slot index is what holds, and the test never runs.
-- **[docs]** [`gnovm/adr/pr6058_faux_block_shadowing.md:142-147`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L142-L147) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L142) — "enforced, not just documented" holds for a local run and for no check and no shipped binary, since no workflow builds `debugAssert`; and "`defineNew` is the sole append path" has one more exception, the amino decoder appending to `Names` at [`pb3_gen.go:12685`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/pb3_gen.go#L12685) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/pb3_gen.go#L12685) and 12707.
-- **[decay]** `gnovm/pkg/gnolang/nodes.go:1671-1678` — the `nameIndex` contract comment still names `Define2` as the append path and as the thing that maintains the map. After this branch `Define2` never appends; `defineNew` does, and `Reserve` is a second entry to it. Outside the diff, so it goes in the comment's Body.
+- **[docs]** [`gnovm/adr/pr6058_faux_block_shadowing.md:142-147`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/adr/pr6058_faux_block_shadowing.md?plain=1#L142-L147) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/adr/pr6058_faux_block_shadowing.md#L142) — "enforced, not just documented" holds for a local run and for no check and no shipped binary, since no workflow builds `debugAssert`; and "`defineNew` is the sole append path" has one more exception, the amino decoder appending to `Names` at [`pb3_gen.go:12685`](https://github.com/gnolang/gno/blob/391840aa7/gnovm/pkg/gnolang/pb3_gen.go#L12685) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/pb3_gen.go#L12685) and 12707. Not posted: the code finding on `nodes.go:2365-2370` carries the same point where it costs an edit.
+- **[decay]** `gnovm/pkg/gnolang/nodes.go:1671-1678` — the `nameIndex` contract comment still names `Define2` as the append path and as the thing that maintains the map. After this branch `Define2` never appends; `defineNew` does, and `Reserve` is a second entry to it. Outside the diff, and a two-word doc fix, so not posted.
 
 ## Verified
 
