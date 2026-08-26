@@ -54,7 +54,11 @@ done < /tmp/open_nondraft.txt
   gh api repos/gnolang/gno/pulls/<num>/reviews --jq '[.[]|select(.user.login=="<reviewer>")|.state]|join(",")'
   gh api repos/gnolang/gno/pulls/<num>/comments --jq '[.[]|select(.user.login=="<reviewer>")]|length'
   ```
-- Any PR whose `author_association` is `FIRST_TIME_CONTRIBUTOR` gets a static danger pass over the raw diff before any review work, nothing executed: build and dependency surface touched (`.github/workflows`, Makefile, `go.mod`, `go.sum`, `package.json`, Dockerfile, `*.sh`); `os/exec`, `net/http`, `net.Dial`, `syscall`, `go:generate`, `go:embed`, Go `unsafe`, base64 or hex decode, environment or credential reads, filesystem writes; Trojan Source (non-ASCII added lines, bidirectional overrides, zero-width characters, homoglyphs). Record the result per PR in `reviews/BATCH_STATUS.md` and carry any non-malicious risk into that PR's review.
+- Exclude every PR whose author is outside the core team, meaning an `author_association` other than `MEMBER`, `OWNER` or `COLLABORATOR`. Name them in the handover as dropped and review one only when the user asks for that number. Read it per PR, since `gh pr list --json` has no such field:
+  ```bash
+  gh api repos/gnolang/gno/pulls/<num> --jq '.author_association'
+  ```
+- An outside-contributor PR the user did ask for gets a static danger pass over the raw diff before any review work, nothing executed: build and dependency surface touched (`.github/workflows`, Makefile, `go.mod`, `go.sum`, `package.json`, Dockerfile, `*.sh`); `os/exec`, `net/http`, `net.Dial`, `syscall`, `go:generate`, `go:embed`, Go `unsafe`, base64 or hex decode, environment or credential reads, filesystem writes; Trojan Source (non-ASCII added lines, bidirectional overrides, zero-width characters, homoglyphs). This covers every outside author, not only a first-time one. Record the result per PR in `reviews/BATCH_STATUS.md` and carry any non-malicious risk into that PR's review.
 - Write `reviews/BATCH_STATUS.md` before dispatch and update it as agents return: the confirmed scope; dropped PRs grouped by reason; the final set as a table (PR, head sha, last reviewed sha and next round for re-reviews, worktree path, review dir); the resume steps. Commit it with the batch. Parallel-dispatch conflicts and their resolution are recorded here too.
 
 ## Parallel dispatch
