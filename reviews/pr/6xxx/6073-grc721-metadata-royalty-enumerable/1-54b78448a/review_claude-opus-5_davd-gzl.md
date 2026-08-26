@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/6073
 Author: jinoosss | Base: master | Files: 39 | +3374 -1606, of which 12 files and +1488 are this PR's own work over [#6072](https://github.com/gnolang/gno/pull/6072)
-Reviewed by: davd-gzl | Model: claude-opus-5 (max, deep) | Commit: 54b78448a (latest)
+Reviewed by: davd-gzl | Model: claude-opus-5 (deep) | Commit: 54b78448a (latest)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6073 54b78448a`
 Overview: [visual overview](../overview.html)
 
