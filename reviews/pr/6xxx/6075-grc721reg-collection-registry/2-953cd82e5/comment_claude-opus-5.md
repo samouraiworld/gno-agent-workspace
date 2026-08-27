@@ -1,4 +1,5 @@
 # Review: [#6075](https://github.com/gnolang/gno/pull/6075)
+Posted: https://github.com/gnolang/gno/pull/6075#pullrequestreview-5040023768
 Event: COMMENT
 
 ## Body
@@ -13,7 +14,7 @@ Event: COMMENT
 
 Verified on 953cd82e5c3e3defdbd1af40c3a99067ff3a9aa1
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:57 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L57) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L57)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:57 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L57) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L57) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3871114384)
 Critical: a `gnokey maketx run` script mints a token and lists it in the same frame, so any funded address puts a row of its own wording on the public index, pointing at a realm that does not exist.
 
 <details><summary>repro</summary>
@@ -75,7 +76,7 @@ EVENTS: [… {"type":"register","attrs":[… {"key":"pkgpath","value":"gno.land/
 The entry is also frozen: the `PrivateLedger` died with the ephemeral package, so nobody can mint into it, and only another `maketx run` from the same address reaches `Unregister`. The predicate that separates the two cases is `IsUser()`; `IsUserCall()` is false for a run realm.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:237 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L237) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L237)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:237 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L237) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L237) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3871114398)
 `v.Kinds()` materialises the whole extension set before the loop that stops at `maxBadges`, and the stored collection keeps growing after listing, so one full page costs 3,536,584,412 gas against a 3,000,000,000 query ceiling.
 
 <details><summary>repro</summary>
@@ -141,7 +142,7 @@ page bytes: 3350
 `maxGasQuery` is 3,000,000,000. The page is 3,350 bytes either way, so the constants bound what is printed and not what is read, and only each listing realm can remove its own row. The registry cannot reach `Collection.exts`, so the bound belongs on `*collection.Collection`.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:185 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L185) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L185)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:185 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L185) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L185) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3871114408)
 `page.TotalItems` counts the whole tree rather than the page, so a page number past the last one clears this gate and the row loop writes nothing.
 
 <details><summary>repro</summary>
@@ -185,7 +186,7 @@ rows rendered: 0 | body:
 Past one page the body is a picker built from the requested number, so it offers `[1](?page=1) | … | [997](?page=997) | [998](?page=998) | _999_`. `r/gov/dao/v3/impl` gates on the other value after the identical fallback.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno:57 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L57) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L57)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno:57 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L57) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L57) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3871114419)
 This branch carries an older `collection` package than #6074's head, and building the two together leaves `grc721reg.gno` with no errors and this file with twenty, nineteen on `collection.NewCollection(token, views...)` and one on `nft.Attach`.
 
 <details><summary>repro</summary>
@@ -210,7 +211,7 @@ Every error lands in the test file; the registry itself needs no edit.
 The behaviour they assert survives the port: written in the new flow, `collection.New` then `metadata.NewMetadata(led)` then `nft.Collection()`, the registry entry still reports the later extension. The live-entry assertion is the one worth keeping deliberately, since a port that took a snapshot would go quiet rather than red.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:65 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L65) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L65)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:65 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L65) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L65) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3871114426)
 Nit: `registry.Set` runs above the two kind bounds, so an aborted registration stays in the tree wherever the abort is caught, which is this suite.
 
 <details><summary>repro</summary>
@@ -264,7 +265,7 @@ registry holds it: true | index renders it: true
 On chain the abort takes the transaction with it, so the ordering costs nothing there; it costs the suite, where `TestRenderIndexPaginates` counts entries and `extensionBadges`' truncation branch is reached by this accident rather than by a test.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:138 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L138) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L138)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:138 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L138) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L138) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3871114431)
 Missing test: nothing asserts that finding a collection here grants no authority over its tokens, which is the property `grc20reg` spends two tests on.
 
 <details><summary>test cases</summary>
@@ -306,5 +307,5 @@ func TestRegistryLookupGrantsNoTransferAuthority(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno:220 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L220) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L220)
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno:220 [gh](https://github.com/gnolang/gno/blob/953cd82e5/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L220) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno#L220) [posted](https://github.com/gnolang/gno/pull/6075#discussion_r3871114436)
 Refactor: `abortCase.substr` is filled in all six cases and read in none, since each `run` hardcodes its own substring, and dropping the field takes the file from 538 lines to 531.
