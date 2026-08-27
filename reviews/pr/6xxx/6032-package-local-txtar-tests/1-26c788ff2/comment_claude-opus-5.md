@@ -1,4 +1,4 @@
-# Review: PR [#6032](https://github.com/gnolang/gno/pull/6032)
+# Review: [#6032](https://github.com/gnolang/gno/pull/6032)
 Event: REQUEST_CHANGES
 
 ## Body
@@ -7,8 +7,6 @@ Moving a script under `examples/` also puts it in the path filters of [`ci-dir-g
 [`make -C examples fix`](https://github.com/gnolang/gno/blob/26c788ff2/examples/Makefile#L56-L57) passes a directory and [`gno fix` takes a `.txtar` only as an explicit file target](https://github.com/gnolang/gno/blob/26c788ff2/gnovm/cmd/gno/fix.go#L92-L93), so the next migration sweep rewrites a package's `.gno` files and walks past the script now beside them. At 26c788ff2, `go run ./gnovm/cmd/gno fix -diff -v ./examples/gno.land/r/gnoland/wugnot` prints only `wugnot.gno`.
 
 Repros run at 26c788ff2.
-
-Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6032-package-local-txtar-tests/1-26c788ff2/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 
 ## gno.land/pkg/integration/testdata_test.go:24 [gh](https://github.com/gnolang/gno/blob/26c788ff2/gno.land/pkg/integration/testdata_test.go#L24) · [↗](../../../../../.worktrees/gno-review-6032/gno.land/pkg/integration/testdata_test.go#L24)
 The examples root comes from [`gnoenv.RootDir`](https://github.com/gnolang/gno/blob/26c788ff2/gnovm/pkg/gnoenv/gnoroot.go#L21) · [↗](../../../../../.worktrees/gno-review-6032/gnovm/pkg/gnoenv/gnoroot.go#L21), which reads `GNOROOT` first, so a `GNOROOT` pointing at a checkout that predates the move drops all 11 package-local scripts and the package still reports `ok`. The [only guard](https://github.com/gnolang/gno/blob/26c788ff2/gnovm/pkg/integration/testscript.go#L53) · [↗](../../../../../.worktrees/gno-review-6032/gnovm/pkg/integration/testscript.go#L53) counts scripts across both roots together, and the 175 under `testdata/` satisfy it on their own. A mismatched `GNOROOT` used to run all 186 and fail loudly on what it got wrong.
