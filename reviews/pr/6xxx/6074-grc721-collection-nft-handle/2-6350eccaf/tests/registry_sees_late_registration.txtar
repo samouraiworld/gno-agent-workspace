@@ -1,0 +1,87 @@
+# Run: from a gno checkout, green at 6350eccaf. It answers whether a *Collection
+# a registry in another realm stored in one transaction picks up an extension
+# the issuer registers in a later one.
+#
+# gh pr checkout 6074 -R gnolang/gno && git checkout 6350eccaf
+# curl -fsSL -o gno.land/pkg/integration/testdata/zregistry_late_registration.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6074-grc721-collection-nft-handle/2-6350eccaf/tests/registry_sees_late_registration.txtar
+# go test -run 'TestTestdata/zregistry_late_registration' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/zregistry_late_registration.txtar
+
+# does a registry in another realm see an extension registered in a later transaction?
+
+loadpkg gno.land/p/demo/tokens/grc721
+loadpkg gno.land/p/demo/tokens/grc721/metadata
+loadpkg gno.land/p/demo/tokens/grc721/collection
+loadpkg gno.land/r/zregistry $WORK/registry
+loadpkg gno.land/r/zissuer $WORK/issuer
+
+gnoland start
+
+# tx1: the issuer builds the collection and hands the read-only handle to the registry
+gnokey maketx call -pkgpath gno.land/r/zissuer -func Publish -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+# the registry sees no extension yet
+gnokey maketx call -pkgpath gno.land/r/zregistry -func Kinds -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout '\(0 int\)'
+
+# tx2: the issuer registers metadata and re-syncs the published collection
+gnokey maketx call -pkgpath gno.land/r/zissuer -func AddMetadata -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+# tx3: what the registry holds now
+gnokey maketx call -pkgpath gno.land/r/zregistry -func Kinds -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout '\(1 int\)'
+
+-- registry/gnomod.toml --
+module = "gno.land/r/zregistry"
+gno = "0.9"
+
+-- registry/registry.gno --
+package zregistry
+
+import "gno.land/p/demo/tokens/grc721/collection"
+
+var stored *collection.Collection
+
+func Store(cur realm, c *collection.Collection) {
+	stored = c
+}
+
+func Kinds(cur realm) int {
+	if stored == nil {
+		return -1
+	}
+
+	return len(stored.Kinds())
+}
+
+-- issuer/gnomod.toml --
+module = "gno.land/r/zissuer"
+gno = "0.9"
+
+-- issuer/issuer.gno --
+package zissuer
+
+import (
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/tokens/grc721/collection"
+	"gno.land/p/demo/tokens/grc721/metadata"
+	"gno.land/r/zregistry"
+)
+
+var (
+	nft    *collection.NFT
+	ledger *grc721.PrivateLedger
+)
+
+func Publish(cur realm) {
+	nft, ledger = collection.New("Foo", "FOO", 0, cur)
+	zregistry.Store(cross(cur), nft.Collection())
+}
+
+func AddMetadata(cur realm) {
+	metadata.NewMetadata(ledger)
+	nft.Collection()
+}
