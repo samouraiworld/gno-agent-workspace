@@ -1,0 +1,29 @@
+# receipts for the getting-started walkthrough, at the flags the doc will carry
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/myrealm -pkgpath gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/myrealm -gas-fee 5000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/myrealm -func Increment -gas-fee 2000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
+stdout OK!
+
+-- myrealm/gnomod.toml --
+module = "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/myrealm"
+gno = "0.9"
+
+-- myrealm/myrealm.gno --
+package myrealm
+
+import "strconv"
+
+var count int
+
+func Increment(_ realm) int {
+	count++
+	return count
+}
+
+func Render(path string) string {
+	return "Count: " + strconv.Itoa(count)
+}

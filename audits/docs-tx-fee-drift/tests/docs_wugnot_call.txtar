@@ -1,0 +1,9 @@
+# the interact-with-gnokey wugnot Deposit and BalanceOf examples
+
+loadpkg gno.land/r/gnoland/wugnot
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 1000ugnot -gas-fee 8000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"$test1_user_addr\")"

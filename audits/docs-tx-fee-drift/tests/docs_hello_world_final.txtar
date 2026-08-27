@@ -1,0 +1,19 @@
+# receipts for the interact-with-gnokey hello_world package, at final doc flags
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/p -pkgpath gno.land/p/examplenamespace/hello_world -gas-fee 4000ugnot -gas-wanted 4000000 -simulate only -chainid=tendermint_test test1
+
+gnokey maketx addpkg -pkgdir $WORK/p -pkgpath gno.land/p/examplenamespace/hello_world -gas-fee 4000ugnot -gas-wanted 4000000 -chainid=tendermint_test test1
+stdout OK!
+
+-- p/gnomod.toml --
+gno = "0.9"
+module = "gno.land/p/examplenamespace/hello_world"
+
+-- p/hello_world.gno --
+package hello_world
+
+func Hello() string {
+	return "Hello, world!"
+}

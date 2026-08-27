@@ -16,16 +16,19 @@ two calls as written spends 3.3 GNOT, which is where "addpkg needs 3 GNOT"
 comes from. The chain charges 0.32 GNOT for those three transactions, and
 0.29 GNOT of that is the storage deposit, which is refundable on delete.
 
-Four measurements back this, each a testscript under
-[`tests/`](tests) run against a local node at the base sha.
+Seven measurements back this, each a testscript under
+[`tests/`](tests) run against a local node at the base sha. F1 through F5 and
+F8 through F14 are fixed on
+[davd-gzl/gno#4](https://github.com/davd-gzl/gno/pull/4), a draft against the
+fork.
 
 ## Decisions for a human
 
-**A1. One pull request or three.** F1 through F4 and F10 are the same drift
-across three files and read as one change. F6 and F7 are new surfaces nobody
-has written up, and whoever owns the rollout should say what a user is meant
-to do with them. F5, F8, F9 and F11 are short corrections that can ride with
-F1.
+**A1. One pull request or three.** F1 through F4, F10, F12 and F13 are the same
+drift across three files and read as one change. F6 and F7 are new surfaces
+nobody has written up, and whoever owns the rollout should say what a user is
+meant to do with them. F5, F8, F9, F11 and F14 are short corrections that can
+ride with F1.
 
 **A2. What replaces the recommended fee.** `-simulate only` already prints a
 suggested gas limit and the fee for it. The docs can drop every hardcoded
@@ -273,6 +276,62 @@ the margin exists to replace, and gas usage varies between the simulation and
 the broadcast: the two runs in `tests/docs_deploy_cost.txtar` and
 `tests/docs_simulate_only.txtar` differ by 599333 gas on the same package.
 
+### F12. `BalanceOf` cannot be called the way the page calls it
+
+Severity: high.
+
+[The example](https://github.com/gnolang/gno/blob/6df71ae35/docs/users/interact-with-gnokey.md#L309)
+reaches `BalanceOf` through `maketx call`, and
+[the paragraph under it](https://github.com/gnolang/gno/blob/6df71ae35/docs/users/interact-with-gnokey.md#L336)
+calls that discouraged because it spends gas. It does not spend gas, it fails:
+
+```text
+recovered: function BalanceOf is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun
+```
+
+Measured against `gno.land/r/gnoland/wugnot` loaded into a local node. The
+receipt printed under the example, `GAS USED: 396457` and `(1000 int64)`, is
+from before the rule.
+
+Fix: `gnokey query vm/qeval`, which the page documents lower down and which
+returns `(1000 int64)` for the balance the section just created.
+
+### F13. The wugnot deposit example runs out of gas
+
+Severity: medium.
+
+[That call](https://github.com/gnolang/gno/blob/6df71ae35/docs/users/interact-with-gnokey.md#L265)
+passes `-gas-wanted 2000000`. It uses 6997402:
+
+```text
+deliver transaction failed: log:gas used (6997462) exceeds tx's gas wanted (2000000) during operation: simulation
+```
+
+Same class as F4, on the same page, and the two are the only executable
+examples the page carries.
+
+### F14. Eleven in-page links point at headings that moved
+
+Severity: medium.
+
+A sweep of every relative link under `docs/`, resolving each anchor against the
+target file's headings under the slug rules Docusaurus uses, finds eleven that
+land nowhere. Eight have an obvious target:
+
+| Link | Points at | Heading now |
+| --- | --- | --- |
+| [tutorial-minisocial](https://github.com/gnolang/gno/blob/6df71ae35/docs/builders/tutorial-minisocial.md#L25) | `#4-before-you-deploy` | `3. Before you deploy` |
+| [tutorial-minisocial](https://github.com/gnolang/gno/blob/6df71ae35/docs/builders/tutorial-minisocial.md#L119) | `#run-a-local-chain` | `5. Run a local chain` |
+| [glossary](https://github.com/gnolang/gno/blob/6df71ae35/docs/resources/glossary.md#L37), [again](https://github.com/gnolang/gno/blob/6df71ae35/docs/resources/glossary.md#L212), [gno-packages](https://github.com/gnolang/gno/blob/6df71ae35/docs/resources/gno-packages.md#L163), [gno-data-structures](https://github.com/gnolang/gno/blob/6df71ae35/docs/resources/gno-data-structures.md#L105) | `#choose-storage-types-by-access-pattern` | `Prefer avl.Tree over map for scalable storage` |
+| [MANIFESTO](https://github.com/gnolang/gno/blob/6df71ae35/docs/MANIFESTO.md#L9), [again](https://github.com/gnolang/gno/blob/6df71ae35/docs/MANIFESTO.md#L710) | `#gno-land-…` | slug is `gnoland-…`, the dot is dropped |
+
+Three have no target at all. The manifesto sends a reader to appendices titled
+`Use Case: 95 Facts` and `The History of U.S. Silver Coins`, and
+[community-packages](https://github.com/gnolang/gno/blob/6df71ae35/docs/resources/community-packages.md#L24)
+to a section 5.10 of the security guide, which
+[ends at 5.8](https://github.com/gnolang/gno/blob/6df71ae35/docs/resources/gno-security-guide.md#L382).
+Those need content, not a link repair.
+
 ## What did not hold up
 
 **The network table is current.**
@@ -299,14 +358,22 @@ and getting-started explains what the cap does.
 
 ## Reproducing
 
-The four testscripts under [`tests/`](tests) go in
+The seven testscripts under [`tests/`](tests) go in
 `gno.land/pkg/integration/testdata/` of a checkout at the base sha:
 
 ```bash
 go test ./gno.land/pkg/integration -run 'TestTestdata/docs_deploy_cost' -v -timeout 20m
 ```
 
-`docs_deploy_cost` runs the quickstart deploy and call at the documented
-flags, `docs_deploy_cost_min` runs the same two at the accepted minimum,
+`docs_deploy_cost` runs the quickstart deploy and call at the documented flags,
+`docs_deploy_cost_min` runs the same two at the accepted minimum,
 `docs_hello_world_cost` runs the interact-with-gnokey package at both gas
-limits, and `docs_simulate_only` prints what the estimator suggests.
+limits, and `docs_simulate_only` prints what the estimator suggests. The three
+added while fixing the docs produce the receipts the pages now carry:
+`docs_getting_started`, `docs_hello_world_final` and `docs_wugnot_call`, the
+last of which is where F12 and F13 came from.
+
+The `gnodev` receipt has no testscript. That page documents `gnodev` and the
+integration harness starts `gnoland`, so it came from building the binary,
+running `gnodev local` over a counter realm, importing the mnemonic it prints,
+and calling `Increment`.
