@@ -1,11 +1,15 @@
 # Review: PR [#5576](https://github.com/gnolang/gno/pull/5576)
-Event: REQUEST_CHANGES
-Status: not posted. On `post as an AI` the Body leads with `[AI review, not manually checked, opus 4.8 xhigh]`, then `Status: REQUEST_CHANGES`.
+Posted: https://github.com/gnolang/gno/pull/5576#pullrequestreview-5042799758
+Event: COMMENT
+Status: posting as an AI. Original verdict REQUEST_CHANGES, forced to COMMENT.
 
 ## Body
+[AI review, not manually checked, opus 4.8 xhigh]
+Status: REQUEST_CHANGES
+
 Verified on 79c02d050: two runs at a fixed `-benchcount` produce byte-identical result lines, so the determinism the design promises holds. The same loop reports 27159 cycles/op at N=1 and 1231 at N=1000 on one machine, so the default N=1 run measures setup, not steady state.
 
-## gnovm/cmd/gno/test.go:159-164 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/cmd/gno/test.go#L159-L164) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/cmd/gno/test.go#L159)
+## gnovm/cmd/gno/test.go:159-164 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/cmd/gno/test.go#L159-L164) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/cmd/gno/test.go#L159) [posted](https://github.com/gnolang/gno/pull/5576#discussion_r3873390441)
 The PR body promises `b.N` doubling to a `-benchcycles` target, but no such flag exists and `-benchcount` is used directly as a fixed `b.N`. With the default `b.N` of 1, `gno test -bench .` reports one-time setup as the per-op cost. Implement the scaling, or change the body to describe the fixed-count behavior.
 
 <details><summary>repro</summary>
@@ -49,7 +53,7 @@ ok      . 	0.93s
 ```
 </details>
 
-## gnovm/pkg/test/test_test.go:160-168 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/pkg/test/test_test.go#L160-L168) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/pkg/test/test_test.go#L160)
+## gnovm/pkg/test/test_test.go:160-168 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/pkg/test/test_test.go#L160-L168) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/pkg/test/test_test.go#L160) [posted](https://github.com/gnolang/gno/pull/5576#discussion_r3873390453)
 The subtests run with `t.Parallel()` and share the package-global regex cache in `matchString`, which has no synchronization. The race makes `anchored_end_matches_exact_suffix` fail intermittently. Drop `t.Parallel()` from the subtests.
 
 <details><summary>repro</summary>
@@ -76,13 +80,13 @@ flaked on run 4
 ```
 </details>
 
-## gnovm/pkg/test/test.go:794-795 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/pkg/test/test.go#L794-L795) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/pkg/test/test.go#L794)
+## gnovm/pkg/test/test.go:794-795 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/pkg/test/test.go#L794-L795) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/pkg/test/test.go#L794) [posted](https://github.com/gnolang/gno/pull/5576#discussion_r3873390463)
 `rep.Allocs/n` truncates to 0 allocs/op when total allocations are fewer than N, while `B/op` stays nonzero, so the output reports bytes allocated with zero objects. At the default N=1 this is the common case.
 
-## gnovm/pkg/test/test.go:391 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/pkg/test/test.go#L391) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/pkg/test/test.go#L391)
+## gnovm/pkg/test/test.go:391 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/pkg/test/test.go#L391) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/pkg/test/test.go#L391) [posted](https://github.com/gnolang/gno/pull/5576#discussion_r3873390472)
 "materialised" is British spelling; the rest of the codebase uses American English.
 
-## gnovm/pkg/gnolang/alloc.go:268-273 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/pkg/gnolang/alloc.go#L268-L273) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/pkg/gnolang/alloc.go#L268)
+## gnovm/pkg/gnolang/alloc.go:268-273 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/pkg/gnolang/alloc.go#L268-L273) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/pkg/gnolang/alloc.go#L268) [posted](https://github.com/gnolang/gno/pull/5576#discussion_r3873390476)
 `resetLiveBytesForGC` has no doc comment. Say it zeroes only live bytes so the cumulative benchmark counters survive a GC re-walk, which is what distinguishes it from `Reset()`.
 
 Repros run at 79c02d050.

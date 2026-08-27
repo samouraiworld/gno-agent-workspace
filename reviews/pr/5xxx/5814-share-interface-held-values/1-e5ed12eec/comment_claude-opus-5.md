@@ -1,8 +1,12 @@
 # Review: [#5814](https://github.com/gnolang/gno/pull/5814)
+Posted: https://github.com/gnolang/gno/pull/5814#pullrequestreview-5042804178
 Event: COMMENT
-Status: not posted. On `post as an AI` the Body leads with `[AI review, not manually checked, opus 5]`, then `Status: COMMENT`.
+Status: posting as an AI. Verdict COMMENT.
 
 ## Body
+[AI review, not manually checked, opus 5]
+Status: COMMENT
+
 The merge-base VM fails 4 of 2454 filetests against this branch's goldens, three of them the ones the branch adds.
 
 - The description misses a second behavior change: the merge base persisted one escaped object or two owned ones for the same realm code, depending on whether a read had resolved the element from a `RefValue` before the copy, and this branch persists the same graph either way.
@@ -10,7 +14,7 @@ The merge-base VM fails 4 of 2454 filetests against this branch's goldens, three
 
 Repros run at e5ed12eec.
 
-## gnovm/pkg/gnolang/values.go:472 [gh](https://github.com/gnolang/gno/blob/e5ed12eec/gnovm/pkg/gnolang/values.go#L472) · [↗](../../../../../.worktrees/gno-review-5814/gnovm/pkg/gnolang/values.go#L472)
+## gnovm/pkg/gnolang/values.go:472 [gh](https://github.com/gnolang/gno/blob/e5ed12eec/gnovm/pkg/gnolang/values.go#L472) · [↗](../../../../../.worktrees/gno-review-5814/gnovm/pkg/gnolang/values.go#L472) [posted](https://github.com/gnolang/gno/pull/5814#discussion_r3873394362)
 `go/types` enforces the addressability premise and the VM does not, so `arr2[0].(S).F = 9` now writes into the source array too. `panicIllegalPointerLHS` already refuses a pointer-receiver call on an interface-held value, so rejecting the assignment there would put the guarantee in the VM.
 
 <details><summary>repro</summary>
@@ -44,7 +48,7 @@ orig: 9 copy: 9
 `gno lint` reports `cannot assign to arr2[0].(S).F (neither addressable nor a map index expression)` on the same source, and `TypeCheckMemPackage` runs in both `AddPackage` and `Run`, so nothing here reaches a transaction.
 </details>
 
-## gnovm/tests/files/zrealm_iface_array_share.gno:19-20 [gh](https://github.com/gnolang/gno/blob/e5ed12eec/gnovm/tests/files/zrealm_iface_array_share.gno#L19-L20) · [↗](../../../../../.worktrees/gno-review-5814/gnovm/tests/files/zrealm_iface_array_share.gno#L19-L20)
+## gnovm/tests/files/zrealm_iface_array_share.gno:19-20 [gh](https://github.com/gnolang/gno/blob/e5ed12eec/gnovm/tests/files/zrealm_iface_array_share.gno#L19-L20) · [↗](../../../../../.worktrees/gno-review-5814/gnovm/tests/files/zrealm_iface_array_share.gno#L19-L20) [posted](https://github.com/gnolang/gno/pull/5814#discussion_r3873394373)
 Missing test: all three added tests create the element in the transaction that copies it, so nothing covers an array already in the store and read before the copy, or one handed to another realm by value, where the merge base and this branch persist different graphs.
 
 <details><summary>test cases</summary>
@@ -56,5 +60,5 @@ Two filetests, goldens filled and both run at e5ed12eec and at the merge base 75
 
 </details>
 
-## gnovm/tests/files/gas/nested_alloc.gno:12 [gh](https://github.com/gnolang/gno/blob/e5ed12eec/gnovm/tests/files/gas/nested_alloc.gno#L12) · [↗](../../../../../.worktrees/gno-review-5814/gnovm/tests/files/gas/nested_alloc.gno#L12)
+## gnovm/tests/files/gas/nested_alloc.gno:12 [gh](https://github.com/gnolang/gno/blob/e5ed12eec/gnovm/tests/files/gas/nested_alloc.gno#L12) · [↗](../../../../../.worktrees/gno-review-5814/gnovm/tests/files/gas/nested_alloc.gno#L12) [posted](https://github.com/gnolang/gno/pull/5814#discussion_r3873394383)
 Nit: the description's callout quotes 8,559,690,088 dropping to 17,013,825; the golden and the merge base give 8,559,690,224 and 17,013,961 instead.
