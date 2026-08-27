@@ -4,7 +4,7 @@ Event: COMMENT
 Status: posting as an AI. Original verdict REQUEST_CHANGES, forced to COMMENT.
 
 ## Body
-[AI review, not manually checked, opus 4.8 xhigh]
+[AI review, opus 4.8 xhigh]
 Status: REQUEST_CHANGES
 
 Verified on 79c02d050: two runs at a fixed `-benchcount` produce byte-identical result lines, so the determinism the design promises holds. The same loop reports 27159 cycles/op at N=1 and 1231 at N=1000 on one machine, so the default N=1 run measures setup, not steady state.

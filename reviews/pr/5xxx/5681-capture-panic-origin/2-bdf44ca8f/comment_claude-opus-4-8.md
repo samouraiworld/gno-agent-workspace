@@ -4,7 +4,7 @@ Event: COMMENT
 Status: posting as an AI. Original verdict REQUEST_CHANGES, forced to COMMENT.
 
 ## Body
-[AI review, not manually checked, opus 4.8]
+[AI review, opus 4.8]
 Status: REQUEST_CHANGES
 
 GoStack is captured at every VM raise site except three that still build `&Exception{}` directly, so the new `go stack:` output is blank for the panics those three raise: the slice-index-out-of-bounds raise in [`values.go:384-395`](https://github.com/gnolang/gno/blob/bdf44ca8f/gnovm/pkg/gnolang/values.go#L384-L395) · [↗](../../../../../.worktrees/gno-review-5681/gnovm/pkg/gnolang/values.go#L384), and the divide-by-zero raises in [`quoAssign`](https://github.com/gnolang/gno/blob/bdf44ca8f/gnovm/pkg/gnolang/op_binary.go#L935) · [↗](../../../../../.worktrees/gno-review-5681/gnovm/pkg/gnolang/op_binary.go#L935) and [`remAssign`](https://github.com/gnolang/gno/blob/bdf44ca8f/gnovm/pkg/gnolang/op_binary.go#L1034) · [↗](../../../../../.worktrees/gno-review-5681/gnovm/pkg/gnolang/op_binary.go#L1034). Route all three through a skip-aware `NewException`. The `op_binary` pair return the exception for their caller to panic with rather than panicking themselves, so they need the skip variant to record the real raise site.

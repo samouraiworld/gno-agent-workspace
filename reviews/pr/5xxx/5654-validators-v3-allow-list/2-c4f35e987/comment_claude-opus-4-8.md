@@ -1,7 +1,7 @@
 # Review: PR [#5654](https://github.com/gnolang/gno/pull/5654)
 Posted: https://github.com/gnolang/gno/pull/5654#pullrequestreview-5042800816
 Event: COMMENT
-Status: posting as an AI. Original verdict REQUEST_CHANGES, forced to COMMENT.
+Status: posted as an AI, marker left in the long form: this is the first review of a PR by this author. Original verdict REQUEST_CHANGES, forced to COMMENT.
 
 ## Body
 [AI review, not manually checked, opus 4.8]

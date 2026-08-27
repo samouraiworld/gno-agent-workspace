@@ -4,7 +4,7 @@ Event: COMMENT
 Status: posting as an AI. Original verdict APPROVE, forced to COMMENT.
 
 ## Body
-[AI review, not manually checked, opus 4.8]
+[AI review, opus 4.8]
 Status: APPROVE
 
 Reverting the holder to an eager `maps.Clone` at the call site and counting clones puts non-type-checking transactions at zero, [`AddPackage`](https://github.com/gnolang/gno/blob/cf9cdf9f5/gno.land/pkg/sdk/vm/keeper.go#L664) · [↗](../../../../../.worktrees/gno-review-5901/gno.land/pkg/sdk/vm/keeper.go#L664) and [`Run`](https://github.com/gnolang/gno/blob/cf9cdf9f5/gno.land/pkg/sdk/vm/keeper.go#L1057) · [↗](../../../../../.worktrees/gno-review-5901/gno.land/pkg/sdk/vm/keeper.go#L1057) at exactly one per transaction. A write into one holder's clone reaches neither the shared base nor a sibling transaction's clone. The clone stays off the metered path: `TypeCheckMemPackage` runs before `SetPreprocessAllocator` and `SetGasMeter` wire the gas meter to the store.

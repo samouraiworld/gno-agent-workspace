@@ -4,7 +4,7 @@ Event: COMMENT
 Status: posting as an AI. Verdict COMMENT.
 
 ## Body
-[AI review, not manually checked, opus 5]
+[AI review, opus 5]
 Status: COMMENT
 
 The merge-base VM fails 4 of 2454 filetests against this branch's goldens, three of them the ones the branch adds.

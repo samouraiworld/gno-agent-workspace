@@ -4,7 +4,7 @@ Event: COMMENT
 Status: posting as an AI. Verdict NEEDS DISCUSSION.
 
 ## Body
-[AI review, not manually checked, opus 5]
+[AI review, opus 5]
 Status: NEEDS DISCUSSION
 
 Reverting only [`store.go`](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/store/rootmulti/store.go) to the merge base makes the new test report the race, and 5af2a62c1 runs clean.
