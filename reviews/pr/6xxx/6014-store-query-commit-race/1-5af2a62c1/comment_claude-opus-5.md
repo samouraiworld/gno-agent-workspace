@@ -1,5 +1,6 @@
 # Review: PR [#6014](https://github.com/gnolang/gno/pull/6014)
 Event: COMMENT
+Status: not posted. On `post as an AI` the Body leads with `[AI review, not manually checked, opus 5]`, then `Status: COMMENT`.
 
 ## Body
 Reverting only [`store.go`](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/store/rootmulti/store.go) to the merge base makes the new test report the race, and 5af2a62c1 runs clean.
@@ -8,9 +9,7 @@ Reverting only [`store.go`](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pk
 
 The red `docs` check is a dead link in [`gnoland-networks.md`](https://github.com/gnolang/gno/blob/5af2a62c1/docs/resources/gnoland-networks.md?plain=1#L9), not a code problem.
 
-Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6014-store-query-commit-race/1-5af2a62c1/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
-
-## tm2/pkg/sdk/baseapp_test.go:1542-1543 [↗](../../../../../.worktrees/gno-review-6014/tm2/pkg/sdk/baseapp_test.go#L1542-L1543)
+## tm2/pkg/sdk/baseapp_test.go:1542-1543 [gh](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/sdk/baseapp_test.go#L1542-L1543) · [↗](../../../../../.worktrees/gno-review-6014/tm2/pkg/sdk/baseapp_test.go#L1542-L1543)
 A latest-height store query does not in fact run safely alongside `Commit`. `.store` queries walk the [live tree](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/store/iavl/store.go#L300-L316), and pinning the version does not isolate the reader from nodes the commit [mutates in place](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/iavl/node.go#L314-L315). This test passes only because its 19 blocks carry no transaction, so the walk never reaches a rewritten node; the collision predates this PR and reproduces at the merge base.
 
 <details><summary>repro</summary>
@@ -122,7 +121,7 @@ FAIL
 ```
 </details>
 
-## tm2/pkg/sdk/baseapp_test.go:1544 [↗](../../../../../.worktrees/gno-review-6014/tm2/pkg/sdk/baseapp_test.go#L1544)
+## tm2/pkg/sdk/baseapp_test.go:1544 [gh](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/sdk/baseapp_test.go#L1544) · [↗](../../../../../.worktrees/gno-review-6014/tm2/pkg/sdk/baseapp_test.go#L1544)
 Nothing automated passes `-race`: the tm2 job runs [plain `go test`](https://github.com/gnolang/gno/blob/5af2a62c1/.github/workflows/_ci-go.yml#L124), and `make test` exports [`CGO_ENABLED=0`](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/Makefile#L16-L17), under which `go test -race` refuses to run. Without the flag the only assertion left is [`queries.Load() > 1`](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/sdk/baseapp_test.go#L1587), which the loop satisfies by construction. Restoring the plain struct field would keep every check green.
 
 <details><summary>repro</summary>
@@ -140,8 +139,8 @@ go: -race requires cgo; enable cgo by setting CGO_ENABLED=1
 ```
 </details>
 
-## tm2/pkg/store/rootmulti/store.go:54 [↗](../../../../../.worktrees/gno-review-6014/tm2/pkg/store/rootmulti/store.go#L54)
+## tm2/pkg/store/rootmulti/store.go:54 [gh](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/store/rootmulti/store.go#L54) · [↗](../../../../../.worktrees/gno-review-6014/tm2/pkg/store/rootmulti/store.go#L54)
 Nit: this field is the only one in the struct with an unstated concurrency contract; [`querySnapshot`](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/store/rootmulti/store.go#L67-L69) and [`snapshotMu`](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/store/rootmulti/store.go#L79-L97) both name their writers and readers. With no automated `-race` run, a comment here is the only guard against a future cleanup silently reverting it to a plain struct.
 
-## tm2/pkg/store/rootmulti/store.go:236-241 [↗](../../../../../.worktrees/gno-review-6014/tm2/pkg/store/rootmulti/store.go#L236-L241)
+## tm2/pkg/store/rootmulti/store.go:236-241 [gh](https://github.com/gnolang/gno/blob/5af2a62c1/tm2/pkg/store/rootmulti/store.go#L236-L241) · [↗](../../../../../.worktrees/gno-review-6014/tm2/pkg/store/rootmulti/store.go#L236-L241)
 Suggestion: the returned `Hash` still points at the one slice every reader shares, and nothing says it must not be written to after publication. Both publishers build a fresh slice today, so this is latent.

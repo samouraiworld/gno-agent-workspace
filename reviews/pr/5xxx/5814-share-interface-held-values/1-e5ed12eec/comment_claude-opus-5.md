@@ -1,13 +1,12 @@
 # Review: [#5814](https://github.com/gnolang/gno/pull/5814)
 Event: COMMENT
+Status: not posted. On `post as an AI` the Body leads with `[AI review, not manually checked, opus 5]`, then `Status: COMMENT`.
 
 ## Body
 The merge-base VM fails 4 of 2454 filetests against this branch's goldens, three of them the ones the branch adds.
 
 - The description misses a second behavior change: the merge base persisted one escaped object or two owned ones for the same realm code, depending on whether a read had resolved the element from a `RefValue` before the copy, and this branch persists the same graph either way.
 - `copy` and `append` over `[]any` still deep-copy every element, so `dst = src` shares where `copy(dst, src)` does not, while Go shares in both, and the slice is the shape realm code has: 322 lines under `examples/gno.land` and `gnovm/stdlibs` mention `[]any` or `[]error` and none declares a fixed-size interface array.
-
-Full review: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5814-share-interface-held-values/1-e5ed12eec/review_claude-opus-5_davd-gzl.md [↗](review_claude-opus-5_davd-gzl.md)
 
 Repros run at e5ed12eec.
 
