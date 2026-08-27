@@ -49,75 +49,11 @@ Missing test: all three added tests create the element in the transaction that c
 
 <details><summary>test cases</summary>
 
-Both need their `Realm:` block filled by `go test -run 'TestFiles/<name>.gno$' -update-golden-tests .` from `gnovm/pkg/gnolang/`, after which they pass at e5ed12eec and fail at 754780601.
+Two filetests, goldens filled and both run at e5ed12eec and at the merge base 754780601. Each carries a `Run:` header that fetches it into a gno checkout.
 
-For the stored array, the merge base writes a second 216-byte object where this branch escapes the first. Dropping the `pre:` line is the other half of the pair: at 754780601 the two files persist different graphs, at e5ed12eec the same one.
+- [`zrealm_iface_array_share_stored.gno`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5814-share-interface-held-values/1-e5ed12eec/tests/zrealm_iface_array_share_stored.gno) covers an array already in the store, read before the copy. It passes at e5ed12eec; at 754780601 the golden differs, where the merge base writes a second object rather than escaping the first.
+- [`zrealm_iface_array_share_crossrealm.gno`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5814-share-interface-held-values/1-e5ed12eec/tests/zrealm_iface_array_share_crossrealm.gno) covers an array handed to another realm by value through `crossrealm_b.SetObject`. Same result: passes at e5ed12eec, golden differs at 754780601.
 
-`gnovm/tests/files/zrealm_iface_array_share_stored.gno`:
-
-```go
-// PKGPATH: gno.land/r/test
-package test
-
-type S struct{ F int }
-
-var (
-	arr  [1]any
-	arr2 [1]any
-)
-
-func init() {
-	arr[0] = S{1}
-}
-
-func main(cur realm) {
-	println("pre:", arr[0].(S).F) // resolves the RefValue before the copy
-	arr2 = arr
-	println("vals:", arr[0].(S).F, arr2[0].(S).F)
-}
-
-// Output:
-// pre: 1
-// vals: 1 1
-
-// Realm:
-// PLACEHOLDER
-```
-
-Across the realm boundary the callee's stored array ends up holding a `RefValue` into the caller's object, which loses its `OwnerID` and goes to `RefCount 2` for good; the merge base gives the callee its own 215-byte object instead.
-
-`gnovm/tests/files/zrealm_iface_array_share_crossrealm.gno`:
-
-```go
-// PKGPATH: gno.land/r/crossrealm
-package crossrealm
-
-import (
-	"gno.land/r/tests/vm/crossrealm_b"
-)
-
-type S struct{ F int }
-
-var arr [1]any
-
-func init() {
-	arr[0] = S{1}
-}
-
-func main(cur realm) {
-	println("pre:", arr[0].(S).F)
-	crossrealm_b.SetObject(cross(cur), arr)
-	got := crossrealm_b.GetObject().([1]any)
-	println("here:", arr[0].(S).F, "there:", got[0].(S).F)
-}
-
-// Output:
-// pre: 1
-// here: 1 there: 1
-
-// Realm:
-// PLACEHOLDER
-```
 </details>
 
 ## gnovm/tests/files/gas/nested_alloc.gno:12 [gh](https://github.com/gnolang/gno/blob/e5ed12eec/gnovm/tests/files/gas/nested_alloc.gno#L12) · [↗](../../../../../.worktrees/gno-review-5814/gnovm/tests/files/gas/nested_alloc.gno#L12)
