@@ -1,8 +1,11 @@
 # Review: [#6074](https://github.com/gnolang/gno/pull/6074)
+Posted: https://github.com/gnolang/gno/pull/6074#pullrequestreview-5037920979
 Event: COMMENT
 
 ## Body
 [AI review, not manually verified]
+
+I am doing a manual review today.
 
 <details><summary>checks that held</summary>
 
@@ -13,7 +16,7 @@ Event: COMMENT
 
 Reviewed at 6350eccafee9b5bcef45532897dfa288772b54a9.
 
-## examples/gno.land/p/demo/tokens/grc721/token.gno:166 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/token.gno#L166) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/token.gno#L166)
+## examples/gno.land/p/demo/tokens/grc721/token.gno:166 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/token.gno#L166) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/token.gno#L166) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3869322204)
 `RegisterExtension` files the view under the hook's kind and calls neither of the view's own two methods, so a collection can advertise `metadata` and hand back a royalty view, or advertise `royalty` with a view naming another token.
 
 <details><summary>repro</summary>
@@ -96,7 +99,7 @@ A advertises royalty: true | the view names token: gno.land/p/demo/tokens/grc721
 `ExtensionView` is exactly `ExtensionKind()` and `TokenID()`, both free to call at registration. `TokenID()` is what the guard deleted this round compared, and `git grep '\.TokenID()' -- examples/` now returns three hits, all of them test assertions.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:23 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L23) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L23)
+## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:23 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L23) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L23) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3869322215)
 `Collection` copies the ledger's views into a tree of its own instead of reading them, so a published collection stops tracking its ledger:
 
 - a `NewCollection` value keeps no ledger, so it never refreshes;
@@ -166,7 +169,7 @@ same object: false | published kinds: 0 | fresh kinds: 1
 `Token` already holds an unexported `*PrivateLedger` with no accessor, so a `*Collection` reaches the ledger transitively today and naming the field costs no reachability. Holding it and reading the views through it takes `collection.gno` and `nft.gno` from 135 lines to 112, deletes `sync`, closes both cases, drops 100 lookups through `NFT.Extension` from 7,069,863 gas to 2,591,245, and leaves every test in `collection_test.gno` passing unchanged. It moves one behaviour: `Kinds()` then answers in registration order rather than sorted.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:18 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L18) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L18)
+## examples/gno.land/p/demo/tokens/grc721/collection/collection.gno:18 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L18) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection.gno#L18) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3869322228)
 `NewCollection` checks the pointer and not the pair, so a zero-value `*grc721.PrivateLedger` yields a collection that lists kinds and returns canonical views over a nil token, where `Wrap` refuses the same ledger.
 
 <details><summary>repro</summary>
@@ -229,7 +232,7 @@ Wrap with that ledger: collection: ledger does not belong to this token
 The check does not close the shape, since `&collection.Collection{}` is equally constructible and a registry has to guard its own inputs either way. The two constructors added in one diff disagreeing on the same argument is the finding.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/token_test.gno:698 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/token_test.gno#L698) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/token_test.gno#L698)
+## examples/gno.land/p/demo/tokens/grc721/token_test.gno:698 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/token_test.gno#L698) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/token_test.gno#L698) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3869322235)
 Missing test: `TestExtensionViewLookup` registers only a view whose kind and token both match its hook, so nothing pins a mismatch in either.
 
 <details><summary>test cases</summary>
@@ -252,7 +255,7 @@ func TestRegisterExtensionRejectsAForeignView(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno:134 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno#L134) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno#L134)
+## examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno:134 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno#L134) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/collection/collection_test.gno#L134) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3869322242)
 Missing test: "Kinds returns sorted registered kinds" runs on `metadata` then `royalty`, a sequence identical sorted and unsorted, so it holds whether `Kinds` sorts or not.
 
 <details><summary>test cases</summary>
@@ -277,10 +280,10 @@ func TestKindsOrderIsIndependentOfRegistrationOrder(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/token.gno:169 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/token.gno#L169) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/token.gno#L169)
+## examples/gno.land/p/demo/tokens/grc721/token.gno:169 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/token.gno#L169) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/token.gno#L169) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3869322255)
 Nit: `PrivateLedger.HasExtension` is new exported API whose only caller is `RegisterExtension`, and it answers the opposite of `Collection.HasExtension` for a kind registered with a nil view, so a realm that trusts the collection's `false` aborts on `grc721: extension kind already registered`.
 
-## examples/gno.land/p/demo/tokens/grc721/token.gno:195 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/token.gno#L195) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/token.gno#L195)
+## examples/gno.land/p/demo/tokens/grc721/token.gno:195 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/token.gno#L195) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/token.gno#L195) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3869322260)
 Suggestion: `lookupExtension` calls `e.hook.ExtensionKind()` on every lookup instead of storing the kind at registration, so an entry re-keys itself whenever its hook's answer changes, freeing the kind it was registered under and taking one it was not.
 
 <details><summary>repro</summary>
