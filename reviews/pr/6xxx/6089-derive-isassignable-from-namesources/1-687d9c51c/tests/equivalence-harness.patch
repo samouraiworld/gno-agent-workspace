@@ -1,0 +1,185 @@
+diff --git a/gnovm/pkg/gnolang/nodes.go b/gnovm/pkg/gnolang/nodes.go
+index 54d90b72c..0f728c05f 100644
+--- a/gnovm/pkg/gnolang/nodes.go
++++ b/gnovm/pkg/gnolang/nodes.go
+@@ -8,6 +8,8 @@ import (
+ 	"slices"
+ 	"strconv"
+ 	"strings"
++	"sync"
++	"sync/atomic"
+ )
+ 
+ // ----------------------------------------
+@@ -1920,7 +1922,7 @@ func (sb *StaticBlock) getLocalIsConst(n Name) bool {
+ 	return slices.Contains(sb.Consts, n)
+ }
+ 
+-func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
++func (sb *StaticBlock) isAssignableOld(store Store, n Name) bool {
+ 	_, ok := sb.GetLocalIndex(n)
+ 	bp := sb.GetParentNode(store)
+ 	un := sb.UnassignableNames
+@@ -1940,6 +1942,89 @@ func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
+ 	}
+ }
+ 
++// PR 6089's replacement, verbatim.
++func (sb *StaticBlock) isAssignableNew(store Store, n Name) bool {
++	idx, ok := sb.GetLocalIndex(n)
++	bp := sb.GetParentNode(store)
++	for {
++		if ok {
++			return sb.NameSources[idx].Type != NSFuncDecl
++		} else if bp != nil {
++			idx, ok = bp.GetLocalIndex(n)
++			sb = bp.GetStaticBlock()
++			bp = bp.GetParentNode(store)
++		} else if _, ok := UverseNode().GetLocalIndex(n); ok {
++			return false
++		} else {
++			return true
++		}
++	}
++}
++
++// ZZSweepBlock compares the two predicates over every name in one block.
++func ZZSweepBlock(b *StaticBlock) {
++	atomic.AddInt64(&ZZBlocks, 1)
++	if len(b.NameSources) != len(b.Names) {
++		zzRecord("LENMISMATCH loc=%v names=%d nsrcs=%d", b.Location, len(b.Names), len(b.NameSources))
++		return
++	}
++	for i, nm := range b.Names {
++		atomic.AddInt64(&ZZNames, 1)
++		inList := slices.Contains(b.UnassignableNames, nm)
++		isFD := b.NameSources[i].Type == NSFuncDecl
++		if inList != isFD {
++			zzRecord("BLOCK loc=%v name=%s inUnassignable=%v NSFuncDecl=%v nsrcType=%d", b.Location, nm, inList, isFD, b.NameSources[i].Type)
++		}
++	}
++}
++
++// ZZEquivStats counts the differential sweep below.
++var (
++	ZZCalls  int64
++	ZZNames  int64
++	ZZBlocks int64
++	ZZDiffs  []string
++	ZZMu     sync.Mutex
++)
++
++func zzRecord(f string, a ...any) {
++	ZZMu.Lock()
++	ZZDiffs = append(ZZDiffs, fmt.Sprintf(f, a...))
++	ZZMu.Unlock()
++}
++
++func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
++	got := sb.isAssignableOld(store, n)
++	alt := sb.isAssignableNew(store, n)
++	atomic.AddInt64(&ZZCalls, 1)
++	if got != alt {
++		zzRecord("CALLSITE name=%s loc=%v old=%v new=%v", n, sb.Location, got, alt)
++	}
++	// Sweep every name declared in every block on the chain, not only n.
++	b := sb
++	for {
++		atomic.AddInt64(&ZZBlocks, 1)
++		if len(b.NameSources) != len(b.Names) {
++			zzRecord("LENMISMATCH loc=%v names=%d nsrcs=%d", b.Location, len(b.Names), len(b.NameSources))
++		} else {
++			for i, nm := range b.Names {
++				atomic.AddInt64(&ZZNames, 1)
++				inList := slices.Contains(b.UnassignableNames, nm)
++				isFD := b.NameSources[i].Type == NSFuncDecl
++				if inList != isFD {
++					ZZDiffs = append(ZZDiffs, fmt.Sprintf("BLOCK loc=%v name=%s inUnassignable=%v NSFuncDecl=%v", b.Location, nm, inList, isFD))
++				}
++			}
++		}
++		bp2 := b.GetParentNode(store)
++		if bp2 == nil {
++			break
++		}
++		b = bp2.GetStaticBlock()
++	}
++	return got
++}
++
+ // Implements BlockNode.
+ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
+ 	idx, ok := sb.GetLocalIndex(n)
+@@ -2413,6 +2498,9 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
+ 		sb.Block.Values[idx] = tv
+ 		sb.Types[idx] = st
+ 		if !nsrc.IsZero() {
++			if sb.NameSources[idx].Type == NSFuncDecl && nsrc.Type != NSFuncDecl {
++				zzRecord("CLOBBER loc=%v name=%s NSFuncDecl->%d", sb.Location, n, nsrc.Type)
++			}
+ 			sb.NameSources[idx] = nsrc
+ 		}
+ 		// This can happen when a *ValueDecl is split after initStaticBlocks.
+diff --git a/gnovm/pkg/gnolang/preprocess.go b/gnovm/pkg/gnolang/preprocess.go
+index 33bcbf81a..8018a9b26 100644
+--- a/gnovm/pkg/gnolang/preprocess.go
++++ b/gnovm/pkg/gnolang/preprocess.go
+@@ -724,6 +724,25 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
+ 			return n, TRANS_CONTINUE
+ 		})
+ 
++	// ZZ differential sweep: every block reachable from n, plus the ctx chain.
++	Transcribe(n,
++		func(ns []Node, ftype TransField, index int, nn Node, stage TransStage) (Node, TransCtrl) {
++			if stage != TRANS_ENTER {
++				return nn, TRANS_CONTINUE
++			}
++			if bn, ok := nn.(BlockNode); ok {
++				if bn.IsInitialized() {
++					ZZSweepBlock(bn.GetStaticBlock())
++				}
++			}
++			return nn, TRANS_CONTINUE
++		})
++	for c := ctx; c != nil; {
++		sb := c.GetStaticBlock()
++		ZZSweepBlock(sb)
++		c = sb.GetParentNode(store)
++	}
++
+ 	return n
+ }
+ 
+diff --git a/gnovm/pkg/gnolang/zz_equiv_report_test.go b/gnovm/pkg/gnolang/zz_equiv_report_test.go
+new file mode 100644
+index 000000000..28146b296
+--- /dev/null
++++ b/gnovm/pkg/gnolang/zz_equiv_report_test.go
+@@ -0,0 +1,27 @@
++package gnolang
++
++import (
++	"fmt"
++	"os"
++	"strings"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	code := m.Run()
++	var b strings.Builder
++	fmt.Fprintf(&b, "ZZ-REPORT calls=%d blocks=%d names=%d diffs=%d\n", ZZCalls, ZZBlocks, ZZNames, len(ZZDiffs))
++	seen := map[string]int{}
++	order := []string{}
++	for _, d := range ZZDiffs {
++		if seen[d] == 0 {
++			order = append(order, d)
++		}
++		seen[d]++
++	}
++	for _, d := range order {
++		fmt.Fprintf(&b, "ZZ-DIFF x%d %s\n", seen[d], d)
++	}
++	os.WriteFile("/tmp/zz6089.txt", []byte(b.String()), 0o644)
++	os.Exit(code)
++}
