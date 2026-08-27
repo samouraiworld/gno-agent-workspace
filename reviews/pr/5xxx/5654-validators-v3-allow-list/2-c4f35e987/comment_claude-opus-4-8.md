@@ -85,7 +85,7 @@ The add/remove loops validate uniqueness only, so an empty or malformed path ent
 ## examples/gno.land/r/sys/validators/v3/allowed.gno:121-131 [gh](https://github.com/gnolang/gno/blob/c4f35e987/examples/gno.land/r/sys/validators/v3/allowed.gno#L121-L131) · [↗](../../../../../.worktrees/gno-review-5654/examples/gno.land/r/sys/validators/v3/allowed.gno#L121)
 Removing a realm from the allow list leaves the validators that realm added in the active set, with no cleanup hook or provenance tracking. Governance can disenfranchise a realm while its validators stay live. Document the intent, or add a remove-realm-and-its-validators primitive.
 
-## examples/gno.land/r/sys/validators/v3/allowed_test.gno:73 [gh](https://github.com/gnolang/gno/blob/c4f35e987/examples/gno.land/r/sys/validators/v3/allowed_test.gno#L73) · [↗](../../../../../.worktrees/gno-review-5654/examples/gno.land/r/sys/validators/v3/allowed_test.gno#L73)
+## examples/gno.land/r/sys/validators/v3/allowed_test.gno:79 [gh](https://github.com/gnolang/gno/blob/c4f35e987/examples/gno.land/r/sys/validators/v3/allowed_test.gno#L79) · [↗](../../../../../.worktrees/gno-review-5654/examples/gno.land/r/sys/validators/v3/allowed_test.gno#L79)
 Missing test: `AddValidator` with a signing pubkey and address that don't match.
 
 <details><summary>test cases</summary>

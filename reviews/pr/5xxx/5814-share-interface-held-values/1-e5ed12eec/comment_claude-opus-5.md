@@ -10,7 +10,7 @@ The merge-base VM fails 4 of 2454 filetests against this branch's goldens, three
 
 Repros run at e5ed12eec.
 
-## gnovm/pkg/gnolang/values.go:466 [gh](https://github.com/gnolang/gno/blob/e5ed12eec/gnovm/pkg/gnolang/values.go#L466) · [↗](../../../../../.worktrees/gno-review-5814/gnovm/pkg/gnolang/values.go#L466)
+## gnovm/pkg/gnolang/values.go:472 [gh](https://github.com/gnolang/gno/blob/e5ed12eec/gnovm/pkg/gnolang/values.go#L472) · [↗](../../../../../.worktrees/gno-review-5814/gnovm/pkg/gnolang/values.go#L472)
 `go/types` enforces the addressability premise and the VM does not, so `arr2[0].(S).F = 9` now writes into the source array too. `panicIllegalPointerLHS` already refuses a pointer-receiver call on an interface-held value, so rejecting the assignment there would put the guarantee in the VM.
 
 <details><summary>repro</summary>

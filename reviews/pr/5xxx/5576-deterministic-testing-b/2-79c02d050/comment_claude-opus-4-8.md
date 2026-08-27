@@ -76,51 +76,6 @@ flaked on run 4
 ```
 </details>
 
-## gnovm/cmd/gno/testdata/test/benchmark_determinism.txtar:7-14 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/cmd/gno/testdata/test/benchmark_determinism.txtar#L7-L14) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/cmd/gno/testdata/test/benchmark_determinism.txtar#L7)
-Benchmark results print to stderr, but `cmp run1.txt run2.txt` compares stdout snapshots, which are empty. The check passes for any output, so this test never verifies determinism. Capture and compare stderr instead.
-
-<details><summary>repro</summary>
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 5576 -R gnolang/gno
-export GNOROOT=$(git rev-parse --show-toplevel)
-mkdir -p /tmp/bb && cd /tmp/bb
-cat > gnomod.toml <<'EOF'
-module = 'gno.test/p/bb'
-EOF
-cat > bb.gno <<'EOF'
-package bb
-
-var Sink int
-EOF
-cat > bb_test.gno <<'EOF'
-package bb
-
-import "testing"
-
-func BenchmarkLoop(b *testing.B) {
-	total := 0
-	for i := 0; i < b.N; i++ {
-		total += i * 3
-	}
-	Sink = total
-}
-EOF
-# mirror the txtar: capture stdout, the stream the cmp uses
-go run "$GNOROOT/gnovm/cmd/gno" test -bench . -benchcount 10 . 1>run1.txt 2>/dev/null
-go run "$GNOROOT/gnovm/cmd/gno" test -bench . -benchcount 10 . 1>run2.txt 2>/dev/null
-echo "run1 bytes: $(wc -c < run1.txt), run2 bytes: $(wc -c < run2.txt)"
-cmp run1.txt run2.txt && echo "cmp EQUAL on empty files: assertion is vacuous"
-cd - && rm -rf /tmp/bb
-```
-
-```
-run1 bytes: 0, run2 bytes: 0
-cmp EQUAL on empty files: assertion is vacuous
-```
-</details>
-
 ## gnovm/pkg/test/test.go:794-795 [gh](https://github.com/gnolang/gno/blob/79c02d050/gnovm/pkg/test/test.go#L794-L795) · [↗](../../../../../.worktrees/gno-review-5576/gnovm/pkg/test/test.go#L794)
 `rep.Allocs/n` truncates to 0 allocs/op when total allocations are fewer than N, while `B/op` stays nonzero, so the output reports bytes allocated with zero objects. At the default N=1 this is the common case.
 
