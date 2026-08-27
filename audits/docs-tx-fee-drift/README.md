@@ -19,8 +19,7 @@ comes from. The chain charges 0.32 GNOT for those three transactions, and
 Seven measurements back this, each a testscript under
 [`tests/`](tests) run against a local node at the base sha. F1 through F5 and
 F8 through F14 are fixed on
-[davd-gzl/gno#4](https://github.com/davd-gzl/gno/pull/4), a draft against the
-fork.
+[gnolang/gno#6099](https://github.com/gnolang/gno/pull/6099), open as a draft.
 
 ## Decisions for a human
 
