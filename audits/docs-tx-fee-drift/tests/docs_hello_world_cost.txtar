@@ -1,0 +1,21 @@
+# measure the interact-with-gnokey hello_world pure package deploy
+
+gnoland start
+
+# the doc's second example: -gas-wanted 200000
+! gnokey maketx addpkg -pkgdir $WORK/p -pkgpath gno.land/p/test1/hello_world -gas-fee 10000000ugnot -gas-wanted 200000 -chainid=tendermint_test test1
+
+# same package, enough gas
+gnokey maketx addpkg -pkgdir $WORK/p -pkgpath gno.land/p/test1/hello_world -gas-fee 10000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+-- p/gnomod.toml --
+gno = "0.9"
+module = "gno.land/p/test1/hello_world"
+
+-- p/hello_world.gno --
+package hello_world
+
+func Hello() string {
+	return "Hello, world!"
+}

@@ -1,0 +1,25 @@
+# what -simulate only prints for the docs quickstart deploy
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/counter -pkgpath gno.land/r/test1/counter -gas-fee 1000000ugnot -gas-wanted 20000000 -simulate only -chainid=tendermint_test test1
+
+-- counter/gnomod.toml --
+module = "gno.land/r/test1/counter"
+gno = "0.9"
+
+-- counter/counter.gno --
+package counter
+
+import "strconv"
+
+var counter int
+
+func Increment(_ realm) int {
+	counter++
+	return counter
+}
+
+func Render(_ string) string {
+	return strconv.Itoa(counter)
+}
