@@ -5,6 +5,13 @@ curl -fsSL -o gnovm/tests/files/zrealm_iface_array_share_stored.gno \
 go test -v -run 'TestFiles/zrealm_iface_array_share_stored.gno$' ./gnovm/pkg/gnolang/
 rm gnovm/tests/files/zrealm_iface_array_share_stored.gno
 */
+
+// The three shipped share tests all copy an array whose element was created in
+// the same transaction. Here the element is already persisted and is read
+// before the copy, so it is a live *StructValue and not a RefValue. The golden
+// below is what e5ed12eec produces; merge base 754780601 writes a second
+// 216-byte object instead of escaping the first, and fails this test.
+
 // PKGPATH: gno.land/r/test
 package test
 
@@ -20,7 +27,7 @@ func init() {
 }
 
 func main(cur realm) {
-	println("pre:", arr[0].(S).F) // resolves the RefValue before the copy
+	println("pre:", arr[0].(S).F)
 	arr2 = arr
 	println("vals:", arr[0].(S).F, arr2[0].(S).F)
 }

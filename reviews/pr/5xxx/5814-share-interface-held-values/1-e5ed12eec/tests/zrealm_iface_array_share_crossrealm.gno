@@ -5,6 +5,12 @@ curl -fsSL -o gnovm/tests/files/zrealm_iface_array_share_crossrealm.gno \
 go test -v -run 'TestFiles/zrealm_iface_array_share_crossrealm.gno$' ./gnovm/pkg/gnolang/
 rm gnovm/tests/files/zrealm_iface_array_share_crossrealm.gno
 */
+
+// Handing a [1]any across a realm boundary by value. At e5ed12eec the element
+// escapes: crossrealm_b's stored array holds a RefValue into r/crossrealm's
+// object, which loses its OwnerID and goes to RefCount 2 permanently. Merge
+// base 754780601 gives crossrealm_b its own 215-byte object and fails here.
+
 // PKGPATH: gno.land/r/crossrealm
 package crossrealm
 
