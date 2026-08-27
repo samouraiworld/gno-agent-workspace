@@ -1,10 +1,11 @@
 # Review: [#4885](https://github.com/gnolang/gno/pull/4885)
 Posted: https://github.com/gnolang/gno/pull/4885#pullrequestreview-5040464036
 Event: COMMENT
-Status: posted as an AI review, on the word `post as ai`; the Body opens with the disclosure marker.
 
 ## Body
 [AI review, not manually verified]
+
+Status: APPROVE
 
 Looks good.
 

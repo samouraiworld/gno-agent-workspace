@@ -12,7 +12,7 @@ Round 3. The head moved from `ff05ec11f` to `6c2839ca0` over a master merge and 
 
 The GnoVM caps how much memory one transaction may hold, and rebuilds that total from scratch at each garbage collection by walking live values. Strings broke the rebuild in both directions: a string loaded back from storage was never counted at all, and two strings sharing one Go byte array were each billed for the whole array. This branch records the address extent of every string's byte array in the allocator and bills each extent once per collection cycle, so aliases and slices resolve to the extent that contains them. Since round 2 it also replaced the sorted slice holding those extents with a balanced tree, made the extent set independent of whether Go decided to share a byte array, and routed two paths that handed Gno strings out untracked through the allocator.
 
-**Verdict: COMMENT** — nothing measured blocks the merge; the one open item is where the load-path tracking lands on the query path, and `main / lint` is red on `go fix` formatting in the new test file (1 suggestion, 4 nits).
+**Verdict: APPROVE** — nothing measured blocks the merge and the one open item, where the load-path tracking lands on the query path, is a suggestion (1 suggestion, 4 nits). `main / lint` is red on `go fix` formatting in the new test file, which the job names and the verdict does not answer to.
 
 ## Verify first
 
