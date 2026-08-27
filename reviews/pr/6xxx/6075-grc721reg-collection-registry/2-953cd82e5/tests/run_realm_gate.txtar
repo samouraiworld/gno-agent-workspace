@@ -1,0 +1,42 @@
+# Run: from a gno checkout, green at 953cd82e5. It answers whether a gnokey
+# maketx run script can plant an entry in the public index.
+#
+# gh pr checkout 6075 -R gnolang/gno && git checkout 953cd82e5
+# curl -fsSL -o gno.land/pkg/integration/testdata/zrun_gate.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6075-grc721reg-collection-registry/2-953cd82e5/tests/run_realm_gate.txtar
+# go test -v -run 'TestTestdata/zrun_gate' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/zrun_gate.txtar
+
+# can a gnokey maketx run script plant an entry in the registry?
+
+loadpkg gno.land/p/demo/tokens/grc721
+loadpkg gno.land/p/demo/tokens/grc721/collection
+loadpkg gno.land/r/demo/defi/grc721reg
+
+gnoland start
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 200000000 -chainid=tendermint_test test1 $WORK/plant.gno
+stdout OK!
+
+# what the public index shows now
+gnokey query vm/qrender --data 'gno.land/r/demo/defi/grc721reg:'
+stdout 'Definitely Not A Scam'
+
+# and whether the realm it links to exists
+! gnokey query vm/qfile --data 'gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run'
+stdout 'not available'
+
+-- plant.gno --
+package main
+
+import (
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/tokens/grc721/collection"
+	"gno.land/r/demo/defi/grc721reg"
+)
+
+func main(cur realm) {
+	token, _ := grc721.NewToken("Definitely Not A Scam", "GNOT", 0, cur)
+	col := collection.NewCollection(token)
+	println(grc721reg.Register(cross(cur), col, ""))
+}
