@@ -14,7 +14,7 @@ I am doing a manual review today.
 - The one-argument `RegisterExtension` has no caller left anywhere: `git grep -nE 'RegisterExtension\([^,)]*\)' -- '*.gno'` returns nothing, and the four realms under `examples/quarantined/` that import grc721 call it nowhere.
 </details>
 
-Reviewed at 6350eccafee9b5bcef45532897dfa288772b54a9.
+Verified on 6350eccafee9b5bcef45532897dfa288772b54a9
 
 ## examples/gno.land/p/demo/tokens/grc721/token.gno:166 [gh](https://github.com/gnolang/gno/blob/6350eccaf/examples/gno.land/p/demo/tokens/grc721/token.gno#L166) · [↗](../../../../../.worktrees/gno-review-6074/examples/gno.land/p/demo/tokens/grc721/token.gno#L166) [posted](https://github.com/gnolang/gno/pull/6074#discussion_r3869322204)
 `RegisterExtension` files the view under the hook's kind and calls neither of the view's own two methods, so a collection can advertise `metadata` and hand back a royalty view, or advertise `royalty` with a view naming another token.
