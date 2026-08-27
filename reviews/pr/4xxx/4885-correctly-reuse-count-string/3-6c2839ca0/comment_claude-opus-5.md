@@ -1,7 +1,11 @@
 # Review: [#4885](https://github.com/gnolang/gno/pull/4885)
+Posted: https://github.com/gnolang/gno/pull/4885#pullrequestreview-5040464036
 Event: COMMENT
+Status: posted as an AI review, on the word `post as ai`; the Body opens with the disclosure marker.
 
 ## Body
+[AI review, not manually verified]
+
 Looks good.
 
 <details><summary>reverts run against this head</summary>
@@ -9,7 +13,7 @@ Looks good.
 Putting `StringValue.GetShallowSize()` back to header plus bytes moves `alloc_13a.gno`'s post-GC total from the asserted 8972 to 11076, one extra copy of the 1052-byte backing for `s1` and one for the package slot. Putting `convert.go`'s string arm back to `tv.SetString(gno.StringValue(arg))` makes `TestConvertArgToGno_StringArgIsCharged` report `"0" is not greater than "1000"`. Both fixtures pin the behaviour rather than a total that happens to match.
 </details>
 
-## gnovm/pkg/gnolang/realm.go:1895 [gh](https://github.com/gnolang/gno/blob/6c2839ca0/gnovm/pkg/gnolang/realm.go#L1895) · [↗](../../../../../.worktrees/gno-review-4885/gnovm/pkg/gnolang/realm.go#L1895)
+## gnovm/pkg/gnolang/realm.go:1895 [gh](https://github.com/gnolang/gno/blob/6c2839ca0/gnovm/pkg/gnolang/realm.go#L1895) · [↗](../../../../../.worktrees/gno-review-4885/gnovm/pkg/gnolang/realm.go#L1895) [posted](https://github.com/gnolang/gno/pull/4885#discussion_r3871472083)
 Suggestion: on the query path `m.Alloc` is not the allocator this line mints into, so [`GCVisitorFn`](https://github.com/gnolang/gno/blob/6c2839ca0/gnovm/pkg/gnolang/garbage_collector.go#L247) bills a 4096-byte string loaded from the store as its 48-byte header. Either mint into the allocator that recounts, or say in the ADR that the query machine's tally leaves stored strings out.
 
 <details><summary>repro</summary>
