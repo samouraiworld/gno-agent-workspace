@@ -104,8 +104,13 @@ Fix: replace the hardcoded fees with what `-simulate only` returns, per A2.
 
 Severity: medium.
 
-A state-changing transaction now prints three storage lines and carries a
-storage event. Real output for the quickstart deploy:
+A transaction that stores bytes now prints three storage lines and carries a
+storage event. It is the stored bytes that produce it, not the state change:
+a bank send emits nothing, since every emission in
+[the bank keeper](https://github.com/gnolang/gno/blob/6df71ae35/tm2/pkg/sdk/bank/keeper.go#L107)
+is commented out, and
+[a zero storage delta](https://github.com/gnolang/gno/blob/6df71ae35/gno.land/pkg/sdk/vm/keeper.go#L2241)
+is skipped before the event is built. Real output for the quickstart deploy:
 
 ```text
 OK!
