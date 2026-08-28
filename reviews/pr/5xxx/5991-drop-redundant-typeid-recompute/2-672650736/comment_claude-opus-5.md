@@ -3,7 +3,19 @@ Event: APPROVE
 Status: not posted. Round re-anchored to 672650736. On `post as an AI` the Body leads with `[AI review, opus 5]`, then `Status: APPROVE`.
 
 ## Body
-Ran the two new benchmarks against merge base d1a33f574 and head 672650736. The cached call goes from 3 allocations to zero for a package-level type, and from 13 to zero for a function-level one.
+The cached call drops from 3 allocations to zero for a package-level type, and from 13 to zero for a function-level one.
+
+<details><summary>numbers</summary>
+
+The PR's own two benchmarks, at the merge base and at this head:
+
+```
+package-level, before:  3 allocs/op,  64 B/op   after: 0 allocs/op, 0 B/op
+function-level, before: 13 allocs/op, 277 B/op  after: 0 allocs/op, 0 B/op
+```
+
+The `fmt.Sprintf` calls behind those allocations come from `typeidf`, `Location.String`, `Span.String` and `Pos.String`: 1 for a zero `ParentLoc`, 3 for a same-line span, 5 for a multi-line one.
+</details>
 
 ## gnovm/pkg/gnolang/declaredtype_typeid_bench_test.go:5-11 [gh](https://github.com/gnolang/gno/blob/672650736/gnovm/pkg/gnolang/declaredtype_typeid_bench_test.go#L5-L11) · [↗](../../../../../.worktrees/gno-review-5991/gnovm/pkg/gnolang/declaredtype_typeid_bench_test.go#L5-L11)
 Missing test: nothing in the tree pins either written form of a declared type's identity, and the recompute this PR deletes was the only in-tree check tying `dt.typeid` to [`DeclaredTypeID`](https://github.com/gnolang/gno/blob/672650736/gnovm/pkg/gnolang/types.go#L1957-L1963). That identity keys stored type definitions through [`backendTypeKey`](https://github.com/gnolang/gno/blob/672650736/gnovm/pkg/gnolang/store.go#L1456-L1458) and decides typed equality. Filetest goldens pin only the `pkgPath[loc].Name` form, and they reach it through [`DeclaredType.String`](https://github.com/gnolang/gno/blob/672650736/gnovm/pkg/gnolang/types.go#L1965-L1971), which rebuilds the string in separate code.

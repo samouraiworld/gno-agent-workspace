@@ -3,9 +3,7 @@ Event: REQUEST_CHANGES
 Status: not posted. Round re-anchored to 42551bfeb. On `post as an AI` the Body leads with `[AI review, opus 4.8]`, then `Status: REQUEST_CHANGES`.
 
 ## Body
-Verified on 42551bfeb: driving Part C's exact three-field `unix://` listener config plus its `gnoland start -lazy` aborts with `-lazy cannot derive a genesis in tmkms_listener mode`; the committed guard test drives the `tcp://` shape only, so this UDS case is not covered by CI. Re-checked the delta against the code: the UDS allowlist and `secret_key` removal, the per-validator note, and the Part E softsign+TCP scoping all match master.
-
-The red docs check is an unrelated live-link lint flagging `https://docs.gno.land/` in `docs/MANIFESTO.md`, a file this PR does not touch.
+The guard test behind the `-lazy` rejection [drives a `tcp://` listener](https://github.com/gnolang/gno/blob/42551bfeb/gno.land/cmd/gnoland/start_tmkms_lazy_test.go#L43), so the `unix://` shape this guide teaches has nothing pinning it.
 
 ## docs/validators/tmkms-quickstart.md:721-775 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L721-L775) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L721)
 Part C starts with `-lazy` and no pre-existing genesis while the tmkms listener is enabled, which master refuses: `gnoland start` aborts with `-lazy cannot derive a genesis in tmkms_listener mode`. The guard keys on whether the listener is enabled, not on where the key lives, so the softsign key on disk still hits it. Parts B and D build genesis with gnogenesis and omit `-lazy`; the troubleshooting row at line 1048 and the note at line 774 carry the same assumption.
