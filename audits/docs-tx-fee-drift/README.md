@@ -320,7 +320,11 @@ Severity: medium.
 
 A sweep of every relative link under `docs/`, resolving each anchor against the
 target file's headings under the slug rules Docusaurus uses, finds eleven that
-land nowhere. Eight have an obvious target:
+land nowhere. Eight have an obvious target, though the four naming Effective
+Gno are a symptom rather than the defect: their heading was deleted by
+[acd01fa29](https://github.com/gnolang/gno/commit/acd01fa29), which put the
+older avl-versus-map text back in its place, so the repair is to restore the
+section.
 
 | Link | Points at | Heading now |
 | --- | --- | --- |
