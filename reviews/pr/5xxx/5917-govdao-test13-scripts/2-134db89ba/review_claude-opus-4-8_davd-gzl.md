@@ -53,3 +53,25 @@ thehowl raised the stale-comment finding on the same lines at
 That section is SKIPped in the draft and carries the `Already raised:` line. The
 `unlock-transfer.sh` finding and the Body bullet on `add-validator-v3.sh` / `rm-validator-v3.sh`
 are untouched by any existing thread.
+
+## The sibling-script claim, re-measured 2026-08-30
+
+The Body's claim about `add-validator-v3.sh` and `rm-validator-v3.sh` rests on `r/sys/validators/v3`,
+which moves with master, so it was re-run rather than carried. `NewValidatorProposalRequest` takes
+`cur realm` first at both `134db89ba` and `origin/master`, and there is no second builder in the
+package. The two older scripts open the call on `[]valv3.ValoperChange{`; the
+`add-validators-v3.sh` this PR adds passes `cross(cur)` first and is correct. Neither older script is
+in this PR's diff, which is why the finding sits in the Body.
+
+Measured by type-checking the emitted body, not by reading the signature. A `package main` copy of
+`add-validator-v3.sh`'s heredoc, linted against the examples workspace with
+`go run ./gnovm/cmd/gno lint`:
+
+```
+add_validator.gno:15:2: not enough arguments in call to valv3.NewValidatorProposalRequest
+	have ([]"gno.land/r/sys/validators/v3".ValoperChange, string, string)
+	want ("gno.land/r/sys/validators/v3".realm, []"gno.land/r/sys/validators/v3".ValoperChange, string, string) (code=gnoTypeCheckError)
+```
+
+Run both ways: adding `cross(cur)` as the first argument exits 0. The probe package was removed and
+the worktree is clean.

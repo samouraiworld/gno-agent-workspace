@@ -5,7 +5,20 @@ Status: not posted. Round re-anchored to 134db89ba. On `post as an AI` the Body 
 ## Body
 Looks good.
 
-- `add-validator-v3.sh` and `rm-validator-v3.sh` beside these still emit the pre-[#5669](https://github.com/gnolang/gno/pull/5669) three-argument `NewValidatorProposalRequest([]ValoperChange{...}, title, desc)` call, which no longer compiles against `r/sys/validators/v3` now that the builder takes `cur realm` first. They belong in this PR, which is where the test13 scripts are being brought current.
+- The [`add-validators-v3.sh`](https://github.com/gnolang/gno/blob/134db89ba/misc/govdao-scripts/add-validators-v3.sh#L77-L78) this PR adds passes `cross(cur)` first, while the two older siblings beside it, [`add-validator-v3.sh`](https://github.com/gnolang/gno/blob/134db89ba/misc/govdao-scripts/add-validator-v3.sh#L57-L58) and [`rm-validator-v3.sh`](https://github.com/gnolang/gno/blob/134db89ba/misc/govdao-scripts/rm-validator-v3.sh#L46-L47), still open on `[]valv3.ValoperChange{`. That form no longer type-checks against [the builder](https://github.com/gnolang/gno/blob/134db89ba/examples/gno.land/r/sys/validators/v3/proposal.gno#L69), so both scripts fail before they reach the chain. They belong in this PR, which is where the govdao scripts are being brought current.
+
+<details><summary>the type-check error</summary>
+
+Both older scripts emit the same call shape into a `package main` body. Type-checking it against the current `r/sys/validators/v3`:
+
+```
+add_validator.gno:15:2: not enough arguments in call to valv3.NewValidatorProposalRequest
+	have ([]"gno.land/r/sys/validators/v3".ValoperChange, string, string)
+	want ("gno.land/r/sys/validators/v3".realm, []"gno.land/r/sys/validators/v3".ValoperChange, string, string) (code=gnoTypeCheckError)
+```
+
+Adding `cross(cur)` as the first argument, the way `add-validators-v3.sh` already does, lints clean.
+</details>
 
 <details><summary>what was checked</summary>
 

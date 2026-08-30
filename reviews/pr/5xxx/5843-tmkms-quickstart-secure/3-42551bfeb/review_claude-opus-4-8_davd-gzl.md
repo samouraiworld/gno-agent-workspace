@@ -56,3 +56,17 @@ None — docs-only PR. Part E's automated `tmkms_integration` test drives softsi
 - The UDS "no `secret_key`" claim (C.1/D.2/C.2/D.3) is confirmed on the gnoland side (`NewUnixListener` does no SecretConnection, [`config.go:208-226`](https://github.com/gnolang/gno/blob/42551bfeb/tm2/pkg/bft/privval/config.go#L208-L226) · [↗](../../../../../.worktrees/gno-review-5843/tm2/pkg/bft/privval/config.go#L208)); the tmkms side (a `unix://` validator block loads with no `secret_key`) is the author's own attestation against tmkms 0.15.0 and can't be run here (no Rust binary in the worktree). Not flagged: the gnoland half holds and the doc states the tmkms half as verified.
 </content>
 </invoke>
+
+## Master-dependent claims, re-measured 2026-08-30
+
+Two claims in this round rest on master rather than on the branch, so both were re-read at
+`origin/master`. `gno.land/cmd/gnoland/start.go` still carries the
+`-lazy cannot derive a genesis in tmkms_listener mode` rejection, and
+`TestStart_LazyRejectsTmkmsListener` still drives `tcp://127.0.0.1:0` and only that, which is the
+Body's coverage finding. Both hold.
+
+Cross-reviewer check: notJoon approved with no body, and louis14448 left a five-item comment. Its
+item 1, that the guide's "allowlist required on UDS" claim is wrong, does not overlap any finding
+here. The A.3 socket-permission finding sits next to it rather than duplicating it: louis14448 states
+the `0600` socket is the auth boundary on UDS, and this round's point is that gnoland's chmod on the
+socket is best-effort, so the `700` parent directory is what actually holds. Nothing SKIPped.
