@@ -44,3 +44,12 @@ None. The directory has no in-repo harness that compiles these MsgRun scripts; t
 
 ## Open questions
 - The older singular scripts `add-validator-v3.sh` and `rm-validator-v3.sh` (not in this diff) still generate the pre-[#5669](https://github.com/gnolang/gno/pull/5669) three-argument `NewValidatorProposalRequest([]ValoperChange{...}, title, desc)` call. The current realm signature takes `cur realm` first, so that call no longer compiles against `r/sys/validators/v3`. #5669 added `cross(cur)` to their vote/execute calls but left the builder call on the old form. This PR's batch script uses the correct four-argument form. Since the PR updates the test13 script set, whether to fix the two singular v3 scripts here is a decision for the author — raised as a Body question in comment.md.
+
+## Duplicate check, 2026-08-30
+
+thehowl raised the stale-comment finding on the same lines at
+[discussion_r3560467440](https://github.com/gnolang/gno/pull/5917#discussion_r3560467440), with a
+`suggestion` block that also documents the deliberate `txlink.Realm` vs `txlink.Call` difference.
+That section is SKIPped in the draft and carries the `Already raised:` line. The
+`unlock-transfer.sh` finding and the Body bullet on `add-validator-v3.sh` / `rm-validator-v3.sh`
+are untouched by any existing thread.

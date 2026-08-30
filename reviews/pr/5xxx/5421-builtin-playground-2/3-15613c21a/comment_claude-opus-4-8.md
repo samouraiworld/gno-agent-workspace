@@ -3,7 +3,7 @@ Event: REQUEST_CHANGES
 Status: not posted. Re-anchored to 15613c21a. The body-cap finding is fixed at this head and was dropped; the four remaining SKIPs were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 4.8]`, then `Status: REQUEST_CHANGES`.
 
 ## Body
-The playground handlers carry a rate limiter of their own while the sibling [`feature/state`](https://github.com/gnolang/gno/blob/15613c21a/gno.land/pkg/gnoweb/feature/state/ratelimit.go#L199-L212) already has one, so one gnoweb package tree solves the same problem twice. Folding the playground onto that limiter deletes a file and inherits the [trusted-proxy gate](https://github.com/gnolang/gno/blob/15613c21a/gno.land/pkg/gnoweb/feature/state/ratelimit.go#L204-L206) it already carries.
+The four open threads on `feature/playground` are unchanged in the code at this head.
 
 ## SKIP gno.land/pkg/gnoweb/feature/playground/ratelimit.go:88 [gh](https://github.com/gnolang/gno/blob/15613c21a/gno.land/pkg/gnoweb/feature/playground/ratelimit.go#L88) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/feature/playground/ratelimit.go#L88)
 Already raised: https://github.com/gnolang/gno/pull/5421#discussion_r3512098587

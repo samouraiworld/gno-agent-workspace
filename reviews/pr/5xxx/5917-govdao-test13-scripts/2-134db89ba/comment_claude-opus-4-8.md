@@ -12,7 +12,8 @@ Looks good.
 The valoper instructions block `set-valoper-instructions.sh` embeds is byte-identical to `init.gno`, apart from the relative-to-absolute txlink swap on the Register link, which resolves to the same URL.
 </details>
 
-## misc/govdao-scripts/set-valoper-instructions.sh:11-12 [gh](https://github.com/gnolang/gno/blob/134db89ba/misc/govdao-scripts/set-valoper-instructions.sh#L11-L12) · [↗](../../../../../.worktrees/gno-review-5917/misc/govdao-scripts/set-valoper-instructions.sh#L11)
+## SKIP misc/govdao-scripts/set-valoper-instructions.sh:11-12 [gh](https://github.com/gnolang/gno/blob/134db89ba/misc/govdao-scripts/set-valoper-instructions.sh#L11-L12) · [↗](../../../../../.worktrees/gno-review-5917/misc/govdao-scripts/set-valoper-instructions.sh#L11)
+Already raised: https://github.com/gnolang/gno/pull/5917#discussion_r3560467440
 The comment says this branch's `init.gno` still carries the pre-PR text, but [#5842](https://github.com/gnolang/gno/pull/5842) is merged and the branch's [init.gno](https://github.com/gnolang/gno/blob/134db89ba/examples/gno.land/r/gnops/valopers/init.gno#L21) · [↗](../../../../../.worktrees/gno-review-5917/examples/gno.land/r/gnops/valopers/init.gno#L21) already holds the post-#5842 text. The pre-PR text survives only on the deployed test13 realm, which is what this script updates.
 
 ## misc/govdao-scripts/unlock-transfer.sh:9 [gh](https://github.com/gnolang/gno/blob/134db89ba/misc/govdao-scripts/unlock-transfer.sh#L9) · [↗](../../../../../.worktrees/gno-review-5917/misc/govdao-scripts/unlock-transfer.sh#L9)

@@ -108,3 +108,20 @@ The playground and run code moved out of `handler_playground.go` into `feature/p
 ## Open questions
 
 - The Run button qevals a fixed `${domain}/r/playground_preview` package rather than the editor contents (confirmed by moul in [the thread on controller-playground.ts:282](https://github.com/gnolang/gno/pull/5421#discussion_r3512098590)). That is a known limitation of this iteration, not a defect; noting it so the eval-vs-editor gap is on record. Not posted: already the author's own open thread.
+
+## Duplicate check, 2026-08-30
+
+The Body proposing that the playground share `feature/state`'s trusted-proxy extraction was
+removed. moul had already asked for exactly that at
+[discussion_r3512098587](https://github.com/gnolang/gno/pull/5421#discussion_r3512098587) ("The
+state limiter already has trusted-proxy handling; this endpoint should either use `RemoteAddr` only
+or share that trusted-proxy extraction"), and jefft0 recorded the outcome on the same line at
+[discussion_r3718851602](https://github.com/gnolang/gno/pull/5421#discussion_r3718851602):
+"Discussion with moul: The infrastructure should handle rate limiting, not gnoweb." Re-proposing a
+gnoweb-side fold argues against a call the maintainers have already made.
+
+**Event question for the user.** The draft still carries `Event: REQUEST_CHANGES`, which the four
+SKIPped findings earn. All four are already raised by other reviewers, so the posted review would
+carry only the dead `?from=` test assertion, a Nit. REQUEST_CHANGES on that alone reads as
+disproportionate to an author who cannot see the SKIPped sections. COMMENT is the honest event for
+what actually goes out; the verdict above does not move either way.
