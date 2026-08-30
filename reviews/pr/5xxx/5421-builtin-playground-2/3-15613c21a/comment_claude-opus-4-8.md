@@ -1,6 +1,6 @@
 # Review: PR [#5421](https://github.com/gnolang/gno/pull/5421)
 Event: REQUEST_CHANGES
-Status: not posted. Re-anchored to 15613c21a. The body-cap finding is fixed at this head and was dropped; the four remaining SKIPs were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 4.8]`, then `Status: REQUEST_CHANGES`.
+Status: not posted. Re-anchored to 15613c21a. The body-cap finding is fixed at this head and was dropped; the four remaining SKIPs were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 4.8] (not manually verified)`, then `Status: REQUEST_CHANGES`.
 
 ## Body
 The four open threads on `feature/playground` are unchanged in the code at this head.

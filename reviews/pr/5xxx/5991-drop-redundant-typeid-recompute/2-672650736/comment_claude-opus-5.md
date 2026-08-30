@@ -1,6 +1,6 @@
 # Review: PR [#5991](https://github.com/gnolang/gno/pull/5991)
 Event: APPROVE
-Status: not posted. Round re-anchored to 672650736. On `post as an AI` the Body leads with `[AI review, opus 5]`, then `Status: APPROVE`.
+Status: not posted. Round re-anchored to 672650736. On `post as an AI` the Body leads with `[AI review, opus 5] (not manually verified)`, then `Status: APPROVE`.
 
 ## Body
 The cached call drops from 3 allocations to zero for a package-level type, and from 13 to zero for a function-level one.

@@ -1,6 +1,6 @@
 # Review: [#5970](https://github.com/gnolang/gno/pull/5970)
 Event: REQUEST_CHANGES
-Status: not posted. Round 2 at 52b515d15. The Supported Clients finding is fixed at this head and was dropped; the spec rewrite in this round opened two divergences against the controller the same branch ships. On `post as an AI` the Body leads with `[AI review, opus 5]`, then `Status: REQUEST_CHANGES`.
+Status: not posted. Round 2 at 52b515d15. The Supported Clients finding is fixed at this head and was dropped; the spec rewrite in this round opened two divergences against the controller the same branch ships. On `post as an AI` the Body leads with `[AI review, opus 5] (not manually verified)`, then `Status: REQUEST_CHANGES`.
 
 ## Body
 The spec this branch rewrites and the controller it ships describe different links, so a wallet built from the document does not open what gnoweb emits.

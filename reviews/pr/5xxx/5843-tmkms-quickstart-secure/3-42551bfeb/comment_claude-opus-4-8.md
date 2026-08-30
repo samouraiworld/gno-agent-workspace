@@ -1,6 +1,6 @@
 # Review: PR [#5843](https://github.com/gnolang/gno/pull/5843)
 Event: REQUEST_CHANGES
-Status: not posted. Round re-anchored to 42551bfeb. On `post as an AI` the Body leads with `[AI review, opus 4.8]`, then `Status: REQUEST_CHANGES`.
+Status: not posted. Round re-anchored to 42551bfeb. On `post as an AI` the Body leads with `[AI review, opus 4.8] (not manually verified)`, then `Status: REQUEST_CHANGES`.
 
 ## Body
 The guard test behind the `-lazy` rejection [drives a `tcp://` listener](https://github.com/gnolang/gno/blob/42551bfeb/gno.land/cmd/gnoland/start_tmkms_lazy_test.go#L43), so the `unix://` shape this guide teaches has nothing pinning it.

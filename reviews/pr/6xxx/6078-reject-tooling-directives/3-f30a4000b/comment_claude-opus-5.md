@@ -1,6 +1,6 @@
 # Review: [#6078](https://github.com/gnolang/gno/pull/6078)
 Event: APPROVE
-Status: not posted. Round re-anchored to f30a4000b; all four findings re-tested against that head and still open. On `post as an AI` the Body leads with `[AI review, opus 5]`, then `Status: APPROVE`.
+Status: not posted. Round re-anchored to f30a4000b; all four findings re-tested against that head and still open. On `post as an AI` the Body leads with `[AI review, opus 5] (not manually verified)`, then `Status: APPROVE`.
 
 ## Body
 `gno run` and `gno test` on a local package whose file opens with `//go:build ignore` both still work, so the refusal stays on the lint and chain paths and does not reach a scratch file.

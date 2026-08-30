@@ -1,6 +1,6 @@
 # Review: PR [#5709](https://github.com/gnolang/gno/pull/5709)
 Event: APPROVE
-Status: not posted. Round re-anchored to 6a98bd6cc. On `post as an AI` the Body leads with `[AI review, opus 4.8]`, then `Status: APPROVE`.
+Status: not posted. Round re-anchored to 6a98bd6cc. On `post as an AI` the Body leads with `[AI review, opus 4.8] (not manually verified)`, then `Status: APPROVE`.
 
 ## Body
 Looks good.

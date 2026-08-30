@@ -1,6 +1,6 @@
 # Review: [#5935](https://github.com/gnolang/gno/pull/5935)
 Event: COMMENT
-Status: not posted. Round 2 at 15d106dad. The missing-test finding is fixed at this head and was dropped; the two remaining findings were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 5]`, then `Status: NEEDS DISCUSSION`.
+Status: not posted. Round 2 at 15d106dad. The missing-test finding is fixed at this head and was dropped; the two remaining findings were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 5] (not manually verified)`, then `Status: NEEDS DISCUSSION`.
 
 ## Body
 - Nothing re-runs the enumeration for a package already in the store, so a value of a local type declared by such a package still serializes a dangling ref after the upgrade. The branch's ADR names the two ways out, [a genesis that predates any such package or a migration over stored packages](https://github.com/gnolang/gno/blob/15d106dad/gnovm/adr/pr5935_local_type_persist.md?plain=1#L98-L101), and then retires the first: [#5737](https://github.com/gnolang/gno/pull/5737) is already on master, so [any chain that ran master in the gap can hold those refs today](https://github.com/gnolang/gno/blob/15d106dad/gnovm/adr/pr5935_local_type_persist.md?plain=1#L102-L105). That leaves the migration, and the branch ships neither it nor the [save-time walk](https://github.com/gnolang/gno/pull/5894) that healed such packages on their next save.

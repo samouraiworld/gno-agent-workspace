@@ -1,6 +1,6 @@
 # Review: [#5382](https://github.com/gnolang/gno/pull/5382)
 Event: REQUEST_CHANGES
-Status: not posted. Round 2 at aef4cd9b5. Two of round 1's findings are fixed at this head and were dropped; the rest were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 5]`, then `Status: REQUEST_CHANGES`.
+Status: not posted. Round 2 at aef4cd9b5. Two of round 1's findings are fixed at this head and were dropped; the rest were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 5] (not manually verified)`, then `Status: REQUEST_CHANGES`.
 
 ## Body
 - A sponsored tx's compute lands on the block gas meter like any other, [`ConsumeGas` on the block meter runs for every DeliverTx](https://github.com/gnolang/gno/blob/aef4cd9b5/tm2/pkg/sdk/baseapp.go#L920-L923), and the next block's price is derived from [what the block meter consumed](https://github.com/gnolang/gno/blob/aef4cd9b5/tm2/pkg/sdk/auth/keeper.go#L363). So 0-fee traffic raises `LastGasPrice`, the floor every normal fee-payer must clear, while contributing no fee itself, and the [credit window may be sized up to a whole block](https://github.com/gnolang/gno/blob/aef4cd9b5/tm2/pkg/bft/types/params.go#L90-L92). Deterministic, so not a fork; it gates setting `MaxGasCreditPerTx` above 0 rather than merging. Excluding sponsored gas from the price signal is the other reading, and the design document names neither.
