@@ -1,9 +1,13 @@
 # Review: [#5935](https://github.com/gnolang/gno/pull/5935)
+Posted: https://github.com/gnolang/gno/pull/5935#pullrequestreview-5061296461
 Event: COMMENT
-Status: not posted. Round 2 at 15d106dad. The missing-test finding is fixed at this head and was dropped; the two remaining findings were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 5] (not manually verified)`, then `Status: NEEDS DISCUSSION`.
+Status: posted as an AI on 2026-08-30, forced to COMMENT with the verdict on the Body Status line. Round 2 at 15d106dad. The missing-test finding is fixed at this head and was dropped; the two remaining findings were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 5] (not manually verified)`, then `Status: NEEDS DISCUSSION`.
 
 ## Body
+[AI review, opus 5] (not manually verified)
+Status: NEEDS DISCUSSION
+
 - Nothing re-runs the enumeration for a package already in the store, so a value of a local type declared by such a package still serializes a dangling ref after the upgrade. The branch's ADR names the two ways out, [a genesis that predates any such package or a migration over stored packages](https://github.com/gnolang/gno/blob/15d106dad/gnovm/adr/pr5935_local_type_persist.md?plain=1#L98-L101), and then retires the first: [#5737](https://github.com/gnolang/gno/pull/5737) is already on master, so [any chain that ran master in the gap can hold those refs today](https://github.com/gnolang/gno/blob/15d106dad/gnovm/adr/pr5935_local_type_persist.md?plain=1#L102-L105). That leaves the migration, and the branch ships neither it nor the [save-time walk](https://github.com/gnolang/gno/pull/5894) that healed such packages on their next save.
 
-## gnovm/pkg/gnolang/store.go:656 [gh](https://github.com/gnolang/gno/blob/15d106dad/gnovm/pkg/gnolang/store.go#L656) · [↗](../../../../../.worktrees/gno-review-5935/gnovm/pkg/gnolang/store.go#L656)
+## gnovm/pkg/gnolang/store.go:656 [gh](https://github.com/gnolang/gno/blob/15d106dad/gnovm/pkg/gnolang/store.go#L656) · [↗](../../../../../.worktrees/gno-review-5935/gnovm/pkg/gnolang/store.go#L656) [posted](https://github.com/gnolang/gno/pull/5935#discussion_r3889878762)
 With the save-time walk gone this assert is the only thing that catches a missed enumeration route, and no job builds the tag that compiles it in: `debugAssert` appears once outside the sources, in the [`test.debugAssert` target](https://github.com/gnolang/gno/blob/15d106dad/gnovm/Makefile#L116-L119), which nothing under `.github/workflows/` invokes. Running the `zrealm_localtype*` filetests under the tag in CI would make it load-bearing.

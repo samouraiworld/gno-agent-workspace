@@ -1,8 +1,12 @@
 # Review: PR [#5421](https://github.com/gnolang/gno/pull/5421)
-Event: REQUEST_CHANGES
-Status: not posted. Re-anchored to 15613c21a. The body-cap finding is fixed at this head and was dropped; the four remaining SKIPs were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 4.8] (not manually verified)`, then `Status: REQUEST_CHANGES`.
+Posted: https://github.com/gnolang/gno/pull/5421#pullrequestreview-5061295856
+Event: COMMENT
+Status: posted as an AI on 2026-08-30, forced to COMMENT with the verdict on the Body Status line. Re-anchored to 15613c21a. The body-cap finding is fixed at this head and was dropped; the four remaining SKIPs were re-tested and are still open. On `post as an AI` the Body leads with `[AI review, opus 4.8] (not manually verified)`, then `Status: REQUEST_CHANGES`.
 
 ## Body
+[AI review, opus 4.8] (not manually verified)
+Status: REQUEST_CHANGES
+
 The four open threads on `feature/playground` are unchanged in the code at this head.
 
 ## SKIP gno.land/pkg/gnoweb/feature/playground/ratelimit.go:88 [gh](https://github.com/gnolang/gno/blob/15613c21a/gno.land/pkg/gnoweb/feature/playground/ratelimit.go#L88) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/feature/playground/ratelimit.go#L88)
@@ -21,7 +25,7 @@ Already raised: https://github.com/gnolang/gno/pull/5421#discussion_r3256267671
 Already raised: https://github.com/gnolang/gno/pull/5421#discussion_r3256269388
 Backend RPC failure returns 200 with a JSON error on both eval (L243) and funcs (L264); still open on 15613c21a.
 
-## gno.land/pkg/gnoweb/handler_http_test.go:1596 [gh](https://github.com/gnolang/gno/blob/15613c21a/gno.land/pkg/gnoweb/handler_http_test.go#L1596) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/handler_http_test.go#L1596)
+## gno.land/pkg/gnoweb/handler_http_test.go:1596 [gh](https://github.com/gnolang/gno/blob/15613c21a/gno.land/pkg/gnoweb/handler_http_test.go#L1596) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/handler_http_test.go#L1596) [posted](https://github.com/gnolang/gno/pull/5421#discussion_r3889878022)
 The `with fork param` case asserts `/_/play?from=gno.land/r/demo/foo` echoes the path into the body, but [`GetPlaygroundView`](https://github.com/gnolang/gno/blob/15613c21a/gno.land/pkg/gnoweb/feature/playground/handler.go#L65-L94) [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/feature/playground/handler.go#L65-L94) reads only `code` and `z`, so nothing forks and the assertion passes purely on the URL echoing into the layout. The `?from=` query is dead; the real fork route is `?fork` on a package page, covered by [`TestHTTPHandler_ForkView`](https://github.com/gnolang/gno/blob/15613c21a/gno.land/pkg/gnoweb/handler_http_test.go#L1611-L1637) [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/handler_http_test.go#L1611-L1637). Repoint the case at `?fork` with a stub package, or drop it.
 
 <details><summary>repro</summary>

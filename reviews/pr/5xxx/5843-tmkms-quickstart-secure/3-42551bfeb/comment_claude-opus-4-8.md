@@ -1,11 +1,15 @@
 # Review: PR [#5843](https://github.com/gnolang/gno/pull/5843)
-Event: REQUEST_CHANGES
-Status: not posted. Round re-anchored to 42551bfeb. On `post as an AI` the Body leads with `[AI review, opus 4.8] (not manually verified)`, then `Status: REQUEST_CHANGES`.
+Posted: https://github.com/gnolang/gno/pull/5843#pullrequestreview-5061295308
+Event: COMMENT
+Status: posted as an AI on 2026-08-30, forced to COMMENT with the verdict on the Body Status line. Round re-anchored to 42551bfeb. On `post as an AI` the Body leads with `[AI review, opus 4.8] (not manually verified)`, then `Status: REQUEST_CHANGES`.
 
 ## Body
+[AI review, opus 4.8] (not manually verified)
+Status: REQUEST_CHANGES
+
 The guard test behind the `-lazy` rejection [drives a `tcp://` listener](https://github.com/gnolang/gno/blob/42551bfeb/gno.land/cmd/gnoland/start_tmkms_lazy_test.go#L43), so the `unix://` shape this guide teaches has nothing pinning it.
 
-## docs/validators/tmkms-quickstart.md:721-775 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L721-L775) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L721)
+## docs/validators/tmkms-quickstart.md:721-775 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L721-L775) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L721) [posted](https://github.com/gnolang/gno/pull/5843#discussion_r3889877414)
 Part C starts with `-lazy` and no pre-existing genesis while the tmkms listener is enabled, which master refuses: `gnoland start` aborts with `-lazy cannot derive a genesis in tmkms_listener mode`. The guard keys on whether the listener is enabled, not on where the key lives, so the softsign key on disk still hits it. Parts B and D build genesis with gnogenesis and omit `-lazy`; the troubleshooting row at line 1048 and the note at line 774 carry the same assumption.
 
 <details><summary>repro</summary>
@@ -29,16 +33,16 @@ rm -rf "$TMPD"
 ```
 </details>
 
-## docs/validators/tmkms-quickstart.md:245-248 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L245-L248) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L245)
+## docs/validators/tmkms-quickstart.md:245-248 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L245-L248) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L245) [posted](https://github.com/gnolang/gno/pull/5843#discussion_r3889877416)
 A.3 calls the `0600` socket the whole auth boundary, but gnoland's chmod on the socket is best-effort: on a filesystem that ignores chmod on a socket it logs a warning and leaves default perms. The real guard is the `700 gnoland` parent dir you already create; say so, or a reader who relocates the socket loses the protection.
 
-## docs/validators/tmkms-quickstart.md:160 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L160) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L160)
+## docs/validators/tmkms-quickstart.md:160 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L160) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L160) [posted](https://github.com/gnolang/gno/pull/5843#discussion_r3889877418)
 The optional cleanup line uses brace expansion (`{nodeid-hex,tmkms-identity-keygen}`), which is bash/zsh-only. A reader pasting it into `sh`/dash deletes nothing.
 
-## docs/validators/tmkms-quickstart.md:456-458 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L456-L458) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L456)
+## docs/validators/tmkms-quickstart.md:456-458 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L456-L458) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L456) [posted](https://github.com/gnolang/gno/pull/5843#discussion_r3889877422)
 The production path ends at "submit the gpub/address to the chain's validator-onboarding path" with no concrete mechanism, while the lab paths are fully runnable. A pointer to where validator onboarding is documented, or a note that it isn't yet, would close the loop.
 
-## docs/validators/tmkms-quickstart.md:493-511 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L493-L511) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L493)
+## docs/validators/tmkms-quickstart.md:493-511 [gh](https://github.com/gnolang/gno/blob/42551bfeb/docs/validators/tmkms-quickstart.md#L493-L511) · [↗](../../../../../.worktrees/gno-review-5843/docs/validators/tmkms-quickstart.md#L493) [posted](https://github.com/gnolang/gno/pull/5843#discussion_r3889877426)
 The `tmkms.toml` heredoc is unquoted, so the shell bakes in `${CHAIN_ID}` and `${TMKMS_ADDR}` at write time. A re-runner who only re-exports `$CHAIN_ID` keeps the stale `chain_id` and stalls on mismatch; one line saying the file must be regenerated when it changes would prevent that.
 </content>
 </invoke>

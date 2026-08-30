@@ -1,11 +1,15 @@
 # Review: [#6078](https://github.com/gnolang/gno/pull/6078)
-Event: APPROVE
-Status: not posted. Round re-anchored to f30a4000b; all four findings re-tested against that head and still open. On `post as an AI` the Body leads with `[AI review, opus 5] (not manually verified)`, then `Status: APPROVE`.
+Posted: https://github.com/gnolang/gno/pull/6078#pullrequestreview-5061296055
+Event: COMMENT
+Status: posted as an AI on 2026-08-30, forced to COMMENT with the verdict on the Body Status line. Round re-anchored to f30a4000b; all four findings re-tested against that head and still open. On `post as an AI` the Body leads with `[AI review, opus 5] (not manually verified)`, then `Status: APPROVE`.
 
 ## Body
+[AI review, opus 5] (not manually verified)
+Status: APPROVE
+
 `gno run` and `gno test` on a local package whose file opens with `//go:build ignore` both still work, so the refusal stays on the lint and chain paths and does not reach a scratch file.
 
-## gnovm/cmd/gno/lint.go:82 [gh](https://github.com/gnolang/gno/blob/f30a4000b/gnovm/cmd/gno/lint.go#L82) · [↗](../../../../../.worktrees/gno-review-6078-head/gnovm/cmd/gno/lint.go#L82)
+## gnovm/cmd/gno/lint.go:82 [gh](https://github.com/gnolang/gno/blob/f30a4000b/gnovm/cmd/gno/lint.go#L82) · [↗](../../../../../.worktrees/gno-review-6078-head/gnovm/cmd/gno/lint.go#L82) [posted](https://github.com/gnolang/gno/pull/6078#discussion_r3889878270)
 Nit: [`filepath.Abs`](https://github.com/golang/go/blob/go1.25.9/src/path/filepath/path.go#L161) leaves a symlink in the path intact, so a stdlib directory reached through one compares unequal to the root and `gno lint` reports Go's own `//go:generate` lines as errors; resolving both sides with `filepath.EvalSymlinks` before the comparison makes the two spellings equal.
 
 <details><summary>repro</summary>
@@ -31,10 +35,10 @@ exit: 1
 `gnoenv.RootDir` derives the root from `go list` or the caller stack, both of which give the resolved path, while the directory argument comes from the shell's own view of the working directory, so the two disagree whenever the checkout is reached through a link.
 </details>
 
-## gnovm/pkg/gnolang/mempackage.go:780 [gh](https://github.com/gnolang/gno/blob/f30a4000b/gnovm/pkg/gnolang/mempackage.go#L780) · [↗](../../../../../.worktrees/gno-review-6078-head/gnovm/pkg/gnolang/mempackage.go#L780)
+## gnovm/pkg/gnolang/mempackage.go:780 [gh](https://github.com/gnolang/gno/blob/f30a4000b/gnovm/pkg/gnolang/mempackage.go#L780) · [↗](../../../../../.worktrees/gno-review-6078-head/gnovm/pkg/gnolang/mempackage.go#L780) [posted](https://github.com/gnolang/gno/pull/6078#discussion_r3889878273)
 Nit: the extraction left `ReadMemPackage`'s fourteen-line doc comment sitting above `MemPackageFilePaths`, so godoc for the new function opens with "ReadMemPackage initializes a new MemPackage" and [`ReadMemPackage`](https://github.com/gnolang/gno/blob/f30a4000b/gnovm/pkg/gnolang/mempackage.go#L852) keeps a one-line stub in its place.
 
-## gnovm/pkg/gnolang/mempackage.go:1290 [gh](https://github.com/gnolang/gno/blob/f30a4000b/gnovm/pkg/gnolang/mempackage.go#L1290) · [↗](../../../../../.worktrees/gno-review-6078-head/gnovm/pkg/gnolang/mempackage.go#L1284)
+## gnovm/pkg/gnolang/mempackage.go:1290 [gh](https://github.com/gnolang/gno/blob/f30a4000b/gnovm/pkg/gnolang/mempackage.go#L1290) · [↗](../../../../../.worktrees/gno-review-6078-head/gnovm/pkg/gnolang/mempackage.go#L1284) [posted](https://github.com/gnolang/gno/pull/6078#discussion_r3889878274)
 Nit: the `continue` skips `PackageNameFromFileBody`, so `pkgNameFound` stays false and the rejection carries a second clause saying the package name is not in the files, which it is.
 
 <details><summary>repro</summary>
@@ -78,7 +82,7 @@ The package declares `tagged` on the line after the constraint, and the second c
 Rejecting on the first directive found, before the per-file loop starts, leaves the directive error alone.
 </details>
 
-## gnovm/pkg/gnolang/mempackage.go:1347 [gh](https://github.com/gnolang/gno/blob/f30a4000b/gnovm/pkg/gnolang/mempackage.go#L1347) · [↗](../../../../../.worktrees/gno-review-6078-head/gnovm/pkg/gnolang/mempackage.go#L1341)
+## gnovm/pkg/gnolang/mempackage.go:1347 [gh](https://github.com/gnolang/gno/blob/f30a4000b/gnovm/pkg/gnolang/mempackage.go#L1347) · [↗](../../../../../.worktrees/gno-review-6078-head/gnovm/pkg/gnolang/mempackage.go#L1341) [posted](https://github.com/gnolang/gno/pull/6078#discussion_r3889878278)
 Refactor: this walk over line starts is `strings.SplitSeq(body, "\n")`, already used in 12 places in the tree and allocating nothing, which takes the function from 15 lines to 9.
 
 ```go
