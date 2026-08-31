@@ -83,47 +83,6 @@ From 24/08 to 31/08  **: Samourai crew**
 
 ---
 
-**🚧 PR In Progress — [Not approved by AI](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/README.md)**
-
-- ✅ 📥 feat(tm2): bounded-parallel queries, pre-filled VM type caches, snapshot-isolated simulate - https://github.com/gnolang/gno/pull/6082 - Villaquiranm
-- 📥 fix(tm2/rpc): validate WebSocket origin using `CORSAllowedOrigins` config - https://github.com/gnolang/gno/pull/5258 - davd-gzl
-- 📥 docs: rewrite gnokey into guide and reference, rename gnodev doc - https://github.com/gnolang/gno/pull/5873 - davd-gzl
-- 📥 chore(perfs): Cache type-privacy checks across commits - https://github.com/gnolang/gno/pull/5923 - Villaquiranm
-- 📥 perf(tm2/bptree): find the oldest and newest version with two seeks - https://github.com/gnolang/gno/pull/5979 - davd-gzl
-- 📥 💥 feat: realm transaction sponsorship (PayGas + PayStorage) - https://github.com/gnolang/gno/pull/5382 - omarsy
-
----
-
-**🚧 PR In Progress — Draft**
-
-- ⚠️ 💥 feat(GovDAO): add activity page to highlight inactive GovDAO's members - https://github.com/gnolang/gno/pull/4731 - davd-gzl (AI: changes requested)
-- ✅ 💥 fix(gnovm): recover from preprocessing panics on node restart - https://github.com/gnolang/gno/pull/5384 - davd-gzl (AI: needs discussion)
-- fix(gnovm): meter GC traversal of large primitive-keyed maps - https://github.com/gnolang/gno/pull/5884 - omarsy
-- fix(gnovm): make tryEvalStatic's error result meaningful - https://github.com/gnolang/gno/pull/5977 - omarsy
-- fix(gnogenesis): stop fork test from reporting PASS on a rejected genesis - https://github.com/gnolang/gno/pull/5995 - davd-gzl
-- 🆕 fix(gnoweb): give every page its own title and canonical URL - https://github.com/gnolang/gno/pull/6103 - davd-gzl
-- feat(stdlibs): port upstream additions Go 1.18-1.25 across 11 packages - https://github.com/gnolang/gno/pull/5753 - davd-gzl
-- perf(vm): lazily clone the type-check cache per transaction - https://github.com/gnolang/gno/pull/5901 - omarsy
-- perf(gnovm): speed up DidUpdate per-write ownership hook - https://github.com/gnolang/gno/pull/5960 - omarsy (AI: changes requested)
-- docs: add oracles resource page - https://github.com/gnolang/gno/pull/6007 - davd-gzl
-- 🆕 docs: correct transaction fees, receipts, and stale references - https://github.com/gnolang/gno/pull/6099 - davd-gzl
-- 💥 fix(gnovm): respect type identity in assignability - https://github.com/gnolang/gno/pull/5785 - omarsy
-- 💥 fix(gnovm): depth-based shadowing for promoted struct fields and methods - https://github.com/gnolang/gno/pull/5820 - omarsy
-- 💥 fix(tm2/auth): stop the block gas price from climbing forever or panicking - https://github.com/gnolang/gno/pull/5999 - davd-gzl
-- 💥 feat(govdao): add proposal fee-based for non-member - https://github.com/gnolang/gno/pull/4944 - davd-gzl (AI: changes requested)
-- 💥 feat(vm): control namespace enforcement via sysnames_pkgpath VM param - https://github.com/gnolang/gno/pull/5080 - davd-gzl (AI: changes requested)
-- 💥 feat(gnovm): add per-type GC allocation tracking in debug builds - https://github.com/gnolang/gno/pull/5437 - omarsy (AI: changes requested)
-- 💥 feat(gnoweb): add `:::details` collapsible block - https://github.com/gnolang/gno/pull/5593 - davd-gzl
-- 💥 WIP: feat(gnovm): add gas metering for go native fn - https://github.com/gnolang/gno/pull/5619 - davd-gzl
-- 💥 WIP feat(gnovm): add math/big stdlib (Int subset) - https://github.com/gnolang/gno/pull/5678 - davd-gzl (AI: needs discussion)
-- 💥 feat(gnodev): auto-import the dev key into the local keybase - https://github.com/gnolang/gno/pull/5680 - davd-gzl (AI: needs discussion)
-- 💥 feat(examples): pluggable grc20 ledger storage + p/nt/hashmap (flat gas for large ledgers) - https://github.com/gnolang/gno/pull/5965 - omarsy
-- 💥 docs: add cheat sheet page - https://github.com/gnolang/gno/pull/5551 - davd-gzl (AI: changes requested)
-- 💥 test(gnovm): bench the gas inputs a caller controls - https://github.com/gnolang/gno/pull/5994 - davd-gzl
-- 🚫 fix(consensus): implement `RemovePeer` cleanup - https://github.com/gnolang/gno/pull/5231 - davd-gzl (AI: changes requested)
-
----
-
 **🐛 Issues Opened:**
 
 - 🆕 Launch content: a blog post and dapp idea list, one per persona - https://github.com/gnolang/gno/issues/6102 - davd-gzl

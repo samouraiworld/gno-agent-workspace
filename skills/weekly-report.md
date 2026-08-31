@@ -22,7 +22,7 @@ Steps in order, detailed below. Two user gates: context.md edits (step 4) and re
 4. *Build context.md* — present to user, **wait for edits**.
 5. *Produce report.md* — re-read context.md from disk first.
 6. *Save & present*.
-7. *Discord conflict ping* — `discord.md`.
+7. *Discord ping* — `discord.md`: stale conflicts, then the AI-rejected PRs.
 
 Artifacts land in `reports/weekly/YYYY-MM-DD/` (period end-date): `context.md`, `report.md`, `discord.md`.
 
@@ -73,18 +73,18 @@ A PR can have multiple prefixes, ordered: `⚠️ 🆕 ✅ 📥 🚫 💥`. `�
 | 🚫 | Don't merge | `don't merge` label |
 | 💥 | Merge conflict (not rendered on `recurrent-conflict` PRs) | `mergeable: "CONFLICTING"` |
 
-## AI review routing (report.md only)
+## AI review routing
 
 Our own AI review (under `reviews/pr/`) routes a PR, it is not a trailing marker.
 
 | Verdict | Effect |
 |---------|--------|
-| `REQUEST CHANGES` | Route PR to **🚧 PR In Progress — Not approved by AI** |
+| `REQUEST CHANGES` | Drop PR from `report.md`; list it in `discord.md` under *PR not approved by our AI review* |
 | `NEEDS DISCUSSION` | PR stays in its normal category |
 | `APPROVE` (incl. `with nits`/`with caveats`) | PR stays in its normal category |
 | no review under `reviews/pr/` | PR stays in its normal category |
 
-In Progress has two subsections: **Not approved by AI** (header links to `reviews/README.md`) holds the non-draft `REQUEST CHANGES` PRs; **Draft** holds every `isDraft` PR. `REQUEST CHANGES` routing wins over every other category (Approved, Waiting for review, etc.): if our AI flagged it ❌, it lands in Not-approved-by-AI regardless of core-review state. Draft outranks it: a PR that is both ❌ and draft goes under Draft, carrying a trailing `(AI: changes requested)` note. Under **Not approved by AI** no per-line AI marker is rendered (the subsection header carries the meaning). Keep core-team/status emoji prefixes (✅/📥/🚫/💥 etc.) everywhere.
+`report.md` carries no In Progress section. Every `isDraft` PR is absent from it. A non-draft `REQUEST CHANGES` PR is absent from it too, and goes to `discord.md` instead, per step 7. Draft outranks the AI verdict: a PR that is both draft and ❌ is absent from both files. `REQUEST CHANGES` routing wins over every other category, Approved and Waiting for review included, so a ❌ PR never appears under a category section whatever its core-review state. `context.md` still records every open PR, drafts and ❌ PRs included.
 
 Derivation per open PR `<n>`: find `reviews/pr/<bucket>/<n>-<slug>/`, take the highest-numbered round dir `<round>-<commit>/`, read the `**Verdict: ...**` line (older reviews omit the `**`) from the `*.md` inside, normalise to `REQUEST CHANGES` / `NEEDS DISCUSSION` / `APPROVE`. Login matching for approvers is case-insensitive (`notJoon` == `NotJoon`).
 
@@ -239,14 +239,6 @@ From DD/MM to DD/MM  **: Samourai crew**
 
 ---
 
-**🚧 PR In Progress — [Not approved by AI](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/README.md)**
-
----
-
-**🚧 PR In Progress — Draft**
-
----
-
 **🐛 Issues Opened:**
 
 ---
@@ -272,9 +264,8 @@ From DD/MM to DD/MM  **: Samourai crew**
 - PR lines: `- <emoji prefixes> <title> - <url> - <author> <(context note)>`
 - Context notes in parentheses after author. Don't duplicate emoji-derived status.
 - Recurrent-conflict PRs render per *Conflict tracking & Discord ping*: no `💥`, trailing ` (expected conflict: <subject>)`, ordered by remaining tier.
-- AI `REQUEST CHANGES` PRs and drafts route to the In Progress subsections per *AI review routing*; no per-line AI marker.
+- AI `REQUEST CHANGES` PRs and drafts are absent from `report.md` per *AI review routing*.
 - **Ordering within sections:** ⚠️ → ✅ → plain → 🚫 → 📥 → 💥. Conflicting PRs always last, grouped together. Within each group: fixes → features → chores; same tier: older first.
-- **In Progress subsections** (**Not approved by AI**, **Draft**) order by emoji tier ⚠️ → ✅ → plain → 💥 → 🚫 (each line assigned to its highest tier). Within each tier: fixes → features → chores, older first.
 - **Highlight section:** core rule; `context.md` `highlight:` lines are not a source, entries may use free-text formatting. A merged or closed PR drops out, overriding the core rule's *never drop*: it is already carried by **🎉 PR Merged**, and listing it twice reads as still open. A Highlight entry appears only there, never also in a category section.
 - **The Highlight block lives on the publishing platform, not here.** The report is posted elsewhere and the team edits Highlight there, so the previous period's `report.md` in this repo is always behind: falling back to it silently drops whatever they added. Ask for the block every period, and write the answer back into the previous period's `report.md` so the record stops drifting.
 - `Quick Intro Context` and `NOTE` left empty — team fills manually.
@@ -283,11 +274,11 @@ From DD/MM to DD/MM  **: Samourai crew**
 
 Write `reports/weekly/YYYY-MM-DD/report.md` and `context.md`, period end-date; present per the core rule.
 
-### 7. Discord conflict ping
+### 7. Discord ping
 
-Write `reports/weekly/YYYY-MM-DD/discord.md` — copy-paste block for Discord. Lists the **stale** conflicts per *Conflict tracking & Discord ping*.
+Write `reports/weekly/YYYY-MM-DD/discord.md` — copy-paste block for Discord, two sections. English, simple, plain markdown, no per-line emoji. Empty set → header plus `None.`. Present both blocks; note the count of recurrent/draft PRs excluded from the first.
 
-Format (plain markdown, no per-line emoji):
+**Stale conflicts**, per *Conflict tracking & Discord ping*. Order oldest `updatedAt` first.
 
 ```markdown
 **Conflicting PRs to rebase (no activity for +1 week)**
@@ -298,4 +289,15 @@ Please rebase, or move to draft if paused. Recurrent conflicts are not listed.
 ...
 ```
 
-English, simple. Order oldest `updatedAt` first. Empty set → header plus `None.`. Present block; note count of recurrent/draft PRs excluded.
+**AI-rejected PRs**, the non-draft `REQUEST CHANGES` set that *AI review routing* keeps out of `report.md`. Outdated first, oldest review first, then the rest by PR number. A PR is outdated when the reviewed commit is not the current head: take the reviewed commit from the highest round dir `<round>-<commit>/`, the head from `gh pr view <n> --repo gnolang/gno --json headRefOid`. Abbreviate both to nine characters.
+
+```markdown
+**PR not approved by our AI review**
+
+Our AI review asked for changes on these: https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/README.md
+Outdated means the branch moved after the review, so the notes may no longer match the code.
+
+- #<number> <title> - <author> - <url> - outdated, reviewed at <commit>, head is <commit>
+- #<number> <title> - <author> - <url>
+...
+```
