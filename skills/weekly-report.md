@@ -119,6 +119,18 @@ Conflict source of truth is the `💥` set in the generated `report.md` (live `g
 
 The script verifies team handles before fetching.
 
+**It needs `jq`, and the agent box does not have it.** `./scripts/weekly-report.sh`
+stops on `ERROR: 'jq' is required but not found in PATH` before any fetch. The
+replacement is [`generic-weekly-report`](https://github.com/samouraiworld/generic-weekly-report),
+which is Node and needs no install: `node bin/report.mjs --profile config/gno.json
+--end-date <date> --data <dir> --annotations <dir> --reports <dir>`. It writes
+`<end-date>.md` per directory, so the three files get copied into
+`reports/weekly/<end-date>/` under this repo's names. Two things it does not
+reproduce: it orders the Highlight block by pull request number rather than
+preserving the annotation's order, and it prints the block with `*` bullets while
+every report since 2026-08-03 uses `-`, so that section is written by hand. It
+reads verdicts from this repository's pushed `main`, never the local checkout.
+
 Writes `data/weekly-report-data.json` — structure: `repos[].open_prs[]`, `repos[].merged_prs[]`, `repos[].issues_opened[]`.
 
 Key open PR fields: `number`, `title`, `url`, `author`, `createdAt`, `updatedAt`, `isDraft`, `labels[]`, `reviewDecision` (APPROVED/CHANGES_REQUESTED/REVIEW_REQUIRED), `reviewRequests[]`, `body`, `mergeable` (MERGEABLE/CONFLICTING/UNKNOWN), `reviewStats`:
