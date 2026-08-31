@@ -1,0 +1,63 @@
+# Asserts that a directory target rewrites the .gno files inside a .txtar sitting
+# in it, which the branch's own fix_dir_txtar.txtar cannot: its nested archive is
+# flattened by the txtar parser, leaving local.txtar and local.txtar.golden equal.
+# Run: from a gno checkout:
+# gh pr checkout 6032 -R gnolang/gno && git checkout 04c5133b7
+# curl -fsSL -o gnovm/cmd/gno/testdata/fix/fix_dir_txtar.txtar https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6032-package-local-txtar-tests/2-04c5133b7/tests/fix_dir_txtar.txtar
+# go test -run 'Test_Scripts/fix/fix_dir_txtar$' ./gnovm/cmd/gno/
+# git checkout gnovm/cmd/gno/testdata/fix/fix_dir_txtar.txtar
+
+# The nested archives are quoted, so the parser keeps them as one file each.
+unquote local.txtar local.txtar.golden
+
+gno fix -fix stdsplit .
+cmp main.gno main.gno.golden
+cmp local.txtar local.txtar.golden
+
+-- gnomod.toml --
+module = "gno.land/r/demo/local"
+gno = "0.9"
+-- main.gno --
+package main
+
+import "std"
+
+func main() {
+	_ = std.Coin{}
+}
+-- main.gno.golden --
+package main
+
+import "chain"
+
+func main() {
+	_ = chain.Coin{}
+}
+-- local.txtar --
+># package-local integration script
+>
+>gnoland start
+>
+>-- gnomod.toml --
+>module = "gno.land/r/demo/local"
+>gno = "0.9"
+>-- local.gno --
+>package local
+>
+>import "std"
+>
+>func Take() std.Coin { return std.Coin{} }
+-- local.txtar.golden --
+># package-local integration script
+>
+>gnoland start
+>
+>-- gnomod.toml --
+>module = "gno.land/r/demo/local"
+>gno = "0.9"
+>-- local.gno --
+>package local
+>
+>import "chain"
+>
+>func Take() chain.Coin { return chain.Coin{} }

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PR 6032 overview: package-local .txtar integration tests</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0 auto; padding: 2.5rem 1.25rem 4rem; max-width: 52rem;
+         font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         color: #1f2328; background: #fff; }
+  h1 { font-size: 1.7rem; margin: 0 0 .25rem; }
+  .sub { color: #59636e; margin: 0 0 2rem; font-size: .95rem; }
+  h2 { font-size: 1.15rem; margin: 2.2rem 0 .6rem; padding-bottom: .3rem; border-bottom: 1px solid #d1d9e0; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .87em; }
+  code { background: #f6f8fa; padding: .12em .3em; border-radius: 4px; }
+  pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px;
+        padding: .9rem 1rem; overflow-x: auto; line-height: 1.45; }
+  table { border-collapse: collapse; width: 100%; margin: .8rem 0; font-size: .93rem; }
+  th, td { border: 1px solid #d1d9e0; padding: .45rem .6rem; text-align: left; vertical-align: top; }
+  th { background: #f6f8fa; }
+  .tldr { background: #f6f8fa; border-left: 4px solid #0969da; border-radius: 0 6px 6px 0;
+          padding: .9rem 1.1rem; margin: 0 0 1.5rem; }
+  .tldr p { margin: .35rem 0; }
+  a { color: #0969da; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #d1d9e0; color: #59636e; font-size: .9rem; }
+</style>
+</head>
+<body>
+
+<h1>Integration scripts move next to the code they test</h1>
+<p class="sub">Overview of <a href="https://github.com/gnolang/gno/pull/6032">gnolang/gno#6032</a>, written by claude-opus-5.</p>
+
+<div class="tldr">
+  <p><strong>TLDR.</strong> A <code>.txtar</code> is an integration script: it boots a node and drives it through
+  <code>gnokey</code>. Every one of them used to live in a single folder, <code>gno.land/pkg/integration/testdata/</code>,
+  however far that was from the realm it exercises.</p>
+  <p>This change lets a script sit in the realm's own directory, teaches the test runner to walk both places,
+  and makes an empty root a hard failure so a mis-set <code>GNOROOT</code> cannot drop a whole root in silence.
+  Eleven scripts move. Four tools that read the old folder follow them.</p>
+</div>
+
+<h2>Words used here</h2>
+<table>
+  <tr><th><code>.txtar</code></th><td>A text archive: a script at the top, then files, each introduced by a <code>-- name --</code> line. The test runner writes the files into a temp directory and runs the script over them.</td></tr>
+  <tr><th><code>testscript</code></th><td>The library that runs those archives. It names each subtest after the file's base name alone, so <code>wugnot.txtar</code> becomes <code>TestTestdata/wugnot</code> wherever it sits.</td></tr>
+  <tr><th><code>GNOROOT</code></th><td>An environment variable naming the gno source tree. Whatever it points at is where the examples are read from.</td></tr>
+</table>
+
+<h2>Where a script is found</h2>
+<pre>
+before                                   after
+
+testdata/                                testdata/                $GNOROOT/examples/
+208 *.txtar                              197 *.txtar              11 *.txtar
+     |                                        |                        |
+testscript reads one directory                +-- one walk per root ---+
+     |                                                     |
+ subtest per base name                        one file list, one base-name
+                                              namespace, 208 scripts
+                                                           |
+                                                 subtest per base name
+</pre>
+<p>The base names have to stay unique across both roots, because the subtest name never says which root a
+script came from. A collision is reported at discovery and fails the whole suite, rather than being
+silently disambiguated as <code>render</code> and <code>render#1</code>.</p>
+
+<h2>Which folder a new script belongs in</h2>
+<table>
+  <tr><th>The script is about</th><th>It goes</th><th>Example</th></tr>
+  <tr><td>one package or realm</td><td>in that package's directory</td><td><code>examples/gno.land/r/gnoland/wugnot/wugnot.txtar</code></td></tr>
+  <tr><td>the VM, the node, or <code>gnokey</code></td><td><code>gno.land/pkg/integration/testdata/</code></td><td><code>gnokey_query.txtar</code></td></tr>
+</table>
+<p>Either way the same test runs it, and <code>go test ./gno.land/pkg/integration/ -run TestTestdata/wugnot</code>
+selects it without the caller knowing where it lives.</p>
+
+<h2>A stale GNOROOT, before and after</h2>
+<table>
+  <tr><th></th><th>Scripts run</th><th>What the run prints</th></tr>
+  <tr><td>flat layout</td><td>all of them, from one folder inside the repository</td><td>a real pass or a real failure</td></tr>
+  <tr><td>two roots, count checked across both</td><td>only the folder inside the repository</td><td><code>ok</code>, with eleven scripts never discovered</td></tr>
+  <tr><td>two roots, count checked per root</td><td>none</td><td><code>no testscript file found below &lt;root&gt;/examples</code></td></tr>
+</table>
+<p>The third row is what the change ships. The second is the trap it avoids: eleven scripts' worth of coverage
+disappears and nothing turns red.</p>
+
+<h2>The eleven scripts</h2>
+<table>
+  <tr><th>Script</th><th>New home</th></tr>
+  <tr><td><code>commondao_ancestor</code>, <code>_council</code>, <code>_dao_member</code>, <code>_election</code>, <code>_governance</code>, <code>_treasury</code></td><td><code>examples/gno.land/r/nt/commondao/v0/</code></td></tr>
+  <tr><td><code>atomicswap</code></td><td><code>examples/gno.land/r/demo/defi/atomicswap/</code></td></tr>
+  <tr><td><code>ghverify</code></td><td><code>examples/gno.land/r/gnoland/ghverify/</code></td></tr>
+  <tr><td><code>wugnot</code></td><td><code>examples/gno.land/r/gnoland/wugnot/</code></td></tr>
+  <tr><td><code>valopers</code></td><td><code>examples/gno.land/r/gnops/valopers/</code></td></tr>
+  <tr><td><code>moul_authz</code></td><td><code>examples/gno.land/p/moul/authz/</code></td></tr>
+</table>
+<p>The files themselves are unchanged. A script sitting beside a realm is still not part of that realm:
+the mem-package reader drops the extension, so nothing new reaches the chain.</p>
+
+<h2>What had to follow the scripts</h2>
+<table>
+  <tr><th>Tool</th><th>Read the old folder as</th><th>Now</th></tr>
+  <tr><td><code>update_gas_wanted.sh</code></td><td>a glob over <code>testdata/*.txtar</code></td><td>a <code>find</code> over both roots, hidden directories pruned</td></tr>
+  <tr><td><code>gno.land/Makefile</code></td><td>failures matching <code>FAIL: testdata/</code></td><td>failures matching any <code>.txtar</code> path</td></tr>
+  <tr><td><code>gno fix</code></td><td>a <code>.txtar</code> only when named as the target</td><td>a directory target covers the scripts in it</td></tr>
+  <tr><td>CI path filters</td><td>a script edit touched one workflow</td><td>the two workflows that read no script exclude it again</td></tr>
+</table>
+
+<footer>
+  <a href="https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/pr/6xxx/6032-package-local-txtar-tests">Review files</a>
+</footer>
+
+</body>
+</html>
