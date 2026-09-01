@@ -1,5 +1,6 @@
 # Review: [#5080](https://github.com/gnolang/gno/pull/5080)
 Event: COMMENT
+Posted: https://github.com/gnolang/gno/pull/5080#pullrequestreview-5077280481
 
 ## Body
 Where this branch stands against master.
