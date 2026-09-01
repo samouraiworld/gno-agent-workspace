@@ -5,9 +5,10 @@ Event: COMMENT
 [AI review, claude-opus-5 xhigh] (not manually verified)
 Status: NEEDS DISCUSSION
 
-The VM-param mechanism this branch proposes is on master already, reached from the other side, so what the branch still carries that master does not is two lines and one deletion:
+Where this branch stands against master today.
 
-- [`checkNamespacePermission`](https://github.com/gnolang/gno/blob/master/gno.land/pkg/sdk/vm/keeper.go#L481-L484) returns nil on an empty `sysnames_pkgpath` and [`genesis_params.toml`](https://github.com/gnolang/gno/blob/master/gno.land/genesis/genesis_params.toml#L9) pins the path for gno.land, which is what @thehowl and @mvallenet asked for on this thread.
-- The default is still [`gno.land/r/sys/names`](https://github.com/gnolang/gno/blob/master/gno.land/pkg/sdk/vm/params.go#L37), and [`applyLegacyDefaults`](https://github.com/gnolang/gno/blob/master/gno.land/pkg/sdk/vm/params.go#L538-L540) rewrites an explicitly empty param back to it, so a chain cannot turn enforcement off through genesis params at all today. Flipping that constant to `""` is the change here nothing on master supersedes, and it is what gets @moul the gnodev and local environments where anyone can publish.
-- The genesis skip at `ctx.BlockHeight() == 0` also has no counterpart: nothing on master waives the namespace check for a genesis transaction.
-- `r/sys/names` meanwhile grew a `paused` flag, [`ProposeSetPaused`](https://github.com/gnolang/gno/blob/master/examples/gno.land/r/sys/names/verifier.gno#L168-L208) and a GovDAO T1 admin around [`Enable()`](https://github.com/gnolang/gno/blob/master/examples/gno.land/r/sys/names/verifier.gno#L113-L123), so deleting `Enable`/`IsEnabled` now takes out one arm of a governance surface rather than a one-shot toggle.
+Master already does the main thing this branch asked for: whether namespace ownership is enforced is now a chain parameter rather than a switch inside the names realm, and gno.land's genesis sets it. That was the ask on this thread, and it is settled.
+
+Three things are still only here. A chain that sets nothing gets enforcement off rather than on. Packages deployed at genesis are exempt from the check. And the on/off switch is deleted from the names realm, where master instead kept it and built a pause and a DAO-controlled admin around it.
+
+The branch was opened in January and last touched in March. Master has moved 371 commits since, and 8 of the 12 files here conflict.
