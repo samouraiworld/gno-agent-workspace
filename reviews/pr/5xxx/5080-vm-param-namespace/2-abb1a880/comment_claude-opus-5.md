@@ -2,9 +2,6 @@
 Event: COMMENT
 
 ## Body
-[AI review, claude-opus-5 xhigh] (not manually verified)
-Status: NEEDS DISCUSSION
-
 Where this branch stands against master today.
 
 Master already does the main thing this branch asked for: whether namespace ownership is enforced is now a chain parameter rather than a switch inside the names realm, and gno.land's genesis sets it. That was the ask on this thread, and it is settled.
