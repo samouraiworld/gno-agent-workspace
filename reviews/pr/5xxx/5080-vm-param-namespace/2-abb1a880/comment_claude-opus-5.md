@@ -4,8 +4,10 @@ Event: COMMENT
 ## Body
 Where this branch stands against master today.
 
-Master already does the main thing this branch asked for: whether namespace ownership is enforced is now a chain parameter rather than a switch inside the names realm, and gno.land's genesis sets it. That was the ask on this thread, and it is settled.
+Master already carries the mechanism this branch proposed: [`checkNamespacePermission`](https://github.com/gnolang/gno/blob/master/gno.land/pkg/sdk/vm/keeper.go#L481-L484) reads the `sysnames_pkgpath` VM param and returns nil when it is empty, and [`genesis_params.toml`](https://github.com/gnolang/gno/blob/master/gno.land/genesis/genesis_params.toml#L9) sets it to `gno.land/r/sys/names`. That is the ask this thread ended on, so the two now differ in three places:
 
-Three things are still only here. A chain that sets nothing gets enforcement off rather than on. Packages deployed at genesis are exempt from the check. And the on/off switch is deleted from the names realm, where master instead kept it and built a pause and a DAO-controlled admin around it.
+- The default. [`sysNamesPkgDefault`](https://github.com/gnolang/gno/blob/master/gno.land/pkg/sdk/vm/params.go#L37) is `gno.land/r/sys/names` on master and `""` here, and master's [`applyLegacyDefaults`](https://github.com/gnolang/gno/blob/master/gno.land/pkg/sdk/vm/params.go#L538-L540) rewrites an explicitly empty param back to that default, so no chain can currently turn enforcement off through genesis params at all.
+- Genesis. This branch returns early at `ctx.BlockHeight() == 0`; master runs the check on genesis transactions like any other.
+- The realm. This branch deletes `Enable` and `IsEnabled` from `r/sys/names`, where master [kept them and grew a `paused` flag, `ProposeSetPaused` and a GovDAO T1 admin](https://github.com/gnolang/gno/blob/master/examples/gno.land/r/sys/names/verifier.gno#L113-L208) around them.
 
-The branch was opened in January and last touched in March. Master has moved 371 commits since, and 8 of the 12 files here conflict.
+The conflict is those files plus signature drift: master's [`checkNamespacePermission`](https://github.com/gnolang/gno/blob/master/gno.land/pkg/sdk/vm/keeper.go#L480) takes `params Params` instead of reading the params itself, and [`callRealmBool`](https://github.com/gnolang/gno/blob/master/gno.land/pkg/sdk/vm/keeper.go#L421) gained a `chainDomain` argument, so the call site here no longer compiles against it. 8 of the 12 files conflict: `verifier.gno`, `verifier_test.gno`, `keeper.go`, `keeper_test.go`, `params.go`, `testscript_gnoland.go`, `addpkg_namespace.txtar` and `user_journey.txtar`, over the 371 commits master has taken since the merge base in March.
