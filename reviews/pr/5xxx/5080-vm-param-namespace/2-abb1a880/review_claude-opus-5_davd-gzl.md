@@ -2,7 +2,7 @@
 
 URL: https://github.com/gnolang/gno/pull/5080
 Author: davd-gzl | Base: master | Files: 12 | +152 -121
-Reviewed by: davd-gzl | Model: claude-opus-5 (xhigh) | Commit: `abb1a880` (draft, CHANGES_REQUESTED, CONFLICTING)
+Reviewed by: davd-gzl | Model: claude-opus-5 (xhigh) | Commit: `abb1a880` (closed 2026-09-01, unmerged)
 Open the code: [github.dev](https://github.dev/davd-gzl/gno/tree/abb1a8802) · [vscode.dev](https://vscode.dev/github/davd-gzl/gno/tree/abb1a8802) · `./scripts/review-worktrees.sh gno 5080`
 Local checkout: `git -C gno worktree add --detach .worktrees/gno-review-5080 abb1a8802`
 
@@ -53,4 +53,4 @@ Conflicting files: `examples/gno.land/r/sys/names/verifier.gno`, `verifier_test.
 ## Open questions
 
 - Whether the deletion of `Enable`/`IsEnabled` is still on the table now that `paused` and the GovDAO T1 admin sit beside them: the branch treats them as a redundant toggle, master treats them as one arm of a governance surface. Not posted as a finding because it is a maintainer call, not a defect.
-- Whether the remaining content justifies this branch or a fresh one off master. Retargeting to the default flip and the genesis skip would be under twenty lines and would carry no conflict.
+- Whether the remaining content justifies this branch or a fresh one off master. Retargeting to the default flip and the genesis skip would be under twenty lines and would carry no conflict. The pull request was closed unmerged on 2026-09-01 with that gap left on the thread rather than in a tracker item.
