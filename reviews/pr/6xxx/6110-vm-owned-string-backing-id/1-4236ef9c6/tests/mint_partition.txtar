@@ -1,0 +1,88 @@
+# Strengthens stdlib_restart_compare: the same idempotent call, whose body
+# forces a real GC while string values are live, must cost the same gas
+# whatever this node's StringValue mint counter has reached and whatever its
+# caches hold. Four measurements of one call:
+#   1. warm caches, counter at its post-deploy value
+#   2. after a simulate-only run of the same call (counter advanced, no state)
+#   3. first call after a full restart (cold caches, counter reset to 0)
+#   4. second call after the restart (warm again)
+# All four must print EXACT_GAS.
+
+env CALL_GAS=200_000_000
+env EXACT_GAS=76971988
+
+loadpkg gno.land/r/test/strid $WORK/strid
+
+gnoland start -no-parallel
+
+# setup: reach the steady state (gas not compared).
+gnokey maketx call -pkgpath gno.land/r/test/strid -func Touch -args 'k' -gas-fee 20000000ugnot -gas-wanted $CALL_GAS -simulate skip -chainid tendermint_test test1
+stdout OK!
+
+# 1. warm.
+gnokey maketx call -pkgpath gno.land/r/test/strid -func Touch -args 'k' -gas-fee 20000000ugnot -gas-wanted $CALL_GAS -simulate skip -chainid tendermint_test test1
+stdout 'GAS USED:'
+
+# simulate-only: mints strings on this node, commits no state.
+gnokey maketx call -pkgpath gno.land/r/test/strid -func Touch -args 'k' -gas-fee 20000000ugnot -gas-wanted $CALL_GAS -simulate only -chainid tendermint_test test1
+
+# 2. counter advanced by the simulation.
+gnokey maketx call -pkgpath gno.land/r/test/strid -func Touch -args 'k' -gas-fee 20000000ugnot -gas-wanted $CALL_GAS -simulate skip -chainid tendermint_test test1
+stdout 'GAS USED:'
+
+gnoland restart
+
+# 3. cold caches, counter back to zero.
+gnokey maketx call -pkgpath gno.land/r/test/strid -func Touch -args 'k' -gas-fee 20000000ugnot -gas-wanted $CALL_GAS -simulate skip -chainid tendermint_test test1
+stdout 'GAS USED:'
+
+# 4. warm again.
+gnokey maketx call -pkgpath gno.land/r/test/strid -func Touch -args 'k' -gas-fee 20000000ugnot -gas-wanted $CALL_GAS -simulate skip -chainid tendermint_test test1
+stdout 'GAS USED:'
+
+-- strid/gnomod.toml --
+module = "gno.land/r/test/strid"
+gno = "0.9"
+
+-- strid/strid.gno --
+package strid
+
+import "strings"
+
+const chunk = "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrs"
+
+// Stored state: reloaded (and re-minted) from the store every tx.
+var (
+	stored string
+	slice  string
+	byKey  map[string]string
+)
+
+func init() {
+	b := ""
+	for i := 0; i < 8; i++ {
+		b += chunk
+	}
+	stored = b
+	slice = b[3:9] // shares the 512-byte backing
+	byKey = map[string]string{"k": chunk, "j": chunk + "!"}
+}
+
+func gen() { _ = make([]byte, 250*1024*1024) }
+
+// Touch is idempotent: it reads and rewrites the same values, so two
+// consecutive calls differ only in what the VM did, never in state.
+// gen() twice crosses maxAllocTx and forces a real GC while s, s2, s3 and
+// the package globals are live.
+func Touch(cur realm, key string) string {
+	s := stored
+	s2 := s + ""    // fresh mint over the same content
+	s3 := s[10:20]  // slice: inherits the stored value's mint
+	v := byKey[key] // map read, string key
+	byKey[key] = v  // rewrite the same value
+	stored = strings.TrimSpace(s)
+	slice = s2[3:9]
+	gen()
+	gen()
+	return v + s3 + slice + string(rune(len(s2)%26+97))
+}
