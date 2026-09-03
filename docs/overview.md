@@ -180,6 +180,20 @@ package organization, safe objects, coins vs GRC20), read
 
 **Faucet:** [faucet.gno.land](https://faucet.gno.land) (select your network)
 
+**Live parameters are not the code defaults.** Read one with
+`gnokey query params/<module>:p:<key> -remote <rpc>`. Measured 2026-09-03:
+
+| Parameter | Code default | Staging | Betanet |
+|-----------|--------------|---------|---------|
+| `vm:p:default_deposit` | `100000000ugnot` | `600000000ugnot` | `600000000ugnot` |
+| `vm:p:storage_price` | `100ugnot` | `100ugnot` | `100ugnot` |
+| `auth:p:initial_gasprice` | `1ugnot/1000gas` | `1ugnot/1000gas` | `1ugnot/1000gas` |
+| `bank:p:restricted_denoms` | none | none | `ugnot` |
+
+A restricted `ugnot` sends a storage-deposit refund to the storage fee
+collector, not to the sender. `-gas-fee` is the whole fee for a transaction,
+accepted when it is at least `-gas-wanted` divided by 1000 at that gas price.
+
 > Full network details: [Gno Networks](https://docs.gno.land/resources/gnoland-networks)
 
 ---
@@ -235,7 +249,7 @@ gnodev    # visit http://localhost:8888/r/myname/myapp
 ```bash
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/myname/myapp" -pkgdir "." \
-  -gas-fee 10000000ugnot -gas-wanted 8000000 \
+  -gas-fee 8000ugnot -gas-wanted 8000000 \
   -broadcast -chainid staging -remote "https://rpc.staging.gno.land:443" \
   MyKey
 ```
@@ -247,7 +261,7 @@ View at: `https://staging.gno.land/r/myname/myapp`
 ```bash
 gnokey maketx call \
   -pkgpath "gno.land/r/myname/myapp" -func "Increment" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -broadcast -chainid staging -remote "https://rpc.staging.gno.land:443" \
   MyKey
 ```
@@ -264,7 +278,7 @@ gnokey query vm/qrender \
 ```bash
 gnokey maketx send \
   -to "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -send "1000000ugnot" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -broadcast -chainid staging -remote "https://rpc.staging.gno.land:443" \
   MyKey
 ```
