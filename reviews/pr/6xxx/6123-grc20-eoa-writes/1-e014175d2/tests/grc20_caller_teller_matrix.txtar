@@ -1,0 +1,115 @@
+# Fills the CallerTeller column of the review's who-gets-served table: which
+# account a token realm debits when its crossing wrappers are backed by the
+# pre-existing CallerTeller. MsgCall and MsgRun both debit the signing user;
+# an intermediate realm debits itself. Measured at e014175d2, and CallerTeller
+# is untouched by the branch.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6123 -R gnolang/gno && git checkout e014175d2
+# curl -fsSL -o gno.land/pkg/integration/testdata/grc20_caller_teller_matrix.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6123-grc20-eoa-writes/1-e014175d2/tests/grc20_caller_teller_matrix.txtar
+# go test -v -run 'TestTestdata/grc20_caller_teller_matrix' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_caller_teller_matrix.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/ctok $WORK/ctok
+loadpkg gno.land/r/test/mid $WORK/mid
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/ctok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+# MsgCall straight onto the token realm debits the signing user.
+gnokey maketx call -pkgpath gno.land/r/test/ctok -func TransferToSink -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/ctok.LastActorIsSigner(\"$alice_user_addr\")"
+stdout 'true bool'
+
+# MsgRun debits the signing user too: the ephemeral run package's address is
+# the signer's own address.
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test alice $WORK/run/transfer.gno
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/ctok.LastActorIsSigner(\"$alice_user_addr\")"
+stdout 'true bool'
+
+# An intermediate realm debits itself, not the signer.
+gnokey maketx call -pkgpath gno.land/r/test/mid -func Relay -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/ctok.LastActorIsSigner(\"$alice_user_addr\")"
+stdout 'false bool'
+gnokey query vm/qeval --data "gno.land/r/test/ctok.LastActorIsMid()"
+stdout 'true bool'
+
+-- run/transfer.gno --
+package main
+
+import "gno.land/r/test/ctok"
+
+func main(cur realm) { ctok.TransferToSink(cross(cur), 1) }
+
+-- ctok/gnomod.toml --
+module = "gno.land/r/test/ctok"
+gno = "0.9"
+
+-- ctok/ctok.gno --
+package ctok
+
+import (
+	"chain"
+
+	"gno.land/p/demo/tokens/grc20"
+)
+
+var (
+	Token     *grc20.Token
+	adm       *grc20.PrivateLedger
+	lastActor address
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("CallerTok", "CTOK", 4, 0, cur)
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+// TransferToSink is the ordinary crossing wrapper a token realm exposes. The
+// teller resolves the actor from the frame that crossed into this realm. The
+// recipient is fixed so no caller can be its own recipient.
+func TransferToSink(cur realm, amount int64) {
+	lastActor = cur.Previous().Address()
+	sink := chain.PackageAddress("gno.land/r/test/sinkhole")
+	if err := adm.CallerTeller().Transfer(0, cur, sink, amount); err != nil {
+		panic(err)
+	}
+}
+
+func LastActorIsSigner(signer address) bool { return lastActor == signer }
+
+func LastActorIsMid() bool {
+	return lastActor == chain.PackageAddress("gno.land/r/test/mid")
+}
+
+-- mid/gnomod.toml --
+module = "gno.land/r/test/mid"
+gno = "0.9"
+
+-- mid/mid.gno --
+package mid
+
+import "gno.land/r/test/ctok"
+
+// Relay funds itself first so the transfer it makes as itself can succeed.
+func Relay(cur realm) {
+	ctok.Faucet(cross(cur))
+	ctok.TransferToSink(cross(cur), 1)
+}

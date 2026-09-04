@@ -1,0 +1,67 @@
+# A token whose origin realm is amint carries an ID naming bwrap, and grc20reg
+# registers it. bwrap.Build is an ordinary non-crossing function taking the
+# trailing "rlm realm" grc20.NewToken's own signature invites; borrow rule #1
+# moves m.Realm to bwrap for its body, while amint's cur stays IsCurrent.
+# Fails at 911e1a57a: the ID prefix and GetOriginRealm name two realms.
+#
+# from a local clone of gnolang/gno:
+#   gh pr checkout 6101 -R gnolang/gno && git checkout 911e1a57a
+#   curl -fsSL -o gno.land/pkg/integration/testdata/grc20_id_prefix_names_wrong_realm.txtar \
+#     https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6101-realm-scoped-token-ids/1-911e1a57a/tests/grc20_id_prefix_names_wrong_realm.txtar
+#   go test -v -run 'TestTestdata/grc20_id_prefix_names_wrong_realm' ./gno.land/pkg/integration/
+#   rm gno.land/pkg/integration/testdata/grc20_id_prefix_names_wrong_realm.txtar
+
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/demo/tests/bwrap $WORK/bwrap
+loadpkg gno.land/r/demo/tests/amint $WORK/amint
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/tests/amint -func Mint -gas-fee 2000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# IS:     the registry key names amint while the ID names bwrap.
+stdout 'origin=gno.land/r/demo/tests/amint id=gno.land/r/demo/tests/bwrap:[0-9]+ key=gno.land/r/demo/tests/amint\.AMT'
+# SHOULD: both name amint, the realm whose cur NewToken verified.
+# stdout 'origin=gno.land/r/demo/tests/amint id=gno.land/r/demo/tests/amint:[0-9]+ key=gno.land/r/demo/tests/amint\.AMT'
+
+# Every ledger event the token emits carries the wrong realm too.
+stdout '"key":"token","value":"gno.land/r/demo/tests/bwrap:[0-9]+"'
+
+-- bwrap/gnomod.toml --
+module = "gno.land/r/demo/tests/bwrap"
+gno = "0.9"
+-- bwrap/bwrap.gno --
+package bwrap
+
+import "gno.land/p/demo/tokens/grc20"
+
+// Build forwards the caller's own realm to grc20.NewToken. Nothing here is
+// privileged: the trailing realm parameter is the standard's own threading
+// shape, and bwrap never sees amint's ledger.
+func Build(name, symbol string, decimals int, rlm realm) (*grc20.Token, *grc20.PrivateLedger) {
+	return grc20.NewToken(name, symbol, decimals, rlm)
+}
+-- amint/gnomod.toml --
+module = "gno.land/r/demo/tests/amint"
+gno = "0.9"
+-- amint/amint.gno --
+package amint
+
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/demo/tests/bwrap"
+)
+
+var (
+	Token  *grc20.Token
+	ledger *grc20.PrivateLedger
+)
+
+func Mint(cur realm) string {
+	Token, ledger = bwrap.Build("Amint", "AMT", 4, cur)
+	key := grc20reg.Register(cross(cur), Token, "")
+	ledger.Mint(cur.Address(), 1000)
+	return "origin=" + Token.GetOriginRealm() + " id=" + Token.ID() + " key=" + key
+}

@@ -1,0 +1,63 @@
+# Two realms whose ID code is byte-identical get different first identifiers:
+# the number is the realm's object counter, so declarations no ID call reads
+# move it. Fails at 911e1a57a, where the two numbers differ by ten.
+#
+# from a local clone of gnolang/gno:
+#   gh pr checkout 6101 -R gnolang/gno && git checkout 911e1a57a
+#   curl -fsSL -o gno.land/pkg/integration/testdata/realmid_counts_realm_objects.txtar \
+#     https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6101-realm-scoped-token-ids/1-911e1a57a/tests/realmid_counts_realm_objects.txtar
+#   go test -v -run 'TestTestdata/realmid_counts_realm_objects' ./gno.land/pkg/integration/
+#   rm gno.land/pkg/integration/testdata/realmid_counts_realm_objects.txtar
+
+loadpkg gno.land/r/demo/tests/idlean $WORK/idlean
+loadpkg gno.land/r/demo/tests/idpad $WORK/idpad
+
+gnoland start
+
+gnokey query vm/qeval --data 'gno.land/r/demo/tests/idlean.First()'
+stdout '"gno.land/r/demo/tests/idlean:7" string'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/tests/idpad.First()'
+# IS:     three unused declarations move the first identifier by ten.
+stdout '"gno.land/r/demo/tests/idpad:17" string'
+# SHOULD: identical ID code mints the same number whatever else the realm holds.
+# stdout '"gno.land/r/demo/tests/idpad:7" string'
+
+-- idlean/gnomod.toml --
+module = "gno.land/r/demo/tests/idlean"
+gno = "0.9"
+-- idlean/idlean.gno --
+package idlean
+
+import "chain/runtime"
+
+var first string
+
+func init(cur realm) {
+	first = runtime.NewRealmID()
+}
+
+func First() string { return first }
+-- idpad/gnomod.toml --
+module = "gno.land/r/demo/tests/idpad"
+gno = "0.9"
+-- idpad/idpad.gno --
+package idpad
+
+import "chain/runtime"
+
+type filler struct{ a, b, c string }
+
+var (
+	pad1 = &filler{"a", "b", "c"}
+	pad2 = &filler{"d", "e", "f"}
+	pad3 = []*filler{{"g", "h", "i"}}
+
+	first string
+)
+
+func init(cur realm) {
+	first = runtime.NewRealmID()
+}
+
+func First() string { return first }

