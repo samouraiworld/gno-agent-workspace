@@ -134,12 +134,12 @@ The metadata block reads `# PR [#<number>](https://github.com/gnolang/gno/pull/<
 
 ```markdown
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-<number> <short-sha>`
-Overview: [visual overview](../overview.html) <— only when the PR directory has an overview.html>
+Overview: [overview](../overview.md) <— only when the PR directory has one>
 ```
 
 ## Re-review rounds
 
-For a patch-id-equal base-only move, `./scripts/reanchor-round.py <number> <new-sha>` does the copy: re-runs the gate, copies the latest round's `.md` files into `<n+1>-<new-sha>/`, rewrites sha references, remaps line anchors, flags unmappable ones. Fix flagged anchors from the worktree, add the round note, regenerate nothing else. `overview.html` untouched.
+For a patch-id-equal base-only move, `./scripts/reanchor-round.py <number> <new-sha>` does the copy: re-runs the gate, copies the latest round's `.md` files into `<n+1>-<new-sha>/`, rewrites sha references, remaps line anchors, flags unmappable ones. Fix flagged anchors from the worktree, add the round note, regenerate nothing else. `overview.md` untouched.
 
 ## Calibration
 
@@ -151,15 +151,12 @@ For a patch-id-equal base-only move, `./scripts/reanchor-round.py <number> <new-
 - The single push per review goes to this repo (`git@github.com:samouraiworld/gno-agent-workspace.git`) only: `git add reviews/ && git commit -m "review: PR <number>" && git push`. Never push to gnolang/gno.
 - Disclosure: a finding exploitable against merged or deployed code (master, consensus paths, a live realm) follows the core disclosure rule; `gno/SECURITY.md` forbids a public issue, and a public fix PR telegraphs the vector just as loudly.
 
-## PR overview (`overview.html`)
+## PR overview (`overview.md`)
 
-Generate `overview.html` for every PR, before the review file, per the core's *Overview*. The format is the delta: HTML here, markdown there. Nothing about the subject exempts a PR — the judgement call this replaces answered "skip" for subjects a reader could not follow.
+Generate `overview.md` for every PR, before the review file, per the core's *Overview*, which carries the format and the update rule. Nothing about the subject exempts a PR — the judgement call this replaces answered "skip" for subjects a reader could not follow. Two gno paths on top of the core:
 
-- Write it at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.html`, NOT inside the round directory: it explains the PR, not one commit. Single self-contained HTML file, inline CSS/JS, zero external requests, light theme only, generating model in the `<title>` and the visible subtitle.
-- Explainer only — zero review state: no verdict, no findings, no reviewed sha, no round references. Exactly one pointer to the review: a `Review files` link to the PR directory tree on GitHub.
-- Content — pick what fits: plain-language explanation, request/state/dataflow diagram, decision table, before/after payload or benchmark bars, an interactive simulator mirroring the changed logic, a short Concepts section when the PR hinges on domain concepts. If the page mirrors PR logic in JS, verify the mirror against the PR's own tests before committing and state the result on the page. No emoji.
-- Update only when new commits change the PR's own files. Base-only head bumps, new findings, verdict changes, and new rounds never touch it.
-- After writing or updating one, open it in the browser (`xdg-open <path>`); skip the open in subagent and batch runs.
+- Write it at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.md`, NOT inside the round directory: it explains the PR, not one commit.
+- Exactly one pointer to the review: a `Review files` link to the PR directory tree on GitHub.
 
 ## Posting
 

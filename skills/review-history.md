@@ -12,7 +12,7 @@ Answer questions about work already reviewed, from `reviews/` on disk. Never re-
 
 ## Corpus layout
 
-- `reviews/pr/<thousand>xxx/<number>-<slug>/<round>-<short-sha>/` for gno PRs. `overview.html` sits at the PR-dir root; `tests/` inside round dirs.
+- `reviews/pr/<thousand>xxx/<number>-<slug>/<round>-<short-sha>/` for gno PRs. `overview.md` sits at the PR-dir root; `tests/` inside round dirs.
 - `reviews/<repo>/<number>-<slug>/` for non-gno repos. Round dirs are optional: `onboarding-bot` keeps review files directly in the PR dir; `gnodaokit` has round dirs plus a PR-level `tests/`. The mode commands below name the non-gno dirs that existed when written; run `ls -d reviews/*/` first and widen the paths to any repo dir they miss, or that repo's reviews silently drop out of the answer.
 - Round files, current naming: `review_<model>_<reviewer>.md` plus `comment_<model>.md`. Older rounds instead hold `<model>_<reviewer>.md` (no `review_` prefix), `review_<model>.md`, tier-split `*__tier*.md` files, bare `comment.md`, or no comment draft at all. A round can hold several reviewer files (parallel lenses); not all carry a verdict.
 - Round numbers normally count up; duplicates with different shas exist (`5867` has two `2-*`). Order duplicates by mtime. A deep re-review of an already-reviewed sha gets `<n+1>-<same-sha>`.
@@ -36,7 +36,7 @@ The metadata header (`Author: <login> | Base: ... | Commit: <sha> (latest|stale 
 find reviews -maxdepth 3 -type d -name '<number>-*'
 ```
 
-A bare number means gnolang/gno; when it also matches another repo's dir, report both and ask which. No hit from the find (it matches any slug): not reviewed. A hit whose directory holds no review file (`4817-*` holds only `overview.html`): report as present but reviewless, never as reviewed. Report, in order: PR dir; one line per round in mtime order (round dir, verdict, posted state); then the latest round's TL;DR and its headline findings by severity section. When rounds disagree on the verdict, the latest stands; name the overturned round.
+A bare number means gnolang/gno; when it also matches another repo's dir, report both and ask which. No hit from the find (it matches any slug): not reviewed. A hit whose directory holds no review file (a PR dir holding only an overview): report as present but reviewless, never as reviewed. Report, in order: PR dir; one line per round in mtime order (round dir, verdict, posted state); then the latest round's TL;DR and its headline findings by severity section. When rounds disagree on the verdict, the latest stands; name the overturned round.
 
 **Search** (free text, including file paths and subsystems). Findings cite `file:line` anchors and comment drafts use `## <path>:<line>` headers, so a path fragment is a good term.
 
