@@ -285,9 +285,11 @@ Suggestion: this is the only assertion in the tree that reddens when `InitCoins`
 ```
 
 ## tm2/pkg/sdk/bank/keeper.go:533 [gh](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L533) · [↗](../../../../../.worktrees/gno-review-6134/tm2/pkg/sdk/bank/keeper.go#L533)
-Suggestion: `nil` sends `setAccountTierCoins` into [`ensureAccount`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L250-L257), which reads and amino-decodes the account [`applyBalance`](https://github.com/gnolang/gno/blob/7834d5d7e/gno.land/pkg/gnoland/app.go#L802) wrote three lines earlier and still holds, and the parameter exists for that case, per [`:259-260`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L259-L260). Giving `InitCoins` the account and passing `acc` saves 19 allocations and 744 bytes per balance, four times what the new probe costs, and it is free to do now while the method has one caller.
+Suggestion: `nil` re-reads and amino-decodes the account [`applyBalance`](https://github.com/gnolang/gno/blob/7834d5d7e/gno.land/pkg/gnoland/app.go#L802) wrote three lines earlier, at 19 allocations and 744 bytes per balance, four times what the new probe costs.
 
 <details><summary>measurement</summary>
+
+`nil` sends it into [`ensureAccount`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L250-L257); the parameter exists for the caller that already holds the account, per [`:259-260`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L259-L260). Giving `InitCoins` the account and passing `acc` is free while the method has one caller.
 
 A harness replicating `applyBalance`'s loop at 100,000 balances against a cache-wrapped multistore, medians of three, allocation columns deterministic.
 
