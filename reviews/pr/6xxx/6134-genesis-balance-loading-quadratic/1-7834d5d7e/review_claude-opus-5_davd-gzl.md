@@ -5,6 +5,7 @@ Author: moul | Base: master | Files: 7 | +329 -4
 Reviewed by: davd-gzl | Model: claude-opus-5 (full, deep) | Commit: `7834d5d7e` (latest)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6134 7834d5d7e`
 Overview: [overview](../overview.md)
+Status: merged as [bdeccddf](https://github.com/gnolang/gno/commit/bdeccddf67414e666c0575be0a951ece45387e5e). Kept as a record; the draft beside it is not offered for posting, and every finding that survives on master is an issue rather than a review comment.
 
 ## Overview
 
