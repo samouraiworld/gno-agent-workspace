@@ -81,7 +81,7 @@ The probe costs 5.00 allocations and 208 bytes per balance, which is the residua
 
 ## Missing Tests
 
-- **[the branch the whole change turns on is unpinned, and getting it wrong moves the genesis store hash]** [`gno.land/pkg/gnoland/app.go:785`](https://github.com/gnolang/gno/blob/7834d5d7e/gno.land/pkg/gnoland/app.go#L785) · [↗](../../../../../.worktrees/gno-review-6134/gno.land/pkg/gnoland/app.go#L785) — raised inline by tbruyelle at [`app.go:808`](https://github.com/gnolang/gno/pull/6134#discussion_r3933470179) and [`mock_test.go:182`](https://github.com/gnolang/gno/pull/6134#discussion_r3933494727); this is what it costs.
+- **[RESOLVED BEFORE MERGE, kept for the evidence] [the branch the whole change turns on is unpinned, and getting it wrong moves the genesis store hash]** [`gno.land/pkg/gnoland/app.go:785`](https://github.com/gnolang/gno/blob/7834d5d7e/gno.land/pkg/gnoland/app.go#L785) · [↗](../../../../../.worktrees/gno-review-6134/gno.land/pkg/gnoland/app.go#L785) — raised inline by tbruyelle at [`app.go:808`](https://github.com/gnolang/gno/pull/6134#discussion_r3933470179) and [`mock_test.go:182`](https://github.com/gnolang/gno/pull/6134#discussion_r3933494727); this is what it costs.
   <details><summary>details</summary>
 
   Two things keep the branch invisible. [`mockAuthKeeper.GetAccount`](https://github.com/gnolang/gno/blob/7834d5d7e/gno.land/pkg/gnoland/mock_test.go#L226) · [↗](../../../../../.worktrees/gno-review-6134/gno.land/pkg/gnoland/mock_test.go#L226) returns nil unconditionally, so every mock-backed test takes the fast path, and [`mockBankKeeper.InitCoins`](https://github.com/gnolang/gno/blob/7834d5d7e/gno.land/pkg/gnoland/mock_test.go#L181-L184) · [↗](../../../../../.worktrees/gno-review-6134/gno.land/pkg/gnoland/mock_test.go#L181-L184) counts into the same field as `SetCoins`, so nothing downstream can tell them apart. The one real-keeper repeat test, [`TestApplyBalanceWithARepeatedAddress`](https://github.com/gnolang/gno/blob/7834d5d7e/gno.land/pkg/gnoland/app_test.go#L3927) · [↗](../../../../../.worktrees/gno-review-6134/gno.land/pkg/gnoland/app_test.go#L3927), uses `ugnot` only, which is the sole account-tier denom, so the drain it would skip writes nothing either way.
@@ -120,7 +120,9 @@ The probe costs 5.00 allocations and 208 bytes per balance, which is the residua
   FAIL	github.com/gnolang/gno/gno.land/pkg/gnoland	18.503s
   ```
 
-  Fix: add the file beside `TestApplyBalanceWithARepeatedAddress`. It asserts the effect rather than a call count, so it holds without changing `setCoinsCalls`, which the description keeps on purpose.
+  Resolved on the merge commit. `TestApplyBalanceChoosesInitCoinsOrSetCoins` at [`app_test.go:3984`](https://github.com/gnolang/gno/blob/bdeccddf6/gno.land/pkg/gnoland/app_test.go#L3984) asserts the branch through the mocks, `mockAuthKeeper` now tracks which addresses it has seen, and `InitCoins` counts into its own `initCoinsCalls`. Re-ran the same mutation against `bdeccddf6`: it reddens with `a repeat must take the SetCoins branch`, so the gap is closed and this finding is not for posting.
+
+  What the shipped tests still add is the effect rather than the call count, which is what catches a change inside `InitCoins` rather than at the call site.
   </details>
 
 - **[the ordering the comment calls load-bearing is load-bearing, and nothing holds it]** [`tm2/pkg/sdk/bank/keeper.go:532-536`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L532-L536) · [↗](../../../../../.worktrees/gno-review-6134/tm2/pkg/sdk/bank/keeper.go#L532-L536) — swapping the account-tier write and the split-tier write leaves every test in the tree green, and the swapped order leaks a split-tier key on the failing input.
