@@ -14,7 +14,7 @@ gno's existing txtar lane runs one in-memory node, so no test in the tree can sa
 
 ## Verify first
 
-- [`.github/workflows/ci-gnoe2e.yml:12-29`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-gnoe2e.yml#L12-L29) · [↗](../../../../../.worktrees/gno-review-6135/.github/workflows/ci-gnoe2e.yml#L12-L29) — 84 of the last 100 merged pull requests, ordered by merge time, carry a file this filter matches, so a flaky boot now reddens a pull request that touched none of this. Re-count against the current hundred and decide whether that share is the one intended.
+- [`.github/workflows/ci-gnoe2e.yml:12-29`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-gnoe2e.yml#L12-L29) · [↗](../../../../../.worktrees/gno-review-6135/.github/workflows/ci-gnoe2e.yml#L12-L29) — 84 of the 100 pull requests merged between 8 July and 4 September carry a file this filter matches, so a flaky boot now reddens a pull request that touched none of this. Re-count against the current hundred and decide whether that share is the one intended.
 - [`misc/gnoe2e/internal/cluster/node.go:266-280`](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/internal/cluster/node.go#L266-L280) · [↗](../../../../../.worktrees/gno-review-6135/misc/gnoe2e/internal/cluster/node.go#L266-L280) — `FindAvailablePort` closes its listener before the node binds, so the suite's failure mode under port contention is a node that will not start. Run `make test-scenarios` three times in a row on a loaded machine and confirm no run dies on a bind, since that failure now reddens whatever pull request happened to trigger the workflow.
 
 ## Summary
@@ -29,7 +29,7 @@ Reading order: [`internal/cluster/cluster.go`](https://github.com/gnolang/gno/bl
 
 | Measurement | Value |
 | --- | --- |
-| Last 100 merged pull requests, by merge time, whose file list matches that filter | 84 |
+| Of the 100 pull requests merged between 8 July and 4 September, tip 6134, those matching that filter | 84 |
 | `main / test` wall time at ddc5acfb9 | 4m 19s |
 | Of which the scenario package, `misc/gnoe2e`, in CI | 83.029s |
 | `main / test` check runs already on master today, from `ci-dir-gnoland`, `ci-dir-gnovm` and `ci-dir-tm2` | 3 |

@@ -24,9 +24,9 @@ a Go module of its own that boots one to sixteen real `gnoland` processes per
 scenario, built from the enclosing checkout, and drives a txtar script against
 them. Three files outside `misc/gnoe2e` change: a new CI workflow, one
 comment in
-[`ci-dir-misc.yml`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-dir-misc.yml#L33),
+[`ci-dir-misc.yml`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-dir-misc.yml#L33-L34),
 and `misc/gnoe2e/` added to the root
-[`Makefile`'s `fix` loop](https://github.com/gnolang/gno/blob/ddc5acfb9/Makefile#L101),
+[`Makefile`'s `fix` loop](https://github.com/gnolang/gno/blob/ddc5acfb9/Makefile#L95-L101),
 whose comment is reworded to say so. The two edited files come to +5 -3.
 
 ## Concepts
@@ -113,7 +113,7 @@ second's result depend on which ran first.
 | --- | --- |
 | [`testdata/tour.txtar`](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/testdata/tour.txtar#L7-L17) | every verb and every exported variable on one four-validator inert chain, each setting read back out of the chain rather than assumed |
 | [`testdata/oracle/first_light.txtar`](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/testdata/oracle/first_light.txtar#L1-L3) | a package submitted after genesis parks, the oracle activates it, and all three validators serve the result |
-| [`testdata/oracle/patient_oracle.txtar`](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/testdata/oracle/patient_oracle.txtar#L1-L10) | two validators of four go down, consensus halts while the survivors keep answering queries, and the oracle waits on a frozen tip without spinning or losing its place |
+| [`testdata/oracle/patient_oracle.txtar`](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/testdata/oracle/patient_oracle.txtar#L1-L9) | two validators of four go down, consensus halts while the survivors keep answering queries, and the oracle waits on a frozen tip without spinning or losing its place |
 
 The third is the one the lane was built for. A chain that answers every query
 and commits nothing is a state the in-process lane cannot produce, and it is the

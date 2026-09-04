@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-The path filter on [`ci-gnoe2e.yml`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-gnoe2e.yml#L12-L29) matches a file in 84 of the last 100 merged pull requests, so a validator that fails to boot reddens branches with no gnoe2e change.
+The path filter on [`ci-gnoe2e.yml`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-gnoe2e.yml#L12-L29) matches a file in 84 of the 100 pull requests merged between 8 July and 4 September, so a validator that fails to boot reddens branches with no gnoe2e change.
 
 <details><summary>checks that held</summary>
 
