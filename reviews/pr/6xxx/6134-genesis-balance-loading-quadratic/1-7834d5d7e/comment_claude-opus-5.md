@@ -289,7 +289,7 @@ Suggestion: `nil` re-reads and amino-decodes the account [`applyBalance`](https:
 
 <details><summary>measurement</summary>
 
-`nil` sends it into [`ensureAccount`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L250-L257); the parameter exists for the caller that already holds the account, per [`:259-260`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L259-L260). Giving `InitCoins` the account and passing `acc` is free while the method has one caller.
+`nil` sends it into [`ensureAccount`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L250-L257); the parameter exists for the caller that already holds the account, per [`:259-260`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/keeper.go#L259-L260). Giving `InitCoins` the account and passing `acc` also drops the caller's own `SetAccount`, since `setAccountTierCoins` writes the same object once with the coins on it. The committed genesis store hash is unchanged and `gno.land/pkg/gnoland` stays green; the signature change costs five call sites in this branch's own tests.
 
 A harness replicating `applyBalance`'s loop at 100,000 balances against a cache-wrapped multistore, medians of three, allocation columns deterministic.
 

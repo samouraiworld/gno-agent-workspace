@@ -144,7 +144,9 @@ The probe costs 5.00 allocations and 208 bytes per balance, which is the residua
 
   `SetCoins` passes `nil` too, and it has the same caller, so the same saving is available there. Its own drain makes it the slow path either way, which is why this is worth doing on the new method rather than both.
 
-  Fix: give `InitCoins` the account as a parameter and pass `acc` from `applyBalance`, while the method has one caller and its shape is still free.
+  Built and measured: the committed genesis store hash is byte-identical to head over the eight-shape balance list, and `go test ./gno.land/pkg/gnoland/` is green. The caller's own `SetAccount` disappears with it, since `setAccountTierCoins` writes the same object once with the coins already on it. The cost is five call sites in this branch's own tests, which the signature change breaks.
+
+  Fix: give `InitCoins` the account as a parameter and pass `acc` from `applyBalance`.
   </details>
 
 - **[the benchmark the file documents runs without bound]** [`tm2/pkg/sdk/bank/initcoins_bench_test.go:52`](https://github.com/gnolang/gno/blob/7834d5d7e/tm2/pkg/sdk/bank/initcoins_bench_test.go#L52) · [↗](../../../../../.worktrees/gno-review-6134/tm2/pkg/sdk/bank/initcoins_bench_test.go#L52) — `BenchmarkCoinsLoadSetCoins100000` has no completion I could measure, and `-timeout` does not stop a benchmark in progress.
