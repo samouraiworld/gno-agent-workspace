@@ -8,13 +8,13 @@ Overview: [overview](../overview.md)
 
 ## Overview
 
-gno's existing txtar lane runs one in-memory node, so no test in the tree can say "a validator went away and the chain carried on" or "a program outside the chain reacted to what the chain committed". The package-approver oracle in `contribs/gpao` is made entirely of the second kind and has no end-to-end test at all. This branch adds `misc/gnoe2e`, a Go module of its own that boots up to sixteen real `gnoland` processes per scenario from the enclosing checkout, exports each one's RPC address to the script, and lets the script stop a validator, restart it, and run the oracle beside the chain. Three scenarios ship with it, the last of which takes two validators of four away and asserts the oracle survives a chain that answers every query while committing nothing. Sixty-two of the sixty-five files sit under `misc/gnoe2e`. The other three are a new CI workflow, one comment in `ci-dir-misc.yml`, and `misc/gnoe2e/` added to the root `Makefile`'s `fix` loop.
+gno's existing txtar lane runs one in-memory node, so no test in the tree can say "a validator went away and the chain carried on" or "a program outside the chain reacted to what the chain committed". The package-approver oracle in `contribs/gpao` is made entirely of the second kind, and no test drives its daemon against a chain: [`TestEstimateEnableAgainstARealChain`](https://github.com/gnolang/gno/blob/ddc5acfb9/contribs/gpao/endtoend_test.go#L34) · [↗](../../../../../.worktrees/gno-review-6135/contribs/gpao/endtoend_test.go#L34) is the only gpao test that boots a node, and it covers the gas estimate for `MsgEnablePackage`. This branch adds `misc/gnoe2e`, a Go module of its own that boots up to sixteen real `gnoland` processes per scenario from the enclosing checkout, exports each one's RPC address to the script, and lets the script stop a validator, restart it, and run the oracle beside the chain. Three scenarios ship with it, the last of which takes two validators of four away and asserts the oracle survives a chain that answers every query while committing nothing. Sixty-two of the sixty-five files sit under `misc/gnoe2e`. The other three are a new CI workflow, one comment in `ci-dir-misc.yml`, and `misc/gnoe2e/` added to the root `Makefile`'s `fix` loop.
 
 **Verdict: APPROVE** — the module is sealed off from the chain, and what the branch gets wrong is a dropped struct field, an unenforced upper bound and one sentence of documentation (3 nits).
 
 ## Verify first
 
-- [`.github/workflows/ci-gnoe2e.yml:12-29`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-gnoe2e.yml#L12-L29) · [↗](../../../../../.worktrees/gno-review-6135/.github/workflows/ci-gnoe2e.yml#L12-L29) — 57 of the last 100 merged pull requests carry a file this filter matches, so a flaky boot now reddens a pull request that touched none of this. Re-count against the current hundred and decide whether that share is the one intended.
+- [`.github/workflows/ci-gnoe2e.yml:12-29`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-gnoe2e.yml#L12-L29) · [↗](../../../../../.worktrees/gno-review-6135/.github/workflows/ci-gnoe2e.yml#L12-L29) — 84 of the last 100 merged pull requests, ordered by merge time, carry a file this filter matches, so a flaky boot now reddens a pull request that touched none of this. Re-count against the current hundred and decide whether that share is the one intended.
 - [`misc/gnoe2e/internal/cluster/node.go:266-280`](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/internal/cluster/node.go#L266-L280) · [↗](../../../../../.worktrees/gno-review-6135/misc/gnoe2e/internal/cluster/node.go#L266-L280) — `FindAvailablePort` closes its listener before the node binds, so the suite's failure mode under port contention is a node that will not start. Run `make test-scenarios` three times in a row on a loaded machine and confirm no run dies on a bind, since that failure now reddens whatever pull request happened to trigger the workflow.
 
 ## Summary
@@ -29,7 +29,7 @@ Reading order: [`internal/cluster/cluster.go`](https://github.com/gnolang/gno/bl
 
 | Measurement | Value |
 | --- | --- |
-| Last 100 merged pull requests whose file list matches that filter | 57 |
+| Last 100 merged pull requests, by merge time, whose file list matches that filter | 84 |
 | `main / test` wall time at ddc5acfb9 | 4m 19s |
 | Of which the scenario package, `misc/gnoe2e`, in CI | 83.029s |
 | `main / test` check runs already on master today, from `ci-dir-gnoland`, `ci-dir-gnovm` and `ci-dir-tm2` | 3 |

@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-The path filter on [`ci-gnoe2e.yml`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-gnoe2e.yml#L12-L29) matches a file in 57 of the last 100 merged pull requests, so a validator that fails to boot reddens branches with no gnoe2e change.
+The path filter on [`ci-gnoe2e.yml`](https://github.com/gnolang/gno/blob/ddc5acfb9/.github/workflows/ci-gnoe2e.yml#L12-L29) matches a file in 84 of the last 100 merged pull requests, so a validator that fails to boot reddens branches with no gnoe2e change.
 
 <details><summary>checks that held</summary>
 
@@ -111,7 +111,7 @@ FAIL	github.com/gnolang/gno/misc/gnoe2e/internal/termlog	0.012s
 </details>
 
 ## misc/gnoe2e/internal/cluster/cluster.go:169-174 [gh](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/internal/cluster/cluster.go#L169-L174) · [↗](../../../../../.worktrees/gno-review-6135/misc/gnoe2e/internal/cluster/cluster.go#L169-L174)
-Nit: `NumValidators` is bounded below at one and not above, so the ceiling of sixteen [`parseClusterSection`](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/internal/integration/clusterspec.go#L206-L211) puts on a declared count never reaches the `-validators` flag, and `run -validators 17` validates clean into [`StartCluster`'s setup loop](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/internal/cluster/cluster.go#L382-L388).
+Nit: `NumValidators` is bounded below at one and not above, so the [ceiling of sixteen](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/internal/integration/clusterspec.go#L30) that [`parseClusterSection`](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/internal/integration/clusterspec.go#L206-L211) puts on a declared count never reaches the `-validators` flag, and `run -validators 17` validates clean into [`StartCluster`'s setup loop](https://github.com/gnolang/gno/blob/ddc5acfb9/misc/gnoe2e/internal/cluster/cluster.go#L382-L388).
 
 <details><summary>repro</summary>
 
