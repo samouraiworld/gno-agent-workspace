@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 330" width="760" height="330" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="330" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="A name written in the if arm reaches this block at this depth." tabindex="0">
+<rect x="20" y="30" width="150" height="30" rx="6" class="f-box "/>
+<text x="30" y="45" class="f-t b">if block</text>
+</g>
+<text x="180" y="49" class="f-t s">Depth 1</text>
+<path d="M95 60L95 74" class="f-ar "/>
+<g class="f-hot " data-note="A name written in the if arm reaches this block at this depth." tabindex="0">
+<rect x="20" y="74" width="150" height="30" rx="6" class="f-box "/>
+<text x="30" y="89" class="f-t b">for block</text>
+</g>
+<text x="180" y="93" class="f-t s">Depth 2</text>
+<path d="M95 104L95 118" class="f-ar "/>
+<g class="f-hot " data-note="A name written in the if arm reaches this block at this depth." tabindex="0">
+<rect x="20" y="118" width="150" height="30" rx="6" class="f-box "/>
+<text x="30" y="133" class="f-t b">add&#x27;s block</text>
+</g>
+<text x="180" y="137" class="f-t s">Depth 3</text>
+<path d="M95 148L95 162" class="f-ar "/>
+<g class="f-hot " data-note="A name written in the if arm reaches this block at this depth." tabindex="0">
+<rect x="20" y="162" width="150" height="30" rx="6" class="f-box "/>
+<text x="30" y="177" class="f-t b">file block</text>
+</g>
+<text x="180" y="181" class="f-t s">Depth 4</text>
+<path d="M95 192L95 206" class="f-ar "/>
+<g class="f-hot " data-note="A name written in the if arm reaches this block at this depth." tabindex="0">
+<rect x="20" y="206" width="150" height="30" rx="6" class="f-box "/>
+<text x="30" y="221" class="f-t b">package block</text>
+</g>
+<text x="180" y="225" class="f-t s">Depth 5</text>
+<path d="M95 236L95 250" class="f-ar "/>
+<g class="f-hot " data-note="The universe block, a package named .uverse at the root of every chain. A name whose path has Depth 0 is read from it directly: the op_eval fast path checks nx.Path.Depth == 0 before climbing anything." tabindex="0">
+<rect x="20" y="250" width="150" height="30" rx="6" class="f-box acc"/>
+<text x="30" y="265" class="f-t b">.uverse</text>
+</g>
+<text x="180" y="269" class="f-t s">Depth 0</text>
+<text x="20" y="322" class="f-t s">Depth counts hops from the block where the name is used, so the same name has a different depth in each scope.</text>
+<g class="f-hot " data-note="The basic types are defined here, as type values in the block&#x27;s slots." tabindex="0">
+<rect x="260" y="30" width="480" height="50" rx="6" class="f-box "/>
+<text x="270" y="48" class="f-t b">Types</text>
+<text x="270" y="64" class="f-m s">bool string int int8 ... uint64 float32 float64 byte rune any</text>
+<text x="270" y="77" class="f-m s">error address realm</text>
+</g>
+<g class="f-hot " data-note="Constants, resolved by the preprocessor into ConstExprs." tabindex="0">
+<rect x="260" y="86" width="480" height="50" rx="6" class="f-box "/>
+<text x="270" y="104" class="f-t b">Values</text>
+<text x="270" y="120" class="f-m s">true false nil iota</text>
+</g>
+<g class="f-hot " data-note="Each is a FuncValue whose body is a Go closure over the Machine, installed by DefineNative." tabindex="0">
+<rect x="260" y="142" width="480" height="50" rx="6" class="f-box "/>
+<text x="270" y="160" class="f-t b">Functions</text>
+<text x="270" y="176" class="f-m s">append cap copy delete len make new print println panic recover</text>
+</g>
+<g class="f-hot " data-note="cross checks its argument is the running frame&#x27;s own cur. revive works only when the machine enables it, which tests do." tabindex="0">
+<rect x="260" y="198" width="480" height="50" rx="6" class="f-box "/>
+<text x="270" y="216" class="f-t b">Gno additions</text>
+<text x="270" y="232" class="f-m s">cross attach (reserved, panics) istypednil revive</text>
+</g>
+<g class="f-hot " data-note="For the compiler&#x27;s own use. The leading dot or reserved spelling means user source cannot produce them." tabindex="0">
+<rect x="260" y="254" width="480" height="50" rx="6" class="f-box mut"/>
+<text x="270" y="272" class="f-t b">Hidden</text>
+<text x="270" y="288" class="f-m s">.cur .origin cross1</text>
+</g>
+</svg>

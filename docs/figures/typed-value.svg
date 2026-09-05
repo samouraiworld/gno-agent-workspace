@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 332" width="760" height="332" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="332" class="f-bg" rx="8"/>
+<text x="20" y="24" class="f-t h">TypedValue{T, V, N}: nine values, three cells each</text>
+<g class="f-hot " data-note="An int lives in the eight bytes: SetInt writes an int64 straight into N. No allocation." tabindex="0">
+<rect x="20" y="40" width="236" height="82" rx="6" class="f-box "/>
+<text x="30" y="57" class="f-m b">x := 42</text>
+<text x="30" y="76" class="f-m s">T  int</text>
+<text x="30" y="90" class="f-m s">V nil</text>
+<text x="30" y="116" class="f-m s">N  42</text>
+</g>
+<g class="f-hot " data-note="SetBool writes the bool into the first byte of N." tabindex="0">
+<rect x="262" y="40" width="236" height="82" rx="6" class="f-box "/>
+<text x="272" y="57" class="f-m b">ok := true</text>
+<text x="272" y="76" class="f-m s">T  bool</text>
+<text x="272" y="90" class="f-m s">V nil</text>
+<text x="272" y="116" class="f-m s">N  01 at byte 0</text>
+</g>
+<g class="f-hot " data-note="SetFloat64 stores the IEEE-754 bits in N. Arithmetic on them runs in software so every node computes the same bits." tabindex="0">
+<rect x="504" y="40" width="236" height="82" rx="6" class="f-box "/>
+<text x="514" y="57" class="f-m b">f := 2.5</text>
+<text x="514" y="76" class="f-m s">T  float64</text>
+<text x="514" y="90" class="f-m s">V nil</text>
+<text x="514" y="116" class="f-m s">N  0x4004000000000000</text>
+</g>
+<g class="f-hot " data-note="A string is a Go string in V. Not an Object: it has no identity and is saved inside its holder." tabindex="0">
+<rect x="20" y="130" width="236" height="82" rx="6" class="f-box "/>
+<text x="30" y="147" class="f-m b">s := &quot;hi&quot;</text>
+<text x="30" y="166" class="f-m s">T  string</text>
+<text x="30" y="180" class="f-m s">V StringValue &quot;hi&quot;</text>
+<text x="30" y="206" class="f-m s">N  0</text>
+</g>
+<g class="f-hot " data-note="A pointer is a slot address: the base object, an array, struct, block or heap item, plus an index into it." tabindex="0">
+<rect x="262" y="130" width="236" height="82" rx="6" class="f-box "/>
+<text x="272" y="147" class="f-m b">p := &amp;node</text>
+<text x="272" y="166" class="f-m s">T  *InnerNode</text>
+<text x="272" y="180" class="f-m s">V PointerValue{TV, Base,</text>
+<text x="272" y="193" class="f-m s">Index}</text>
+<text x="272" y="206" class="f-m s">N  0</text>
+</g>
+<g class="f-hot " data-note="A slice is a window onto an ArrayValue, which is the Object with identity." tabindex="0">
+<rect x="504" y="130" width="236" height="82" rx="6" class="f-box "/>
+<text x="514" y="147" class="f-m b">xs := []int{1, 2}</text>
+<text x="514" y="166" class="f-m s">T  []int</text>
+<text x="514" y="180" class="f-m s">V SliceValue{Base, Offset 0,</text>
+<text x="514" y="193" class="f-m s">Length 2, Maxcap 2}</text>
+<text x="514" y="206" class="f-m s">N  0</text>
+</g>
+<g class="f-hot " data-note="A struct is an Object: ObjectInfo carries its id, owner, reference count and dirty marks. Copying it copies the fields into a new object." tabindex="0">
+<rect x="20" y="220" width="236" height="82" rx="6" class="f-box "/>
+<text x="30" y="237" class="f-m b">v := InnerNode{...}</text>
+<text x="30" y="256" class="f-m s">T  InnerNode</text>
+<text x="30" y="270" class="f-m s">V *StructValue{ObjectInfo,</text>
+<text x="30" y="283" class="f-m s">Fields}</text>
+<text x="30" y="296" class="f-m s">N  0</text>
+</g>
+<g class="f-hot " data-note="A nil interface value is the undefined typed value: no type, no value. It serializes as {} in a realm trace." tabindex="0">
+<rect x="262" y="220" width="236" height="82" rx="6" class="f-box "/>
+<text x="272" y="237" class="f-m b">var e any</text>
+<text x="272" y="256" class="f-m s">T  nil</text>
+<text x="272" y="270" class="f-m s">V nil</text>
+<text x="272" y="296" class="f-m s">N  0</text>
+</g>
+<g class="f-hot " data-note="A composite read from another realm&#x27;s storage carries the magic bytes in N. The mark survives copies and arguments; writing through it panics." tabindex="0">
+<rect x="504" y="220" width="236" height="82" rx="6" class="f-box acc"/>
+<text x="514" y="237" class="f-m b">lib.Data (other realm)</text>
+<text x="514" y="256" class="f-m s">T  its type</text>
+<text x="514" y="270" class="f-m s">V the object</text>
+<text x="514" y="296" class="f-m s">N  &quot;ReaDoNLY&quot;</text>
+</g>
+<text x="20" y="322" class="f-t s">T is the concrete type, V a Value, N eight bytes. Fixed-size numbers use N only; everything with identity is a Value that is also an Object.</text>
+</svg>

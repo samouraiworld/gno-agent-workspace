@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 340" width="760" height="340" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="340" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="What the interpreter holds in memory: a pointer to the child object and a pointer to the type." tabindex="0">
+<rect x="20" y="30" width="250" height="120" rx="6" class="f-box "/>
+<text x="30" y="48" class="f-t b">Live object :3, HeapItemValue</text>
+<text x="30" y="66" class="f-m s">Value: TypedValue{</text>
+<text x="30" y="81" class="f-m s">  T: *DeclaredType InnerNode</text>
+<text x="30" y="96" class="f-m s">  V: *StructValue :6 }</text>
+<text x="30" y="111" class="f-m s">ObjectInfo{ID :3, Owner :2, ...}</text>
+</g>
+<path d="M270 90L309 90" class="f-ar "/>
+<g class="f-hot " data-note="From the zrealm1 trace. Every child object becomes a RefValue with its id and hash, every declared type a RefType with its id, every syntax node a RefNode with its location." tabindex="0">
+<rect x="310" y="30" width="430" height="140" rx="6" class="f-box acc"/>
+<text x="320" y="48" class="f-t b">Persist copy, made by copyValueWithRefs</text>
+<text x="320" y="66" class="f-m s">&quot;Value&quot;: {</text>
+<text x="320" y="81" class="f-m s">  &quot;T&quot;: {&quot;@type&quot;: &quot;/gno.RefType&quot;,</text>
+<text x="320" y="96" class="f-m s">        &quot;ID&quot;: &quot;gno.land/r/test.InnerNode&quot;},</text>
+<text x="320" y="111" class="f-m s">  &quot;V&quot;: {&quot;@type&quot;: &quot;/gno.RefValue&quot;,</text>
+<text x="320" y="126" class="f-m s">        &quot;ObjectID&quot;: &quot;...:6&quot;,</text>
+<text x="320" y="141" class="f-m s">        &quot;Hash&quot;: &quot;9b6e58b7899427bb...328b4537d0&quot;}}</text>
+</g>
+<path d="M525 170L525 199" class="f-ar "/>
+<g class="f-hot " data-note="Amino is tm2&#x27;s deterministic codec; every persisted type is registered under a name such as /gno.StructValue. The hash of the child is what the parent&#x27;s RefValue carries, which is how the Merkle chain forms." tabindex="0">
+<rect x="310" y="200" width="430" height="80" rx="6" class="f-box mut"/>
+<text x="320" y="218" class="f-t b">amino bytes, then the key</text>
+<text x="320" y="236" class="f-m s">hash = sha256(bytes)[:20]</text>
+<text x="320" y="251" class="f-m s">key  = oid:08ada09dee16d791fd406d629fe29bb0ed084a30:3</text>
+<text x="320" y="266" class="f-m s">value = hash || bytes</text>
+</g>
+<g class="f-hot " data-note="Reading one field of a large realm loads one path through the object graph, not the graph." tabindex="0">
+<rect x="20" y="170" width="250" height="110" rx="6" class="f-box "/>
+<text x="30" y="188" class="f-t b">Loading is lazy</text>
+<text x="30" y="204" class="f-t s">loadObjectSafe decodes, allocates the</text>
+<text x="30" y="217" class="f-t s">size, resolves RefTypes. A RefValue</text>
+<text x="30" y="230" class="f-t s">stays in place until the slot is read:</text>
+<text x="30" y="243" class="f-t s">fillValueTV swaps in the object then.</text>
+</g>
+<text x="20" y="308" class="f-t s">The same three stand-ins cover the three kinds of reference: RefValue for objects, RefType for declared types, RefNode for syntax nodes.</text>
+<text x="20" y="326" class="f-t s">A RefNode carries only a Location: package path, file, line and column span. The store loads the node on demand.</text>
+</svg>

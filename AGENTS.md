@@ -16,7 +16,9 @@ Knowledge base and review workspace for [gnolang/gno](https://github.com/gnolang
 - `reports/weekly/` — Weekly team reports (Samourai)
 - `reports/weekly-ux/` — Weekly UX team reports (a/ux label)
 - `scripts/` — Data-gathering and helper scripts
-- `docs/` — architecture references (`overview.md`, `gnovm-architecture.md`)
+- `docs/` — architecture references (`overview.md`, `gnovm-architecture.md`), the site that
+  serves them on GitHub Pages, and `figures/gen.py`, which draws every `figures/*.svg`: edit the
+  script, never an SVG
 
 ## PR Review
 

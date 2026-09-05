@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 380" width="760" height="380" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="380" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="The cooperative path. Nothing on the Go stack is consumed." tabindex="0">
+<rect x="20" y="30" width="340" height="62" rx="6" class="f-box warn"/>
+<text x="30" y="48" class="f-t b">panic(v) inside an opcode handler</text>
+<text x="30" y="64" class="f-t s">pushPanic records the Exception, unwinds to the last</text>
+<text x="30" y="77" class="f-t s">call frame, pushes OpPanic2 and OpReturnCallDefers</text>
+</g>
+<g class="f-hot " data-note="Machine.Panic or a direct panic with an Exception deep in values.go. The iterative-recovery record explains why." tabindex="0">
+<rect x="400" y="30" width="340" height="62" rx="6" class="f-box mut"/>
+<text x="410" y="48" class="f-t b">Go panic carrying an Exception, from the value layer</text>
+<text x="410" y="64" class="f-t s">runOnce recovers it and Run converts it into the same</text>
+<text x="410" y="77" class="f-t s">path, so half a million panicking defers cost no Go</text>
+<text x="410" y="90" class="f-t s">stack</text>
+</g>
+<path d="M190 92L190 129" class="f-ar "/>
+<path d="M570 92 L570 110 L360 110 L360 129" class="f-ar "/>
+<g class="f-hot " data-note="doOpReturnCallDefers pops each Defer and runs it like a call." tabindex="0">
+<rect x="20" y="130" width="340" height="40" rx="6" class="f-box acc"/>
+<text x="30" y="145" class="f-t b">the frame&#x27;s deferred calls run, one at a time</text>
+</g>
+<path d="M190 170L190 209" class="f-ar "/>
+<g class="f-hot " data-note="The Go rule: only a direct call from the deferred function sees the exception." tabindex="0">
+<rect x="20" y="210" width="340" height="40" rx="6" class="f-box "/>
+<text x="30" y="225" class="f-t b">recover() called directly by a deferred</text>
+<text x="30" y="239" class="f-t b">function?</text>
+</g>
+<path d="M360 230L399 230" class="f-ar "/>
+<text x="379.5" y="224" class="f-t s" text-anchor="middle">yes</text>
+<g class="f-hot " data-note="Recover returns the exception value and clears it. Exceptions chain to the previous one when a defer panics again." tabindex="0">
+<rect x="400" y="210" width="340" height="40" rx="6" class="f-box acc"/>
+<text x="410" y="225" class="f-t b">exception cleared; the function returns</text>
+<text x="410" y="239" class="f-t b">normally</text>
+</g>
+<path d="M190 250L190 289" class="f-ar "/>
+<text x="204" y="273.5" class="f-t s" text-anchor="middle">no</text>
+<g class="f-hot " data-note="The unwinding continues frame by frame, each one running its deferred calls first." tabindex="0">
+<rect x="20" y="290" width="340" height="62" rx="6" class="f-box "/>
+<text x="30" y="308" class="f-t b">OpReturnCallDefers pops the frame</text>
+<text x="30" y="324" class="f-t s">and re-raises in the caller. The next frame up runs</text>
+<text x="30" y="337" class="f-t s">its own defers: back to the top.</text>
+</g>
+<path d="M10 321 L4 321 L4 150 L19 150" class="f-ar dash"/>
+<g class="f-hot " data-note="A panic that crosses a realm boundary is never recoverable by the caller. Tests use revive to observe the abort." tabindex="0">
+<rect x="400" y="290" width="340" height="62" rx="6" class="f-box warn"/>
+<text x="410" y="308" class="f-t b">Realm boundary reached</text>
+<text x="410" y="324" class="f-t s">the transaction aborts with UnhandledPanicError,</text>
+<text x="410" y="337" class="f-t s">unless a revive frame catches it. The callee&#x27;s state</text>
+<text x="410" y="350" class="f-t s">may be half written, so the caller cannot recover it.</text>
+</g>
+<path d="M360 321L399 321" class="f-ar "/>
+<text x="20" y="372" class="f-t s">Panic values print through a bounded printer: no user methods, 1024 bytes at most. A Stacktrace keeps 128 calls with the middle elided.</text>
+</svg>

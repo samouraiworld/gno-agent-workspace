@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 350" width="760" height="350" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="350" class="f-bg" rx="8"/>
+<text x="20" y="24" class="f-m b">y := f(a, b)</text>
+<g class="f-hot " id="call-1" data-note="The call expression y := f(a, b). Because pushes go in reverse, the callee is read before any argument." tabindex="0">
+<rect x="20" y="40" width="232" height="126" rx="6" class="f-box "/>
+<text x="30" y="58" class="f-t b">1 · OpEval on the call</text>
+<text x="30" y="74" class="f-t s">pushes OpPrecall, then an OpEval</text>
+<text x="30" y="87" class="f-t s">per argument in reverse, then one</text>
+<text x="30" y="100" class="f-t s">for the callee, so the callee</text>
+<text x="30" y="113" class="f-t s">evaluates first: Values f, a, b</text>
+</g>
+<path d="M252 103L263 103" class="f-ar "/>
+<g class="f-hot " id="call-2" data-note="PushFrameCall also decides the storage realm for the call, the borrow rules." tabindex="0">
+<rect x="264" y="40" width="232" height="126" rx="6" class="f-box acc"/>
+<text x="274" y="58" class="f-t b">2 · OpPrecall</text>
+<text x="274" y="74" class="f-t s">peeks the callee under the</text>
+<text x="274" y="87" class="f-t s">arguments. A type value: OpConvert.</text>
+<text x="274" y="100" class="f-t s">A function: push a Frame and</text>
+<text x="274" y="113" class="f-t s">OpCall; OpEnterCrossing for a</text>
+<text x="274" y="126" class="f-t s">crossing function; cross(rlm)</text>
+<text x="274" y="139" class="f-t s">installs a fresh cur</text>
+</g>
+<path d="M496 103L507 103" class="f-ar "/>
+<g class="f-hot " id="call-3" data-note="The block&#x27;s slots follow the dump above: parameters, then results, then locals." tabindex="0">
+<rect x="508" y="40" width="232" height="126" rx="6" class="f-box "/>
+<text x="518" y="58" class="f-t b">3 · OpCall</text>
+<text x="518" y="74" class="f-t s">new block from the callee&#x27;s source</text>
+<text x="518" y="87" class="f-t s">node and parent block; captured</text>
+<text x="518" y="100" class="f-t s">heap items copied in; arguments</text>
+<text x="518" y="113" class="f-t s">popped into the first slots,</text>
+<text x="518" y="126" class="f-t s">variadic ones packed; named results</text>
+<text x="518" y="139" class="f-t s">zeroed</text>
+</g>
+<g class="f-hot " id="call-4" data-note="A native function is a FuncValue with a Go body attached by the store&#x27;s NativeResolver." tabindex="0">
+<rect x="20" y="196" width="232" height="126" rx="6" class="f-box "/>
+<text x="30" y="214" class="f-t b">4 · Body</text>
+<text x="30" y="230" class="f-t s">Gno function: OpBody with the</text>
+<text x="30" y="243" class="f-t s">statements, plus a synthetic return</text>
+<text x="30" y="256" class="f-t s">when it declares no results.</text>
+<text x="30" y="269" class="f-t s">Native: OpReturn then</text>
+<text x="30" y="282" class="f-t s">OpCallNativeBody. defer: evaluate</text>
+<text x="30" y="295" class="f-t s">now, push a Defer on the frame</text>
+</g>
+<path d="M252 259L263 259" class="f-ar "/>
+<g class="f-hot " id="call-5" data-note="The preprocessor and the frame choose the flavor." tabindex="0">
+<rect x="264" y="196" width="232" height="126" rx="6" class="f-box "/>
+<text x="274" y="214" class="f-t b">5 · OpReturn, four flavors</text>
+<text x="274" y="230" class="f-t s">OpReturn; OpReturnAfterCopy when</text>
+<text x="274" y="243" class="f-t s">named results live on the heap;</text>
+<text x="274" y="256" class="f-t s">OpReturnFromBlock when a bare</text>
+<text x="274" y="269" class="f-t s">return reads them; OpReturnToBlock</text>
+<text x="274" y="282" class="f-t s">plus the sticky OpReturnCallDefers</text>
+<text x="274" y="295" class="f-t s">when the frame holds defers</text>
+</g>
+<path d="M496 259L507 259" class="f-ar "/>
+<g class="f-hot " id="call-6" data-note="This is where a realm call ends and its objects are saved." tabindex="0">
+<rect x="508" y="196" width="232" height="126" rx="6" class="f-box acc"/>
+<text x="518" y="214" class="f-t b">6 · Pop the frame</text>
+<text x="518" y="230" class="f-t s">truncate every stack to the</text>
+<text x="518" y="243" class="f-t s">recorded heights, move the results</text>
+<text x="518" y="256" class="f-t s">down, restore the caller&#x27;s Package</text>
+<text x="518" y="269" class="f-t s">and Realm. maybeFinalize finalizes</text>
+<text x="518" y="282" class="f-t s">the realm if the frame crossed a</text>
+<text x="518" y="295" class="f-t s">boundary</text>
+</g>
+<path d="M624 166 L624 181 L136 181 L136 195" class="f-ar "/>
+</svg>

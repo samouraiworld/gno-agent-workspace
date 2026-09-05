@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 470" width="760" height="470" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="470" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="The user signs a message: which package, which function, which arguments, how much gas. Nothing here knows about the VM." tabindex="0">
+<rect x="40" y="30" width="400" height="42" rx="6" class="f-box "/>
+<text x="50" y="48" class="f-t b">Wallet</text>
+<text x="50" y="65" class="f-t s">gnokey maketx call: a signed transaction</text>
+</g>
+<path d="M240 72L240 93" class="f-ar "/>
+<text x="248" y="87" class="f-t s">RPC</text>
+<g class="f-hot " data-note="Consensus. Every validator receives the same transactions in the same order and hands them to the application one by one." tabindex="0">
+<rect x="40" y="94" width="400" height="42" rx="6" class="f-box "/>
+<text x="50" y="112" class="f-t b">Tendermint2</text>
+<text x="50" y="129" class="f-t s">orders transactions into blocks</text>
+</g>
+<path d="M240 136L240 157" class="f-ar "/>
+<text x="248" y="151" class="f-t s">ABCI</text>
+<g class="f-hot " data-note="The application layer. The ante handler verifies the signature and takes the fee, then each message goes to the handler registered for its route." tabindex="0">
+<rect x="40" y="158" width="400" height="42" rx="6" class="f-box "/>
+<text x="50" y="176" class="f-t b">BaseApp, tm2/pkg/sdk</text>
+<text x="50" y="193" class="f-t s">ante handler: signature, fee. runMsgs: route by route string</text>
+</g>
+<path d="M240 200L240 221" class="f-ar "/>
+<text x="248" y="215" class="f-t s">route &quot;vm&quot;</text>
+<g class="f-hot " data-note="The keeper owns one long-lived gno.Store and creates one gno.Machine per message. It is the only chain code that calls the interpreter." tabindex="0">
+<rect x="40" y="222" width="400" height="42" rx="6" class="f-box "/>
+<text x="50" y="240" class="f-t b">vm keeper, gno.land/pkg/sdk/vm</text>
+<text x="50" y="257" class="f-t s">MsgAddPackage, MsgCall, MsgRun; queries vm/qeval, vm/qrender</text>
+</g>
+<path d="M240 264L240 285" class="f-ar "/>
+<text x="248" y="279" class="f-t s">one Machine per message</text>
+<g class="f-hot " data-note="The interpreter state: stacks, the active package and realm, the allocator, the gas meter, and a Context the standard library reads." tabindex="0">
+<rect x="40" y="286" width="400" height="42" rx="6" class="f-box acc"/>
+<text x="50" y="304" class="f-t b">gno.Machine, gnovm/pkg/gnolang</text>
+<text x="50" y="321" class="f-t s">parse, preprocess, execute, finalize</text>
+</g>
+<path d="M240 328L240 349" class="f-ar "/>
+<g class="f-hot " data-note="The layer between the interpreter and the database. Forked at the start of each transaction, committed only if the transaction succeeded." tabindex="0">
+<rect x="40" y="350" width="400" height="42" rx="6" class="f-box "/>
+<text x="50" y="368" class="f-t b">gno.Store</text>
+<text x="50" y="385" class="f-t s">per-transaction caches for objects, types, syntax trees</text>
+</g>
+<path d="M240 392L240 413" class="f-ar "/>
+<g class="f-hot " data-note="Two key-value stores. Only the IAVL contents feed the block&#x27;s application hash." tabindex="0">
+<rect x="40" y="414" width="400" height="42" rx="6" class="f-box "/>
+<text x="50" y="432" class="f-t b">tm2 stores, then the database</text>
+<text x="50" y="449" class="f-t s">baseStore for objects, iavlStore for the Merkle tree</text>
+</g>
+<g class="f-hot " data-note="gno test and gno run build a Machine the same way the keeper does, over an in-memory store." tabindex="0">
+<rect x="480" y="240" width="260" height="130" rx="6" class="f-box mut"/>
+<text x="490" y="258" class="f-t b">Off-chain: gno test, gno run, filetests</text>
+<text x="490" y="275" class="f-t s">The same interpreter with no chain. A</text>
+<text x="490" y="289" class="f-t s">Machine over an in-memory store seeded</text>
+<text x="490" y="303" class="f-t s">from examples/ and stdlibs/, with a mock</text>
+<text x="490" y="317" class="f-t s">context: fixed height, timestamp and</text>
+<text x="490" y="331" class="f-t s">caller.</text>
+</g>
+<path d="M480 305L442 307" class="f-ar dash"/>
+</svg>

@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 260" width="760" height="260" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="260" class="f-bg" rx="8"/>
+<rect x="20" y="30" width="128" height="34" rx="6" class="f-box acc"/>
+<text x="30" y="45" class="f-t b">MemPackage</text>
+<path d="M148 47L167 47" class="f-ar "/>
+<rect x="168" y="30" width="128" height="34" rx="6" class="f-box acc"/>
+<text x="178" y="45" class="f-t b">type-check</text>
+<path d="M296 47L315 47" class="f-ar "/>
+<rect x="316" y="30" width="128" height="34" rx="6" class="f-box acc"/>
+<text x="326" y="45" class="f-t b">preprocess</text>
+<path d="M444 47L463 47" class="f-ar "/>
+<rect x="464" y="30" width="128" height="34" rx="6" class="f-box acc"/>
+<text x="474" y="45" class="f-t b">execute</text>
+<path d="M592 47L611 47" class="f-ar "/>
+<rect x="612" y="30" width="128" height="34" rx="6" class="f-box acc"/>
+<text x="622" y="45" class="f-t b">finalize</text>
+<g class="f-hot " data-note="Per the lint and transpile record. Errors come out as file:line messages without executing anything." tabindex="0">
+<rect x="168" y="84" width="276" height="26" rx="4" class="f-box "/>
+<text x="176" y="101" class="f-t s">gno lint: type-check and preprocess, no run</text>
+</g>
+<g class="f-hot " data-note="A filetest sets PKGPATH, MAXALLOC and SEND in comments and asserts on Output, Error, Realm, Events, Preprocessed, Stacktrace, Gas, Storage and TypeCheckError blocks." tabindex="0">
+<rect x="20" y="118" width="720" height="26" rx="4" class="f-box "/>
+<text x="28" y="135" class="f-t s">gno test, gno run: everything, over the production test store with a mock context</text>
+</g>
+<g class="f-hot " data-note="gno fix rewrites source from older Gno versions through the transpiler, Gno to Go source." tabindex="0">
+<rect x="20" y="152" width="128" height="26" rx="4" class="f-box mut"/>
+<text x="28" y="169" class="f-t s">gno fix: transpiler</text>
+</g>
+<g class="f-hot " data-note="Steps opcodes with breakpoints." tabindex="0">
+<rect x="464" y="152" width="128" height="26" rx="4" class="f-box mut"/>
+<text x="472" y="169" class="f-t s">debugger: gno run -debug</text>
+</g>
+<g class="f-hot " data-note="The numbers behind the gas constants come from cmd/calibrate and cmd/benchstore." tabindex="0">
+<rect x="464" y="186" width="276" height="26" rx="4" class="f-box mut"/>
+<text x="472" y="203" class="f-t s">benchops: opcode and store timing</text>
+</g>
+<text x="20" y="240" class="f-t s">Build tags debug and debugAssert turn on tracing and invariant panics. gno doc and vm/qdoc read the sources without running them.</text>
+</svg>

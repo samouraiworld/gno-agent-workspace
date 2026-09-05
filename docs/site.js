@@ -187,6 +187,8 @@
         buildToc();
         trackActive();
         jumpToHash();
+        // Figures load after the text; the hash target moves as they arrive.
+        if (window.GnoFigures) window.GnoFigures.mount(article).then(jumpToHash);
       })
       .catch(function (err) {
         article.innerHTML = '<h1>Could not load ' + name + '</h1><p>' + err.message +

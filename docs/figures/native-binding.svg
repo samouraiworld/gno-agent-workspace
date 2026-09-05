@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 250" width="760" height="250" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="250" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="A standard library function declared without a body and marked injected has a Go implementation in a sibling .go file." tabindex="0">
+<rect x="20" y="40" width="136" height="110" rx="6" class="f-box acc"/>
+<text x="30" y="58" class="f-t b">time.gno</text>
+<text x="30" y="76" class="f-m s">func now() int64</text>
+<text x="30" y="91" class="f-m s">// injected</text>
+<text x="30" y="106" class="f-m s">no body</text>
+</g>
+<path d="M156 95L169 95" class="f-ar "/>
+<g class="f-hot " data-note="A generator run at build time, not on chain." tabindex="0">
+<rect x="170" y="40" width="136" height="110" rx="6" class="f-box "/>
+<text x="180" y="58" class="f-t b">misc/genstd</text>
+<text x="180" y="74" class="f-t s">scans the stdlibs</text>
+<text x="180" y="87" class="f-t s">writes generated.go</text>
+</g>
+<path d="M306 95L319 95" class="f-ar "/>
+<g class="f-hot " data-note="The table the store consults. Gno values are marshalled to Go with reflection and back." tabindex="0">
+<rect x="320" y="40" width="136" height="110" rx="6" class="f-box "/>
+<text x="330" y="58" class="f-t b">generated.go</text>
+<text x="330" y="74" class="f-t s">45 bindings at this</text>
+<text x="330" y="87" class="f-t s">commit</text>
+<text x="330" y="100" class="f-t s">path + name → Go</text>
+<text x="330" y="113" class="f-t s">func</text>
+<text x="330" y="126" class="f-t s">reflection marshals</text>
+<text x="330" y="139" class="f-t s">values</text>
+</g>
+<path d="M456 95L469 95" class="f-ar "/>
+<g class="f-hot " data-note="Native functions are persisted like any FuncValue; the body is re-attached on every load." tabindex="0">
+<rect x="470" y="40" width="136" height="110" rx="6" class="f-box "/>
+<text x="480" y="58" class="f-t b">NativeResolver</text>
+<text x="480" y="74" class="f-t s">a store hook</text>
+<text x="480" y="87" class="f-t s">attaches the Go</text>
+<text x="480" y="100" class="f-t s">body when the</text>
+<text x="480" y="113" class="f-t s">FuncValue is loaded</text>
+</g>
+<path d="M606 95L619 95" class="f-ar "/>
+<g class="f-hot " data-note="A native that needs chain state takes the Machine and reads its Context. That is how time.Now returns the block time." tabindex="0">
+<rect x="620" y="40" width="136" height="110" rx="6" class="f-box mut"/>
+<text x="630" y="58" class="f-t b">ExecContext</text>
+<text x="630" y="74" class="f-t s">chain id, height,</text>
+<text x="630" y="87" class="f-t s">timestamp</text>
+<text x="630" y="100" class="f-t s">origin caller,</text>
+<text x="630" y="113" class="f-t s">coins sent</text>
+<text x="630" y="126" class="f-t s">banker, parameter</text>
+<text x="630" y="139" class="f-t s">store</text>
+</g>
+<text x="20" y="186" class="f-t s">Under test, gnovm/tests/stdlibs overlays a testing package: SetRealm, SetOriginCaller, SkipHeights, IssueCoins rewrite the mock context.</text>
+<text x="20" y="204" class="f-t s">Native gas: a base plus a slope on the argument length, from a table keyed by package and name.</text>
+</svg>

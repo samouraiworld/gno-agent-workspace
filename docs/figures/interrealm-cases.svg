@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 420" width="760" height="420" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="420" class="f-bg" rx="8"/>
+<text x="20" y="24" class="f-t h">Code running in r/demo/app, calling into r/demo/lib</text>
+<text x="28" y="52" class="f-t s">call written in app</text>
+<text x="338" y="52" class="f-t s">identity</text>
+<text x="428" y="52" class="f-t s">storage</text>
+<text x="518" y="52" class="f-t s">verdict</text>
+<path d="M20 58 L740 58" class="f-ln "/>
+<g class="f-hot " data-note="The explicit switch. Identity and storage both move to lib for the duration of F, and finalization runs when F returns." tabindex="0">
+<rect x="20" y="66" width="720" height="48" rx="4" class="f-box acc"/>
+<text x="28" y="86" class="f-m b">lib.F(cross(cur), x)</text>
+<text x="338" y="86" class="f-m">lib</text>
+<text x="428" y="86" class="f-m">lib</text>
+<text x="518" y="86" class="f-t b">✓  crossing call</text>
+<text x="28" y="104" class="f-t s">a new cur whose prev is app</text>
+</g>
+<g class="f-hot " data-note="A pure package method on a receiver that belongs to app runs with app&#x27;s storage, so avl.Tree.Set can write the tree app owns. cur.Previous() is unchanged." tabindex="0">
+<rect x="20" y="120" width="720" height="48" rx="4" class="f-box acc"/>
+<text x="28" y="140" class="f-m b">tree.Set(k, v)</text>
+<text x="338" y="140" class="f-m">app</text>
+<text x="428" y="140" class="f-m">app</text>
+<text x="518" y="140" class="f-t b">✓  borrow rule 2</text>
+<text x="28" y="158" class="f-t s">tree is owned by app, Set comes from p/avl</text>
+</g>
+<g class="f-hot " data-note="A crossing function of another realm called with a bare cur. The preprocessor refuses it; only cross(cur) may switch identity." tabindex="0">
+<rect x="20" y="174" width="720" height="48" rx="4" class="f-box warn"/>
+<text x="28" y="194" class="f-m b">lib.F(cur, x)</text>
+<text x="338" y="194" class="f-m">·</text>
+<text x="428" y="194" class="f-m">·</text>
+<text x="518" y="194" class="f-t b">✗  rejected</text>
+<text x="28" y="212" class="f-t s">cur belongs to app</text>
+</g>
+<g class="f-hot " data-note="Reading a field, element or package variable of another realm marks the result readonly. The mark survives copies and arguments, and any write through it panics." tabindex="0">
+<rect x="20" y="228" width="720" height="48" rx="4" class="f-box warn"/>
+<text x="28" y="248" class="f-m b">lib.Data.N = 1</text>
+<text x="338" y="248" class="f-m">app</text>
+<text x="428" y="248" class="f-m">app</text>
+<text x="518" y="248" class="f-t b">✗  readonly taint</text>
+<text x="28" y="266" class="f-t s">the value was read from lib&#x27;s storage</text>
+</g>
+<g class="f-hot " data-note="A write to a real object is refused unless the object&#x27;s realm is the active storage realm." tabindex="0">
+<rect x="20" y="282" width="720" height="48" rx="4" class="f-box warn"/>
+<text x="28" y="302" class="f-m b">obj.N = 1</text>
+<text x="338" y="302" class="f-m">app</text>
+<text x="428" y="302" class="f-m">app</text>
+<text x="518" y="302" class="f-t b">✗  ownership</text>
+<text x="28" y="320" class="f-t s">obj is a real object of lib, and lib is not the storage realm</text>
+</g>
+<g class="f-hot " data-note="A composite literal, new or make of a type declared in another realm panics at the allocation site." tabindex="0">
+<rect x="20" y="336" width="720" height="48" rx="4" class="f-box warn"/>
+<text x="28" y="356" class="f-m b">lib.T{}   new(lib.T)   make(lib.S, n)</text>
+<text x="338" y="356" class="f-m">app</text>
+<text x="428" y="356" class="f-m">app</text>
+<text x="518" y="356" class="f-t b">✗  construction</text>
+<text x="28" y="374" class="f-t s">lib&#x27;s types only through lib&#x27;s constructors</text>
+</g>
+<text x="20" y="404" class="f-t s">Identity is who acts, cur; storage is whose objects may be written. The borrow rules set storage for every call that is not an explicit cross.</text>
+</svg>

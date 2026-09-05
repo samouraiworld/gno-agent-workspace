@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 424" width="760" height="424" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="424" class="f-bg" rx="8"/>
+<text x="20" y="24" class="f-t h">What each Type implementation puts into its TypeID</text>
+<g class="f-hot " data-note="One of the fixed kinds. The untyped constant kinds, bigint and bigdec, are primitive types too. Also DataByteType, an internal view into a byte array." tabindex="0">
+<rect x="20" y="40" width="236" height="108" rx="6" class="f-box "/>
+<text x="30" y="58" class="f-m b">int</text>
+<text x="30" y="74" class="f-t s">PrimitiveType</text>
+<text x="30" y="90" class="f-t s">One of the fixed kinds. The untyped</text>
+<text x="30" y="104" class="f-t s">constant kinds, bigint and bigdec, are</text>
+<text x="30" y="118" class="f-t s">primitive types too.</text>
+</g>
+<g class="f-hot " data-note="The id is built from the element ids. Channels have a type and no operations. ArrayType and ChanType complete the set." tabindex="0">
+<rect x="262" y="40" width="236" height="108" rx="6" class="f-box "/>
+<text x="272" y="58" class="f-m b">[]int   *T   map[K]V</text>
+<text x="272" y="74" class="f-t s">SliceType, PointerType, MapType</text>
+<text x="272" y="90" class="f-t s">The id is built from the element ids.</text>
+<text x="272" y="104" class="f-t s">Channels have a type and no</text>
+<text x="272" y="118" class="f-t s">operations.</text>
+</g>
+<g class="f-hot " data-note="The package path enters the id only for unexported field names: struct{ N int } from two packages is one type. Carries the declaring package path for its own use." tabindex="0">
+<rect x="504" y="40" width="236" height="108" rx="6" class="f-box "/>
+<text x="514" y="58" class="f-m b">struct{ Key Key; Left Node }</text>
+<text x="514" y="74" class="f-t s">StructType</text>
+<text x="514" y="90" class="f-t s">The package path enters the id only</text>
+<text x="514" y="104" class="f-t s">for unexported field names: struct{ N</text>
+<text x="514" y="118" class="f-t s">int } from two packages is one type.</text>
+</g>
+<g class="f-hot " data-note="Parameter names are not part of the id. IsCrossing reads whether the first parameter is realm." tabindex="0">
+<rect x="20" y="158" width="236" height="108" rx="6" class="f-box "/>
+<text x="30" y="176" class="f-m b">func(cur realm, n int) string</text>
+<text x="30" y="192" class="f-t s">FuncType</text>
+<text x="30" y="208" class="f-t s">Parameter names are not part of the</text>
+<text x="30" y="222" class="f-t s">id. IsCrossing reads whether the first</text>
+<text x="30" y="236" class="f-t s">parameter is realm.</text>
+</g>
+<g class="f-hot " data-note="Methods sorted before hashing. VerifyImplementedBy is the runtime check behind a type assertion." tabindex="0">
+<rect x="262" y="158" width="236" height="108" rx="6" class="f-box "/>
+<text x="272" y="176" class="f-m b">interface{ Render(...) }</text>
+<text x="272" y="192" class="f-t s">InterfaceType</text>
+<text x="272" y="208" class="f-t s">Methods sorted before hashing.</text>
+<text x="272" y="222" class="f-t s">VerifyImplementedBy is the runtime</text>
+<text x="272" y="236" class="f-t s">check behind a type assertion.</text>
+</g>
+<g class="f-hot " data-note="id: gno.land/r/test.InnerNode. Declared inside a function: pkgpath[location].Name. Name, package path, base type, method list." tabindex="0">
+<rect x="504" y="158" width="236" height="108" rx="6" class="f-box acc"/>
+<text x="514" y="176" class="f-m b">type InnerNode struct{ ... }</text>
+<text x="514" y="192" class="f-t s">DeclaredType</text>
+<text x="514" y="208" class="f-t s">id: gno.land/r/test.InnerNode.</text>
+<text x="514" y="222" class="f-t s">Declared inside a function:</text>
+<text x="514" y="236" class="f-t s">pkgpath[location].Name.</text>
+</g>
+<g class="f-hot " data-note="address is declared on string. realm is an interface; its hidden .grealm holds an address, a path and the previous realm." tabindex="0">
+<rect x="20" y="276" width="236" height="108" rx="6" class="f-box "/>
+<text x="30" y="294" class="f-m b">address   realm   error</text>
+<text x="30" y="310" class="f-t s">Declared in the universe block</text>
+<text x="30" y="326" class="f-t s">address is declared on string. realm</text>
+<text x="30" y="340" class="f-t s">is an interface; its hidden .grealm</text>
+<text x="30" y="354" class="f-t s">holds an address, a path and the</text>
+<text x="30" y="368" class="f-t s">previous realm.</text>
+</g>
+<g class="f-hot " data-note="Stands in for a persisted type until the store loads it. Loading resolves it by id." tabindex="0">
+<rect x="262" y="276" width="236" height="108" rx="6" class="f-box "/>
+<text x="272" y="294" class="f-m b">RefType{ ID }</text>
+<text x="272" y="310" class="f-t s">Placeholder</text>
+<text x="272" y="326" class="f-t s">Stands in for a persisted type until</text>
+<text x="272" y="340" class="f-t s">the store loads it. Loading resolves</text>
+<text x="272" y="354" class="f-t s">it by id.</text>
+</g>
+<g class="f-hot " data-note="Embedding depth 8, type nesting depth 8, 128 methods through embedding, 128 struct fields. They bound adversarial type shapes." tabindex="0">
+<rect x="504" y="276" width="236" height="108" rx="6" class="f-box "/>
+<text x="514" y="294" class="f-m b">8 · 8 · 128 · 128</text>
+<text x="514" y="310" class="f-t s">Limits, checked when a type is built</text>
+<text x="514" y="326" class="f-t s">Embedding depth 8, type nesting depth</text>
+<text x="514" y="340" class="f-t s">8, 128 methods through embedding, 128</text>
+<text x="514" y="354" class="f-t s">struct fields.</text>
+</g>
+<text x="20" y="406" class="f-t s">Equality is TypeID equality, never pointer equality: the same type is deserialized in many transactions.</text>
+</svg>

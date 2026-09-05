@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 250" width="760" height="250" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="250" class="f-bg" rx="8"/>
+<text x="20" y="24" class="f-t b">Source of drift between validators</text>
+<text x="390" y="24" class="f-t b">What the VM does</text>
+<rect x="20" y="40" width="350" height="26" rx="4" class="f-box warn"/>
+<text x="30" y="57" class="f-t">goroutines, channels, select</text>
+<path d="M370 53L389 53" class="f-ar "/>
+<rect x="390" y="40" width="350" height="26" rx="4" class="f-box acc"/>
+<text x="400" y="57" class="f-t">the opcodes panic; the types exist, the operations do not</text>
+<rect x="20" y="72" width="350" height="26" rx="4" class="f-box warn"/>
+<text x="30" y="89" class="f-t">the CPU&#x27;s floating point</text>
+<path d="M370 85L389 85" class="f-ar "/>
+<rect x="390" y="72" width="350" height="26" rx="4" class="f-box acc"/>
+<text x="400" y="89" class="f-t">software floats, so every node computes the same bits</text>
+<rect x="20" y="104" width="350" height="26" rx="4" class="f-box warn"/>
+<text x="30" y="121" class="f-t">Go map iteration order</text>
+<path d="M370 117L389 117" class="f-ar "/>
+<rect x="390" y="104" width="350" height="26" rx="4" class="f-box acc"/>
+<text x="400" y="121" class="f-t">a MapValue iterates its insertion-ordered list</text>
+<rect x="20" y="136" width="350" height="26" rx="4" class="f-box warn"/>
+<text x="30" y="153" class="f-t">clock, randomness, network</text>
+<path d="M370 149L389 149" class="f-ar "/>
+<rect x="390" y="136" width="350" height="26" rx="4" class="f-box acc"/>
+<text x="400" y="153" class="f-t">time.Now is the block timestamp; nothing else exists</text>
+<rect x="20" y="168" width="350" height="26" rx="4" class="f-box warn"/>
+<text x="30" y="185" class="f-t">the capacity of []byte(s)</text>
+<path d="M370 181L389 181" class="f-ar "/>
+<rect x="390" y="168" width="350" height="26" rx="4" class="f-box acc"/>
+<text x="400" y="185" class="f-t">equals the length; Go&#x27;s growth policy is unspecified</text>
+<rect x="20" y="200" width="350" height="26" rx="4" class="f-box warn"/>
+<text x="30" y="217" class="f-t">type-check error text</text>
+<path d="M370 213L389 213" class="f-ar "/>
+<rect x="390" y="200" width="350" height="26" rx="4" class="f-box acc"/>
+<text x="400" y="217" class="f-t">the Go toolchain is pinned in the Makefile</text>
+<text x="20" y="246" class="f-t s">Determinism is enforced in the language, not trusted to the program: the same transaction yields the same state on every node.</text>
+</svg>

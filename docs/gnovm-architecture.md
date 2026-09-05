@@ -48,21 +48,8 @@ it.
 
 ## Where the VM sits
 
-```
- user's wallet                     node process
- ───────────                       ───────────────────────────────────────────
- gnokey maketx call ──RPC──▶ Tendermint2 ──ABCI──▶ BaseApp (tm2/pkg/sdk)
-                                                     │  ante handler: signature, fee
-                                                     │  runMsgs: route each message
-                                                     ▼
-                                              vm keeper (gno.land/pkg/sdk/vm)
-                                                     │  AddPackage / Call / Run / Query
-                                                     ▼
-                                              gno.Machine (gnovm/pkg/gnolang)
-                                                     │  parse, preprocess, execute, finalize
-                                                     ▼
-                                              gno.Store ──▶ tm2 stores ──▶ database
-```
+![From a signed transaction to the database: each layer hands one message to the
+next.](figures/vm-stack.svg)
 
 Tendermint2 orders transactions into blocks and hands each one to the
 application over the ABCI interface. The application is a tm2 `BaseApp` that
@@ -115,6 +102,9 @@ Inside `gnovm/pkg/gnolang`, the files group by stage:
 | Limits | [`alloc.go`][alloc], [`garbage_collector.go`][gc], [`native_gas.go`][native-gas], [`bounded_strings.go`][bounded-strings] |
 | Tooling | [`debugger.go`][debugger], [`values_export.go`][values-export], [`gonative.go`][gonative] |
 
+![Direct imports between the directories, measured with go list at this commit.
+Everything leans on gnovm/pkg/gnolang.](figures/source-map.svg)
+
 ## The life of a package
 
 A package goes through five steps between upload and its first call: it is read
@@ -122,6 +112,9 @@ into a MemPackage, type-checked, parsed into the Gno AST, preprocessed, and run
 once so that its package-level variables and `init` functions execute. The
 result is saved. Later calls load the saved values and skip straight to
 execution.
+
+![The five steps from upload to the first call, and the shortcut every later
+call takes.](figures/package-pipeline.svg)
 
 ### MemPackage and package paths
 
@@ -256,6 +249,9 @@ by its location. Block nodes [are not written to the
 database][setblocknode-nodb]; on restart the keeper [re-preprocesses every
 stored package][preprocess-all] to rebuild them.
 
+![One small realm before and after preprocessing, as the filetest directive
+Preprocessed: prints it.](figures/preprocess-dump.svg)
+
 ### Running the package once
 
 [`runMemPackage`][runmempackage] ties the steps together: sort the files, parse,
@@ -266,6 +262,9 @@ package-level variable declarations. The order follows the Go specification:
 declaration order with a min-heap][kahn]. A dependency cycle panics with the
 chain of names. The design is in [the initialization-order
 record][adr-initorder].
+
+![Package variables initialize in dependency order, not file order: c first,
+then b, then a.](figures/init-order.svg)
 
 Then the package is saved for the first time, [every `init.<n>` function runs in
 file order][runinit] with the deployer as the previous realm, and the package is
@@ -300,6 +299,8 @@ Four limits bound adversarial type shapes, each enforced when a type is built:
 methods through embedding][maxinterfacemethods] and [128 struct
 fields][maxstructfields].
 
+![Each Type implementation and what goes into its id.](figures/type-ids.svg)
+
 Selectors compile to a [`ValuePath`][valuepath]: a kind, a depth and an index.
 `VPBlock` climbs `Depth - 1` parent blocks and takes slot `Index`. `VPField`
 indexes a struct. `VPValMethod` and `VPPtrMethod` index a declared type's method
@@ -314,6 +315,9 @@ value, is a [`TypedValue`][typedvalue]: a type `T`, a value `V`, and eight bytes
 `N`. Fixed-size numbers live in `N` and never allocate. The magic value
 [`N_Readonly`][nreadonly] in `N` marks a composite value that was read from
 another realm's storage and may not be written through.
+
+![Nine values and how each fills the three cells of a
+TypedValue.](figures/typed-value.svg)
 
 [`Value`][value-iface] has sixteen implementations. The ones that are also
 [`Object`][object-iface] have identity and can be saved on their own.
@@ -346,6 +350,9 @@ needs into [`FuncValue.Captures`][funcvalue-captures] when it is created and
 [copies them into a fresh block on every call][docall-captures]. So `&x` is a
 pointer whose base is the heap item, and a persisted closure never references
 the block it was born in.
+
+![The blocks alive during a call to add, the heap items that outlive them, and
+the closure that keeps them.](figures/blocks-heap.svg)
 
 Loop variables follow Go 1.22 semantics by the same mechanism. At the end of
 each iteration of a three-clause `for`, [the VM replaces every heap item in the
@@ -437,6 +444,9 @@ Literals are parsed at evaluation time [into untyped big integers or big
 decimals][eval-lit]; the preprocessor has usually already folded them into a
 `ConstExpr`, which [is just pushed][eval-const].
 
+![The machine's stacks halfway through x := a + b, after the binary expression
+has been expanded.](figures/machine-trace.svg)
+
 ### Control flow
 
 Every `for`, `range`, `switch` and function call [pushes a
@@ -453,6 +463,9 @@ one variant each for [arrays and slices][oprangeiter],
 and `continue` [pop frames until they find a loop with the right
 label][branchstmt]; `goto` [resets the stacks to heights recorded on the body
 statement][gotojump].
+
+![A for loop as the sticky OpForLoop drives it, and what the other control
+statements push.](figures/control-flow.svg)
 
 ### Function calls
 
@@ -486,6 +499,9 @@ realm's transaction.
 [`doOpReturnCallDefers`][doopreturncalldefers] pops them one at a time and runs
 each like a call, then continues the return.
 
+![The six stages of a function call, from the OpEval on the call expression to
+the frame being popped.](figures/call-sequence.svg)
+
 ### Panics
 
 Two mechanisms raise a panic. Opcode handlers call [`pushPanic`][pushpanic],
@@ -508,6 +524,9 @@ bytes, so a hostile value cannot make the error message the expensive part.
 A [`Stacktrace`][stacktrace] is built from the frames, keeping at most 128 calls
 with the middle elided.
 
+![How a panic unwinds: defers first, then frame by frame, until a recover or a
+realm boundary.](figures/panic-unwind.svg)
+
 ## Builtins
 
 The universe block, [`uverse.go`][uverse], is a package named `.uverse` at the
@@ -526,6 +545,9 @@ Three hidden names exist for the compiler's own use, [`.cur`, `.origin` and
 `cross1`][uverse-hidden]. Their leading dot or reserved spelling means user
 source cannot produce them.
 
+![The universe block at the root of every scope chain, and what it
+declares.](figures/uverse.svg)
+
 ## Realms and persistence
 
 ### Identities
@@ -541,6 +563,9 @@ states][objectid-states]: empty before the allocator has seen it, allocated once
 the allocator [stamps the realm that created it][stamppkgid] with `NewTime`
 still zero, and finalized once [`assignNewObjectID`][assignnewobjectid] takes
 the next counter value from the owning realm. Only a finalized object is real.
+
+![From a package path to a PkgID, and from a PkgID to the ObjectIDs it
+issues.](figures/object-ids.svg)
 
 ### Ownership, reference counts, escape
 
@@ -559,6 +584,9 @@ The rules, stated in [the header of `ownership.go`][ownership-doc]:
   escaped hashes [is a stub at this commit][savenewescaped].
 - An object whose count drops to zero is deleted with everything it owned.
 - Cycles are not supported; the comment names them for a later phase.
+
+![One reference means owned, two means escaped, zero means
+deleted.](figures/refcount-escape.svg)
 
 ### Every write reports itself
 
@@ -598,6 +626,9 @@ boundary][isrealmboundary], and again after package initialization. In order:
    allocated it][saveobject-route] even when another realm's code did the
    saving.
 
+![Finalization of the zrealm1 filetest: one new struct, three
+writes.](figures/finalization.svg)
+
 ### Serialization
 
 [`Store.SetObject`][setobject] does not write the live object. It writes a
@@ -626,6 +657,9 @@ produces one `c[...:6]` creation carrying the struct's fields and owner, then
 `u[...:3]` and `u[...:2]` updates whose diffs show the parent's `RefValue` hash
 changing and the package block's modification time moving.
 
+![What is written for the heap item root: the persist copy points at the child
+by id and hash.](figures/persist-copy.svg)
+
 ### The store
 
 [`Store`][store-iface] is the interface the interpreter talks to, and
@@ -652,6 +686,9 @@ cached at node start and read without I/O gas][stdlib-cache].
 [`ClearObjectCache`][clearobjectcache] runs before every message so nothing
 leaks between them, and [`GarbageCollectObjectCache`][gcobjectcache] drops
 cached objects the last GC cycle did not visit.
+
+![The two tm2 stores under defaultStore, their key prefixes, and the
+per-transaction fork.](figures/store-layout.svg)
 
 ## Interrealm: identity and authority
 
@@ -685,6 +722,9 @@ At the chain root there is no caller frame. [`MsgCall` synthesizes
 call whose `prev` is built from the transaction's signer][build-origin]. A
 `main(cur realm)` or `init(cur realm)` is treated as already crossed at frame
 minus one, so [the runtime calls it with `.cur`][runfunc-cur].
+
+![cur is a linked list of identities built by crossing calls, back to the
+transaction signer.](figures/cur-chain.svg)
 
 ### Storage borrow
 
@@ -724,9 +764,15 @@ transaction][panic-boundary] rather than being recoverable by the caller,
 because the callee's state may be half written. Tests use [`revive`][uv-revive]
 to observe such an abort.
 
+![Six calls a realm can make against another realm's code and storage, and what
+the VM decides for each.](figures/interrealm-cases.svg)
+
 ## Gas and memory
 
 Gas accrues on one meter from four sources.
+
+![Four sources feed one gas meter. Only the storage deposit comes
+back.](figures/gas-sources.svg)
 
 **CPU gas.** Each opcode [charges a calibrated constant][opcpu] before its
 handler runs, one gas per nanosecond on the reference Xeon. Handlers with
@@ -770,6 +816,9 @@ a function up in that table by package path and name. A native that needs chain
 state takes the Machine and reads [`ExecContext`][execctx] from it: chain id,
 height, timestamp, origin caller, the coins sent, a banker and a parameter
 store. That is how [`time.Now` returns the block time][time-now].
+
+![How a bodiless standard library function gets its Go body and reaches chain
+state.](figures/native-binding.svg)
 
 The packages present at this commit:
 
@@ -826,6 +875,9 @@ Any Go panic escaping a machine [is turned into an error carrying a bounded
 panic message and stack trace][dorecover], except out-of-gas, which is re-raised
 for the base app.
 
+![The steps behind the four ways gno.land drives a
+Machine.](figures/keeper-flows.svg)
+
 ## Tooling
 
 - `gno test` [runs `_test.gno` functions and `_filetest.gno` golden
@@ -845,6 +897,8 @@ for the base app.
 - Build tags `debug` and `debugAssert` [turn on tracing and invariant
   panics][debug-tags].
 
+![Which stages of the pipeline each tool runs.](figures/tooling-map.svg)
+
 ## Why it is deterministic
 
 Determinism is what lets every validator compute the same state, and the VM
@@ -861,6 +915,9 @@ enforces it in the language rather than trusting the program:
 - The Go toolchain [is pinned in the Makefile][makefile-toolchain] so that
   type-check error text, which tests and clients compare, does not drift with
   the compiler.
+
+![Each source of drift between validators and what the VM does about
+it.](figures/determinism.svg)
 
 ## What is not built yet
 

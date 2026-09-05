@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 400" width="760" height="400" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="400" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="MsgAddPackage. The package runs once and is saved; every later call skips to execution." tabindex="0">
+<rect x="20" y="30" width="172" height="30" rx="4" class="f-box acc"/>
+<text x="106" y="50" class="f-t b" text-anchor="middle">AddPackage</text>
+<rect x="20" y="66" width="172" height="46" rx="4" class="f-box "/>
+<text x="28" y="82" class="f-t s">validate the path; refuse</text>
+<text x="28" y="95" class="f-t s">an existing public package</text>
+<path d="M106 112L106 117" class="f-ar thin"/>
+<rect x="20" y="118" width="172" height="46" rx="4" class="f-box "/>
+<text x="28" y="134" class="f-t s">type-check strict,</text>
+<text x="28" y="147" class="f-t s">genesis-strict at height 0</text>
+<path d="M106 164L106 169" class="f-ar thin"/>
+<rect x="20" y="170" width="172" height="46" rx="4" class="f-box "/>
+<text x="28" y="186" class="f-t s">namespace ownership; coins</text>
+<text x="28" y="199" class="f-t s">to the package address</text>
+<path d="M106 216L106 221" class="f-ar thin"/>
+<rect x="20" y="222" width="172" height="46" rx="4" class="f-box "/>
+<text x="28" y="238" class="f-t s">preprocess allocator:</text>
+<text x="28" y="251" class="f-t s">folding is metered</text>
+<path d="M106 268L106 273" class="f-ar thin"/>
+<rect x="20" y="274" width="172" height="46" rx="4" class="f-box "/>
+<text x="28" y="290" class="f-t s">run with save on:</text>
+<text x="28" y="303" class="f-t s">variables, then init.&lt;n&gt;</text>
+<path d="M106 320L106 325" class="f-ar thin"/>
+<rect x="20" y="326" width="172" height="46" rx="4" class="f-box "/>
+<text x="28" y="342" class="f-t s">settle the storage deposit</text>
+</g>
+<g class="f-hot " data-note="MsgCall. The arguments arrive as strings and are converted to the parameter types." tabindex="0">
+<rect x="202" y="30" width="172" height="30" rx="4" class="f-box acc"/>
+<text x="288" y="50" class="f-t b" text-anchor="middle">Call</text>
+<rect x="202" y="66" width="172" height="46" rx="4" class="f-box "/>
+<text x="210" y="82" class="f-t s">refuse a non-crossing</text>
+<text x="210" y="95" class="f-t s">function</text>
+<path d="M288 112L288 117" class="f-ar thin"/>
+<rect x="202" y="118" width="172" height="46" rx="4" class="f-box "/>
+<text x="210" y="134" class="f-t s">bind the package as pkg in</text>
+<text x="210" y="147" class="f-t s">a throwaway main</text>
+<path d="M288 164L288 169" class="f-ar thin"/>
+<rect x="202" y="170" width="172" height="46" rx="4" class="f-box "/>
+<text x="210" y="186" class="f-t s">parse pkg.F(cross, args...)</text>
+<text x="210" y="199" class="f-t s">written as text</text>
+<path d="M288 216L288 221" class="f-ar thin"/>
+<rect x="202" y="222" width="172" height="46" rx="4" class="f-box "/>
+<text x="210" y="238" class="f-t s">replace the first argument</text>
+<text x="210" y="251" class="f-t s">with .origin</text>
+<path d="M288 268L288 273" class="f-ar thin"/>
+<rect x="202" y="274" width="172" height="46" rx="4" class="f-box "/>
+<text x="210" y="290" class="f-t s">evaluate; results joined as</text>
+<text x="210" y="303" class="f-t s">strings</text>
+<path d="M288 320L288 325" class="f-ar thin"/>
+<rect x="202" y="326" width="172" height="46" rx="4" class="f-box "/>
+<text x="210" y="342" class="f-t s">settle the storage deposit</text>
+</g>
+<g class="f-hot " data-note="MsgRun. A throwaway main package; nothing persists beyond what its calls write into other realms." tabindex="0">
+<rect x="384" y="30" width="172" height="30" rx="4" class="f-box acc"/>
+<text x="470" y="50" class="f-t b" text-anchor="middle">Run</text>
+<rect x="384" y="66" width="172" height="46" rx="4" class="f-box "/>
+<text x="392" y="82" class="f-t s">path forced to</text>
+<text x="392" y="95" class="f-t s">&lt;domain&gt;/e/&lt;caller&gt;/run</text>
+<path d="M470 112L470 117" class="f-ar thin"/>
+<rect x="384" y="118" width="172" height="46" rx="4" class="f-box "/>
+<text x="392" y="134" class="f-t s">type-check relaxed; a</text>
+<text x="392" y="147" class="f-t s">manifest is generated</text>
+<path d="M470 164L470 169" class="f-ar thin"/>
+<rect x="384" y="170" width="172" height="46" rx="4" class="f-box "/>
+<text x="392" y="186" class="f-t s">the package is marked</text>
+<text x="392" y="199" class="f-t s">private</text>
+<path d="M470 216L470 221" class="f-ar thin"/>
+<rect x="384" y="222" width="172" height="46" rx="4" class="f-box "/>
+<text x="392" y="238" class="f-t s">run without saving</text>
+<path d="M470 268L470 273" class="f-ar thin"/>
+<rect x="384" y="274" width="172" height="46" rx="4" class="f-box "/>
+<text x="392" y="290" class="f-t s">main called in a second</text>
+<text x="392" y="303" class="f-t s">machine</text>
+<path d="M470 320L470 325" class="f-ar thin"/>
+<rect x="384" y="326" width="172" height="46" rx="4" class="f-box "/>
+<text x="392" y="342" class="f-t s">nothing is stored</text>
+</g>
+<g class="f-hot " data-note="vm/qeval and vm/qrender. Read-only, on a forked store that is dropped afterwards." tabindex="0">
+<rect x="566" y="30" width="172" height="30" rx="4" class="f-box acc"/>
+<text x="652" y="50" class="f-t b" text-anchor="middle">Query</text>
+<rect x="566" y="66" width="172" height="46" rx="4" class="f-box "/>
+<text x="574" y="82" class="f-t s">fork a throwaway store</text>
+<path d="M652 112L652 117" class="f-ar thin"/>
+<rect x="566" y="118" width="172" height="46" rx="4" class="f-box "/>
+<text x="574" y="134" class="f-t s">load the package</text>
+<path d="M652 164L652 169" class="f-ar thin"/>
+<rect x="566" y="170" width="172" height="46" rx="4" class="f-box "/>
+<text x="574" y="186" class="f-t s">parse the expression; .cur</text>
+<text x="574" y="199" class="f-t s">prepended for a crossing</text>
+<text x="574" y="212" class="f-t s">callee</text>
+<path d="M652 216L652 221" class="f-ar thin"/>
+<rect x="566" y="222" width="172" height="46" rx="4" class="f-box "/>
+<text x="574" y="238" class="f-t s">evaluate under 3 billion</text>
+<text x="574" y="251" class="f-t s">gas and 1.5 GB</text>
+<path d="M652 268L652 273" class="f-ar thin"/>
+<rect x="566" y="274" width="172" height="46" rx="4" class="f-box "/>
+<text x="574" y="290" class="f-t s">qrender is the same with</text>
+<text x="574" y="303" class="f-t s">Render(path)</text>
+<path d="M652 320L652 325" class="f-ar thin"/>
+<rect x="566" y="326" width="172" height="46" rx="4" class="f-box "/>
+<text x="574" y="342" class="f-t s">never committed</text>
+</g>
+<text x="20" y="392" class="f-t s">Restart: Initialize re-preprocesses every stored package, type-checks the standard library into the permanent cache, fills the byte cache.</text>
+</svg>

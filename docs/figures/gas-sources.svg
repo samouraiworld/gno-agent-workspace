@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 306" width="760" height="306" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="306" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="One gas is one nanosecond on the reference Xeon. cmd/calibrate produced the constants." tabindex="0">
+<rect x="20" y="30" width="172" height="168" rx="6" class="f-box "/>
+<text x="30" y="48" class="f-t b">CPU</text>
+<text x="30" y="64" class="f-t s">a constant per opcode:</text>
+<text x="30" y="77" class="f-t s">OpExec 130, OpEval 82,</text>
+<text x="30" y="90" class="f-t s">int add 81, OpDefine 114</text>
+<text x="30" y="103" class="f-t s">slopes: per block hop,</text>
+<text x="30" y="116" class="f-t s">per defined name, per</text>
+<text x="30" y="129" class="f-t s">parameter, per element,</text>
+<text x="30" y="142" class="f-t s">per bit</text>
+<text x="30" y="155" class="f-t s">natives: a table by</text>
+<text x="30" y="168" class="f-t s">package and name</text>
+</g>
+<path d="M106 198L106 230" class="f-ar "/>
+<g class="f-hot " data-note="An accounting GC: Go&#x27;s collector frees the memory, the VM only recounts." tabindex="0">
+<rect x="202" y="30" width="172" height="168" rx="6" class="f-box "/>
+<text x="212" y="48" class="f-t b">Allocation</text>
+<text x="212" y="64" class="f-t s">bytes per value, 500 MB</text>
+<text x="212" y="77" class="f-t s">per transaction</text>
+<text x="212" y="90" class="f-t s">gas from a table indexed</text>
+<text x="212" y="103" class="f-t s">by log2 of the size</text>
+<text x="212" y="116" class="f-t s">over budget: recount</text>
+<text x="212" y="129" class="f-t s">every reachable object,</text>
+<text x="212" y="142" class="f-t s">charged per visit, and</text>
+<text x="212" y="155" class="f-t s">continue if it fits</text>
+</g>
+<path d="M288 198L288 230" class="f-ar "/>
+<g class="f-hot " data-note="The constants and the reasoning are in the gas refactor record." tabindex="0">
+<rect x="384" y="30" width="172" height="168" rx="6" class="f-box "/>
+<text x="394" y="48" class="f-t b">Store</text>
+<text x="394" y="64" class="f-t s">a cache miss: amino</text>
+<text x="394" y="77" class="f-t s">decode gas per byte, plus</text>
+<text x="394" y="90" class="f-t s">tm2 I/O gas</text>
+<text x="394" y="103" class="f-t s">a Merkle read: a</text>
+<text x="394" y="116" class="f-t s">depth-scaled flat fee</text>
+<text x="394" y="129" class="f-t s">plus a per-byte fee</text>
+<text x="394" y="142" class="f-t s">a cache hit costs nothing</text>
+</g>
+<path d="M470 198L470 230" class="f-ar "/>
+<g class="f-hot " data-note="Settled after the message by processStorageDeposit, from the finalization byte deltas." tabindex="0">
+<rect x="566" y="30" width="172" height="168" rx="6" class="f-box acc"/>
+<text x="576" y="48" class="f-t b">Storage deposit</text>
+<text x="576" y="64" class="f-t s">byte delta per realm ×</text>
+<text x="576" y="77" class="f-t s">100 ugnot per byte</text>
+<text x="576" y="90" class="f-t s">locked from the caller</text>
+<text x="576" y="103" class="f-t s">into the realm&#x27;s deposit</text>
+<text x="576" y="116" class="f-t s">address</text>
+<text x="576" y="129" class="f-t s">refunded on a negative</text>
+<text x="576" y="142" class="f-t s">delta: the one cost that</text>
+<text x="576" y="155" class="f-t s">comes back</text>
+</g>
+<path d="M652 198L652 230" class="f-ar "/>
+<rect x="20" y="232" width="720" height="34" rx="6" class="f-box mut"/>
+<text x="380" y="254" class="f-t b" text-anchor="middle">one gas meter per transaction</text>
+<text x="20" y="294" class="f-t s">Queries run under their own meter, 3 billion gas and a 1.5 GB allocator, and are never committed.</text>
+</svg>

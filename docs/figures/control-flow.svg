@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 320" width="760" height="320" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="320" class="f-bg" rx="8"/>
+<text x="20" y="24" class="f-m b">for i := 0; i &lt; n; i++ { body }</text>
+<g class="f-hot " data-note="Every for, range, switch and function call pushes a frame, so break, continue and return know how far to unwind." tabindex="0">
+<rect x="20" y="40" width="200" height="64" rx="6" class="f-box "/>
+<text x="30" y="58" class="f-t b">Frame</text>
+<text x="30" y="75" class="f-t s">label, stack heights to unwind</text>
+<text x="30" y="89" class="f-t s">to</text>
+</g>
+<g class="f-hot " data-note="The loop block owns a bodyStmt that remembers the next statement index, the condition and the post statement. The sticky OpForLoop walks that state." tabindex="0">
+<rect x="236" y="40" width="210" height="64" rx="6" class="f-box "/>
+<text x="246" y="58" class="f-t b">Block</text>
+<text x="246" y="75" class="f-m s">i.loopvar;</text>
+<text x="246" y="89" class="f-m s">bodyStmt{NextBodyIndex,</text>
+<text x="246" y="103" class="f-m s">Cond, Post}</text>
+</g>
+<g class="f-hot " data-note="Evaluate the condition." tabindex="0">
+<rect x="20" y="140" width="100" height="36" rx="6" class="f-box acc"/>
+<text x="30" y="155" class="f-t b">Cond</text>
+</g>
+<g class="f-hot " data-note="OpExec on the next statement of the body; the index advances." tabindex="0">
+<rect x="170" y="140" width="190" height="36" rx="6" class="f-box acc"/>
+<text x="180" y="155" class="f-t b">body stmt at</text>
+<text x="180" y="169" class="f-t b">NextBodyIndex</text>
+</g>
+<g class="f-hot " data-note="i++ runs, then back to the condition. continue jumps here." tabindex="0">
+<rect x="380" y="140" width="90" height="36" rx="6" class="f-box acc"/>
+<text x="390" y="155" class="f-t b">Post</text>
+</g>
+<path d="M120 158L169 158" class="f-ar "/>
+<text x="132" y="152" class="f-t s">true</text>
+<path d="M360 158L379 158" class="f-ar "/>
+<path d="M425 176 C425 215 70 215 70 176" class="f-ar "/>
+<text x="230" y="228" class="f-t s" text-anchor="middle">OpForLoop is sticky: popped and pushed back every iteration, so loops do not recurse</text>
+<g class="f-hot " data-note="Leaving the loop restores the stacks to the heights the frame recorded." tabindex="0">
+<rect x="20" y="240" width="420" height="60" rx="6" class="f-box mut"/>
+<text x="30" y="258" class="f-t b">Cond false, or break</text>
+<text x="30" y="274" class="f-t s">pop the block, pop the frame, drop the sticky opcode. break and</text>
+<text x="30" y="287" class="f-t s">continue pop frames until the loop with the right label.</text>
+</g>
+<g class="f-hot " data-note="pushes a block only, no frame; the block is expanded with the chosen arm&#x27;s names" tabindex="0">
+<rect x="470" y="40" width="270" height="60" rx="6" class="f-box "/>
+<text x="480" y="58" class="f-t b">if</text>
+<text x="480" y="74" class="f-t s">pushes a block only, no frame; the block</text>
+<text x="480" y="87" class="f-t s">is expanded with the chosen arm&#x27;s names</text>
+</g>
+<g class="f-hot " data-note="a frame; clauses and cases tried one at a time; a type switch compares type ids or checks interface implementation" tabindex="0">
+<rect x="470" y="106" width="270" height="60" rx="6" class="f-box "/>
+<text x="480" y="124" class="f-t b">switch</text>
+<text x="480" y="140" class="f-t s">a frame; clauses and cases tried one at a</text>
+<text x="480" y="153" class="f-t s">time; a type switch compares type ids or</text>
+<text x="480" y="166" class="f-t s">checks interface implementation</text>
+</g>
+<g class="f-hot " data-note="one opcode per kind: arrays and slices, strings (one rune per step), maps (one linked-list entry per step)" tabindex="0">
+<rect x="470" y="172" width="270" height="60" rx="6" class="f-box "/>
+<text x="480" y="190" class="f-t b">range</text>
+<text x="480" y="206" class="f-t s">one opcode per kind: arrays and slices,</text>
+<text x="480" y="219" class="f-t s">strings (one rune per step), maps (one</text>
+<text x="480" y="232" class="f-t s">linked-list entry per step)</text>
+</g>
+<g class="f-hot " data-note="resets the stacks to the heights recorded on the body statement" tabindex="0">
+<rect x="470" y="238" width="270" height="60" rx="6" class="f-box "/>
+<text x="480" y="256" class="f-t b">goto</text>
+<text x="480" y="272" class="f-t s">resets the stacks to the heights recorded</text>
+<text x="480" y="285" class="f-t s">on the body statement</text>
+</g>
+</svg>

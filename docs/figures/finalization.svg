@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 420" width="760" height="420" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="420" class="f-bg" rx="8"/>
+<text x="20" y="24" class="f-m b">zrealm1.gno: root = InnerNode{Key: &quot;somekey&quot;}, inside a realm call</text>
+<g class="f-hot " id="obj-1" data-note="Every realm&#x27;s first object. It holds the package block and one block per file." tabindex="0">
+<rect x="20" y="44" width="220" height="52" rx="6" class="f-box "/>
+<text x="30" y="62" class="f-t b">:1 PackageValue</text>
+<text x="30" y="79" class="f-t s">the package itself; always</text>
+<text x="30" y="93" class="f-t s">NewTime 1</text>
+</g>
+<g class="f-hot " id="obj-2" data-note="The package block. It is escaped because it has two holders, so it is saved on its own. Its ModTime moves from 0 to 6 in the trace." tabindex="0">
+<rect x="20" y="130" width="220" height="66" rx="6" class="f-box "/>
+<text x="30" y="148" class="f-t b">:2 Block (package)</text>
+<text x="30" y="165" class="f-t s">IsEscaped, RefCount 2</text>
+<text x="30" y="179" class="f-t s">slot 0 → :3</text>
+</g>
+<path d="M130 96L130 129" class="f-ar "/>
+<g class="f-hot " id="obj-3" data-note="The heap item behind the package variable root. Assign2 writes into it and calls DidUpdate with the old child, none, and the new child, the struct." tabindex="0">
+<rect x="300" y="130" width="220" height="66" rx="6" class="f-box "/>
+<text x="310" y="148" class="f-t b">:3 HeapItem root</text>
+<text x="310" y="165" class="f-t s">owner :2, RefCount 1</text>
+<text x="310" y="179" class="f-t s">Value: was {}, now → :6</text>
+</g>
+<path d="M240 163L299 163" class="f-ar "/>
+<g class="f-hot " id="obj-6" data-note="Created this transaction. DidUpdate marked it new-real; processNewCreatedMarks assigned :6 depth-first. The string inside it is not an object, so nothing else became real." tabindex="0">
+<rect x="300" y="230" width="220" height="66" rx="6" class="f-box acc"/>
+<text x="310" y="248" class="f-t b">:6 InnerNode</text>
+<text x="310" y="265" class="f-t s">owner :3, RefCount 1</text>
+<text x="310" y="279" class="f-t s">Key: &quot;somekey&quot;, Left {}, Right {}</text>
+</g>
+<path d="M410 196L410 229" class="f-ar "/>
+<g class="f-hot " id="writes" data-note="Exactly what the filetest&#x27;s Realm: directive prints. Children are saved before parents, and only new or dirty objects are written." tabindex="0">
+<rect x="540" y="44" width="200" height="252" rx="6" class="f-box mut"/>
+<text x="550" y="62" class="f-t b">Realm: writes, in order</text>
+<text x="550" y="81" class="f-m s">c[...:6]  (269 bytes)</text>
+<text x="550" y="97" class="f-m s">  the new struct, owner :3</text>
+<text x="550" y="113" class="f-m s">u[...:3]</text>
+<text x="550" y="129" class="f-m s">  Value: RefType InnerNode</text>
+<text x="550" y="145" class="f-m s">  + RefValue{:6, hash}</text>
+<text x="550" y="161" class="f-m s">u[...:2]</text>
+<text x="550" y="177" class="f-m s">  hash of :3 changed,</text>
+<text x="550" y="193" class="f-m s">  ModTime 0 → 6</text>
+<text x="550" y="209" class="f-m s"></text>
+<text x="550" y="225" class="f-m s">then: byte delta per realm</text>
+<text x="550" y="241" class="f-m s">  → storage deposit</text>
+</g>
+<text x="20" y="322" class="f-t s">1 new-real marks: ids depth-first, children counted</text>
+<text x="390" y="322" class="f-t s">2 deleted marks: children decremented</text>
+<text x="20" y="338" class="f-t s">3 escaped marks: demote or confirm</text>
+<text x="390" y="338" class="f-t s">4 realm record saved if the counter moved</text>
+<text x="20" y="354" class="f-t s">5 dirty ancestors up to the package block</text>
+<text x="390" y="354" class="f-t s">6 save new and dirty, children first</text>
+<text x="20" y="370" class="f-t s">7 remove the deleted</text>
+<text x="390" y="370" class="f-t s">8 byte deltas per realm, for the deposit</text>
+<text x="20" y="404" class="f-t s">FinalizeRealmTransaction runs when a call returns across a realm boundary, and again after package initialization.</text>
+</svg>
