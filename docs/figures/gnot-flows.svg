@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 310" width="760" height="310" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="310" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="The transaction signer. The whole -gas-fee leaves the account whatever the transaction used; the deposit only moves when a realm&#x27;s byte count changes." tabindex="0">
+<rect x="20" y="30" width="190" height="232" rx="6" class="f-box acc"/>
+<text x="30" y="48" class="f-t b">Caller</text>
+<text x="30" y="66" class="f-t s">g1abc..., pays in ugnot</text>
+<text x="30" y="81" class="f-t s">gas fee: spent</text>
+<text x="30" y="96" class="f-t s">storage deposit: a bond,</text>
+<text x="30" y="111" class="f-t s">returned when bytes are</text>
+<text x="30" y="126" class="f-t s">freed</text>
+</g>
+<g class="f-hot " data-note="DeductFees moves the fee here. Distribution is a placeholder in r/sys/txfees, so fees accumulate." tabindex="0">
+<rect x="300" y="30" width="200" height="52" rx="6" class="f-box mut"/>
+<text x="310" y="48" class="f-t b">Fee collector</text>
+<text x="310" y="65" class="f-t s">the auth module&#x27;s address</text>
+</g>
+<g class="f-hot " data-note="One deposit address per realm, DeriveStorageDepositAddr. Bytes added lock ugnot in; bytes freed release it to whoever made the call." tabindex="0">
+<rect x="300" y="110" width="200" height="90" rx="6" class="f-box "/>
+<text x="310" y="128" class="f-t b">Realm deposit address</text>
+<text x="310" y="144" class="f-t s">one per realm, derived from</text>
+<text x="310" y="157" class="f-t s">its path; locks delta ×</text>
+<text x="310" y="170" class="f-t s">storage_price, releases the</text>
+<text x="310" y="183" class="f-t s">same on freed bytes</text>
+</g>
+<g class="f-hot " data-note="Where a refund goes instead of the sender when the chain restricts ugnot transfers, as betanet does." tabindex="0">
+<rect x="300" y="216" width="200" height="46" rx="6" class="f-box mut"/>
+<text x="310" y="234" class="f-t b">Storage fee collector</text>
+<text x="310" y="251" class="f-t s">for restricted denominations</text>
+</g>
+<path d="M210 56L299 56" class="f-ar "/>
+<text x="255" y="48" class="f-t s" text-anchor="middle">gas fee, spent</text>
+<path d="M210 140L299 140" class="f-ar "/>
+<text x="294" y="132" class="f-t s" text-anchor="end">bytes added: deposit</text>
+<path d="M299 170L210 170" class="f-ar acc"/>
+<text x="294" y="186" class="f-t s" text-anchor="end">bytes freed: refund</text>
+<path d="M400 200L400 215" class="f-ar dash"/>
+<text x="300" y="282" class="f-t s">when ugnot is restricted the refund lands here, not with the caller</text>
+<g class="f-hot " data-note="Code defaults at this commit and the Constitution&#x27;s ceiling. The live values were the same on staging and betanet on 2026-09-05." tabindex="0">
+<rect x="540" y="30" width="200" height="232" rx="6" class="f-box "/>
+<text x="550" y="48" class="f-t b">Numbers</text>
+<text x="550" y="68" class="f-m s">1 GNOT = 1,000,000 ugnot</text>
+<text x="550" y="85" class="f-m s">storage: 100 ugnot per byte</text>
+<text x="550" y="102" class="f-m s">1 GNOT buys 10 KB</text>
+<text x="550" y="119" class="f-m s">1e9 GNOT = 10 TB</text>
+<text x="550" y="136" class="f-m s">deposit default: 600 GNOT</text>
+<text x="550" y="153" class="f-m s">gas: 1 ugnot per 1000 gas</text>
+<text x="550" y="170" class="f-m s">cap 1.333e9 GNOT, no inflation</text>
+</g>
+<text x="20" y="300" class="f-t s">The deposit is the one cost that comes back: it is a bond on bytes, not a payment for them.</text>
+</svg>

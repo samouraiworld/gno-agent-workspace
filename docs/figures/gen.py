@@ -1096,6 +1096,150 @@ def determinism():
     return f
 
 
+# ================================================================ overview figures
+
+@fig
+def package_kinds():
+    f = Fig('package-kinds', 330)
+    kinds = [
+        ('r/  realm', ['gno.land/r/<ns>/<name>', 'persistent globals, an address, coins', 'may declare crossing functions', 'renders a page with Render(path)', 'immutable once deployed; private = true may be redeployed'],
+         'acc', 'A realm is a package whose package-level variables are saved when a call returns. It has a bech32 address, so it can hold and send coins.'),
+        ('p/  pure package', ['gno.land/p/<ns>/<name>', 'no persistent state', 'no crossing functions', 'may not import a realm', 'the code two realms can trust between them'],
+         '', 'Library code. Its methods run with the storage of whoever owns the receiver, which is how avl.Tree.Set writes a realm\'s tree.'),
+        ('e/  ephemeral', ['gno.land/e/<address>/run', 'uploaded by gnokey maketx run', 'main runs once, nothing is stored', 'several calls in one transaction'],
+         'mut', 'A throwaway main package. Type-checked in relaxed mode, marked private, run in a second machine, never saved.'),
+    ]
+    for i, (t, ls, cls, n) in enumerate(kinds):
+        x = 20 + i * 246
+        f.box(x, 30, 234, 140, t, ls, cls, note=n, lh=15)
+    f.rect(20, 190, 720, 116, 'mut')
+    f.text(30, 210, 'Who may deploy under a namespace, per r/sys/names', 'f-t b')
+    f.lines(30, 230, [
+        'gno.land/r/g1abc.../x      your own address: always, no registration',
+        'gno.land/r/alice/x         a registered name: when r/sys/users maps alice to you as your current name',
+        'the keeper asks r/sys/names on every upload; a rename gives up the old namespace for new deploys',
+        'on pearl and sapphire the check is on from block one; before Enable() every check passes',
+    ], 'f-t s', lh=17)
+    return f
+
+
+@fig
+def dev_workflow():
+    f = Fig('dev-workflow', 250)
+    steps = [
+        ('write', ['myapp.gno', 'gnomod.toml'], 'A package directory with a manifest naming its path and Gno version.'),
+        ('gno test', ['_test.gno functions', '_filetest.gno golden files'], 'No node needed. Filetests assert on Output, Error, Realm and Events blocks.'),
+        ('gnodev', ['in-memory node', 'gnoweb on :8888', 'hot reload'], 'Every account in the local keybase starts with 10T ugnot. State survives reloads by replaying transactions.'),
+        ('gnokey addpkg', ['type-check, run once, save', 'storage deposit locked'], 'The keeper refuses an existing public path. -simulate only reports gas and bytes first.'),
+        ('gnokey call', ['pkg.F(cross, args)', 'cur.Previous() = you'], 'Only a crossing function can be called. The signer becomes the first link of the cur chain.'),
+        ('gnoweb', ['Render(path) → markdown', 'vm/qrender'], 'The page is the realm\'s own Render output, served read-only under a query gas limit.'),
+    ]
+    bw = 112
+    for i, (t, ls, n) in enumerate(steps):
+        x = 20 + i * (bw + 10)
+        f.box(x, 40, bw, 120, t, ls, 'acc' if i in (3, 4) else '', note=n, lh=13)
+        if i < 5:
+            f.arrow(x + bw, 100, x + bw + 9, 100)
+    f.path('M%g 160 L%g 190 L%g 190 L%g 160' % (20 + 5 * 122 + bw / 2, 20 + 5 * 122 + bw / 2, 20 + bw / 2, 20 + bw / 2), 'dash')
+    f.text(380, 208, 'a deployed path can never be reused: the next version is a new path', 'f-t s', 'middle')
+    f.text(20, 236, 'Steps 1 to 3 need no chain. Steps 4 to 6 target any network by -remote and -chainid.', 'f-t s')
+    return f
+
+
+@fig
+def staging_cycle():
+    f = Fig('staging-cycle', 250)
+    nodes = [
+        ('staging runs', 'The chain behaves like any network while master does not change.'),
+        ('master changes', 'A merge on the gno monorepo triggers a rebuild.'),
+        ('tx-archive saves every transaction', 'Every transaction so far is exported, so the history survives the rebuild.'),
+        ('a new genesis from master, examples/ redeployed', 'All packages under examples/ are deployed first; permissionless deploys of the same path are superseded.'),
+        ('the archive replays into it', 'A transaction that no longer passes under the new master fails to replay, and its data is lost. Heights and timestamps restart.'),
+    ]
+    bw = 136
+    for i, (t, n) in enumerate(nodes):
+        x = 20 + i * (bw + 10)
+        f.box(x, 50, bw, 70, None, [t], 'acc' if i == 0 else '', note=n, lcls='f-t b', lh=15)
+        if i < 4:
+            f.arrow(x + bw, 85, x + bw + 9, 85)
+    f.path('M%g 120 L%g 160 L%g 160 L%g 120' % (20 + 4 * 146 + bw / 2, 20 + 4 * 146 + bw / 2, 20 + bw / 2, 20 + bw / 2))
+    f.text(380, 180, 'back to running, with the old transactions replayed and the new code live', 'f-t s', 'middle')
+    f.text(20, 226, 'From docs/resources/gnoland-networks.md. Pearl, sapphire and topaz are the opposite: fresh genesis, no replay.', 'f-t s')
+    return f
+
+
+@fig
+def govdao():
+    f = Fig('govdao', 420)
+    f.text(20, 24, 'Tiers, from r/gov/dao/v3/memberstore', 'f-t h')
+    tiers = [
+        ('T1', ['base power 3', '3 invitation points', 'at least 70 members', 'power uncapped'], 'acc',
+         'Core members. Added and promoted by proposal only; a T1 proposal is voted by T1.'),
+        ('T2', ['base power 2', '2 invitation points', 'a quarter to twice the T1 count', 'total power ≤ 2/3 of T1\'s'], '',
+         'When the cap binds, each T2 member\'s power shrinks to fit: the tier as a whole never outweighs two thirds of T1.'),
+        ('T3', ['base power 1', '1 invitation point', 'no size rule', 'total power ≤ 1/3 of T1\'s'], 'mut',
+         'Added directly by a T1 or T2 member, who spends one invitation point. Not by proposal.'),
+    ]
+    for i, (t, ls, cls, n) in enumerate(tiers):
+        x = 20 + i * 246
+        f.box(x, 40, 234, 100, t, ls, cls, note=n, lh=15)
+    f.text(20, 176, 'A proposal, from r/gov/dao/v3/impl', 'f-t h')
+    steps = [
+        ('create', ['title, description', 'executor callback'], 'Seven request types: change the law, upgrade the implementation, add, withdraw or promote a member, pay from the treasury, update the GRC-20 list.'),
+        ('vote', ['YES, NO, ABSTAIN', 'against total power'], 'Percentages are computed against all eligible voting power, so a member who does not vote weighs like a NO. A member proposal restricts the vote to the target tier.'),
+        ('66.66% YES', ['accepted', 'executor runs'], 'The Law\'s Supermajority value, changeable by a change-law proposal.'),
+        ('66.66% NO', ['denied'], 'Symmetric: the same threshold closes the proposal.'),
+    ]
+    bw = 170
+    for i, (t, ls, n) in enumerate(steps):
+        x = 20 + i * (bw + 13)
+        cls = 'acc' if i == 2 else ('warn' if i == 3 else '')
+        f.box(x, 192, bw, 76, t, ls, cls, note=n, lh=15)
+        if i < 2:
+            f.arrow(x + bw, 230, x + bw + 12, 230)
+    f.path('M%g 268 L%g 290 L%g 290 L%g 268' % (20 + 1 * 183 + bw / 2, 20 + 1 * 183 + bw / 2, 20 + 3 * 183 + bw / 2, 20 + 3 * 183 + bw / 2), 'warn')
+    f.lines(20, 322, [
+        'r/gov/dao is a proxy: UpdateImpl swaps the implementation by proposal, within an allowed list.',
+        'What it controls: the validator set (r/sys/validators), chain parameters (r/sys/params), the treasury,',
+        'name registration controllers and prices (r/sys/users, r/sys/namereg), and the namespace verifier\'s pause.',
+        'A fresh chain starts with one T1 member, who proposes the next ones.',
+    ], 'f-t s', lh=17)
+    return f
+
+
+@fig
+def gnot_flows():
+    f = Fig('gnot-flows', 310)
+    f.box(20, 30, 190, 232, 'Caller', ['g1abc..., pays in ugnot', '', 'gas fee: spent', 'storage deposit: a bond,', 'returned when bytes are freed'], 'acc',
+          note='The transaction signer. The whole -gas-fee leaves the account whatever the transaction used; the deposit only moves when a realm\'s byte count changes.', lh=15)
+    f.box(300, 30, 200, 52, 'Fee collector', ['the auth module\'s address'], 'mut',
+          note='DeductFees moves the fee here. Distribution is a placeholder in r/sys/txfees, so fees accumulate.')
+    f.box(300, 110, 200, 90, 'Realm deposit address', ['one per realm, derived from its path; locks delta × storage_price, releases the same on freed bytes'], '',
+          note='One deposit address per realm, DeriveStorageDepositAddr. Bytes added lock ugnot in; bytes freed release it to whoever made the call.', lh=13)
+    f.box(300, 216, 200, 46, 'Storage fee collector', ['for restricted denominations'], 'mut',
+          note='Where a refund goes instead of the sender when the chain restricts ugnot transfers, as betanet does.')
+    f.arrow(210, 56, 299, 56)
+    f.text(255, 48, 'gas fee, spent', 'f-t s', 'middle')
+    f.arrow(210, 140, 299, 140)
+    f.text(294, 132, 'bytes added: deposit', 'f-t s', 'end')
+    f.arrow(299, 170, 210, 170, 'acc')
+    f.text(294, 186, 'bytes freed: refund', 'f-t s', 'end')
+    f.arrow(400, 200, 400, 215, 'dash')
+    f.text(300, 282, 'when ugnot is restricted the refund lands here, not with the caller', 'f-t s')
+    f.box(540, 30, 200, 232, 'Numbers', [
+        '1 GNOT = 1,000,000 ugnot',
+        'storage: 100 ugnot per byte',
+        '1 GNOT buys 10 KB',
+        '1e9 GNOT = 10 TB',
+        'deposit default: 600 GNOT',
+        'gas: 1 ugnot per 1000 gas',
+        'cap 1.333e9 GNOT, no inflation',
+    ], '', lcls='f-m s', lh=17, nowrap=True,
+        note='Code defaults at this commit and the Constitution\'s ceiling. The live values were the same on staging and betanet on 2026-09-05.')
+    f.text(20, 300, 'The deposit is the one cost that comes back: it is a bond on bytes, not a payment for them.', 'f-t s')
+    return f
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     for name, fn in FIGS.items():

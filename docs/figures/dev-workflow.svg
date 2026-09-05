@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 250" width="760" height="250" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="250" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="A package directory with a manifest naming its path and Gno version." tabindex="0">
+<rect x="20" y="40" width="112" height="120" rx="6" class="f-box "/>
+<text x="30" y="58" class="f-t b">write</text>
+<text x="30" y="74" class="f-t s">myapp.gno</text>
+<text x="30" y="87" class="f-t s">gnomod.toml</text>
+</g>
+<path d="M132 100L141 100" class="f-ar "/>
+<g class="f-hot " data-note="No node needed. Filetests assert on Output, Error, Realm and Events blocks." tabindex="0">
+<rect x="142" y="40" width="112" height="120" rx="6" class="f-box "/>
+<text x="152" y="58" class="f-t b">gno test</text>
+<text x="152" y="74" class="f-t s">_test.gno</text>
+<text x="152" y="87" class="f-t s">functions</text>
+<text x="152" y="100" class="f-t s">_filetest.gno</text>
+<text x="152" y="113" class="f-t s">golden files</text>
+</g>
+<path d="M254 100L263 100" class="f-ar "/>
+<g class="f-hot " data-note="Every account in the local keybase starts with 10T ugnot. State survives reloads by replaying transactions." tabindex="0">
+<rect x="264" y="40" width="112" height="120" rx="6" class="f-box "/>
+<text x="274" y="58" class="f-t b">gnodev</text>
+<text x="274" y="74" class="f-t s">in-memory node</text>
+<text x="274" y="87" class="f-t s">gnoweb on :8888</text>
+<text x="274" y="100" class="f-t s">hot reload</text>
+</g>
+<path d="M376 100L385 100" class="f-ar "/>
+<g class="f-hot " data-note="The keeper refuses an existing public path. -simulate only reports gas and bytes first." tabindex="0">
+<rect x="386" y="40" width="112" height="120" rx="6" class="f-box acc"/>
+<text x="396" y="58" class="f-t b">gnokey addpkg</text>
+<text x="396" y="74" class="f-t s">type-check, run</text>
+<text x="396" y="87" class="f-t s">once, save</text>
+<text x="396" y="100" class="f-t s">storage deposit</text>
+<text x="396" y="113" class="f-t s">locked</text>
+</g>
+<path d="M498 100L507 100" class="f-ar "/>
+<g class="f-hot " data-note="Only a crossing function can be called. The signer becomes the first link of the cur chain." tabindex="0">
+<rect x="508" y="40" width="112" height="120" rx="6" class="f-box acc"/>
+<text x="518" y="58" class="f-t b">gnokey call</text>
+<text x="518" y="74" class="f-t s">pkg.F(cross,</text>
+<text x="518" y="87" class="f-t s">args)</text>
+<text x="518" y="100" class="f-t s">cur.Previous()</text>
+<text x="518" y="113" class="f-t s">= you</text>
+</g>
+<path d="M620 100L629 100" class="f-ar "/>
+<g class="f-hot " data-note="The page is the realm&#x27;s own Render output, served read-only under a query gas limit." tabindex="0">
+<rect x="630" y="40" width="112" height="120" rx="6" class="f-box "/>
+<text x="640" y="58" class="f-t b">gnoweb</text>
+<text x="640" y="74" class="f-t s">Render(path) →</text>
+<text x="640" y="87" class="f-t s">markdown</text>
+<text x="640" y="100" class="f-t s">vm/qrender</text>
+</g>
+<path d="M686 160 L686 190 L76 190 L76 160" class="f-ar dash"/>
+<text x="380" y="208" class="f-t s" text-anchor="middle">a deployed path can never be reused: the next version is a new path</text>
+<text x="20" y="236" class="f-t s">Steps 1 to 3 need no chain. Steps 4 to 6 target any network by -remote and -chainid.</text>
+</svg>

@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 330" width="760" height="330" font-family="ui-sans-serif, system-ui, sans-serif">
+<style>
+.f-bg{fill:#fbfaf7}
+.f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
+.f-box.acc{fill:#e4f1ec;stroke:#226b5b}
+.f-box.warn{fill:#fbeaea;stroke:#b3423f}
+.f-box.mut{fill:#f1efe9}
+.f-box.dash{stroke-dasharray:4 3}
+.f-t{font:13px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:#1f2422;white-space:pre}
+.f-t.b{font-weight:700}
+.f-t.h{font-size:15px;font-weight:700}
+.f-t.s{font-size:11.5px;fill:#4f5652}
+.f-t.acc{fill:#226b5b}
+.f-t.warn{fill:#b3423f}
+.f-m{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2422;white-space:pre}
+.f-m.b{font-weight:700}
+.f-m.s{font-size:11px;fill:#4f5652}
+.f-m.acc{fill:#226b5b}
+.f-m.warn{fill:#b3423f}
+.f-ar{stroke:#6b726e;stroke-width:1.4;fill:none;marker-end:url(#f-ah)}
+.f-ar.acc{stroke:#226b5b;marker-end:url(#f-ah2)}
+.f-ar.warn{stroke:#b3423f;marker-end:url(#f-ah3)}
+.f-ar.thin{stroke-width:1;stroke:#b9b4a6}
+.f-ar.dash{stroke-dasharray:4 3}
+.f-ln{stroke:#c9c4b6;stroke-width:1;fill:none}
+.f-hot{cursor:pointer}
+</style>
+<defs>
+<marker id="f-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b726e"/></marker>
+<marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
+<marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
+</defs>
+<rect width="760" height="330" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="A realm is a package whose package-level variables are saved when a call returns. It has a bech32 address, so it can hold and send coins." tabindex="0">
+<rect x="20" y="30" width="234" height="140" rx="6" class="f-box acc"/>
+<text x="30" y="48" class="f-t b">r/  realm</text>
+<text x="30" y="66" class="f-t s">gno.land/r/&lt;ns&gt;/&lt;name&gt;</text>
+<text x="30" y="81" class="f-t s">persistent globals, an address,</text>
+<text x="30" y="96" class="f-t s">coins</text>
+<text x="30" y="111" class="f-t s">may declare crossing functions</text>
+<text x="30" y="126" class="f-t s">renders a page with Render(path)</text>
+<text x="30" y="141" class="f-t s">immutable once deployed; private =</text>
+<text x="30" y="156" class="f-t s">true may be redeployed</text>
+</g>
+<g class="f-hot " data-note="Library code. Its methods run with the storage of whoever owns the receiver, which is how avl.Tree.Set writes a realm&#x27;s tree." tabindex="0">
+<rect x="266" y="30" width="234" height="140" rx="6" class="f-box "/>
+<text x="276" y="48" class="f-t b">p/  pure package</text>
+<text x="276" y="66" class="f-t s">gno.land/p/&lt;ns&gt;/&lt;name&gt;</text>
+<text x="276" y="81" class="f-t s">no persistent state</text>
+<text x="276" y="96" class="f-t s">no crossing functions</text>
+<text x="276" y="111" class="f-t s">may not import a realm</text>
+<text x="276" y="126" class="f-t s">the code two realms can trust</text>
+<text x="276" y="141" class="f-t s">between them</text>
+</g>
+<g class="f-hot " data-note="A throwaway main package. Type-checked in relaxed mode, marked private, run in a second machine, never saved." tabindex="0">
+<rect x="512" y="30" width="234" height="140" rx="6" class="f-box mut"/>
+<text x="522" y="48" class="f-t b">e/  ephemeral</text>
+<text x="522" y="66" class="f-t s">gno.land/e/&lt;address&gt;/run</text>
+<text x="522" y="81" class="f-t s">uploaded by gnokey maketx run</text>
+<text x="522" y="96" class="f-t s">main runs once, nothing is stored</text>
+<text x="522" y="111" class="f-t s">several calls in one transaction</text>
+</g>
+<rect x="20" y="190" width="720" height="116" rx="6" class="f-box mut"/>
+<text x="30" y="210" class="f-t b">Who may deploy under a namespace, per r/sys/names</text>
+<text x="30" y="230" class="f-t s">gno.land/r/g1abc.../x      your own address: always, no registration</text>
+<text x="30" y="247" class="f-t s">gno.land/r/alice/x         a registered name: when r/sys/users maps alice to you as your current name</text>
+<text x="30" y="264" class="f-t s">the keeper asks r/sys/names on every upload; a rename gives up the old namespace for new deploys</text>
+<text x="30" y="281" class="f-t s">on pearl and sapphire the check is on from block one; before Enable() every check passes</text>
+</svg>

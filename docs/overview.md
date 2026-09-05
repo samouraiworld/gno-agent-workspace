@@ -1,120 +1,164 @@
 # Gno.land Overview
 
+Measured against [gnolang/gno at a7e4c34b0][gno-tree], 2026-05-25, the commit
+[How the GnoVM works](gnovm-architecture.md) is pinned to. Every code link
+points at that commit. Network facts, live parameters and external links were
+checked on 2026-09-05 and carry that date.
+
+## TLDR
+
+Gno is Go, interpreted deterministically on a blockchain. A realm is a package
+whose global variables persist between transactions and which renders its own
+web page as markdown. The node is a minimal Tendermint fork, the interpreter
+is the GnoVM, and the two meet in a keeper that turns each message into one
+interpreter run. Betanet `gnoland1` and the rolling `staging` chain are live,
+two fresh testnets named pearl and sapphire launched in August 2026, governance
+is a tiered DAO with a two-thirds rule, and GNOT pays for gas and, refundably,
+for stored bytes.
+
 ## What is Gno?
 
-**Gno** is a deterministic, interpreted variant of Go for smart contracts on the
-**gno.land** blockchain. Gno uses a real programming language (Go) instead of a
-domain-specific one (Solidity, Move).
+**Gno** is a deterministic, interpreted dialect of Go for smart contracts on
+the **gno.land** blockchain. It is [modeled on Go 1.17][compat-go117]: no
+generics, no goroutines, no channels. The language adds two builtin types,
+`address` and `realm`, two untyped constant kinds, `bigint` and `bigdec`, and
+the `cross` builtin that switches realm identity. The interpreter is the
+GnoVM, described end to end in [How the GnoVM works](gnovm-architecture.md).
 
-- **Deterministic**: no goroutines, channels, `unsafe`, `net`, or `os`
-- **Interpreted**: code runs on the GnoVM, not compiled to machine code
-- **Fully auditable**: all on-chain code is human-readable source
-- **Go-compatible**: if you know Go, you mostly know Gno
-- **Auto-persistence**: global variables in realms are saved automatically between transactions
+- **Deterministic**: no goroutines, channels, `unsafe`, `net` or `os`; floats
+  run in software; maps iterate in insertion order.
+- **Interpreted**: source runs on the GnoVM. Nothing is compiled to machine
+  code, and the source is what is stored on chain.
+- **Auditable**: every deployed package is readable on the chain's own web
+  interface, tests included.
+- **Persistent by default**: the global variables of a realm are saved when a
+  call returns, without an ORM or a storage API.
 
-File extension: `.gno` | Module config: `gnomod.toml`
+File extension `.gno`. Module manifest [`gnomod.toml`][gnomod-example], which
+names the module path and the Gno language version, [`0.9` at this
+commit][gnover].
+
+![The three package kinds, what each may do, and who may deploy under a
+namespace.](figures/package-kinds.svg)
 
 ### Toolchain
 
-Install all tools from source:
+Install everything from source:
 
 ```bash
 git clone https://github.com/gnolang/gno.git && cd gno && make install
 ```
 
-This builds and installs `gno`, `gnodev`, `gnokey`, `gnoland`, and `gnoweb`.
+This builds `gno`, `gnodev`, `gnokey`, `gnoland` and `gnoweb`. Three of them
+are daily tools, `gno`, `gnokey` and `gnodev`; `gnoland` and `gnoweb` run
+underneath.
 
-There are five tools. Three of them (`gno`, `gnokey`, `gnodev`) are what you use
-day-to-day. The other two (`gnoland`, `gnoweb`) run under the hood.
+**`gno`** is the language tool. It tests, lints, formats and documents `.gno`
+packages without a node, the way the `go` command does for Go. Its
+subcommands at this commit, [from the binary's own help][gno-help]:
 
-**`gno`** is the language tool. It compiles, tests, lints, and formats `.gno`
-files. It does not need a running node. Think of it as the `go` CLI for Gno.
+| Command | Purpose | Go equivalent |
+| --- | --- | --- |
+| `gno test` | Run `_test.gno` functions and `_filetest.gno` golden tests | `go test` |
+| `gno fmt` | Format `.gno` files | `go fmt` |
+| `gno lint` | Type-check and preprocess without running | `go vet` |
+| `gno doc` | Show package documentation | `go doc` |
+| `gno run` | Run a package's `main` or an expression | `go run` |
+| `gno fix` | Rewrite source from older Gno versions | `go fix` |
+| `gno mod` | Module maintenance, `gno mod init` among others | `go mod` |
+| `gno repl` | Start a GnoVM read-eval-print loop | none |
+| `gno tool transpile` | Translate Gno to Go source | none |
+| `gno list`, `gno env`, `gno clean`, `gno bug`, `gno version` | Housekeeping | the same |
 
-| Command       | Description              | Go Equivalent  |
-|---------------|--------------------------|----------------|
-| `gno test`    | Run tests                | `go test`      |
-| `gno fmt`     | Format `.gno` files      | `go fmt`       |
-| `gno lint`    | Lint for common issues   | `golint`       |
-| `gno doc`     | Show package docs        | `go doc`       |
-| `gno mod init`| Init a new module        | `go mod init`  |
-| `gno run`     | Run a Gno program        | `go run`       |
-
-**`gnodev`** is the local development server. It starts an in-memory
-`gnoland` node and a `gnoweb` frontend in a single process, with hot
-reload. You write code, `gnodev` detects changes and redeploys automatically.
-Open `http://localhost:8888` to see your realm rendered.
+**`gnodev`** is the local development server: an in-memory `gnoland` node and
+a `gnoweb` front end in one process, with hot reload. Write code, `gnodev`
+redeploys it, open `http://localhost:8888` to see the realm rendered. The
+`examples/` directory of the monorepo [is loaded unless `--minimal` is
+passed][gnodev-minimal].
 
 ```bash
-gnodev    # opens gnoweb at http://localhost:8888
+gnodev ./myrealm    # gnoweb at http://localhost:8888
 ```
 
-| Feature | Description |
-|---------|-------------|
-| Hot reload | Watches for file changes, redeploys automatically |
-| Transaction replay | Preserves state across reloads |
-| Premined balances | Detects local `gnokey` keybase, premines 10T ugnot to all addresses |
-| Lazy loading | Packages loaded on demand |
-| State export | Export current state as a genesis `.jsonl` file |
-| Remote resolver | Test local code against on-chain dependencies |
+| Feature | What it does |
+| --- | --- |
+| Hot reload | Watches the given directories and `examples/`, redeploys on change |
+| State maintenance | Replays every transaction after a reload, so state survives |
+| Premined balances | Every account in the local `gnokey` keybase [starts with 10T ugnot][gnodev-premine] |
+| State export | Writes the current state as a genesis file |
+| Resolvers | `root`, `local` and `remote`: the last [resolves imports from a running node][gnodev-resolvers], to test local code against on-chain dependencies |
 
-**Interactive keys:** `H` help | `R` reload | `A` accounts | `P`/`N` undo/redo TX | `E` export | `Ctrl+S` save | `Ctrl+R` reset
+Keys while it runs, [from its README][gnodev-keys]: `H` help, `A` account
+balances, `R` reload, `P` cancel the last action, `N` redo it, `Ctrl+S` save
+the state, `Ctrl+R` restore it, `E` export a genesis file, `Cmd+R` reset,
+`Cmd+C` exit.
 
-**`gnokey`** manages keys and sends transactions to a node (deploy code, call
-functions, query state). It connects to any node via RPC, whether local or
-remote.
-
-Addresses use bech32 with `g1` prefix. When you start `gnodev`, it imports a
-default account named **`devtest`** at address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`,
-pre-funded with 10T ugnot.
-
-To create your own key:
+**`gnokey`** manages keys and talks to a node over RPC: deploy code, call
+functions, send coins, query state. Addresses are bech32 with the `g1` prefix.
+`gnodev` imports a default account named [`test1` at
+`g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`][default-account], funded like
+every other local key.
 
 ```bash
 gnokey add MyKey
 # Save the mnemonic. Note your g1... address.
 ```
 
-| Message Type | Command                | Purpose                        |
-|--------------|------------------------|--------------------------------|
-| AddPackage   | `gnokey maketx addpkg` | Deploy code on-chain           |
-| Call         | `gnokey maketx call`   | Call a realm function          |
-| Send         | `gnokey maketx send`   | Transfer coins                 |
-| Run          | `gnokey maketx run`    | Run a script against on-chain code |
+| Message | Command | Purpose |
+| --- | --- | --- |
+| `MsgAddPackage` | `gnokey maketx addpkg` | Deploy a package |
+| `MsgCall` | `gnokey maketx call` | Call one exported crossing function |
+| `MsgSend` | `gnokey maketx send` | Transfer coins |
+| `MsgRun` | `gnokey maketx run` | Run a throwaway `main` against on-chain code |
+| session messages | `gnokey maketx session create`, `revoke`, `revokeall` | [Session accounts][gnokey-session]: a key with an expiry and an allow-list of message kinds, signed for by a master key through `-master` |
 
-#### Query types
+Every `maketx` command takes `-gas-fee`, `-gas-wanted`, `-max-deposit` for
+the storage deposit, `-send` for attached coins, `-chainid`, `-remote` and
+`-broadcast`. `-simulate only` [estimates without broadcasting][addpkg-flags].
 
-`gnokey query <path> -remote "https://rpc.staging.gno.land:443"`
+#### Query paths
 
-| Query Path | Data Format | Description |
-|------------|-------------|-------------|
-| `vm/qrender` | `"<pkgpath>:<renderpath>"` | Call `Render()` on a realm (read-only) |
-| `vm/qeval` | `"<pkgpath>.<expression>"` | Evaluate any Gno expression (read-only) |
-| `vm/qfuncs` | `"<pkgpath>"` | List exported function signatures (JSON) |
-| `vm/qfile` | `"<pkgpath>"` or `"<pkgpath>/<file>"` | List files or get source code |
-| `vm/qdoc` | `"<pkgpath>"` | Package documentation (JSON) |
-| `vm/qpaths` | `"<prefix>"` | List package paths matching prefix |
-| `vm/qstorage` | `"<pkgpath>"` | Storage usage and deposit for a realm |
-| `auth/accounts/<addr>` | | Account info (coins, pubkey, sequence) |
-| `auth/gasprice` | | Current minimum gas price |
-| `bank/balances/<addr>` | | Coin balances for an address |
+```bash
+gnokey query <path> -data "<data>" -remote "https://rpc.staging.gno.land:443"
+```
 
-**`gnoland`** is the blockchain node (consensus, blocks, persistence).
-`gnoland start` runs a full node. You don't run it directly in development,
-`gnodev` runs it for you.
+The `vm` paths are [the ten cases of the keeper's query
+handler][query-kinds]; the others belong to the `auth`, `bank` and `params`
+modules.
 
-**`gnoweb`** is the web interface that renders realm markdown and lets you browse
-on-chain source code. Also bundled inside `gnodev`.
+| Path | Data | Returns |
+| --- | --- | --- |
+| `vm/qrender` | `<pkgpath>:<renderpath>` | The realm's `Render` output, markdown |
+| `vm/qeval` | `<pkgpath>.<expression>` | Any expression, as text |
+| `vm/qeval_json` | `<pkgpath>.<expression>` | The same, as JSON |
+| `vm/qobject_json`, `vm/qobject_binary` | an object id | One persisted object, decoded or raw |
+| `vm/qfuncs` | `<pkgpath>` | Exported function signatures, JSON |
+| `vm/qfile` | `<pkgpath>` or `<pkgpath>/<file>` | File list, or one file's source |
+| `vm/qdoc` | `<pkgpath>` | Package documentation, JSON |
+| `vm/qpaths` | `<prefix>` | Package paths under the prefix |
+| `vm/qstorage` | `<pkgpath>` | Bytes stored and deposit held by a realm |
+| `auth/accounts/<addr>` | | Account: coins, public key, sequence |
+| `auth/gasprice` | | The current minimum gas price |
+| `bank/balances/<addr>` | | Coin balances |
+| `params/<module>:p:<key>` | | One live chain parameter, see *Networks* |
 
----
+**`gnoland`** is the node: consensus, blocks, persistence. `gnoland start`
+runs one. In development `gnodev` runs it for you.
+
+**`gnoweb`** renders realm markdown and browses on-chain source. It is what
+gno.land, staging.gno.land and `gnodev` serve.
+
+![From an editor to a rendered page: the loop a realm goes through, and which
+tool runs each step.](figures/dev-workflow.svg)
 
 ## Core Concepts
 
 ### Realms (`r/`)
 
-Stateful smart contracts with a unique path (e.g. `gno.land/r/demo/counter`).
-They can expose `Render(path string) string` which returns **markdown**,
-rendered as HTML by gnoweb. This is how dApps show their UI without a separate
-frontend.
+Stateful contracts with a unique path such as `gno.land/r/demo/counter`. A
+realm has an address, can hold coins, and can expose `Render(path string)
+string`, whose markdown gnoweb turns into the realm's page. That is how dapps
+ship a user interface without a separate front end.
 
 ```go
 func Render(path string) string {
@@ -122,94 +166,147 @@ func Render(path string) string {
 }
 ```
 
-Public realms are immutable once deployed. This is a deliberate design choice:
-immutability means users can trust the code they interact with will not change
-under them. Upgrade paths exist: versioned paths (`v1`, `v2`), proxy patterns,
-and private realms (which can be redeployed by their owner).
+A public realm is immutable once deployed: [the keeper refuses a second
+package at an existing path][keeper-exists]. Upgrade by convention, `v1`,
+`v2`, or through a proxy realm such as `r/gov/dao`. A package whose manifest
+says `private = true` is the exception: it [may be redeployed by a later
+private package][keeper-private], [must be a realm][keeper-private-realm],
+and other realms may not persist values of its types.
 
-### Packages (`p/`)
+### Pure packages (`p/`)
 
-Stateless, immutable libraries (e.g. `gno.land/p/demo/avl`). Cannot hold state.
-Since they are immutable on-chain, two mutable realms can trustlessly cooperate
-through shared p-package code.
+Stateless libraries, `gno.land/p/nt/avl/v0` for instance. They hold no
+persistent state, cannot declare crossing functions, and [cannot import a
+realm][p-imports-r]. Because they are immutable, two realms can trust the same
+`p/` code to mediate between them.
 
-### Gas & Storage
+### Ephemeral packages (`e/`)
 
-- **Gas fees**: priced in `ugnot` (1 GNOT = 1,000,000 ugnot)
-- **Storage deposits**: GNOT locked proportional to storage used; refundable on cleanup
+`gnokey maketx run` uploads a throwaway `main` package at
+[`gno.land/e/<address>/run`][epath], runs it once and stores nothing. It is
+how a user executes several calls in one transaction, or calls a function
+with arguments that do not fit on a command line.
 
-> Details: [Gas Fees](https://docs.gno.land/resources/gas-fees) |
-> [Storage Deposit](https://docs.gno.land/resources/storage-deposit)
+### Namespaces
 
-### Learn by Example
+The segment after the kind letter is the namespace. [Two shapes grant deploy
+authority][namespace-rule]: the deployer's own address,
+`gno.land/r/g1abc.../myrealm`, always; and a registered name,
+`gno.land/r/alice/myrealm`, when `r/sys/users` maps that name to the deployer
+as their current name. The check is a call the keeper makes into
+[`r/sys/names`][names-verifier] on every upload. Names are registered through
+[`r/sys/namereg/v1`][namereg], [free by default and priced by
+GovDAO][register-price], and the two fresh testnets enforce the check [from
+block one][pearl-genesis].
 
-The **[r/docs](https://staging.gno.land/r/docs/home)** realm is an on-chain index
-of interactive tutorials: Hello World, MiniSocial, AVL Pager, Solidity patterns,
-and more. Each example is a working realm you can read, deploy, and modify.
-More examples are being added in [PR #5016](https://github.com/gnolang/gno/pull/5016).
+### Gas and storage
 
-### Good Practices
+Two costs, both in `ugnot`, one millionth of a GNOT.
 
-On-chain code is **permanent and public**. These rules save you from costly mistakes:
+- **Gas** pays for computation and is spent. Each opcode, allocation and store
+  access has a calibrated price, the mechanism is in [the GnoVM
+  doc](gnovm-architecture.md#gas-and-memory). The whole `-gas-fee` is taken
+  whatever the transaction consumed, [as the fee doc states][gas-charged] and
+  [issue 3805][issue-3805] tracks.
+- **Storage deposit** pays for bytes and comes back. When a call leaves a
+  realm holding more bytes than before, the caller locks
+  `delta × storage_price` into the realm's deposit address; freeing bytes
+  refunds the same. The code default is [100 ugnot per byte][storage-price],
+  which makes one GNOT buy ten kilobytes and one billion GNOT ten terabytes,
+  the number the Constitution is built on.
 
-- **Every state change costs gas.** Minimize writes. Batch when possible.
-- **All code is visible on-chain.** Never put secrets, private keys, or passwords in your code.
-- **Transactions are irreversible.** Test thoroughly with `gno test` and `gnodev` before deploying.
-- **Storage costs real money.** Clean up state you no longer need to reclaim your deposit.
-- **Panics roll back the entire transaction.** Use them intentionally for access control, not for error reporting.
-- **Validate all inputs.** Anyone can call your public functions with any arguments.
-- **Use `ownable` for access control.** Do not roll your own admin checks.
-- **Prefer `avl.Tree` over maps.** Gno maps are deterministic (insertion-order, unlike Go), but this is an implementation detail. Maps load all data at once; AVL trees lazy-load nodes, iterate in sorted key order, and support pagination via [`pager`](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/pager).
-- **Keep `Render()` cheap.** It runs on every page view. Avoid heavy computation in it.
-- **Import paths are permanent.** Once deployed, a realm's path cannot change. Choose carefully.
+![Four sources feed one gas meter. Only the storage deposit comes
+back.](figures/gas-sources.svg)
 
-For deeper guidance (global variables, panic as control flow, `init()` as constructor,
-package organization, safe objects, coins vs GRC20), read
-**[Effective Gno](https://docs.gno.land/resources/effective-gno)**.
+### Learn by example
 
----
+The [`r/docs`][r-docs] realm family is an on-chain index of small working
+realms, each readable, deployable and modifiable: `hello`, `adder`,
+`minisocial`, `avl_pager`, `routing`, `events`, `safeobjects`,
+`soliditypatterns`, `txlink`, `charts`, `markdown` and more. It renders at
+[staging.gno.land/r/docs](https://staging.gno.land/r/docs).
+
+### Good practices
+
+On-chain code is permanent and public. The rules that save the most:
+
+- **Every write costs gas and bytes.** Batch writes, and free what you no
+  longer need to get the deposit back.
+- **Never put a secret in code.** Source is public, tests included.
+- **Test before deploying.** `gno test` for logic, `gnodev` for the rendered
+  result. A deployed path can never be reused.
+- **Panics roll back the whole transaction.** Use them for access control and
+  invalid input, not to report recoverable errors.
+- **Validate every argument.** Anyone can call a public function.
+- **Use `ownable`** from `p/nt/ownable/v0` rather than a hand-written admin
+  check.
+- **Prefer `avl.Tree` to a map** for anything that grows. A map loads whole;
+  a tree loads one path per read, iterates in key order and pages through
+  [`p/nt/avl/v0/pager`][pager].
+- **Keep `Render` cheap.** It runs on every page view, under a query gas
+  limit.
+- **Read the caller from `cur`.** `cur.Previous()` is the unforgeable caller
+  of a crossing function; the stack-walking `unsafe` package is for the rare
+  case where transaction-level identity is what you want.
+
+[Effective Gno](https://docs.gno.land/resources/effective-gno) goes deeper:
+global variables, `init` as a constructor, package layout, safe objects, coins
+versus GRC-20 tokens.
 
 ## Networks
 
-| Network | Chain ID | URL | RPC | Purpose |
-|---------|----------|-----|-----|---------|
-| Betanet | `gnoland1` | https://gno.land | `https://rpc.gno.land:443` | Main network |
-| Staging | `staging` | https://staging.gno.land | `https://rpc.staging.gno.land:443` | Rolling testnet, rebuilds from latest `master` |
-| Test12 | `test12` | https://test12.testnets.gno.land | `https://rpc.test12.testnets.gno.land:443` | Stable testnet, persisted state |
-| Local | `dev` | http://localhost:8888 | `http://127.0.0.1:26657` | Local dev via `gnodev` |
+Measured on 2026-09-05 by asking each RPC endpoint for its `status`.
 
-**Faucet:** [faucet.gno.land](https://faucet.gno.land) (select your network)
+| Network | Chain id | Web | RPC | Purpose |
+| --- | --- | --- | --- | --- |
+| Betanet | `gnoland1` | https://gno.land | `https://rpc.gno.land:443` | The main network. Height 3.66 million, node `v1.0.0-rc.0`. `ugnot` is a restricted denomination there, see below. |
+| Staging | `staging` | https://staging.gno.land | `https://rpc.staging.gno.land:443` | Rolling testnet rebuilt from `master`; every package under `examples/` is redeployed each cycle |
+| Pearl | `pearl-1` | https://pearl.testnets.gno.land | `https://rpc.pearl.testnets.gno.land:443` | Fresh chain, genesis 2026-08-27, three founding validators, [namespace enforcement on from block one][pearl-genesis] |
+| Sapphire | `sapphire-1` | https://sapphire.testnets.gno.land | `https://rpc.sapphire.testnets.gno.land:443` | Fresh chain, two founding validators, [same package set][sapphire-genesis] |
+| Local | `dev` | http://localhost:8888 | `http://127.0.0.1:26657` | `gnodev` |
+
+Test11, test12 and test13 no longer answer. A third fresh chain, topaz, has
+[its genesis prepared][topaz-genesis] and no reachable endpoint yet. Test
+tokens come from [faucet.gno.land](https://faucet.gno.land), which asks for
+the network.
+
+Staging keeps its history through rebuilds by archiving every transaction,
+pulling `master`, and replaying the archive into the new genesis, [as the
+networks doc describes][staging-cycle]. A breaking change on `master` makes
+old transactions fail to replay, so data can be lost, and heights and
+timestamps cannot be relied on.
+
+![The staging chain's rebuild loop: archive, pull master, replay into a new
+genesis.](figures/staging-cycle.svg)
 
 **Live parameters are not the code defaults.** Read one with
-`gnokey query params/<module>:p:<key> -remote <rpc>`. Measured 2026-09-03:
+`gnokey query params/<module>:p:<key> -remote <rpc>`. Measured 2026-09-05:
 
 | Parameter | Code default | Staging | Betanet |
-|-----------|--------------|---------|---------|
-| `vm:p:default_deposit` | `100000000ugnot` | `600000000ugnot` | `600000000ugnot` |
-| `vm:p:storage_price` | `100ugnot` | `100ugnot` | `100ugnot` |
-| `auth:p:initial_gasprice` | `1ugnot/1000gas` | `1ugnot/1000gas` | `1ugnot/1000gas` |
+| --- | --- | --- | --- |
+| `vm:p:default_deposit` | [`600000000ugnot`][vm-params-defaults] | `600000000ugnot` | `600000000ugnot` |
+| `vm:p:storage_price` | [`100ugnot`][storage-price] | `100ugnot` | `100ugnot` |
+| `auth:p:initial_gasprice` | | `1ugnot` per `1000` gas | `1ugnot` per `1000` gas |
 | `bank:p:restricted_denoms` | none | none | `ugnot` |
+| `vm:p:chain_domain` | `gno.land` | `gno.land` | `gno.land` |
 
 A restricted `ugnot` sends a storage-deposit refund to the storage fee
-collector, not to the sender. `-gas-fee` is the whole fee for a transaction,
-accepted when it is at least `-gas-wanted` divided by 1000 at that gas price.
-
-> Full network details: [Gno Networks](https://docs.gno.land/resources/gnoland-networks)
-
----
+collector instead of the sender. `-gas-fee` is the whole fee for a
+transaction; it is accepted when it covers `-gas-wanted` at the current price,
+one ugnot per thousand gas on both networks today.
 
 ## Quickstart on Staging
 
-All commands target staging. Copy-paste and run.
+Every command targets staging. Copy, paste, run.
 
 **1. Create a key**
 
 ```bash
 gnokey add MyKey
-# Save the mnemonic. Note your g1... address.
 ```
 
-**2. Get test tokens** at [faucet.gno.land](https://faucet.gno.land) (select staging).
+**2. Get test tokens** at [faucet.gno.land](https://faucet.gno.land), then
+check them:
 
 ```bash
 gnokey query bank/balances/<your-address> -remote "https://rpc.staging.gno.land:443"
@@ -219,8 +316,12 @@ gnokey query bank/balances/<your-address> -remote "https://rpc.staging.gno.land:
 
 ```bash
 mkdir myapp && cd myapp
-gno mod init gno.land/r/myname/myapp
+gno mod init gno.land/r/<your-address>/myapp
 ```
+
+Deploying under your own address needs no registration. A name such as
+`gno.land/r/myname/...` needs the name registered to you first, see
+*Namespaces*.
 
 `myapp.gno`:
 
@@ -238,39 +339,48 @@ func Render(path string) string {
 }
 ```
 
+`Increment` takes `cur realm`, which makes it a crossing function, the only
+kind a transaction can call. `Render` is read-only and takes none.
+
 **4. Test locally**
 
 ```bash
-gnodev    # visit http://localhost:8888/r/myname/myapp
+gno test .
+gnodev .    # http://localhost:8888/r/<your-address>/myapp
 ```
 
 **5. Deploy**
 
 ```bash
 gnokey maketx addpkg \
-  -pkgpath "gno.land/r/myname/myapp" -pkgdir "." \
-  -gas-fee 8000ugnot -gas-wanted 8000000 \
+  -pkgpath "gno.land/r/<your-address>/myapp" -pkgdir "." \
+  -gas-fee 8000ugnot -gas-wanted 8000000 -max-deposit 600000000ugnot \
   -broadcast -chainid staging -remote "https://rpc.staging.gno.land:443" \
   MyKey
 ```
 
-View at: `https://staging.gno.land/r/myname/myapp`
+`-max-deposit` caps the storage deposit the upload may lock. Run with
+`-simulate only` first to see the gas and bytes it will use.
 
 **6. Call a function**
 
 ```bash
 gnokey maketx call \
-  -pkgpath "gno.land/r/myname/myapp" -func "Increment" \
+  -pkgpath "gno.land/r/<your-address>/myapp" -func "Increment" \
   -gas-fee 2000ugnot -gas-wanted 2000000 \
   -broadcast -chainid staging -remote "https://rpc.staging.gno.land:443" \
   MyKey
 ```
 
+The keeper [writes the call as `pkg.Increment(cross, ...)` and substitutes
+the transaction's signer for `cross`][call-origin], so `cur.Previous()`
+inside `Increment` is your address.
+
 **7. Query**
 
 ```bash
 gnokey query vm/qrender \
-  -data "gno.land/r/myname/myapp:" -remote "https://rpc.staging.gno.land:443"
+  -data "gno.land/r/<your-address>/myapp:" -remote "https://rpc.staging.gno.land:443"
 ```
 
 **8. Send tokens**
@@ -283,587 +393,615 @@ gnokey maketx send \
   MyKey
 ```
 
----
+## Standard library and notable packages
 
-## Standard Library & Notable Packages
+### The chain packages
 
-### Gno standard library (`chain/*`)
+The old `std` package is gone. Chain access lives in `chain`, `chain/runtime`,
+`chain/runtime/unsafe`, `chain/banker` and `chain/params`, all
+[under `gnovm/stdlibs`][stdlibs-chain]. The lists below are the exported
+names at this commit.
 
-The `std` package has been refactored into `chain`, `chain/runtime`, and
-`chain/banker`. Import these directly in your code.
+| Package | Exports | Use |
+| --- | --- | --- |
+| [`chain`][chain-pkg] | `Coin`, `Coins`, `NewCoin`, `NewCoins`, `CoinDenom`, `Emit`, `PackageAddress`, `DeriveStorageDepositAddr`, `PubKeyAddress` | Coins, events, address derivation |
+| [`chain/runtime`][runtime-pkg] | `AssertOriginCall`, `ChainID`, `ChainDomain`, `ChainHeight`, `GetSessionInfo`, `NewRealm` | Chain facts, and whether the call came straight from a transaction |
+| [`chain/runtime/unsafe`][unsafe-pkg] | `CurrentRealm`, `PreviousRealm`, `OriginCaller`, `OriginSend` | Stack-walking identity. Named `unsafe` because [a non-crossing helper sees the outermost crossing realm, not its caller][unsafe-doc]; prefer `cur.Previous()` |
+| [`chain/banker`][banker-pkg] | `NewBanker`, `NewReadonlyBanker`, `IsCanonical`, the `Banker` interface | Moving coins, in [four privilege levels][banker] |
+| [`chain/params`][params-pkg] | `SetString`, `SetInt64`, `SetBool`, ... | Writing chain parameters, for the `sys` realms |
+| `testing` (tests only) | `SetRealm`, `SetOriginCaller`, `SetOriginSend`, `SkipHeights`, `IssueCoins`, `NewUserRealm`, `NewCodeRealm` | [Rewriting the mock context][testing-overrides] inside `gno test` |
 
-| Function/Type | Package | Description |
-|---------------|---------|-------------|
-| `address` | built-in | Gno address type (bech32 `g1...`) |
-| `runtime.CurrentRealm()` | `chain/runtime` | Current realm (address + pkg path) |
-| `runtime.PreviousRealm()` | `chain/runtime` | Calling realm (caller auth) |
-| `runtime.AssertOriginCall()` | `chain/runtime` | Assert direct user call (not cross-realm) |
-| `runtime.ChainID()` | `chain/runtime` | Current chain ID |
-| `runtime.ChainHeight()` | `chain/runtime` | Current block height |
-| `runtime.OriginCaller()` | `chain/runtime` | Original transaction sender |
-| `chain.Emit()` | `chain` | Emit events |
-| `chain.Coin`, `chain.Coins` | `chain` | Coin types |
-| `chain.CoinDenom()` | `chain` | Coin denomination for a realm |
-| `banker.NewBanker()` | `chain/banker` | Create banker for coin operations |
-| `banker.OriginSend()` | `chain/banker` | Coins sent with the transaction |
+The builtin type `address` carries the bech32 `g1...` string. The builtin
+type `realm` is what `cur` is: `cur.Address()`, `cur.PkgPath()`,
+`cur.Previous()`, and the `IsUser`, `IsRealm`, `IsCurrent` classifiers.
 
-### Notable packages
+Of Go's standard library, [these packages exist at this commit][stdlib-list]:
 
-| Package | Path | Description |
-|---------|------|-------------|
-| **avl** | `gno.land/p/nt/avl/v0` | AVL tree, the fundamental ordered key-value store. Preferred over maps for on-chain state. |
-| **ufmt** | `gno.land/p/nt/ufmt/v0` | Simplified `fmt` for on-chain use (since `fmt` is test-only) |
-| **ownable** | `gno.land/p/nt/ownable/v0` | Ownership pattern for access control |
-| **pausable** | `gno.land/p/nt/pausable/v0` | Pause/unpause functionality |
-| **mux** | `gno.land/p/nt/mux/v0` | Router for `Render()` paths (like `http.ServeMux`) |
-| **seqid** | `gno.land/p/nt/seqid/v0` | Sequential IDs, ordered correctly in AVL trees |
-| **pager** | `gno.land/p/nt/pager` | Pagination helper for AVL tree iteration |
-| **addrset** | `gno.land/p/moul/addrset` | Unique address collection with membership checking |
-| **mgroup** | `gno.land/p/n2p5/mgroup` | [Managed group](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/n2p5/mgroup) with owner, backup owners, and member roles |
-| **daokit** | `gno.land/p/samcrew/daokit` | [DAO framework](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/samcrew/daokit) with role-based membership (basedao) |
-| **uassert** | `gno.land/p/nt/uassert/v0` | Test assertions |
-| **urequire** | `gno.land/p/nt/urequire/v0` | Test assertions (fail immediately) |
+```
+bufio bytes chain crypto/bech32 crypto/chacha20 crypto/cipher crypto/ed25519
+crypto/sha256 crypto/subtle encoding encoding/base32 encoding/base64
+encoding/binary encoding/csv encoding/hex errors hash hash/adler32 html
+internal/bytealg io math math/bits math/overflow math/rand net/url path
+regexp regexp/syntax sort strconv strings sys/params time unicode
+unicode/utf16 unicode/utf8
+```
+
+`fmt` [exists only under test][fmt-tests]; on chain use `ufmt`.
+
+### Notable pure packages
+
+Paths are under `gno.land/p/`, in the monorepo's [`examples/`][examples-p].
+
+| Package | Path | What it is |
+| --- | --- | --- |
+| **avl** | `nt/avl/v0` | The ordered key-value store realms are built on. Lazy-loaded, iterable in key order. |
+| **avl pager** | `nt/avl/v0/pager` | Pagination over a tree, for `Render`. |
+| **bptree** | `nt/bptree/v0` | A B+ tree, the store behind GovDAO's member tiers. |
+| **ufmt** | `nt/ufmt/v0` | The on-chain `fmt`. |
+| **ownable** | `nt/ownable/v0` | One owner, transferable, with `AssertOwnedByPrevious`. |
+| **pausable** | `nt/pausable/v0` | Pause and resume a realm. |
+| **mux** | `nt/mux/v0` | A router for `Render` paths, in the shape of `http.ServeMux`. |
+| **seqid** | `nt/seqid/v0` | Sequential ids that sort correctly as tree keys. |
+| **uassert**, **urequire** | `nt/uassert/v0`, `nt/urequire/v0` | Test assertions, the second failing fast. |
+| **commondao**, **poa**, **treasury** | `nt/commondao`, `nt/poa`, `nt/treasury` | DAO, proof-of-authority and treasury building blocks under the `nt` namespace. |
+| **addrset** | `moul/addrset` | A set of addresses. |
+| **mgroup** | `n2p5/mgroup` | A managed group: owner, backup owners, members. |
+| **daokit** | `samcrew/daokit` | A DAO framework with role-based membership. |
 
 ### Token standards
 
-| Standard | Path | Description |
-|----------|------|-------------|
-| **GRC-20** | `gno.land/p/demo/tokens/grc20` | Fungible token (like ERC-20) |
-| **GRC-721** | `gno.land/p/demo/tokens/grc721` | NFT (like ERC-721) |
-| **GRC-1155** | `gno.land/p/demo/tokens/grc1155` | Multi-token (like ERC-1155) |
+| Standard | Path | Kind |
+| --- | --- | --- |
+| **GRC-20** | `gno.land/p/demo/tokens/grc20` | Fungible token |
+| **GRC-721** | `gno.land/p/demo/tokens/grc721` | Non-fungible token |
+| **GRC-1155** | `gno.land/p/demo/tokens/grc1155` | Multi-token |
 
 ### Notable realms
 
-| Realm | Path | Description |
-|-------|------|-------------|
-| **wugnot** | `gno.land/r/gnoland/wugnot` | [Wrapped GNOT](https://gno.land/r/gnoland/wugnot) as GRC-20 |
-| **boards2** | `gno.land/r/gnoland/boards2/v1` | [Discussion forum](https://gno.land/r/gnoland/boards2/v1) with moderation |
-| **grc20reg** | `gno.land/r/demo/defi/grc20reg` | [Central registry](https://gno.land/r/demo/defi/grc20reg) of GRC-20 tokens |
-| **gov/dao** | `gno.land/r/gov/dao` | [Governance DAO](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gov/dao) proxy with proposals, voting, and executor system (see [Governance section](#governance-govdao)) |
-| **gov/dao memberstore** | `gno.land/r/gov/dao/v3/memberstore` | [Tiered membership store](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gov/dao/v3/memberstore) (T1/T2/T3) for GovDAO |
-| **sys/validators** | `gno.land/r/sys/validators/v2` | [Validator set management](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys/validators/v2) via GovDAO proposals (Proof of Contribution) |
-| **sys/users** | `gno.land/r/sys/users` | [User registration](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys/users) and name resolution |
-| **disperse** | `gno.land/r/demo/disperse` | [Batch-send](https://gno.land/r/demo/disperse) coins/tokens to multiple addresses |
-| **chess** | `gno.land/r/morgan/chess` | [Full on-chain chess server](https://gno.land/r/morgan/chess) |
+| Realm | Path | What it is |
+| --- | --- | --- |
+| **wugnot** | `gno.land/r/gnoland/wugnot` | [Wrapped GNOT](https://gno.land/r/gnoland/wugnot) as a GRC-20 |
+| **boards2** | `gno.land/r/gnoland/boards2/v1` | [Discussion boards](https://gno.land/r/gnoland/boards2/v1) with moderation |
+| **grc20reg** | `gno.land/r/demo/defi/grc20reg` | [Registry](https://gno.land/r/demo/defi/grc20reg) of GRC-20 tokens |
+| **gov/dao** | `gno.land/r/gov/dao` | [The governance proxy](https://gno.land/r/gov/dao), see *Governance* |
+| **sys/validators** | `gno.land/r/sys/validators/v2`, `v3` | Validator set changes through GovDAO proposals; [the fresh chains run v3][pearl-genesis] |
+| **sys/params** | `gno.land/r/sys/params` | Chain parameters, set by proposal |
+| **sys/users**, **sys/namereg** | `gno.land/r/sys/users`, `gno.land/r/sys/namereg/v1` | Name to address registry, and the realm that registers names for a price |
+| **sys/names** | `gno.land/r/sys/names` | The namespace verifier the keeper calls on every upload |
+| **sys/txfees**, **sys/rewards** | `gno.land/r/sys/txfees`, `gno.land/r/sys/rewards` | Fee distribution and contribution rewards; [both are stubs at this commit][txfees-todo] |
+| **valopers** | `gno.land/r/gnops/valopers` | Validator operator profiles, seeded at genesis on the fresh chains |
+| **disperse** | `gno.land/r/demo/disperse` | [Batch sends](https://staging.gno.land/r/demo/disperse) of coins and tokens |
+| **chess** | `gno.land/r/morgan/chess` | [A chess server](https://staging.gno.land/r/morgan/chess) with a lobby |
+| **hor** | `gno.land/r/leon/hor` | [Hall of realms](https://staging.gno.land/r/leon/hor), an exhibition of community realms |
 
----
+The last three render on staging; betanet does not carry them.
 
-## Interrealm Programming
+## Interrealm programming
 
-Gno is a **multi-user programming language**: importing and calling another
-user's code uses the same syntax as importing a library. The interrealm spec
-defines how these interactions work safely.
+Gno is a multi-user language: importing another user's realm uses the same
+syntax as importing a library. Two questions are kept apart inside the VM,
+[per the interrealm specification][interrealm-v2]: who is acting, the
+identity, and whose storage is being written, the storage realm. The
+mechanics are in [the GnoVM
+doc](gnovm-architecture.md#interrealm-identity-and-authority); this is the
+builder's view.
 
-In Solidity, calling another contract implicitly shifts `msg.sender`. In Gno,
-every realm-context transition is **explicit** via the `cross` keyword. The
-compiler enforces it.
+### Crossing functions and `cur`
 
-### How Crossing Works
+A crossing function has `cur realm` as its first parameter. It is the only
+kind of function a transaction can call, and the only kind that can tell who
+called it. Call it as `f(cross(cur), args...)` to switch identity to the
+callee's realm, or as `f(cur, args...)` inside its own realm to keep the
+current one. The [examples use `cross(cur)` about two thousand
+times][cross-count]; the bare `cross` in older text is the transaction-level
+form the keeper writes for you.
 
-A **crossing function** declares `cur realm` as its first parameter. Call it
-with `cross` to switch realm-context:
+Each crossing call mints a new `cur` whose `Previous()` is the caller's realm.
+At the root, the keeper [substitutes the transaction signer][call-origin]. So
+`cur.Previous()` is a linked list back to the user, and cannot be forged from
+a helper.
 
-- `fn(cross, ...)`: switches realm-context to the callee's realm
-- `fn(cur, ...)`: calls a crossing function within the same realm without switching context
-
-**Cross call: `bank.Debit(cross, myToken, 10)`**
-
-```
-  User (g1abc...)                /r/bob/app                    /r/alice/bank
-  ──────────────                ────────────                  ──────────────
-        │                            │                              │
-        │  gnokey maketx call        │                              │
-        │  ─────────────────────>    │                              │
-        │  (cross into /r/bob/app)   │                              │
-        │                            │                              │
-        │                  Previous: g1abc...                       │
-        │                  Current:  /r/bob/app                     │
-        │                            │                              │
-        │                            │  bank.Debit(cross, ...)      │
-        │                            │  ──────────────────────>     │
-        │                            │  (cross into /r/alice/bank)  │
-        │                            │                              │
-        │                            │                    Previous: /r/bob/app
-        │                            │                    Current:  /r/alice/bank
-        │                            │                    CAN read myToken
-        │                            │                    CANNOT write myToken
-        │                            │                              │
-        │                            │  <──────────────────────     │
-        │                            │  (Debit returns)             │
-        │                            │                              │
-        │                  Previous: g1abc...                       │
-        │                  Current:  /r/bob/app                     │
-        │                            │  (identity restored)         │
-        │                            │                              │
-```
-
-**Non-crossing call: `bank.DebitLocal(myToken, 10)`**
-
-```
-  User (g1abc...)                /r/bob/app
-  ──────────────                ────────────
-        │                            │
-        │                  Previous: g1abc...     (unchanged)
-        │                  Current:  /r/bob/app   (unchanged)
-        │                            │
-        │                            │  bank.DebitLocal(myToken, 10)
-        │                            │  (no crossing, runs in bob's context)
-        │                            │  CAN write myToken (bob owns it)
-        │                            │  Alice does NOT know who called
-        │                            │
-```
-
-Each `cross` call shifts the identity: what was Current becomes Previous.
-This is how a realm knows who is calling it.
-
-**Crossing = identity and access control.** The callee gets its own identity
-and can check who called, but cannot write objects that live elsewhere.
-
-**Non-crossing = data manipulation.** No identity shift. The function can
-write the object because it runs in the caller's context.
-
-### Why not just do it implicitly?
-
-Solidity does: every external call silently shifts `msg.sender`, and the callee
-can call back into the caller before it finishes. This is the **reentrancy
-bug**. A vault contract sends ETH to an attacker, the attacker's fallback
-function calls `withdraw()` again, and drains the vault because the balance
-was not yet updated. This caused the 2016 DAO hack ($60M lost).
-
-Gno prevents this by design. Context switches are explicit (`cross`), so you
-can see every identity change in the source. More importantly, a crossing
-function **cannot write objects that live in another realm**. Even if a callee
-calls back, it cannot mutate your state directly: it would need you to expose
-a crossing function that does the mutation, and that function would see the
-callee as the caller (not the original user). The attack surface disappears.
-
-**Code:**
+![cur is a linked list of identities built by crossing calls, back to the
+transaction signer.](figures/cur-chain.svg)
 
 ```go
-// /r/alice/bank — defines Token and two functions
+// gno.land/r/alice/bank
 package bank
 
 type Token struct{ Balance int }
 
-// Crossing: has `cur realm`, must be called with `cross`.
+// Crossing: called as bank.Debit(cross(cur), t, 10) from another realm.
 func Debit(cur realm, t *Token, amount int) {
-    caller := runtime.PreviousRealm() // who called me?
-    // t.Balance -= amount            // FAILS: t lives in bob's realm
+    caller := cur.Previous()     // the realm that crossed into us
+    // t.Balance -= amount       // panics: t is a readonly view of bob's object
+    _ = caller
 }
 
-// Non-crossing: regular function, no `cur realm`.
+// Non-crossing: runs with the caller's storage, so it may write t.
 func DebitLocal(t *Token, amount int) {
-    t.Balance -= amount               // OK: runs in bob's context
+    t.Balance -= amount
 }
+```
 
-// /r/bob/app — owns a Token
+```go
+// gno.land/r/bob/app
 package app
 
 import "gno.land/r/alice/bank"
 
-var myToken = &bank.Token{Balance: 100} // lives in bob's realm
+var myToken = bank.NewToken(100) // lives in bob's realm
 
 func Spend(cur realm) {
-    bank.Debit(cross, myToken, 10)  // alice knows bob called, can't write myToken
-    bank.DebitLocal(myToken, 10)    // no identity shift, can write myToken
+    bank.Debit(cross(cur), myToken, 10) // alice sees bob as the caller
+    bank.DebitLocal(myToken, 10)        // same identity; writes bob's object
 }
 ```
 
-### Key Rules
+`myToken` comes from a constructor because a realm [may only build another
+realm's types through that realm's own functions][checkconstruction]: a
+`bank.Token{}` literal in `app` would panic at the allocation.
 
-- **Public functions** for end users **must** be crossing (`func Foo(cur realm, ...)`). End users can only call crossing functions (via `gnokey maketx call`). This is because a cross-call establishes the caller's identity via `runtime.PreviousRealm()`: without it, the realm has no way to know who is calling, making access control impossible.
-- **Methods** should generally be non-crossing, they work regardless of where the receiver lives
-- **P packages** cannot contain crossing functions and cannot import realms
-- You **cannot** directly modify another realm's objects (they are read-only from outside). To change them, you must call a function on that realm that performs the modification.
-- A `panic()` crossing a realm boundary **aborts** the transaction
+### What the VM decides for each call
 
-> Full spec: [Interrealm Spec](https://docs.gno.land/resources/gno-interrealm) |
-> [Whitepaper](https://github.com/gnolang/gno/blob/master/docs/gnoland-whitepaper.tex)
+![Six calls a realm can make against another realm's code and storage, and
+what the VM decides for each.](figures/interrealm-cases.svg)
 
----
+The storage realm for a call that does not cross follows [three borrow
+rules][borrow-rules]: a realm's own code writes its own storage; a `p/`
+method on a receiver owned by a realm writes that realm's storage, which is
+how `avl.Tree.Set` works; a closure made by a `p/` package writes the storage
+that was active when it was created. Three gates then refuse the rest: values
+read from another realm are [readonly][readonlypanic], a real object of
+another realm [cannot be written][isreadonlyby], and another realm's types
+[cannot be constructed][checkconstruction].
+
+### Why explicit crossing
+
+In Solidity every external call silently shifts `msg.sender`, and the callee
+may call back into the caller before it finishes: the reentrancy bug behind
+the 2016 DAO drain. In Gno the identity change is written in the source, and
+a callee cannot write the caller's objects at all. Even if it calls back, it
+needs a crossing function the caller exported, and that function sees the
+callee, not the user, as its caller. A panic that crosses a realm boundary
+[aborts the whole transaction][panic-boundary], so a callee cannot leave a
+caller half-written either.
+
+### Rules to keep
+
+- A function meant for users **must** be crossing. `gnokey maketx call`
+  [refuses a non-crossing function][keeper-crossing-check].
+- Methods are usually non-crossing: they work on the receiver wherever it
+  lives.
+- A `p/` package cannot declare a crossing function and cannot import a realm.
+- Another realm's objects are read-only from outside. To change one, call a
+  function that realm exports.
+- `unsafe.PreviousRealm` and `unsafe.CurrentRealm` walk the stack and
+  [can be fooled from a helper][unsafe-doc]. Use `cur`.
 
 ## Governance (GovDAO)
 
-GovDAO is the governance of gno.land. It controls validator selection,
-treasury spending, and chain parameters. The chain operates as a **Proof of
-Authority** system where GovDAO members select validators. The
-[Constitution](https://github.com/gnolang/gno/blob/master/docs/CONSTITUTION.md)
-describes a "Proof of Contribution" philosophy, but in practice contribution
-evaluation is subjective, the initial membership was hand-picked, and there is
-no on-chain mechanism to measure contributions objectively.
+GovDAO selects validators, spends the treasuries and sets chain parameters.
+The chain runs as proof of authority: members vote validators in and out. The
+[Constitution][constitution] describes a proof-of-contribution philosophy; on
+chain, membership is what the tiers below encode, and a fresh chain starts
+[with a single T1 member][pearl-genesis] who proposes the rest.
 
-On-chain code: [`r/gov/dao`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gov/dao)
+The code is [`r/gov/dao`][gov-dao], a proxy that [delegates to a pluggable
+implementation][dao-proxy], today [`r/gov/dao/v3/impl`][dao-impl], with
+members in [`r/gov/dao/v3/memberstore`][memberstore].
 
 ### Tiers
 
-| Tier | Voting Power | Selection |
-|------|-------------|-----------|
-| **T1** (core) | 3 | Supermajority vote from T1 |
-| **T2** | 2 | Supermajority vote from T1+T2 |
-| **T3** | 1 | Invited by any T1/T2 member (costs 1 invitation point) |
+[Measured from the member store's `init`][tiers]:
 
-T1 members get 3 invitation points, T2 get 2, T3 get 1.
+| Tier | Base power | Invitation points | Size rule | Power cap |
+| --- | --- | --- | --- | --- |
+| **T1** | 3 | 3 | at least 70 members | none |
+| **T2** | 2 | 2 | between a quarter and twice the T1 count | the tier's total power is capped at two thirds of T1's; the per-member power shrinks to fit |
+| **T3** | 1 | 1 | none | capped at one third of T1's total |
 
-Proposals can restrict which tiers are allowed to vote. For example, adding a
-T1 member only allows T1 to vote; adding a T2 member allows T1+T2 to vote.
+T1 and T2 members are added by proposal, [and only to those two
+tiers][add-member-tiers]; a T1 or T2 member [adds a T3 member directly by
+spending one invitation point][add-member-direct]. A member proposal
+[restricts the vote to the target tier][filter-by-tier].
 
 ### Proposals
 
-`r/gov/dao` is a proxy that delegates to a pluggable implementation (currently
-[`r/gov/dao/v3/impl`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gov/dao/v3/impl)).
-Each proposal carries an **executor** -- an arbitrary on-chain callback that
-runs when the proposal passes.
+Every proposal carries an executor, a callback that runs when it passes. The
+lifecycle, [from the implementation][accept-deny]:
 
-1. A member creates a proposal with a title, description, and executor
-2. Members vote YES, NO, or ABSTAIN
-3. Percentages are computed against **total eligible voting power** (not just
-   votes cast), so not voting has the same effect as voting NO
-4. At **66.66% YES**, the proposal passes and the executor runs
-5. At **66.66% NO**, the proposal is denied
+1. A member creates a proposal with a title, a description and an executor.
+2. Members vote YES, NO or ABSTAIN.
+3. Percentages are computed against the total eligible voting power, so not
+   voting weighs like a NO.
+4. At [66.66 percent][supermajority] YES the proposal is accepted and the
+   executor runs. At 66.66 percent NO it is denied.
 
-The 66.66% threshold is the only one implemented on-chain. The Constitution's
-Simple Majority (>1/2) and Constitutional Majority (>9/10) are not enforced.
+The threshold is [the `Law` value][supermajority], itself changeable by
+proposal. The request types [at this commit][prop-requests]: change the law,
+upgrade the DAO implementation, add, withdraw or promote a member, pay from
+the treasury, update the treasury's GRC-20 token list.
 
-**Proposal types** ([`prop_requests.gno`](https://github.com/gnolang/gno/blob/master/examples/gno.land/r/gov/dao/v3/impl/prop_requests.gno)):
-add/withdraw/promote member, change the supermajority threshold, treasury
-payment, GRC-20 token list update, upgrade the DAO implementation.
+![The GovDAO tiers, their power caps, and a proposal's path from creation to
+execution.](figures/govdao.svg)
 
-### What GovDAO Controls
+### What GovDAO controls
 
 | Area | Realm |
-|------|-------|
-| **Validators** -- add/remove via proposals | [`r/sys/validators/v2`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys/validators/v2) |
-| **Chain parameters** -- gas prices, transfer locks | [`r/sys/params`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys/params) |
-| **Treasury** -- ugnot and GRC-20 payments | [`r/gov/dao/v3/treasury`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gov/dao/v3/treasury) |
+| --- | --- |
+| Validators | [`r/sys/validators/v2`][validators-v2], and `v3` on the fresh chains |
+| Chain parameters, gas price floors, transfer locks | [`r/sys/params`][sys-params] |
+| Treasury, ugnot and GRC-20 payments | [`r/gov/dao/v3/treasury`][treasury] |
+| Name registration: controllers, prices, emergency pause | [`r/sys/users`][sys-users], [`r/sys/namereg/v1`][namereg], [`r/sys/names`][names-verifier] |
 
-Namespace control (`r/sys/names`) is **not** governed by GovDAO -- it enforces
-a simple rule where addresses can only deploy to their own namespace.
+Deploying under your own address is never governed; a registered name is.
 
-> [Manifesto](https://github.com/gnolang/gno/blob/master/docs/MANIFESTO.md) |
-> [Memba](https://memba.samourai.app/test12/dao/gno.land/r/gov/dao) (GovDAO UI for proposals, voting, and member management)
-
----
+[Memba](https://memba.samourai.app) is a web interface for proposals, votes
+and membership, by [Samourai](https://github.com/samouraiworld/memba).
 
 ## Architecture
 
-### Cosmos, Tendermint, CometBFT, and Tendermint2
+### Cosmos, Tendermint, CometBFT and Tendermint2
 
-Understanding the lineage helps make sense of the stack:
-
-**BFT (Byzantine Fault Tolerance)** is a property of distributed systems that
-can reach agreement even when up to 1/3 of participants are malicious or
-unresponsive. The name comes from the
-[Byzantine Generals Problem](https://en.wikipedia.org/wiki/Byzantine_fault)
-(Lamport, 1982): how do generals coordinate an attack when some of them may be
-traitors? In a BFT blockchain, validators vote on blocks in rounds of
-propose/prevote/precommit. A block is finalized when 2/3+ of validators agree.
-Once finalized, it is permanent: there are no forks, no reorganizations, no
-"wait for 6 confirmations". This is called **instant finality**.
-
-Key terms used throughout this section:
+**BFT**, Byzantine fault tolerance, is the property of a distributed system
+that reaches agreement while up to one third of its participants are faulty
+or malicious. The name is Lamport's [Byzantine Generals
+Problem](https://en.wikipedia.org/wiki/Byzantine_fault) of 1982. In a BFT
+chain, validators vote on blocks in rounds of propose, prevote and precommit,
+and a block is final once more than two thirds agree. There are no forks and
+no reorganizations: **instant finality**.
 
 | Term | Meaning |
-|------|---------|
-| **Validator** | A node that participates in consensus by proposing and voting on blocks. Validators run the chain software and must stay online. |
-| **Proposer** | The validator selected to propose the next block in a given round. Selection is deterministic (all validators can independently compute who proposes). |
-| **Block** | A batch of transactions grouped together. Each block references the previous one by hash, forming the chain. |
-| **Height** | The block number. Height 1 is the first block, height 2 is the second, etc. |
-| **Round** | Within a single height, consensus may take multiple attempts. Each attempt is a round (starting at 0). If round 0 fails, round 1 tries with a new proposer. |
-| **Finality** | The guarantee that a committed block will never be reverted. In BFT chains this is instant: once committed, it is final. Proof-of-Work chains (like Bitcoin) have probabilistic finality: you wait for more blocks to be confident. |
-| **Halt** | When the chain stops producing blocks. Common causes: fewer than 2/3 of validators are online, or a determinism bug causes validators to compute different state for the same block (consensus cannot be reached). The chain resumes once the issue is resolved. No committed data is lost. |
-| **Supermajority** | 2/3+ of total validator voting power. Required for prevote and precommit steps. |
-| **Voting power** | A validator's weight in consensus. In Proof-of-Stake, this is proportional to staked tokens. A validator with more stake has more voting power. |
-| **Liveness** | The property that the chain will eventually make progress (produce new blocks) as long as enough honest validators are online. Timers in each consensus state guarantee liveness. |
-| **Safety** | The property that validators will never commit conflicting blocks at the same height. BFT guarantees safety as long as fewer than 1/3 of validators are Byzantine. |
-| **Slashing** | Penalizing a validator (by taking part of their stake) for misbehavior such as double-signing (voting for two different blocks at the same height). |
+| --- | --- |
+| **Validator** | A node that proposes and votes on blocks. It must stay online. |
+| **Proposer** | The validator chosen, deterministically, to propose the block of a given round. |
+| **Block** | A batch of transactions, referencing the previous block by hash. |
+| **Height** | The block number, from 1. |
+| **Round** | One attempt at consensus within a height. Round 0 failing, round 1 tries with a new proposer. |
+| **Finality** | A committed block is never reverted. Proof-of-work chains only get there probabilistically. |
+| **Halt** | The chain stops producing blocks: fewer than two thirds of validators online, or a determinism bug making validators disagree. Nothing committed is lost. |
+| **Supermajority** | More than two thirds of the voting power, needed to prevote and precommit. |
+| **Voting power** | A validator's weight. Proof of stake ties it to stake; gno.land assigns it by governance. |
+| **Liveness** | Blocks keep coming as long as enough honest validators are online. |
+| **Safety** | Validators never commit conflicting blocks at the same height, as long as fewer than a third are Byzantine. |
+| **Slashing** | A penalty on a validator's stake for misbehaviour such as signing two blocks at one height. |
 
-**Tendermint** (2014, Jae Kwon) was the first practical BFT consensus engine for
-blockchains. It separates consensus from application logic via ABCI (Application
-Blockchain Interface): the consensus engine proposes and orders transactions,
-the application decides what they mean. This is the core idea behind all Cosmos
-chains.
+**Tendermint** (2014, Jae Kwon) was the first practical BFT engine for
+blockchains. It separates consensus from the application through ABCI, the
+Application Blockchain Interface: consensus orders transactions, the
+application says what they mean.
 
-**Cosmos SDK** is a framework for building ABCI applications on top of
-Tendermint. Chains like the Cosmos Hub, Osmosis, and dYdX are all Cosmos SDK
-apps. They share the same consensus model but run different application logic.
+**Cosmos SDK** is the framework for ABCI applications on Tendermint. The
+Cosmos Hub, Osmosis and dYdX are Cosmos SDK chains.
 
-**CometBFT** is the current maintained fork of Tendermint, used by most Cosmos
-chains today. It added features (ABCI++, gRPC, Protobuf) but also grew in
-complexity and dependencies.
+**CometBFT** is the maintained fork of Tendermint most Cosmos chains run
+today, with ABCI++, gRPC and Protobuf, and the dependencies that come with
+them.
 
-**Tendermint2 (TM2)** is Jae Kwon's minimalist fork of the original Tendermint,
-built specifically for gno.land. It strips out gRPC, Protobuf, viper/cobra,
-and Prometheus. The philosophy: the code is the spec, minimal dependencies, all
-dependencies audited and vendored. TM2 was forked without git history, so the
-repository starts with a single large initial commit. TM2 currently lives in
-the gno monorepo at [`tm2/`](https://github.com/gnolang/gno/tree/master/tm2)
-and will become an
-[independent project](https://github.com/gnolang/gno/blob/master/tm2/README.md#tendermint2) after mainnet.
+**Tendermint2**, TM2, is Jae Kwon's minimal fork of the original Tendermint,
+kept in the monorepo at [`tm2/`][tm2]. It strips gRPC, Protobuf, viper, cobra
+and Prometheus: the code is the specification, every dependency is audited
+and vendored. [Once gno.land is on mainnet, TM2 is to operate independently
+at `tendermint/tendermint2`][tm2-independent]. Its README lists what is
+[still proposed][tm2-proposed], among it replacing the evidence reactor by an
+evidence mempool lane. The consensus state [still hands a duplicate vote to an
+evidence pool][evpool-add], but no penalty follows: there is no slashing.
 
-Because TM2 forked early and stripped aggressively, CometBFT has features that
-TM2 does not: ABCI++ (vote extensions, `FinalizeBlock`), gRPC queries, Protobuf
-encoding, and built-in Prometheus metrics. TM2 trades those for simplicity and
-auditability. There is also no validator penalty system: misbehaving validators
-(double-signing, extended downtime) are not automatically slashed. Accountability
-and slashing are not yet implemented
-(`tm2/pkg/bft/consensus/state.go:1411,1501`).
+A standalone consensus library, libtm, lived under `tm2/pkg/libtm` for a
+while and [was removed in pull request 5534][libtm-removed] after an analysis
+found integration not viable.
 
-**libtm** is a standalone consensus engine library (by Milos Zivkovic) that
-implements Algorithm 1 from the
-[Tendermint consensus whitepaper](https://arxiv.org/pdf/1807.04938.pdf). It is
-minimal by design: no validator set management, no networking, no signature
-logic. These are left to the calling context. libtm lives in the gno monorepo
-at [`tm2/pkg/libtm`](https://github.com/gnolang/gno/tree/master/tm2/pkg/libtm)
-but is **not integrated** into TM2's consensus: it has its own separate
-`go.mod` (`github.com/gnolang/libtm`), no code outside of libtm imports it,
-and the existing TM2 consensus engine
-(`tm2/pkg/bft/consensus/state.go`) is a completely separate implementation.
-libtm is an experimental library and is not planned to be merged into TM2.
+In short: Cosmos SDK chains run CometBFT, gno.land runs Tendermint2, both
+implement the same algorithm with instant finality, and TM2 trades features,
+slashing included, for simplicity.
 
-In short: Cosmos SDK apps use CometBFT. Gno.land uses Tendermint2. Both
-implement the same BFT consensus algorithm with instant finality, but TM2 is
-deliberately simpler and lacks some features CometBFT has (including slashing).
+### How the layers fit together
 
-### How the Layers Fit Together
+![From a signed transaction to the database: each layer hands one message to
+the next.](figures/vm-stack.svg)
 
-```
-+-----------------------------------------------------+
-|                    gno.land                          |
-|  (Blockchain node, ABCI app, SDK, CLI tools)         |
-+-----------------------------------------------------+
-|                     GnoVM                            |
-|  (Interpreter, parser, type-checker, preprocessor)   |
-+-----------------------------------------------------+
-|                  Tendermint2                          |
-|  (Consensus engine, P2P, mempool, RPC)               |
-+-----------------------------------------------------+
-```
+Tendermint2 orders transactions and hands each block to the application over
+ABCI: `CheckTx` validates, `DeliverTx` executes through the GnoVM, `Commit`
+persists. The application is a tm2 `BaseApp` whose `vm` route reaches the
+keeper, and the keeper builds one interpreter per message. After each
+transaction, every new or changed object of the realms touched is serialized
+and written; the Merkle root of the IAVL store is what validators compare at
+commit. The steps are in [the GnoVM
+doc](gnovm-architecture.md#how-gnoland-drives-the-vm).
 
-**ABCI** separates consensus from app logic. Tendermint2 handles consensus and
-block production; gno.land is the ABCI app that routes transactions to GnoVM
-for execution.
-
-```
-User tx via RPC --> Tendermint2 --> ABCI CheckTx (validate)
-                                --> ABCI DeliverTx (execute via GnoVM)
-                                --> ABCI Commit (persist state)
-```
-
-**GnoVM** interprets `.gno` source through: Parsing, Type-checking,
-Preprocessing, Execution.
-
-After each transaction, all realm state (global variables, objects, AVL tree
-nodes) is serialized and hashed into a Merkle tree (IAVL database). Validators
-compare the root hash at commit time to verify they all computed the same state.
-
-> Architecture details: [GnoVM Architecture](gnovm-architecture.md) |
-> [Tendermint consensus paper](https://arxiv.org/pdf/1807.04938.pdf) |
-> [Reaching Consensus](https://gno.land/r/gnoland/blog:p/reaching-consensus) (practical guide by Milos Zivkovic) |
-> [libtm](https://github.com/gnolang/gno/tree/master/tm2/pkg/libtm) |
-> [TM2 README](https://github.com/gnolang/gno/tree/master/tm2)
-
----
+[Reaching Consensus](https://gno.land/r/gnoland/blog:p/reaching-consensus) on
+the gno.land blog is a practical walk through TM2 consensus; [the Tendermint
+paper](https://arxiv.org/pdf/1807.04938.pdf) is the algorithm.
 
 ## Tokenomics
 
-Three tokens in the broader ecosystem
-([Constitution](https://github.com/gnolang/gno/blob/master/docs/CONSTITUTION.md)):
+Three tokens in the wider ecosystem, [per the Constitution][constitution]:
 
 | Token | Role |
-|-------|------|
-| **$ATONE** | Staking/governance on Atom.One (secures the network) |
-| **$PHOTON** | Gas fee token on Atom.One (pays for compute) |
-| **$GNOT** | Storage deposit token on gno.land (pays for on-chain bytes) |
+| --- | --- |
+| **ATONE** | Staking and governance on Atom.One, which is to secure gno.land |
+| **PHOTON** | Gas on Atom.One, and the token gno.land will pay Atom.One with |
+| **GNOT** | Storage deposit token on gno.land: it pays for persistent bytes |
 
-### $GNOT
+### GNOT
 
-- **Genesis supply:** 1 billion | **Max:** ~1.333 billion (hard cap)
-- **On-chain denomination:** `ugnot` (1 GNOT = 1,000,000 ugnot)
-- **1 billion $GNOT = 10TB** of persistent state space
-- Storage deposit: lock $GNOT proportional to storage used, refund on cleanup
-- Inflation: 3.333%/year decaying 10% annually ([`33.33 * 0.9^Y` M/year](https://github.com/gnolang/gno/blob/master/docs/CONSTITUTION.md#gnot-deflationary-inflation))
+[Genesis allocation][genesis-allocation], 1.333 billion GNOT in total:
 
-**[Genesis allocation](https://github.com/gnolang/gno/blob/master/docs/CONSTITUTION.md#genesis-allocation):** Airdrop1 35% | Airdrop2 23.1% | NT,LLC 23% | Ecosystem contributors 11.9% | Investors 7%
+| Allocation | GNOT |
+| --- | --- |
+| Airdrop 1, from a partial Cosmos governance snapshot | 350 M |
+| Airdrop 2, from an AtomOne snapshot before launch | 231 M |
+| Core treasury | 40 M |
+| Ecosystem treasury | 60 M |
+| Validator treasury | 20 M |
+| Investors | 300 M |
+| NT, LLC | 332 M |
 
-### How They Relate
+- On chain the unit is `ugnot`: one GNOT is one million ugnot.
+- [GNOT does not inflate][no-inflation]: the supply never exceeds 1.333
+  billion, and [no amendment may raise it][no-amendment].
+- [One billion GNOT corresponds to ten terabytes of state][ten-tb], which is
+  the code default of 100 ugnot per byte.
+- The storage price [never increases and may fall by at most ten percent a
+  year][storage-price-rule], and not while used storage exceeds a consumer
+  drive.
+- Genesis allocations [vest over thirteen months][vesting]: seven percent
+  when GNOT becomes transferable, seven percent a month, nine in the last.
 
-Gno.land launches independently, then migrates to **Atom.One ICS** (Inter-Chain
-Security). After migration: $ATONE secures, $PHOTON pays for compute, $GNOT
-pays for storage.
+### How the tokens relate
 
-> On testnets, `ugnot` is used for both gas and storage.
+Gno.land launches on its own validators, then [migrates to Atom.One
+interchain security][ics-migration] when GovDAO decides it is ready. After
+that ATONE secures, PHOTON pays Atom.One for compute, GNOT pays for storage.
+Until then, and on every testnet, `ugnot` pays for both gas and storage.
 
----
+![Where a transaction's ugnot goes: the fee to the collector, the deposit
+into the realm's deposit address and back.](figures/gnot-flows.svg)
 
-## Go vs Gno Compatibility
+## Go versus Gno
 
-Gno follows the Go 1.17 language specification (no generics, no goroutines/channels).
-The GnoVM itself is built with modern Go.
-
-**Not supported:**
+Gno [follows the Go 1.17 specification][compat-go117]; the VM is built with
+[Go 1.25][go-mod]. The [compatibility table][compat] is the reference. What
+is missing:
 
 | Feature | Status |
-|---------|--------|
-| Goroutines (`go`) | Not available (planned post-launch) |
-| Channels (`chan`, `select`) | Not available (planned post-launch) |
-| Generics | Not implemented |
-| `unsafe`, `cgo` | Will never be supported |
-| `net/*`, `os/*`, `syscall/*` | Non-deterministic; unavailable |
-| `complex64`, `complex128` | Not implemented |
-| `reflect` | Not yet (planned) |
+| --- | --- |
+| Goroutines, `go` | Missing, [after launch][compat-go117] |
+| Channels, `select` | Missing, after launch |
+| Generics | [Not implemented][issue-5063] |
+| `unsafe`, `cgo` | Never |
+| `net`, `os`, `syscall` | Non-deterministic, absent |
+| `complex64`, `complex128` | Missing |
+| `reflect` | [Listed as todo][compat-reflect] |
 
-**Key behavioral differences:**
+Behavioural differences that matter:
 
-- `time.Now()` returns block time, not system time
-- `fmt` only works in tests. Use `gno.land/p/nt/ufmt/v0` on-chain
-- `sort.Slice` is missing. Use `sort.Interface` + `sort.Sort`
-- `crypto/sha256` only has `Sum256`; `crypto/ed25519` only has `Verify`
-- `init()` runs once per realm lifetime (constructor), not per program start
-- `panic()` is used as control flow: it halts and rolls back the transaction
-- Global variables are encouraged in realms (the GnoVM auto-persists them)
-- Maps are deterministic (unlike Go's randomized iteration), but the iteration order is an implementation detail; prefer `avl.Tree` for lazy-loaded persistent storage
-- String to `[]byte` conversion: `cap == len` always (determinism)
-- Import paths use `gno.land/p/...` or `gno.land/r/...`, never `github.com/...`
-- Module config uses `gnomod.toml` (not `go.mod`)
+- `time.Now` returns the block time.
+- `fmt` [exists only in tests][fmt-tests]; use `ufmt` on chain.
+- `sort.Slice` [is missing][compat-sort]: implement `sort.Interface` and call
+  `sort.Sort`.
+- `crypto/sha256` has `Sum256` only; `crypto/ed25519` has `Verify` only.
+- `init` runs once, when the package is deployed, with the deployer as the
+  previous realm. It is a constructor, not a program start.
+- `panic` is control flow: it aborts and rolls back the transaction.
+- Global variables are the storage. The VM persists them.
+- Maps iterate in insertion order, deterministically, but load whole; prefer
+  `avl.Tree` for state that grows.
+- `[]byte(s)` has capacity equal to its length.
+- Import paths are `gno.land/p/...` and `gno.land/r/...`, never
+  `github.com/...`. The manifest is `gnomod.toml`.
 
-**Gno-only additions:** `bigint`, `bigdec`, `cross` keyword, `realm` type, `address` type.
+Gno-only additions: `bigint` and `bigdec`, `cross`, `realm`, `address`, and
+the `revive` and `istypednil` builtins.
 
-> Full reference: [Go-Gno Compatibility](https://docs.gno.land/resources/go-gno-compatibility) |
-> [Effective Gno](https://docs.gno.land/resources/effective-gno)
+## Known limitations
 
----
+Gno.land is release-candidate software: betanet runs `v1.0.0-rc.0`. The gaps
+worth knowing, each anchored on the code that says so.
 
-## Known Limitations & Technical Debt
+**Consensus.** No slashing, no misbehaviour penalty. A duplicate vote [is
+handed to an evidence pool][evpool-add] and goes no further; the evidence
+reactor [is to be replaced by a mempool lane][tm2-proposed] that is not
+built.
 
-Gno.land is pre-mainnet software. These are the most important gaps to be
-aware of as a builder, organized by area. Many have open PRs.
+**Fees.** Users [pay the whole `gas-fee` they offered][gas-charged], whatever
+the transaction used, [issue 3805][issue-3805]. Fees [go to the fee
+collector][deduct-fees] and stay there: the distribution realm [is a
+placeholder][txfees-todo]. Gas costs themselves are no longer placeholders:
+each opcode carries [a calibrated constant][opcpu], and preprocessing is
+metered since [issue 4820][issue-4820] closed.
 
-The hardest, longest-term gaps are: the gas model needs a full redesign (costs
-are placeholders, fees are not refunded, preprocessing is free); the evidence
-pool does not exist (the `EvidenceReactor` was removed and evidence is planned
-to be reimplemented as a
-[mempool lane](https://github.com/gnolang/gno/blob/master/tm2/README.md#what-is-already-proposed-for-tendermint2),
-but this is not built yet, so misbehavior is never recorded or penalized);
-escaped object hashing is stubbed out
-([`realm.go:845-857`](https://github.com/gnolang/gno/blob/master/gnovm/pkg/gnolang/realm.go#L845),
-blocks Merkle proofs for cross-realm objects); and cyclic references for
-persistence are not supported (planned for
-[phase 2](https://github.com/gnolang/gno/blob/master/gnovm/pkg/gnolang/ownership.go#L35)).
+**Persistence.** The Merkle index of escaped objects [is a
+stub][savenewescaped], so a proof over a cross-realm object is not available.
+Object graphs with cycles [are not supported][ownership-doc]. `attach`
+[panics][uv-attach].
 
-**Consensus (TM2).** No slashing, no misbehavior detection, no evidence pool.
-Mempool lost on restart. No max gas price cap. See Architecture section above.
+**Language.** No goroutines, channels or generics, no `reflect`. The IBC
+meta issue [is closed][issue-4907] and no IBC module exists in the tree.
 
-**Gas and fees.** Placeholder CPU costs, preprocessing is free
-([#4820](https://github.com/gnolang/gno/issues/4820)), users pay full
-`gas-fee` regardless of consumption
-([#3805](https://github.com/gnolang/gno/issues/3805)), fees burned not
-distributed. `MsgRun` has no gas accounting. Active PRs fixing costs per
-operation.
+## Additional tools
 
-**GnoVM.** `.grealm` methods are stubs. `DeepFill` unimplemented for complex
-types. No cyclic GC. Mem packages re-preprocessed on reboot.
+Everything under [`contribs/`][contribs] at this commit, plus one external
+repository:
 
-**Language.** No goroutines, channels, generics
-([#5063](https://github.com/gnolang/gno/issues/5063)), or `reflect`. ~40+
-stdlib packages missing. No IBC
-([#4907](https://github.com/gnolang/gno/issues/4907)).
+| Tool | What it does |
+| --- | --- |
+| [gnodev][contribs] | The development server, above |
+| [gnofaucet][contribs] | A faucet server for test tokens |
+| [gnokms][contribs] | Key management for validators: HSM and cloud KMS backends |
+| [gnokeykc][contribs] | OS keychain integration for `gnokey` |
+| [gnogenesis][contribs] | Builds and edits `genesis.json`: validators, balances, transactions; the fresh chains are built with it |
+| [gnobro][contribs] | A terminal browser for realms |
+| [gnobr][gnobr] | Rolls a node back to a height and replays blocks locally |
+| [gnohealth][contribs] | Health checks for a node |
+| [gnomd][contribs] | Renders Gno markdown in the terminal |
+| [gnomigrate][contribs] | Migrates old on-chain data formats |
+| [tx-archive][contribs] | Backs up and restores transactions; what keeps staging's history |
+| [github-bot][contribs] | Pull request automation for the monorepo |
+| [tx-indexer](https://github.com/gnolang/tx-indexer) | Indexes blocks, transactions and events for querying |
 
-**Tooling.** `gno lint` directory-only. `gnodev` drops failed txs on reload.
-`gno mod tidy` doesn't walk parent dirs. `gnoclient` has no event querying.
+## Development environment
 
----
+### Editors
 
-## Additional Tools
+| Editor | Plugin |
+| --- | --- |
+| VS Code | [Gno for VS Code](https://marketplace.visualstudio.com/items?itemName=Gnoverse.gnolang) |
+| NeoVim | [gno.nvim](https://github.com/x1unix/gno.nvim) |
+| Any editor | [gnopls](https://github.com/gnoverse/gnopls), a language server |
+| Any editor | `gno fmt`, or `gofmt` directly on `.gno` files |
 
-| Tool | Description |
-|------|-------------|
-| [gnofaucet](https://github.com/gnolang/gno/tree/master/contribs/gnofaucet) | Local faucet server for distributing test tokens |
-| [tx-indexer](https://github.com/gnolang/tx-indexer) | Transaction indexer for querying chain data (blocks, txs, events) |
-| [gnokms](https://github.com/gnolang/gno/tree/master/contribs/gnokms) | Key Management System for validator nodes (HSM/cloud KMS) |
-| [gnobro](https://github.com/gnolang/gno/tree/master/contribs/gnobro) | Terminal UI for browsing realms (alternative to gnoweb) |
-| [gnogenesis](https://github.com/gnolang/gno/tree/master/contribs/gnogenesis) | CLI for managing `genesis.json` (validators, balances, txs) |
-| [gnokeykc](https://github.com/gnolang/gno/tree/master/contribs/gnokeykc) | OS keychain integration for password-less signing |
-| [gnohealth](https://github.com/gnolang/gno/tree/master/contribs/gnohealth) | Health check tool for Gno nodes |
-| [gnomd](https://github.com/gnolang/gno/tree/master/contribs/gnomd) | Render Gno/Markdown files as formatted text in the terminal |
-| [gnomigrate](https://github.com/gnolang/gno/tree/master/contribs/gnomigrate) | Migrate legacy Gno data formats to current standards |
-| [tx-archive](https://github.com/gnolang/gno/tree/master/contribs/tx-archive) | Backup and restore Tendermint2 transaction data |
-| [github-bot](https://github.com/gnolang/gno/tree/master/contribs/github-bot) | GitHub PR automation (reviewers, labels, merge requirements) |
+### Clients
 
----
+| Library | Language | What it is |
+| --- | --- | --- |
+| [gnoclient][gnoclient] | Go | The client the tooling uses |
+| [gno-js-client](https://github.com/gnolang/gno-js-client) | JavaScript, TypeScript | gno.land client |
+| [tm2-js-client](https://github.com/gnolang/tm2-js-client) | JavaScript, TypeScript | Lower-level Tendermint2 client |
+| [Gno Native Kit](https://github.com/gnolang/gnonative) | Mobile, desktop | Native app framework |
+| [Adena](https://adena.app) | Browser | Wallet extension, by Onbloc |
 
-## Development Environment
+## Ecosystem
 
-### Editor / IDE support
+| Tool | Where | What it is |
+| --- | --- | --- |
+| gnoweb | [gno.land](https://gno.land) | Browse realms, read source, render pages |
+| Gnoscan | [gnoscan.io](https://gnoscan.io) | Block explorer, by Onbloc |
+| Playground | [play.gno.land](https://play.gno.land) | Write, test, deploy and share Gno in the browser |
+| Gno Studio Connect | [gno.studio/connect](https://gno.studio/connect) | Explore and call realm functions |
+| Memba | [memba.samourai.app](https://memba.samourai.app) | Multisig wallet and DAO governance: GovDAO proposals and votes, validator dashboard, contributor analytics, by [Samourai](https://github.com/samouraiworld/memba) |
 
-| Editor | Plugin | Notes |
-|--------|--------|-------|
-| VS Code | [Gno for VS Code](https://marketplace.visualstudio.com/items?itemName=Gnoverse.gnolang) | IntelliSense, code navigation, snippets, testing |
-| NeoVim | [gno.nvim](https://github.com/x1unix/gno.nvim) | LSP integration |
-| Any editor | [gnopls](https://github.com/gnoverse/gnopls) | Gno Language Server Protocol |
-| Any editor | `gofmt` / `gno fmt` | Works directly on `.gno` files |
+Community realms and projects: [boards2](https://gno.land/r/gnoland/boards2/v1)
+on betanet; the [hall of realms](https://staging.gno.land/r/leon/hor),
+[chess](https://staging.gno.land/r/morgan/chess) and
+[disperse](https://staging.gno.land/r/demo/disperse) on staging;
+[Gnoswap](https://github.com/gnoswap-labs/gnoswap), an automated market maker
+by Onbloc, whose site did not answer on 2026-09-05.
 
-### Client libraries / SDKs
+## Further reading
 
-| Library | Language | Description |
-|---------|----------|-------------|
-| [gnoclient](https://github.com/gnolang/gno/tree/master/gno.land/pkg/gnoclient) | Go | Official Go client for interacting with gno.land nodes |
-| [gno-js-client](https://github.com/gnolang/gno-js-client) | JS/TS | JavaScript/TypeScript client for gno.land |
-| [tm2-js-client](https://github.com/gnolang/tm2-js-client) | JS/TS | Lower-level Tendermint2 JavaScript client |
-| [Gno Native Kit](https://github.com/gnolang/gnonative) | Mobile | Framework for native mobile/desktop dApps |
-| [Adena](https://adena.app) | Browser | Non-custodial wallet with browser extension (by Onbloc) |
+- [docs.gno.land](https://docs.gno.land): the official documentation.
+- [Effective Gno](https://docs.gno.land/resources/effective-gno): patterns and
+  design guidance.
+- [Interrealm specification v2][interrealm-v2] and the [security
+  guide][security-guide]: the crossing rules and the threat classes they close.
+- [Interact with gnokey](https://docs.gno.land/users/interact-with-gnokey),
+  [Gas fees](https://docs.gno.land/resources/gas-fees), [Storage
+  deposit](https://docs.gno.land/resources/storage-deposit), [Data
+  structures](https://docs.gno.land/resources/gno-data-structures),
+  [Gno packages](https://docs.gno.land/resources/gno-packages), [Gno
+  networks](https://docs.gno.land/resources/gnoland-networks).
+- [How the GnoVM works](gnovm-architecture.md): the interpreter, with figures.
+- [Constitution][constitution], [Laws][laws], [Manifesto][manifesto], and the
+  [whitepaper][whitepaper].
+- [Tendermint consensus paper](https://arxiv.org/pdf/1807.04938.pdf).
+- [getting-started](https://github.com/gnolang/getting-started), a starter
+  template, and [awesome-gno](https://github.com/gnoverse/awesome-gno).
 
----
+**Community:** [Discord](https://discord.gg/S8nKUqwkPn),
+[GitHub](https://github.com/gnolang), [X](https://twitter.com/_gnoland).
 
-## Ecosystem & Community
+*Kept in
+[gno-agent-workspace](https://github.com/samouraiworld/gno-agent-workspace).*
 
-### Block explorers & tools
-
-| Tool | URL | Description |
-|------|-----|-------------|
-| gnoweb | [gno.land](https://gno.land) | Browse realms, view source, render markdown |
-| Gnoscan | [gnoscan.io](https://gnoscan.io) | Block explorer (addresses, txs, contracts) by Onbloc |
-| Playground | [play.gno.land](https://play.gno.land) | Web IDE: write, test, deploy, share Gno code |
-| Gno Studio Connect | [gno.studio/connect](https://gno.studio/connect) | Web UI for exploring and calling realm functions |
-| Memba | [memba.samourai.app](https://memba.samourai.app) | Multisig wallet & DAO governance app: multisig management, GovDAO proposal/voting UI, validator dashboard, contributor analytics, token launchpad (by [Samourai Coop](https://github.com/samouraiworld/memba)) |
-
-### Community apps & projects
-
-| Project | Description |
-|---------|-------------|
-| [Gnoswap](https://gnoswap.io) | AMM DEX protocol (by Onbloc) |
-| [Flippando](https://gno.flippando.xyz/flip) | On-chain memory game with NFT minting |
-| [Hall of Realms](https://gno.land/r/leon/hor) | Exhibition of community-built realms |
-| [boards2](https://gno.land/r/gnoland/boards2/v1) | On-chain discussion forum with moderation |
-| [chess](https://gno.land/r/morgan/chess) | Full on-chain chess server with game lobby |
-| [disperse](https://gno.land/r/demo/disperse) | Batch-send to multiple addresses (like disperse.app) |
-
----
-
-## Further Reading
-
-- [docs.gno.land](https://docs.gno.land): official docs
-- [Effective Gno](https://docs.gno.land/resources/effective-gno): best practices, patterns, and design guidance
-- [r/docs](https://staging.gno.land/r/docs/home): on-chain interactive tutorials and examples
-- [Interact with gnokey](https://docs.gno.land/users/interact-with-gnokey): gnokey usage guide (improved in [PR #5030](https://github.com/gnolang/gno/pull/5030))
-- [Interrealm Spec](https://docs.gno.land/resources/gno-interrealm): full cross-realm spec
-- [Gas Fees](https://docs.gno.land/resources/gas-fees): gas pricing
-- [Storage Deposit](https://docs.gno.land/resources/storage-deposit): how storage deposits work
-- [Data Structures](https://docs.gno.land/resources/gno-data-structures): maps, AVL trees, and determinism
-- [Go-Gno Compatibility](https://docs.gno.land/resources/go-gno-compatibility): what Go features work
-- [Gno Packages](https://docs.gno.land/resources/gno-packages): package paths, namespaces, and deployment
-- [GnoVM Architecture](gnovm-architecture.md): VM internals
-- [Constitution](https://github.com/gnolang/gno/blob/master/docs/CONSTITUTION.md): governance, tokenomics, GovDAO tiers
-- [Manifesto](https://github.com/gnolang/gno/blob/master/docs/MANIFESTO.md): philosophy and values
-- [Whitepaper](https://github.com/gnolang/gno/blob/master/docs/gnoland-whitepaper.tex): technical whitepaper
-- [Tendermint consensus paper](https://arxiv.org/pdf/1807.04938.pdf): BFT algorithm specification
-- [Getting Started](https://github.com/gnolang/getting-started): starter template
-- [awesome-gno](https://github.com/gnoverse/awesome-gno): curated list of Gno resources
-
-**Community:** [Discord](https://discord.gg/S8nKUqwkPn) |
-[GitHub](https://github.com/gnolang) |
-[X/Twitter](https://twitter.com/_gnoland)
-
----
-
-*Maintained as part of [gno-agent-workspace](https://github.com/samouraiworld/gno-agent-workspace).
-See also [awesome-gno](https://github.com/gnoverse/awesome-gno).*
+[gno-tree]: https://github.com/gnolang/gno/tree/a7e4c34b0
+[compat-go117]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/resources/go-gno-compatibility.md#L3
+[compat]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/resources/go-gno-compatibility.md
+[compat-reflect]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/resources/go-gno-compatibility.md#L236
+[compat-sort]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/resources/go-gno-compatibility.md#L288-L289
+[gnomod-example]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/gnoland/wugnot/gnomod.toml
+[gnover]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/gnomod.go#L43
+[gno-help]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/cmd/gno/main.go
+[gnodev-minimal]: https://github.com/gnolang/gno/blob/a7e4c34b0/contribs/gnodev/README.md#L38-L39
+[gnodev-premine]: https://github.com/gnolang/gno/blob/a7e4c34b0/contribs/gnodev/setup_node.go#L25
+[gnodev-resolvers]: https://github.com/gnolang/gno/blob/a7e4c34b0/contribs/gnodev/README.md#L59-L72
+[gnodev-keys]: https://github.com/gnolang/gno/blob/a7e4c34b0/contribs/gnodev/README.md#L24-L35
+[default-account]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/integration/node_testing.go#L25-L27
+[gnokey-session]: https://github.com/gnolang/gno/blob/a7e4c34b0/tm2/pkg/crypto/keys/client/session.go
+[addpkg-flags]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/keyscli/addpkg.go
+[query-kinds]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/sdk/vm/handler.go#L74-L83
+[keeper-exists]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/sdk/vm/keeper.go#L623-L625
+[keeper-private]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/sdk/vm/keeper.go#L660-L662
+[keeper-private-realm]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/sdk/vm/keeper.go#L663-L665
+[keeper-crossing-check]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/sdk/vm/keeper.go#L787-L790
+[call-origin]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/sdk/vm/keeper.go#L853-L861
+[p-imports-r]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/preprocess.go#L5389-L5393
+[epath]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/resources/gno-packages.md#L37-L47
+[namespace-rule]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/sys/names/verifier.gno#L1-L17
+[names-verifier]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/sys/names/verifier.gno#L75-L77
+[namereg]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/r/sys/namereg/v1
+[register-price]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/sys/namereg/v1/users.gno#L15-L18
+[pearl-genesis]: https://github.com/gnolang/gno/blob/chain/pearl/misc/deployments/pearl.gno.land/README.md
+[sapphire-genesis]: https://github.com/gnolang/gno/blob/chain/sapphire/misc/deployments/sapphire.gno.land/README.md
+[topaz-genesis]: https://github.com/gnolang/gno/blob/chain/topaz/misc/deployments/topaz.gno.land/README.md
+[staging-cycle]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/resources/gnoland-networks.md#L21-L67
+[gas-charged]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/resources/gas-fees.md#L43
+[issue-3805]: https://github.com/gnolang/gno/issues/3805
+[issue-4820]: https://github.com/gnolang/gno/issues/4820
+[issue-5063]: https://github.com/gnolang/gno/issues/5063
+[issue-4907]: https://github.com/gnolang/gno/issues/4907
+[storage-price]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/sdk/vm/params.go#L22
+[vm-params-defaults]: https://github.com/gnolang/gno/blob/a7e4c34b0/gno.land/pkg/sdk/vm/params.go#L18-L23
+[r-docs]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/r/docs
+[pager]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/p/nt/avl/v0/pager
+[stdlibs-chain]: https://github.com/gnolang/gno/tree/a7e4c34b0/gnovm/stdlibs/chain
+[chain-pkg]: https://github.com/gnolang/gno/tree/a7e4c34b0/gnovm/stdlibs/chain
+[runtime-pkg]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/stdlibs/chain/runtime/native.gno#L3-L11
+[unsafe-pkg]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno
+[unsafe-doc]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno#L1-L11
+[banker-pkg]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/stdlibs/chain/banker/banker.gno
+[banker]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/stdlibs/chain/banker/banker.gno
+[params-pkg]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/stdlibs/chain/params/params.gno
+[testing-overrides]: https://github.com/gnolang/gno/tree/a7e4c34b0/gnovm/tests/stdlibs/testing
+[stdlib-list]: https://github.com/gnolang/gno/tree/a7e4c34b0/gnovm/stdlibs
+[fmt-tests]: https://github.com/gnolang/gno/tree/a7e4c34b0/gnovm/tests/stdlibs/fmt
+[examples-p]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/p
+[txfees-todo]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/sys/txfees/txfees.gno#L1-L3
+[interrealm-v2]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/resources/gno-interrealm-v2.md
+[security-guide]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/resources/gno-security-guide.md
+[cross-count]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples
+[checkconstruction]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/alloc.go#L410-L440
+[borrow-rules]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/machine.go#L2323-L2387
+[readonlypanic]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/machine.go#L2629-L2637
+[isreadonlyby]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/ownership.go#L441-L536
+[panic-boundary]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/op_call.go#L532-L547
+[constitution]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/CONSTITUTION.md
+[laws]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/LAWS.md
+[manifesto]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/MANIFESTO.md
+[whitepaper]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/gnoland-whitepaper.tex
+[gov-dao]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/r/gov/dao
+[dao-proxy]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/gov/dao/proxy.gno#L146-L170
+[dao-impl]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/r/gov/dao/v3/impl
+[memberstore]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/r/gov/dao/v3/memberstore
+[tiers]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/gov/dao/v3/memberstore/memberstore.gno#L30-L90
+[add-member-tiers]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/gov/dao/v3/impl/prop_requests.gno#L53-L61
+[add-member-direct]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/gov/dao/v3/impl/impl.gno#L26-L46
+[filter-by-tier]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/gov/dao/v3/impl/prop_requests.gno#L86-L91
+[accept-deny]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/gov/dao/v3/impl/govdao.gno#L124-L138
+[supermajority]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/gov/dao/v3/impl/impl.gno#L12-L16
+[prop-requests]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/gov/dao/v3/impl/prop_requests.gno#L17-L183
+[validators-v2]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/r/sys/validators/v2
+[sys-params]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/r/sys/params
+[treasury]: https://github.com/gnolang/gno/tree/a7e4c34b0/examples/gno.land/r/gov/dao/v3/treasury
+[sys-users]: https://github.com/gnolang/gno/blob/a7e4c34b0/examples/gno.land/r/sys/users/admin.gno
+[tm2]: https://github.com/gnolang/gno/tree/a7e4c34b0/tm2
+[tm2-independent]: https://github.com/gnolang/gno/blob/a7e4c34b0/tm2/README.md#L5
+[tm2-proposed]: https://github.com/gnolang/gno/blob/a7e4c34b0/tm2/README.md#L30-L49
+[evpool-add]: https://github.com/gnolang/gno/blob/a7e4c34b0/tm2/pkg/bft/consensus/state.go#L1541
+[libtm-removed]: https://github.com/gnolang/gno/pull/5534
+[genesis-allocation]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/CONSTITUTION.md#L114-L124
+[no-inflation]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/CONSTITUTION.md#L178-L179
+[no-amendment]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/CONSTITUTION.md#L779
+[ten-tb]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/CONSTITUTION.md#L177
+[storage-price-rule]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/CONSTITUTION.md#L180-L183
+[vesting]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/CONSTITUTION.md#L132-L134
+[ics-migration]: https://github.com/gnolang/gno/blob/a7e4c34b0/docs/CONSTITUTION.md#L186-L188
+[go-mod]: https://github.com/gnolang/gno/blob/a7e4c34b0/go.mod#L3
+[deduct-fees]: https://github.com/gnolang/gno/blob/a7e4c34b0/tm2/pkg/sdk/auth/ante.go#L179
+[opcpu]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/machine.go#L1371-L1377
+[savenewescaped]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/realm.go#L1053-L1056
+[ownership-doc]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/ownership.go#L36-L38
+[uv-attach]: https://github.com/gnolang/gno/blob/a7e4c34b0/gnovm/pkg/gnolang/uverse.go#L1465
+[contribs]: https://github.com/gnolang/gno/tree/a7e4c34b0/contribs
+[gnobr]: https://github.com/gnolang/gno/blob/a7e4c34b0/contribs/gnobr/README.md#L1-L3
+[gnoclient]: https://github.com/gnolang/gno/tree/a7e4c34b0/gno.land/pkg/gnoclient
