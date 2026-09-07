@@ -5,7 +5,7 @@ Event: REQUEST_CHANGES
 Two further paths funnel through [`sendCoins`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L173-L196) and so emit too: the `MsgAddPackage` send envelope at [`keeper.go:1047`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/sdk/vm/keeper.go#L1047) and the inert submission charge at [`keeper.go:952`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/sdk/vm/keeper.go#L952).
 
 ## tm2/pkg/sdk/bank/keeper.go:187 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187)
-This guard sits below the session key's `SpendLimit` deduction at [`keeper.go:152`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152), so a transaction signed by a session key, sending from its master address to that same master address, spends the allowance with nothing on chain recording where the coins went. Wrapping the `CheckAndDeductSessionSpend` call in that same condition skips the charge and nothing else: the restricted-denom check above it and `SubtractCoins`'s balance check below it both still run on a self-transfer.
+The `SpendLimit` deduction at [`keeper.go:152`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152) sits above this guard, so a session-signed send from a master to that same master spends the allowance and records nothing. Gate the deduction on the same condition.
 
 <details><summary>repro</summary>
 

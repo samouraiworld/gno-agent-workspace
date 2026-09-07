@@ -117,7 +117,7 @@ three are the paths where an indexer needs an address the events do not carry.
   receives.
   </details>
 
-- **[allowance spent on a no-op]** [`keeper.go:187`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187) — a transaction signed by a session key, sending from its master address to that same master address, spends the key's `SpendLimit` and now reports nothing, so the allowance drains with no record on the chain.
+- **[allowance spent on a no-op]** [`keeper.go:187`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187) — the `SpendLimit` deduction at `keeper.go:152` sits above this guard, so a session-signed send from a master to that same master spends the allowance and records nothing.
   <details><summary>details</summary>
 
   `SendCoins` deducts the session allowance at
@@ -137,11 +137,7 @@ three are the paths where an indexer needs an address the events do not carry.
   `TransferEvent` was the one artifact showing where the allowance went. The
   fixture is
   [`tests/session_self_transfer_events.txtar`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6120-bank-transfer-events/2-639d06bf2/tests/session_self_transfer_events.txtar),
-  whose commented `SHOULD` assertion fails at this head. Fix: wrap the
-  `CheckAndDeductSessionSpend` call in that same `fromAddr != toAddr` condition,
-  which skips the charge and nothing else: the restricted-denom check above
-  it and `SubtractCoins`'s balance check below it both still run on a
-  self-transfer.
+  whose commented `SHOULD` assertion fails at this head. Fix: gate the deduction on the same `fromAddr != toAddr` condition.
   </details>
 
 ## Nits
