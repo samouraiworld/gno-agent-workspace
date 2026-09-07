@@ -138,8 +138,10 @@ three are the paths where an indexer needs an address the events do not carry.
   fixture is
   [`tests/session_self_transfer_events.txtar`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6120-bank-transfer-events/2-639d06bf2/tests/session_self_transfer_events.txtar),
   whose commented `SHOULD` assertion fails at this head. Fix: wrap the
-  `CheckAndDeductSessionSpend` call in the same `fromAddr != toAddr` condition,
-  which leaves the funds check and the restricted-denom check where they are.
+  `CheckAndDeductSessionSpend` call in that same `fromAddr != toAddr` condition,
+  which skips the charge and nothing else: the restricted-denom check above
+  it and `SubtractCoins`'s balance check below it both still run on a
+  self-transfer.
   </details>
 
 ## Nits
