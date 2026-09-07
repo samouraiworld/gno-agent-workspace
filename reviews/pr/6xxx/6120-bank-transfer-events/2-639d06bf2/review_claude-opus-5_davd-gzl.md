@@ -38,7 +38,7 @@ reads as the indexer-facing contract (2 warnings, 1 suggestion, 1 nit).
 ## Verify first
 
 - [`tm2/adr/pr6120_bank_transfer_events.md:40-43`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L40-L43) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L40-L43) — decide which encoding the compatibility contract names. Compare the ADR's shape against the branch's own [`events_test.go:18`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/events_test.go#L18) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/events_test.go#L18) and [`bank.proto:37`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/bank.proto#L37) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/bank.proto#L37), which both say `coins` is a string.
-- [`tm2/pkg/sdk/bank/keeper.go:187`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187) — the guard sits below the session-allowance deduction at [`keeper.go:152`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L152), so a self-transfer is free of an event and not free of allowance. Run `go test -run 'TestSelfTransferSpendsSessionLimit' ./tm2/pkg/sdk/bank/` from [`tests/self_transfer_test.go`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6120-bank-transfer-events/2-639d06bf2/tests/self_transfer_test.go).
+- [`tm2/pkg/sdk/bank/keeper.go:187`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187) — the guard sits below the session-allowance deduction at [`keeper.go:152`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L152), so a transaction signed by a session key, sending from its master address to that same master address, is free of an event and not free of allowance. Run `go test -run 'TestTestdata/session_self_transfer_events' ./gno.land/pkg/integration/` from [`tests/session_self_transfer_events.txtar`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6120-bank-transfer-events/2-639d06bf2/tests/session_self_transfer_events.txtar).
 
 ## Summary
 
@@ -117,20 +117,27 @@ three are the paths where an indexer needs an address the events do not carry.
   receives.
   </details>
 
-- **[allowance spent on a no-op]** [`keeper.go:187`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187) — a self-transfer under a session key spends the key's `SpendLimit` and now reports nothing, so the allowance drains with no record on the chain.
+- **[allowance spent on a no-op]** [`keeper.go:187`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187) — a transaction signed by a session key, sending from its master address to that same master address, spends the key's `SpendLimit` and now reports nothing, so the allowance drains with no record on the chain.
   <details><summary>details</summary>
 
   `SendCoins` deducts the session allowance at
   [`keeper.go:152`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L152)
-  before it calls `sendCoins`, so the new guard cannot reach it. A delegated key
-  holding a 500ugnot limit that sends 400ugnot from its master to that same
-  master leaves the balance unchanged, emits no event, and is refused on the next
-  200ugnot send with `session not allowed error`. The deduction predates this
+  before it calls `sendCoins`, so the new guard cannot reach it. On a chain, an
+  agent key delegated `bank/send` under a 15_000_000ugnot lifetime cap sends
+  10_000_000ugnot from its master to that same master: the tx succeeds with
+  `EVENTS:     []`, and the agent's next 10_000_000ugnot send, an amount the
+  original cap covers, is refused with `session spend limit would be exceeded:
+  attempted=10250001ugnot, used=10250001ugnot, limit=15000000ugnot`. Only
+  250_001ugnot of that `used` is the first tx's gas fee, which
+  [`ante.go:202`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/auth/ante.go#L202) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/auth/ante.go#L202)
+  also charges to the session; gating the deduction on `fromAddr != toAddr` and
+  re-running lets the second send through, so the refusal is the self-transfer's
+  charge. The deduction predates this
   branch, and the event that used to record it does not: before 639d06bf2 the
-  `TransferEvent` was the one artifact showing where the allowance went. Both
-  runs are in
-  [`tests/self_transfer_test.go`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6120-bank-transfer-events/2-639d06bf2/tests/self_transfer_test.go),
-  whose `SHOULD` assertion fails at this head. Fix: wrap the
+  `TransferEvent` was the one artifact showing where the allowance went. The
+  fixture is
+  [`tests/session_self_transfer_events.txtar`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6120-bank-transfer-events/2-639d06bf2/tests/session_self_transfer_events.txtar),
+  whose commented `SHOULD` assertion fails at this head. Fix: wrap the
   `CheckAndDeductSessionSpend` call in the same `fromAddr != toAddr` condition,
   which leaves the funds check and the restricted-denom check where they are.
   </details>

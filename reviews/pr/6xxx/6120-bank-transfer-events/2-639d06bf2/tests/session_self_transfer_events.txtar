@@ -1,0 +1,41 @@
+# A transaction signed by a session key, sending from the master address to that
+# same master address, spends the session's SpendLimit and emits no event.
+# Measured: 10_000_000ugnot moved under a 15_000_000ugnot cap, EVENTS: [], and
+# 10_250_001ugnot consumed. Fails at 639d06bf2 on the SHOULD line below.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6120 -R gnolang/gno && git checkout 639d06bf2
+# curl -fsSL -o gno.land/pkg/integration/testdata/session_self_transfer_events.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6120-bank-transfer-events/2-639d06bf2/tests/session_self_transfer_events.txtar
+# go test -v -run 'TestTestdata/session_self_transfer_events' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/session_self_transfer_events.txtar
+
+gnoland start
+
+# Fixed mnemonic, so the agent key's address and the bech32 pubkey below are
+# deterministic. It cannot come from adduserfrom: that writes a genesis balance,
+# and handleMsgCreateSession refuses a session key that already has an account.
+input wage renew timber answer someone model torch cake ostrich sort appear walk kiss expose magnet crisp keen skin enter opinion desk dice lyrics reflect
+input test123
+input test123
+gnokey add agent --recover --insecure-password-stdin
+stdout 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'
+
+# test1 grants the agent key MsgSend on its behalf, with a 15_000_000ugnot cap
+# for the session's whole lifetime.
+gnokey maketx session create -pubkey gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqtr8vl7pwruxukl3kd3h9zs378r3alnykuxrm7avfeh8mcym30vu2d27anu -expires-at none -allow-paths bank/send -spend-limit 15000000ugnot -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+# The agent moves 10_000_000ugnot from test1 to test1. Sender and recipient are
+# both the master address, which is the case the branch's guard covers.
+input test123
+gnokey maketx send -send 10000000ugnot -to $test1_user_addr -master test1 -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid=tendermint_test -insecure-password-stdin agent
+stdout 'EVENTS:     \[\]'   # IS:     the 10_000_000ugnot the session paid for is unrecorded
+# stdout 'EVENTS:     \[{"from":"'$test1_user_addr'","to":"'$test1_user_addr'","coins":\[{"denom":"ugnot","amount":10000000}\]}\]'  # SHOULD: the movement the allowance was spent on is on the event stream
+
+# The budget was charged all the same. The agent's next MsgSend, for an amount
+# the original 15_000_000ugnot cap covers, is refused: SpendUsed already stands
+# at 10_250_001ugnot, and only 250_001ugnot of that is the previous tx's gas.
+input test123
+! gnokey maketx send -send 10000000ugnot -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -master test1 -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid=tendermint_test -insecure-password-stdin agent
+stderr 'session spend limit would be exceeded: attempted=10250001ugnot, used=10250001ugnot, limit=15000000ugnot'

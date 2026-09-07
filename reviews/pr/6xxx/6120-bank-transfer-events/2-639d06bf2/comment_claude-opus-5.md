@@ -5,59 +5,61 @@ Event: REQUEST_CHANGES
 Two further paths funnel through [`sendCoins`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L173-L196) and so emit too: the `MsgAddPackage` send envelope at [`keeper.go:1047`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/sdk/vm/keeper.go#L1047) and the inert submission charge at [`keeper.go:952`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/sdk/vm/keeper.go#L952).
 
 ## tm2/pkg/sdk/bank/keeper.go:187 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187)
-This guard sits below the session key's `SpendLimit` deduction at [`keeper.go:152`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152), so a self-transfer drains the allowance with nothing on chain recording it. Wrapping the `CheckAndDeductSessionSpend` call in the same condition leaves the funds check and the restricted-denom check where they are.
+This guard sits below the session key's `SpendLimit` deduction at [`keeper.go:152`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152), so a transaction signed by a session key, sending from its master address to that same master address, spends the allowance with nothing on chain recording where the coins went. Wrapping the `CheckAndDeductSessionSpend` call in the same condition leaves the funds check and the restricted-denom check where they are.
 
 <details><summary>repro</summary>
 
 ```bash
 # from a local clone of gnolang/gno:
 gh pr checkout 6120 -R gnolang/gno
-cat > tm2/pkg/sdk/bank/zz_session_test.go <<'EOF'
-package bank
+cat > gno.land/pkg/integration/testdata/session_self_transfer_events.txtar <<'EOF'
+gnoland start
 
-import (
-	"testing"
+# Fixed mnemonic, so the agent key's address and the bech32 pubkey below are
+# deterministic. It cannot come from adduserfrom: that writes a genesis balance,
+# and handleMsgCreateSession refuses a session key that already has an account.
+input wage renew timber answer someone model torch cake ostrich sort appear walk kiss expose magnet crisp keen skin enter opinion desk dice lyrics reflect
+input test123
+input test123
+gnokey add agent --recover --insecure-password-stdin
+stdout 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'
 
-	"github.com/stretchr/testify/require"
+# test1 grants the agent key MsgSend on its behalf, with a 15_000_000ugnot cap
+# for the session's whole lifetime.
+gnokey maketx session create -pubkey gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqtr8vl7pwruxukl3kd3h9zs378r3alnykuxrm7avfeh8mcym30vu2d27anu -expires-at none -allow-paths bank/send -spend-limit 15000000ugnot -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout 'OK!'
 
-	"github.com/gnolang/gno/tm2/pkg/std"
-)
+# The agent moves 10_000_000ugnot from test1 to test1. Sender and recipient are
+# both the master address, which is the case the guard covers.
+input test123
+gnokey maketx send -send 10000000ugnot -to $test1_user_addr -master test1 -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid=tendermint_test -insecure-password-stdin agent
+stdout 'EVENTS:     \[\]'   # IS:     the 10_000_000ugnot the session paid for is unrecorded
+# stdout 'EVENTS:     \[{"from":"'$test1_user_addr'","to":"'$test1_user_addr'","coins":\[{"denom":"ugnot","amount":10000000}\]}\]'  # SHOULD: the movement the allowance was spent on is on the event stream
 
-func TestSelfTransferSpendsSessionLimit(t *testing.T) {
-	env := setupTestEnv()
-	ctx, master, da := setupSessionCtx(t, env,
-		std.NewCoins(std.NewCoin("ugnot", 1000)),
-		std.NewCoins(std.NewCoin("ugnot", 500)))
-
-	before := env.bankk.GetCoins(ctx, master).AmountOf("ugnot")
-	require.NoError(t, env.bankk.SendCoins(ctx, master, master,
-		std.NewCoins(std.NewCoin("ugnot", 400))))
-
-	require.Equal(t, before, env.bankk.GetCoins(ctx, master).AmountOf("ugnot"))
-	require.Empty(t, ctx.EventLogger().Events())
-	require.Equal(t, int64(0), da.GetSpendUsed().AmountOf("ugnot"))
-
-	require.NoError(t, env.bankk.SendCoins(ctx, master, master,
-		std.NewCoins(std.NewCoin("ugnot", 200))))
-}
+# The budget was charged all the same. The agent's next MsgSend, for an amount
+# the original 15_000_000ugnot cap covers, is refused: SpendUsed already stands
+# at 10_250_001ugnot, and only 250_001ugnot of that is the previous tx's gas.
+input test123
+! gnokey maketx send -send 10000000ugnot -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -master test1 -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid=tendermint_test -insecure-password-stdin agent
+stderr 'session spend limit would be exceeded: attempted=10250001ugnot, used=10250001ugnot, limit=15000000ugnot'
 EOF
-go test -count=1 -v -run TestSelfTransferSpendsSessionLimit ./tm2/pkg/sdk/bank/
-rm tm2/pkg/sdk/bank/zz_session_test.go
+go test -count=1 -v -run 'TestTestdata/session_self_transfer_events' ./gno.land/pkg/integration/
+rm gno.land/pkg/integration/testdata/session_self_transfer_events.txtar
 ```
 
-The balance and the event list come back as the test expects, and the allowance does not, which is the finding:
+The chain refuses the agent's second send because the first one, which the event list does not record, took 10_000_000ugnot of the 15_000_000ugnot cap; uncommenting the `# SHOULD:` line is what fails at this head:
 
 ```
-=== RUN   TestSelfTransferSpendsSessionLimit
-    zz_session_test.go:23:
+> gnokey maketx send -send 10000000ugnot -to $test1_user_addr -master test1 ... agent
+OK!
+EVENTS:     []
 # …
-        	Error:      	Not equal:
-        	            	expected: 0
-        	            	actual  : 400
---- FAIL: TestSelfTransferSpendsSessionLimit (0.00s)
+> ! gnokey maketx send -send 10000000ugnot -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -master test1 ... agent
+"gnokey" error: session spend limit would be exceeded: attempted=10250001ugnot, used=10250001ugnot, limit=15000000ugnot
+--- PASS: TestTestdata/session_self_transfer_events (6.14s)
 ```
 
-The 400ugnot is gone from a 500ugnot limit, so the trailing 200ugnot send is refused. The deduction predates this branch and the guard above it does not reach it.
+Gating the deduction on `fromAddr != toAddr` and re-running lets that second send through, so the refusal is the self-transfer's charge and not the gas.
 </details>
 
 ## tm2/adr/pr6120_bank_transfer_events.md:40-43 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L40-L43) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L40-L43)
