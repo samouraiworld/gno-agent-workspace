@@ -56,7 +56,7 @@ existing worktree.
 | [6135](https://github.com/gnolang/gno/pull/6135) | APPROVE | 3 nits | `6135-gnoe2e-txtar-harness/1-ddc5acfb9/` |
 | [6132](https://github.com/gnolang/gno/pull/6132) | REQUEST CHANGES | 1 warning, 1 suggestion, 1 nit | `6132-boards2-opendiscussions-board/1-93a0bea09/` |
 | [6131](https://github.com/gnolang/gno/pull/6131) | REQUEST CHANGES | 1 warning, 1 suggestion | `6131-govdao-t1-multisig-address/1-f2bdb07b0/` |
-| [6120](https://github.com/gnolang/gno/pull/6120) | REQUEST CHANGES | 2 warnings, 1 suggestion, 1 nit | `6120-bank-transfer-events/1-23e9de5ad/` |
+| [6120](https://github.com/gnolang/gno/pull/6120) | REQUEST CHANGES | 2 warnings, 1 suggestion, 1 nit | `6120-bank-transfer-events/2-639d06bf2/`, round 2; round 1 at `1-23e9de5ad/` |
 | [6123](https://github.com/gnolang/gno/pull/6123) | REQUEST CHANGES | 3 warnings, 1 missing test, 1 suggestion | `6123-grc20-eoa-writes/1-e014175d2/` |
 | [6101](https://github.com/gnolang/gno/pull/6101) | REQUEST CHANGES | 3 warnings, 1 missing test, 2 suggestions, 2 nits | `6101-realm-scoped-token-ids/1-911e1a57a/` |
 | [6115](https://github.com/gnolang/gno/pull/6115) | REQUEST CHANGES | 1 warning, 2 suggestions, 3 nits | `6115-retry-startup-queries/1-c7ac45512/` |
