@@ -1,10 +1,11 @@
 # Review: [#6120](https://github.com/gnolang/gno/pull/6120)
+Posted: https://github.com/gnolang/gno/pull/6120#pullrequestreview-5134800539
 Event: COMMENT
 
 ## Body
 The rest looks good to me. Nothing below is urgent.
 
-## tm2/pkg/sdk/bank/keeper.go:187 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187)
+## tm2/pkg/sdk/bank/keeper.go:187 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187) [posted](https://github.com/gnolang/gno/pull/6120#discussion_r3952186080)
 [`CheckAndDeductSessionSpend`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152) runs above this guard, so a session-signed send from a master to that same master spends the session's `SpendLimit` and records nothing. Gate that call on the same condition.
 
 <details><summary>repro</summary>
@@ -62,21 +63,21 @@ EVENTS:     []
 Gating the deduction on `fromAddr != toAddr` and re-running lets that second send through, so the refusal is the self-transfer's charge and not the gas.
 </details>
 
-## gno.land/pkg/integration/testdata/bank_transfer_events.txtar:26 [gh](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26)
+## gno.land/pkg/integration/testdata/bank_transfer_events.txtar:26 [gh](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) [posted](https://github.com/gnolang/gno/pull/6120#discussion_r3952186084)
 Nit: `Forward` is a crossing function, so `cur.IsCurrent()` is always true here and this half of the guard never fires, per [`interrealm_v2.md:336-339`](https://github.com/gnolang/gno/blob/639d06bf2/gnovm/adr/interrealm_v2.md?plain=1#L336-L339). `cur.Previous().IsUserCall()` carries the check alone, and a fixture is what the next realm gets copied from.
 
 ```suggestion
 	if !cur.Previous().IsUserCall() {
 ```
 
-## tm2/adr/pr6120_bank_transfer_events.md:1 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L1)
+## tm2/adr/pr6120_bank_transfer_events.md:1 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L1) [posted](https://github.com/gnolang/gno/pull/6120#discussion_r3952186095)
 Nit: the title reads `PRxxxx`; 13 of the 17 other PR-named ADRs under `tm2/adr/` carry their number.
 
 ```suggestion
 # PR6120: Structured bank transfer events
 ```
 
-## tm2/adr/pr6120_bank_transfer_events.md:40-43 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L40-L43) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L40-L43)
+## tm2/adr/pr6120_bank_transfer_events.md:40-43 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L40-L43) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L40-L43) [posted](https://github.com/gnolang/gno/pull/6120#discussion_r3952186100)
 Nit: [`EncodeEvents`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/keyscli/root.go#L91) runs only in a CLI result printer, so an indexer gets `coins` as the one amino string that [`events_test.go:18`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/events_test.go#L18) and [`bank.proto:37`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/bank.proto#L37) both already declare, not the array named here.
 
 <details><summary>repro</summary>
@@ -118,6 +119,3 @@ EncodeEvents:  [{"from":"g1from","to":"g1to","coins":[{"denom":"ugnot","amount":
 
 [`ResponseBase.EncodeEvents`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/bft/abci/types/types.go#L124-L132) has three callers, all CLI result printers: [`common.go:41`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/crypto/keys/client/common.go#L41) and [`:52`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/crypto/keys/client/common.go#L52), which are the tm2 client defaults `gnokey` replaces at [`root.go:38-40`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/keyscli/root.go#L38-L40), and [`root.go:91`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/keyscli/root.go#L91), which is the line a `gnokey` user sees.
 </details>
-
-## tm2/adr/pr6120_bank_transfer_events.md:71-73 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L71-L73) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L71-L73)
-Suggestion: the event set feeds the header's [`LastResultsHash`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/bft/state/execution.go#L456) through [`ABCIResult`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/bft/types/results.go#L14-L18), so a validator on the old binary [rejects](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/bft/state/validation.go#L82-L86) the first block holding a ugnot transfer, which this paragraph should name as a coordinated upgrade.

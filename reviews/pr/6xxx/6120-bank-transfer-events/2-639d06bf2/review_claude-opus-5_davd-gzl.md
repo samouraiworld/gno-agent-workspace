@@ -162,7 +162,8 @@ three are the paths where an indexer needs an address the events do not carry.
   this in the halt-height and minimum-version params read by
   [`checkNodeStartupParams`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/gnoland/node_params.go#L133-L137) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/gnoland/node_params.go#L133-L137);
   the Consequences paragraph says the change is consensus-visible and stops
-  there. Fix: name the coordinated upgrade in that paragraph.
+  there. Fix: name the coordinated upgrade in that paragraph. Not posted, at the
+  user's direction.
   </details>
 
 ## Verified
