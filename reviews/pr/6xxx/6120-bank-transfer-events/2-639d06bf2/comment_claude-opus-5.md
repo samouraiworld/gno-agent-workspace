@@ -105,6 +105,13 @@ EncodeEvents:  [{"from":"g1from","to":"g1to","coins":[{"denom":"ugnot","amount":
 [`ResponseBase.EncodeEvents`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/bft/abci/types/types.go#L124-L132) has three callers, all CLI result printers: [`common.go:41`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/crypto/keys/client/common.go#L41) and [`:52`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/crypto/keys/client/common.go#L52), which are the tm2 client defaults `gnokey` replaces at [`root.go:38-40`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/keyscli/root.go#L38-L40), and [`root.go:91`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/keyscli/root.go#L91), which is the line a `gnokey` user sees.
 </details>
 
+## gno.land/pkg/integration/testdata/bank_transfer_events.txtar:26 [gh](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26)
+Nit: `Forward` is a crossing function, so `cur.IsCurrent()` is always true here and this half of the guard never fires, per [`interrealm_v2.md:336-339`](https://github.com/gnolang/gno/blob/639d06bf2/gnovm/adr/interrealm_v2.md?plain=1#L336-L339). `cur.Previous().IsUserCall()` carries the check alone, and a fixture is what the next realm gets copied from.
+
+```suggestion
+	if !cur.Previous().IsUserCall() {
+```
+
 ## tm2/adr/pr6120_bank_transfer_events.md:1 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L1)
 Nit: the title reads `PRxxxx`; 13 of the 17 other PR-named ADRs under `tm2/adr/` carry their number.
 

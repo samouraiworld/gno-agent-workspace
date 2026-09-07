@@ -33,7 +33,7 @@ the ADR records why.
 
 **Verdict: REQUEST CHANGES** — the emit points, their ordering and the
 self-transfer guard are right, and the ADR still names the encoding no indexer
-reads as the indexer-facing contract (2 warnings, 1 suggestion, 1 nit).
+reads as the indexer-facing contract (2 warnings, 1 suggestion, 2 nits).
 
 ## Verify first
 
@@ -144,6 +144,7 @@ three are the paths where an indexer needs an address the events do not carry.
 
 ## Nits
 
+- **[a guard clause that never fires]** [`bank_transfer_events.txtar:26`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) — `Forward` is a crossing function, so `cur.IsCurrent()` is always true and `!cur.IsCurrent()` is unreachable; [`interrealm_v2.md:336-339`](https://github.com/gnolang/gno/blob/639d06bf2/gnovm/adr/interrealm_v2.md?plain=1#L336-L339) · [↗](../../../../../.worktrees/gno-review-6120/gnovm/adr/interrealm_v2.md#L336-L339) states that the runtime ensures it. `cur.Previous().IsUserCall()` carries the check alone. The whole file is added by this diff, and a fixture is what the next realm gets copied from. Fix: drop the first clause.
 - [`pr6120_bank_transfer_events.md:1`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L1) — the title reads `PRxxxx`; 13 of the 17 other PR-named ADRs under `tm2/adr/` carry their number.
 
 ## Suggestions
@@ -229,10 +230,6 @@ concludes `success`.
   returning bech32. Applying it in the worktree failed to build until `pb3_gen.go`
   is regenerated, so the one-click suggestion does not exist and the change buys
   the reader nothing.
-- [`bank_transfer_events.txtar:26`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) — half the fixture realm's guard is dead: a crossing function's own `cur` is current by construction, per
-  [`interrealm_v2.md:336-339`](https://github.com/gnolang/gno/blob/639d06bf2/gnovm/adr/interrealm_v2.md?plain=1#L336-L339), so `!cur.IsCurrent()` never fires and
-  `!cur.Previous().IsUserCall()` carries the check alone. A txtar fixture is not
-  deployed realm code, so this is a copying hazard rather than a defect.
 - [`pr6120_bank_transfer_events.md:45-48`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L45-L48) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L45-L48) — the sentence
   names `MsgRun` as the case the guard covers, where the guard is on the shared
   keeper and covers a `MsgSend` to your own address and a realm banker's
