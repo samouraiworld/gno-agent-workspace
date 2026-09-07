@@ -1,5 +1,5 @@
 # Review: [#6120](https://github.com/gnolang/gno/pull/6120)
-Event: REQUEST_CHANGES
+Event: COMMENT
 
 ## Body
 
