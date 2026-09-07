@@ -1,0 +1,24 @@
+diff --git a/examples/gno.land/r/gnoland/blog/admin_test.gno b/examples/gno.land/r/gnoland/blog/admin_test.gno
+index 2466a3eec..59ea6fb4d 100644
+--- a/examples/gno.land/r/gnoland/blog/admin_test.gno
++++ b/examples/gno.land/r/gnoland/blog/admin_test.gno
+@@ -16,6 +16,10 @@ import (
+ // so rlm is ignored — a nil realm here is safe.
+ var cur realm
+ 
++// initialAdminAddr captures the source constant before any test mutates
++// adminAddr, so clearState restores it instead of re-hardcoding a copy.
++var initialAdminAddr = adminAddr
++
+ // clearState wipes the global state between test calls
+ func clearState(t *testing.T) {
+ 	t.Helper()
+@@ -24,7 +28,7 @@ func clearState(t *testing.T) {
+ 		Title:  "Gno.land's blog",
+ 		Prefix: "/r/gnoland/blog:",
+ 	}
+-	adminAddr = address("g1sze988ga0a7sj5583cu3xt6m4vkxru4uwh6dmf")
++	adminAddr = initialAdminAddr
+ 	inPause = false
+ 	moderatorList = bptree.NewBPTree32()
+ 	commenterList = bptree.NewBPTree32()
