@@ -12,7 +12,7 @@ Suggestion: this open board refuses a thread from a non-member holding under 3,0
 
 <details><summary>repro</summary>
 
-A throwaway realm asserts what the PR description promises: a funded ordinary account posts on the new board.
+A throwaway realm asserts the case that matters: a funded ordinary account posts on the new board.
 
 ```bash
 # from a local clone of gnolang/gno:

@@ -2,7 +2,7 @@
 Event: APPROVE
 
 ## Body
-The status board records `simulate says the enable would fail: invalid package` for the case this opens up, so a submitter whose live private realm has a redeploy parked reads `pending` and a string carrying no path and no hash. [`enable`](https://github.com/gnolang/gno/blob/6dcb5272a/contribs/gpao/oracle.go#L810) returns `sim.Error` alone, and the ["it changed after review" sentence](https://github.com/gnolang/gno/blob/6dcb5272a/gno.land/pkg/sdk/vm/keeper_inert.go#L120-L123) the description promises stays in `sim.Log`.
+The status board records `simulate says the enable would fail: invalid package` for the case this opens up, so a submitter whose live private realm has a redeploy parked reads `pending` and a string carrying no path and no hash. [`enable`](https://github.com/gnolang/gno/blob/6dcb5272a/contribs/gpao/oracle.go#L810) returns `sim.Error` alone, and the ["it changed after review" sentence](https://github.com/gnolang/gno/blob/6dcb5272a/gno.land/pkg/sdk/vm/keeper_inert.go#L120-L123) `EnablePackage` wrote stays in `sim.Log`, where nothing reads it.
 
 <details><summary>the two strings side by side</summary>
 

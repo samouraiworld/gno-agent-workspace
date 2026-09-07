@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-The direct `MsgCall` write surface the description asks for is present at the merge base, where the branch's own new [wugnot filetest](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/r/gnoland/wugnot/filetests/eoa_surface_filetest.gno#L26-L38) passes unchanged against wugnot's existing [`CallerTeller` wrappers](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L89-L102).
+The direct `MsgCall` write surface is already present at the merge base, where the branch's own new [wugnot filetest](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/r/gnoland/wugnot/filetests/eoa_surface_filetest.gno#L26-L38) passes unchanged against wugnot's existing [`CallerTeller` wrappers](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L89-L102).
 
 <details><summary>repro</summary>
 
@@ -30,7 +30,7 @@ At the head of this branch the same filetest reports gas 9158076 and the same st
 </details>
 
 ## examples/gno.land/p/demo/tokens/grc20/tellers.gno:60-66 [gh](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L60-L66) · [↗](../../../../../.worktrees/gno-review-6123/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L60)
-`TrustHost` lets the named realm spend a holder's whole balance on any call that holder makes into it, bounded by no amount, no recipient and no particular function, so the signing view the description sets out to protect shows a function name unrelated to the token. Document that scope at `TrustHost`, or hold `trustedHosts`, `UserTellerTrusted` and the three registry helpers back and ship `UserTeller` alone.
+`TrustHost` lets the named realm spend a holder's whole balance on any call that holder makes into it, bounded by no amount, no recipient and no particular function, so the signing view a holder reads shows a function name unrelated to the token. Document that scope at `TrustHost`, or hold `trustedHosts`, `UserTellerTrusted` and the three registry helpers back and ship `UserTeller` alone.
 
 <details><summary>repro</summary>
 

@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-The description leaves out two paths that emit through [`sendCoins`](https://github.com/gnolang/gno/blob/23e9de5ad/tm2/pkg/sdk/bank/keeper.go#L173-L193): the `MsgAddPackage` send envelope at [`keeper.go:1047`](https://github.com/gnolang/gno/blob/23e9de5ad/gno.land/pkg/sdk/vm/keeper.go#L1047) and the inert submission charge at [`keeper.go:952`](https://github.com/gnolang/gno/blob/23e9de5ad/gno.land/pkg/sdk/vm/keeper.go#L952).
+Two further paths funnel through [`sendCoins`](https://github.com/gnolang/gno/blob/23e9de5ad/tm2/pkg/sdk/bank/keeper.go#L173-L193) and so emit too: the `MsgAddPackage` send envelope at [`keeper.go:1047`](https://github.com/gnolang/gno/blob/23e9de5ad/gno.land/pkg/sdk/vm/keeper.go#L1047) and the inert submission charge at [`keeper.go:952`](https://github.com/gnolang/gno/blob/23e9de5ad/gno.land/pkg/sdk/vm/keeper.go#L952).
 
 ## tm2/pkg/sdk/bank/package.go:21 [gh](https://github.com/gnolang/gno/blob/23e9de5ad/tm2/pkg/sdk/bank/package.go#L21) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/package.go#L21)
 Registering `MsgMultiSend` makes the chain accept a transaction it refused to decode before, and nothing in the event feature needs that registration.
@@ -101,8 +101,6 @@ EncodeEvents:  [{"from":"g1from","to":"g1to","coins":[{"denom":"ugnot","amount":
 ```
 
 [`ResponseBase.EncodeEvents`](https://github.com/gnolang/gno/blob/23e9de5ad/tm2/pkg/bft/abci/types/types.go#L124-L132) has three callers, all CLI result printers: [`common.go:41`](https://github.com/gnolang/gno/blob/23e9de5ad/tm2/pkg/crypto/keys/client/common.go#L41) and [`:52`](https://github.com/gnolang/gno/blob/23e9de5ad/tm2/pkg/crypto/keys/client/common.go#L52), which are the tm2 client defaults `gnokey` replaces at [`root.go:38-40`](https://github.com/gnolang/gno/blob/23e9de5ad/gno.land/pkg/keyscli/root.go#L38-L40), and [`root.go:91`](https://github.com/gnolang/gno/blob/23e9de5ad/gno.land/pkg/keyscli/root.go#L91), which is the line a `gnokey` user sees.
-
-The PR description carries a third shape again, `"amount":[{"denom":"ugnot","amount":7}]`, from the earlier field name.
 </details>
 
 ## tm2/adr/pr6120_bank_transfer_events.md:1 [gh](https://github.com/gnolang/gno/blob/23e9de5ad/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L1)
