@@ -32,8 +32,9 @@ produces on every send envelope. Multisend is out of the change entirely, and
 the ADR records why.
 
 **Verdict: REQUEST CHANGES** — the emit points, their ordering and the
-self-transfer guard are right, and the ADR still names the encoding no indexer
-reads as the indexer-facing contract (2 warnings, 1 suggestion, 2 nits).
+self-transfer guard are right, and `CheckAndDeductSessionSpend` runs above that
+guard, so a session key's allowance is spent with nothing recording it
+(1 warning, 3 nits, 1 suggestion).
 
 ## Verify first
 
@@ -93,30 +94,6 @@ three are the paths where an indexer needs an address the events do not carry.
 
 ## Warnings (should fix)
 
-- **[wrong wire contract]** [`pr6120_bank_transfer_events.md:40-43`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L40-L43) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L40-L43) — the shape named as indexer-facing is what a CLI result printer produces; an RPC client gets `coins` as one amino string instead.
-  <details><summary>details</summary>
-
-  `ResponseBase.EncodeEvents` has three callers and all are CLI result printers:
-  [`common.go:41`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/crypto/keys/client/common.go#L41) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/crypto/keys/client/common.go#L41)
-  and `:52`, the tm2 client defaults `gnokey` replaces at
-  [`root.go:38-40`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/keyscli/root.go#L38-L40) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/keyscli/root.go#L38-L40),
-  and
-  [`root.go:91`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/keyscli/root.go#L91) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/keyscli/root.go#L91),
-  the line a `gnokey` user actually sees. Every RPC response goes through
-  [`amino.MarshalJSON`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/bft/rpc/lib/types/types.go#L207) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/bft/rpc/lib/types/types.go#L207)
-  instead, which calls `std.Coins.MarshalAmino` and renders the field as one
-  string. Two artifacts inside this diff already say so: the branch's
-  [`events_test.go:18`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/events_test.go#L18) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/events_test.go#L18)
-  asserts `"coins":"5ugnot"`, and the generated schema at
-  [`bank.proto:37`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/bank.proto#L37) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/bank.proto#L37)
-  declares `string coins = 3`. The PR body carries a third shape again,
-  `"amount":[{...}]`, from an earlier field name. Measured pair re-run at this
-  head in
-  [`tests/event_wire_shapes_test.go`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6120-bank-transfer-events/2-639d06bf2/tests/event_wire_shapes_test.go).
-  Fix: state the amino form as the contract, since that is the one GnoScan
-  receives.
-  </details>
-
 - **[allowance spent on a no-op]** [`keeper.go:187`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187) — `CheckAndDeductSessionSpend` runs above this guard at `keeper.go:152`, so a session-signed send from a master to that same master spends the session's `SpendLimit` and records nothing.
   <details><summary>details</summary>
 
@@ -144,6 +121,30 @@ three are the paths where an indexer needs an address the events do not carry.
 
 - **[a guard clause that never fires]** [`bank_transfer_events.txtar:26`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/integration/testdata/bank_transfer_events.txtar#L26) — `Forward` is a crossing function, so `cur.IsCurrent()` is always true and `!cur.IsCurrent()` is unreachable; [`interrealm_v2.md:336-339`](https://github.com/gnolang/gno/blob/639d06bf2/gnovm/adr/interrealm_v2.md?plain=1#L336-L339) · [↗](../../../../../.worktrees/gno-review-6120/gnovm/adr/interrealm_v2.md#L336-L339) states that the runtime ensures it. `cur.Previous().IsUserCall()` carries the check alone. The whole file is added by this diff, and a fixture is what the next realm gets copied from. Fix: drop the first clause.
 - [`pr6120_bank_transfer_events.md:1`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L1) — the title reads `PRxxxx`; 13 of the 17 other PR-named ADRs under `tm2/adr/` carry their number.
+
+- **[wrong wire contract]** [`pr6120_bank_transfer_events.md:40-43`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/adr/pr6120_bank_transfer_events.md?plain=1#L40-L43) · [↗](../../../../../.worktrees/gno-review-6120/tm2/adr/pr6120_bank_transfer_events.md#L40-L43) — the shape named as indexer-facing is what a CLI result printer produces; an RPC client gets `coins` as one amino string instead.
+  <details><summary>details</summary>
+
+  `ResponseBase.EncodeEvents` has three callers and all are CLI result printers:
+  [`common.go:41`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/crypto/keys/client/common.go#L41) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/crypto/keys/client/common.go#L41)
+  and `:52`, the tm2 client defaults `gnokey` replaces at
+  [`root.go:38-40`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/keyscli/root.go#L38-L40) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/keyscli/root.go#L38-L40),
+  and
+  [`root.go:91`](https://github.com/gnolang/gno/blob/639d06bf2/gno.land/pkg/keyscli/root.go#L91) · [↗](../../../../../.worktrees/gno-review-6120/gno.land/pkg/keyscli/root.go#L91),
+  the line a `gnokey` user actually sees. Every RPC response goes through
+  [`amino.MarshalJSON`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/bft/rpc/lib/types/types.go#L207) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/bft/rpc/lib/types/types.go#L207)
+  instead, which calls `std.Coins.MarshalAmino` and renders the field as one
+  string. Two artifacts inside this diff already say so: the branch's
+  [`events_test.go:18`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/events_test.go#L18) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/events_test.go#L18)
+  asserts `"coins":"5ugnot"`, and the generated schema at
+  [`bank.proto:37`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/bank.proto#L37) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/bank.proto#L37)
+  declares `string coins = 3`. The PR body carries a third shape again,
+  `"amount":[{...}]`, from an earlier field name. Measured pair re-run at this
+  head in
+  [`tests/event_wire_shapes_test.go`](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6120-bank-transfer-events/2-639d06bf2/tests/event_wire_shapes_test.go).
+  Fix: state the amino form as the contract, since that is the one GnoScan
+  receives.
+  </details>
 
 ## Suggestions
 
