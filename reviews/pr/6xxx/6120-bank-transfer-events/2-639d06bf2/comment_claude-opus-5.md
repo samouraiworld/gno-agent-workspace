@@ -2,6 +2,7 @@
 Event: COMMENT
 
 ## Body
+The rest looks good to me. Nothing below is urgent.
 
 ## tm2/pkg/sdk/bank/keeper.go:187 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187)
 [`CheckAndDeductSessionSpend`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152) runs above this guard, so a session-signed send from a master to that same master spends the session's `SpendLimit` and records nothing. Gate that call on the same condition.
