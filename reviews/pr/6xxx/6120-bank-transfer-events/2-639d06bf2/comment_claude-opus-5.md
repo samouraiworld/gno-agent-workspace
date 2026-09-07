@@ -2,7 +2,6 @@
 Event: REQUEST_CHANGES
 
 ## Body
-`TransferEvent`'s shape is fixed the moment this ships: the event set is inside [`LastResultsHash`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/bft/state/execution.go#L456), so adding a field later is a consensus break.
 
 ## tm2/pkg/sdk/bank/keeper.go:187 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187)
 The `SpendLimit` deduction at [`keeper.go:152`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152) sits above this guard, so a session-signed send from a master to that same master spends the allowance and records nothing. Gate the deduction on the same condition.
