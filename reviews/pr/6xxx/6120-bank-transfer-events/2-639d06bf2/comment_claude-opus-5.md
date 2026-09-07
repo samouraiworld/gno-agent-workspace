@@ -4,7 +4,7 @@ Event: REQUEST_CHANGES
 ## Body
 
 ## tm2/pkg/sdk/bank/keeper.go:187 [gh](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L187) · [↗](../../../../../.worktrees/gno-review-6120/tm2/pkg/sdk/bank/keeper.go#L187)
-The `SpendLimit` deduction at [`keeper.go:152`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152) sits above this guard, so a session-signed send from a master to that same master spends the allowance and records nothing. Gate the deduction on the same condition.
+[`CheckAndDeductSessionSpend`](https://github.com/gnolang/gno/blob/639d06bf2/tm2/pkg/sdk/bank/keeper.go#L152) runs above this guard, so a session-signed send from a master to that same master spends the session's `SpendLimit` and records nothing. Gate that call on the same condition.
 
 <details><summary>repro</summary>
 
