@@ -10,8 +10,9 @@ Round 2, deep mode over the commit round 1 reviewed. The head did not move. Four
 lenses ran, then three critics and a claim gate. The round overturns round 1's
 REQUEST CHANGES: round 1's `test13` Warning argues against a decision the
 description states outright, on a chain that is no longer re-derived, and most of
-what the lenses surfaced is already in the description. Two gaps survive that it
-does not name, both pre-existing, so the verdict is COMMENT.
+what the lenses surfaced is already in the description. What survives are two pre-existing
+coverage gaps it does not name, neither of which blocks the change, so the verdict
+is APPROVE.
 
 ## Overview
 
@@ -22,14 +23,13 @@ with those constants. This change rewrites 393 of the 407 copies in the tree and
 leaves 14 under `misc/deployments/gnoland1/` and `misc/deployments/test13.gno.land/`,
 which record chains that already ran.
 
-**Verdict: COMMENT** — the substitution is complete and provably pure, and the two
-constants it touches that nothing pins are gaps this branch did not introduce
-(1 Warning, 2 Suggestions).
+**Verdict: APPROVE** — the substitution is complete and provably pure, and what it
+leaves are two pre-existing coverage gaps on constants it touches
+(1 Suggestion, 1 Nit).
 
 ## Verify first
 
 - [`examples/gno.land/r/gnoland/blog/admin.gno:20`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin.gno#L20) · [↗](../../../../../.worktrees/gno-review-6131/examples/gno.land/r/gnoland/blog/admin.gno#L20) — revert this constant alone and run `gno test -C examples ./gno.land/r/gnoland/blog`. It stays green, so the realm's own suite is not what would catch a wrong admin here.
-- [`misc/deployments/topaz.gno.land/gen-genesis.sh:137`](https://github.com/gnolang/gno/blob/f2bdb07b0/misc/deployments/topaz.gno.land/gen-genesis.sh#L137) · [↗](../../../../../.worktrees/gno-review-6131/misc/deployments/topaz.gno.land/gen-genesis.sh#L137) — confirm this value against `transactions/migration/names-enable/meta.json`. `pearl` and `sapphire` compare the two and `die`; `topaz` does not.
 
 ## Summary
 
@@ -43,9 +43,8 @@ merge base. So nothing unrelated rode along and the value is right.
 The description already carries the rest of what a reader needs: the one-shot gate
 and the param that should replace it, both left-alone deployment trees with a
 reason per file, the balance that has to move while the old signers exist, and the
-locked checksums going stale on all four builders. What it does not carry is that
-two of the constants it edits are pinned by nothing, so a wrong value in either
-would ship green.
+locked checksums going stale on all four builders. What it does not carry is that three of
+the constants it edits are pinned by no test that would fail on a wrong value.
 
 ## Benchmarks / Numbers
 
@@ -68,7 +67,19 @@ address, running, and restoring.
 Every one of these fires when a source constant and a fixture copy disagree, and
 none fires when both are wrong together.
 
-## Warnings (should fix)
+## Suggestions
+
+- **[two constants are asserted nowhere]** [`quarantined/gno.land/r/gnoland/pages/admin.gno:18`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) · [↗](../../../../../.worktrees/gno-review-6131/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) — this and [`releases_example/example.gno:12`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12) · [↗](../../../../../.worktrees/gno-review-6131/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12) each hold the only copy of their address, so a partial sweep past either is silent in every suite.
+  <details><summary>details</summary>
+
+  `git grep -c` returns one occurrence in each package, and reverting both to the
+  old address leaves `gno test` on both realms green. The description says the
+  quarantined realms are covered by `gno test ./...`, which is true of the packages
+  and not of these two constants. Fix: assert the constant in each realm's test, as
+  the three other quarantined realms already do.
+  </details>
+
+## Nits
 
 - **[the blog suite is green for any admin address]** [`examples/gno.land/r/gnoland/blog/admin_test.gno:27`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin_test.gno#L27) · [↗](../../../../../.worktrees/gno-review-6131/examples/gno.land/r/gnoland/blog/admin_test.gno#L27) — `clearState` assigns a second hardcoded copy of the address over the source constant, so the realm's own tests assert the test's literal rather than [`admin.gno:20`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin.gno#L20) · [↗](../../../../../.worktrees/gno-review-6131/examples/gno.land/r/gnoland/blog/admin.gno#L20).
   <details><summary>details</summary>
@@ -87,29 +98,6 @@ none fires when both are wrong together.
   [`tests/blog-admin-test-fix.patch`](tests/blog-admin-test-fix.patch). With the
   patch applied the suite stays green on an untouched constant and fails on a
   reverted one, naming both addresses in the diff of the rendered post.
-  </details>
-
-## Suggestions
-
-- **[topaz never checks the caller it ships]** [`topaz.gno.land/gen-genesis.sh:137`](https://github.com/gnolang/gno/blob/f2bdb07b0/misc/deployments/topaz.gno.land/gen-genesis.sh#L137) · [↗](../../../../../.worktrees/gno-review-6131/misc/deployments/topaz.gno.land/gen-genesis.sh#L137) — the description says `pearl` and `sapphire` assert `NAMES_ADMIN` against `caller_override` and `die` otherwise, and `topaz` carries no such check, so its `NAMES_ADMIN` reaches only a log line.
-  <details><summary>details</summary>
-
-  `topaz` uses the variable once, in the substep label at
-  [`:722`](https://github.com/gnolang/gno/blob/f2bdb07b0/misc/deployments/topaz.gno.land/gen-genesis.sh#L722) · [↗](../../../../../.worktrees/gno-review-6131/misc/deployments/topaz.gno.land/gen-genesis.sh#L722),
-  while `txn_dir_to_jsonl` takes the caller that ships from `meta.json`. A
-  half-applied swap would print one address and cut genesis with another. Fix: copy
-  the three-line comparison from
-  [`pearl/gen-genesis.sh:798-800`](https://github.com/gnolang/gno/blob/f2bdb07b0/misc/deployments/pearl.gno.land/gen-genesis.sh#L798-L800) · [↗](../../../../../.worktrees/gno-review-6131/misc/deployments/pearl.gno.land/gen-genesis.sh#L798-L800).
-  </details>
-
-- **[two constants are asserted nowhere]** [`quarantined/gno.land/r/gnoland/pages/admin.gno:18`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) · [↗](../../../../../.worktrees/gno-review-6131/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) — this and [`releases_example/example.gno:12`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12) · [↗](../../../../../.worktrees/gno-review-6131/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12) each hold the only copy of their address, so a partial sweep past either is silent in every suite.
-  <details><summary>details</summary>
-
-  `git grep -c` returns one occurrence in each package, and reverting both to the
-  old address leaves `gno test` on both realms green. The description says the
-  quarantined realms are covered by `gno test ./...`, which is true of the packages
-  and not of these two constants. Fix: assert the constant in each realm's test, as
-  the three other quarantined realms already do.
   </details>
 
 ## Verified
@@ -142,6 +130,9 @@ f2bdb07b0, restored clean afterwards.
 
 ## Not posted, no change needed
 
+- `topaz` carries no check tying `NAMES_ADMIN` to the `caller_override` that ships,
+  where the description says `pearl` and `sapphire` assert it and `die`. Not posted:
+  the check is that builder's own discipline and nothing in this change turns on it.
 - The locked build checksums go stale, which the description names, along with this
   change being the cause and no chain needing a re-cut. Two refinements from
   [`tests/checksum-replay.sh`](tests/checksum-replay.sh): only `pearl` had a live

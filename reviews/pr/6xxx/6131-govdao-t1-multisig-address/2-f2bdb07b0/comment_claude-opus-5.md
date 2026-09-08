@@ -1,11 +1,11 @@
 # Review: [#6131](https://github.com/gnolang/gno/pull/6131)
-Event: COMMENT
+Event: APPROVE
 
 ## Body
 Two of the constants this changes are asserted by no test in the tree: [`pages/admin.gno:18`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) and [`releases_example/example.gno:12`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12), each holding the only copy of its address, so a partial sweep past either is silent in every suite.
 
 ## examples/gno.land/r/gnoland/blog/admin_test.gno:27 [gh](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin_test.gno#L27) · [↗](../../../../../.worktrees/gno-review-6131/examples/gno.land/r/gnoland/blog/admin_test.gno#L27)
-`clearState` runs first in every test in the package and assigns a second hardcoded copy of the address over [`adminAddr`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin.gno#L20), so this realm's suite stays green whatever the source constant says.
+Nit: `clearState` runs first in every test in the package and assigns a second hardcoded copy of the address over [`adminAddr`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin.gno#L20), so this realm's suite stays green whatever the source constant says.
 
 ```suggestion
 	adminAddr = initialAdminAddr
@@ -43,6 +43,3 @@ FAIL    ./gno.land/r/gnoland/blog 	3.17s
 ```
 
 </details>
-
-## misc/deployments/topaz.gno.land/gen-genesis.sh:137 [gh](https://github.com/gnolang/gno/blob/f2bdb07b0/misc/deployments/topaz.gno.land/gen-genesis.sh#L137) · [↗](../../../../../.worktrees/gno-review-6131/misc/deployments/topaz.gno.land/gen-genesis.sh#L137)
-Suggestion: `topaz` reads this variable only into the substep label at [`:722`](https://github.com/gnolang/gno/blob/f2bdb07b0/misc/deployments/topaz.gno.land/gen-genesis.sh#L722) while the caller that ships comes from `meta.json`, so a half-applied swap would log one address and cut genesis with another. [`pearl/gen-genesis.sh:798-800`](https://github.com/gnolang/gno/blob/f2bdb07b0/misc/deployments/pearl.gno.land/gen-genesis.sh#L798-L800) is the comparison that catches it.
