@@ -1,4 +1,5 @@
 # Review: [#6131](https://github.com/gnolang/gno/pull/6131)
+Posted: https://github.com/gnolang/gno/pull/6131#pullrequestreview-5142483726
 Event: APPROVE
 
 ## Body
@@ -6,7 +7,7 @@ Event: APPROVE
 
 The change itself is right: all 333 changed line pairs are identical once each address maps to one token, apart from three comment lines dropping `gnoland1`, and the new value matches the source it is derived from.
 
-## examples/gno.land/r/gnoland/blog/admin_test.gno:27 [gh](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin_test.gno#L27) · [↗](../../../../../.worktrees/gno-review-6131/examples/gno.land/r/gnoland/blog/admin_test.gno#L27)
+## examples/gno.land/r/gnoland/blog/admin_test.gno:27 [gh](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin_test.gno#L27) · [↗](../../../../../.worktrees/gno-review-6131/examples/gno.land/r/gnoland/blog/admin_test.gno#L27) [posted](https://github.com/gnolang/gno/pull/6131#discussion_r3958515133)
 Nit: `clearState` runs first in every test in the package and assigns a second hardcoded copy of the address over [`adminAddr`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin.gno#L20), so this realm's suite stays green whatever the source constant says.
 
 ```suggestion
