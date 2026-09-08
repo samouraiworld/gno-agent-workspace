@@ -2,7 +2,7 @@
 Event: COMMENT
 
 ## Body
-The substitution is complete and provably pure: every added line equals its removed line once both addresses map to one token, apart from three comment lines in the `pearl`, `sapphire` and `topaz` builders that drop the word `gnoland1`. The new address decodes to twenty bytes and round-trips, a one-character corruption is rejected, and no hex or base64 form of either address survives anywhere in the tree. Two constants the change touches are pinned by nothing, both of which predate this branch.
+Two of the constants this changes are asserted by no test in the tree: [`pages/admin.gno:18`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) and [`releases_example/example.gno:12`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12), each holding the only copy of its address, so a partial sweep past either is silent in every suite.
 
 ## examples/gno.land/r/gnoland/blog/admin_test.gno:27 [gh](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin_test.gno#L27) · [↗](../../../../../.worktrees/gno-review-6131/examples/gno.land/r/gnoland/blog/admin_test.gno#L27)
 `clearState` runs first in every test in the package and assigns a second hardcoded copy of the address over [`adminAddr`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin.gno#L20), so this realm's suite stays green whatever the source constant says.

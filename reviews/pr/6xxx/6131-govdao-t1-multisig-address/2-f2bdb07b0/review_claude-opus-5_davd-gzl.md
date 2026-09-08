@@ -24,7 +24,7 @@ which record chains that already ran.
 
 **Verdict: COMMENT** — the substitution is complete and provably pure, and the two
 constants it touches that nothing pins are gaps this branch did not introduce
-(1 Warning, 1 Suggestion).
+(1 Warning, 2 Suggestions).
 
 ## Verify first
 
@@ -100,6 +100,16 @@ none fires when both are wrong together.
   half-applied swap would print one address and cut genesis with another. Fix: copy
   the three-line comparison from
   [`pearl/gen-genesis.sh:798-800`](https://github.com/gnolang/gno/blob/f2bdb07b0/misc/deployments/pearl.gno.land/gen-genesis.sh#L798-L800) · [↗](../../../../../.worktrees/gno-review-6131/misc/deployments/pearl.gno.land/gen-genesis.sh#L798-L800).
+  </details>
+
+- **[two constants are asserted nowhere]** [`quarantined/gno.land/r/gnoland/pages/admin.gno:18`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) · [↗](../../../../../.worktrees/gno-review-6131/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) — this and [`releases_example/example.gno:12`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12) · [↗](../../../../../.worktrees/gno-review-6131/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12) each hold the only copy of their address, so a partial sweep past either is silent in every suite.
+  <details><summary>details</summary>
+
+  `git grep -c` returns one occurrence in each package, and reverting both to the
+  old address leaves `gno test` on both realms green. The description says the
+  quarantined realms are covered by `gno test ./...`, which is true of the packages
+  and not of these two constants. Fix: assert the constant in each realm's test, as
+  the three other quarantined realms already do.
   </details>
 
 ## Verified
