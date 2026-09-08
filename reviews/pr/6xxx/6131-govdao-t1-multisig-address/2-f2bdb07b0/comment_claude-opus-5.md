@@ -2,7 +2,9 @@
 Event: APPROVE
 
 ## Body
-Two of the constants this changes are asserted by no test in the tree: [`pages/admin.gno:18`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) and [`releases_example/example.gno:12`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12), each holding the only copy of its address, so a partial sweep past either is silent in every suite.
+[`pages/admin.gno:18`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/gnoland/pages/admin.gno#L18) and [`releases_example/example.gno:12`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/quarantined/gno.land/r/demo/releases_example/example.gno#L12) are asserted by no test, each holding the only copy of its address, so a partial sweep past either is silent. Both predate this change and sit outside its scope.
+
+The change itself is right: all 333 changed line pairs are identical once each address maps to one token, apart from three comment lines dropping `gnoland1`, and the new value matches the source it is derived from.
 
 ## examples/gno.land/r/gnoland/blog/admin_test.gno:27 [gh](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin_test.gno#L27) · [↗](../../../../../.worktrees/gno-review-6131/examples/gno.land/r/gnoland/blog/admin_test.gno#L27)
 Nit: `clearState` runs first in every test in the package and assigns a second hardcoded copy of the address over [`adminAddr`](https://github.com/gnolang/gno/blob/f2bdb07b0/examples/gno.land/r/gnoland/blog/admin.gno#L20), so this realm's suite stays green whatever the source constant says.
