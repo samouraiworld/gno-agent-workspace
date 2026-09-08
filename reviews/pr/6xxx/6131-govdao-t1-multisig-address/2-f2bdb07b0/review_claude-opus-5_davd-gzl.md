@@ -105,6 +105,13 @@ none fires when both are wrong together.
 Every claim below is a run made for this round, in the reviewed worktree at
 f2bdb07b0, restored clean afterwards.
 
+- The substitution damaged no formatting. All 333 changed line pairs are
+  byte-identical once each address maps to one token, apart from three comment
+  lines dropping `gnoland1`, so no line lost or gained a space. `git diff --check`
+  reports nothing, `gno fmt -diff` is clean over all 14 changed packages, and both
+  addresses are 40 characters, so no aligned block needed re-padding. The tree
+  holds 393 occurrences of the exact new string and 14 of the old, with no
+  truncated or malformed variant of either.
 - The new address decodes to twenty bytes that round-trip to the same string, and
   bumping its last character is rejected with `invalid checksum`. 38 of its 40
   characters differ from the old address. It appears nowhere in the tree at the
