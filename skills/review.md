@@ -8,7 +8,7 @@ argument-hint: <pr-number> [pr-number...]
 
 The workflow is `skills/core/review.md`; prose per `skills/core/writing-style.md`, including its closing Pass. Everything below adds to or overrides the core for `gnolang/gno`. A core section not named here applies unchanged.
 
-**Input:** `$ARGUMENTS` — space-separated PR numbers or GitHub URLs. Process each PR independently.
+**Input:** `$ARGUMENTS`: space-separated PR numbers or GitHub URLs. Process each PR independently.
 
 ## Layout
 
@@ -63,11 +63,11 @@ done < /tmp/open_nondraft.txt
 
 ## Parallel dispatch
 
-The subagent prompt names the worktree: "The worktree already exists at `<worktree-path>` with the PR checked out — never `worktree add` or `gh pr checkout`." The parent's single commit reads `review: PRs <a> and <b>`.
+The subagent prompt names the worktree: "The worktree already exists at `<worktree-path>` with the PR checked out: never `worktree add` or `gh pr checkout`." The parent's single commit reads `review: PRs <a> and <b>`.
 
 ## Deep mode
 
-The catalog the core's lens rule names is `skills/invariant-catalog.md`. A large gno PR earns a consensus-impact lens. The commit message may suffix `(deep)`.
+The catalog the core's lens rule names is `skills/invariant-catalog.md`. A large gno PR earns a consensus-impact lens. Deep mode also runs unasked on a change to consensus, gas or allocation accounting, or caller identity, beside the core's advisory trigger. The commit message may suffix `(deep)`.
 
 ## Run tests
 
@@ -79,6 +79,8 @@ The catalog the core's lens rule names is `skills/invariant-catalog.md`. A large
 - Example-package tests on a branch that also modifies a stdlib: run `gno test` with `GNOROOT=<worktree-root>`, else new stdlib symbols fail preprocessing (`name X not declared`).
 - gno's `Merge Requirements` bot is a commit status, not a check run.
 - Live-boot targets here: `contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`. Boot from the worktree and exercise the changed behavior (gnodev plus `curl` for gnoweb; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader and tooling changes).
+- `gno test` never runs an `Example_*` function that takes a parameter or returns a value: `isExampleFunc` in `gnovm/pkg/test/test.go` excludes it, and `// Output:` plays no part. An example body taking `cur realm` is unexecuted whatever the suite reports, so the core's sentinel rule applies to it.
+- No txtar can observe a block gas price change: `testscript_gnoland.go` pins genesis `InitialGasPrice` to a zero amount, and `calcBlockGasPrice` in `tm2/pkg/sdk/auth/keeper.go` returns early on it every block. And `gnokey query params/<key>` echoes raw store bytes through `GetBytes`, never the decoded struct, so a query after a `SetString` proves nothing about decoding.
 
 ## Review the diff
 
@@ -90,6 +92,7 @@ The catalog the core's lens rule names is `skills/invariant-catalog.md`. A large
   ```
 - **Invariant catalog, mandatory.** For a PR touching gno code (the GnoVM, stdlibs, or `.gno` packages and realms), load `skills/invariant-catalog.md`, walk every class against the diff, and confirm coverage before writing the Output. Skip for docs- or tooling-only PRs. For a PR that adds or changes a realm, also walk that file's *Realm audit patterns*; cite the fixture pair when a finding matches a pattern.
 - **Gno vs Go comparison.** When the PR contains `.gno` code, write an equivalent Go test to verify behavior parity, run both, note discrepancies, save to the same `tests/` directory.
+- **A fixture pinning an allocation or gas bound is re-run in its sibling shapes before the bound is credited**: slice for array, one value aliased into every slot for fresh values, `_ =` for a named binding, a Go local for a VM object. Each is built by a different op, and a walk proven on one says nothing about the next; the shape that survives is the finding.
 
 ## Write tests
 
@@ -107,7 +110,7 @@ Core rules apply; the gno test shapes:
   rm gnovm/tests/files/<name>.gno
   */
   ```
-  Same shape for `.txtar` tests — `#` comments, destination `gno.land/pkg/integration/testdata/`.
+  Same shape for `.txtar` tests: `#` comments, destination `gno.land/pkg/integration/testdata/`.
 - Pair the bug with its related baseline invariant in one assertion, and ship two `stdout` assertions side by side, active and commented:
   ```
   stdout 'p==q=false q==r=true'   # IS:     bug — cross-tx pointer-identity break
@@ -153,16 +156,16 @@ For a patch-id-equal base-only move, `./scripts/reanchor-round.py <number> <new-
 
 ## PR overview (`overview.md`)
 
-Generate `overview.md` for every PR, before the review file, per the core's *Overview*, which carries the format and the update rule. Nothing about the subject exempts a PR — the judgement call this replaces answered "skip" for subjects a reader could not follow. Two gno paths on top of the core:
+Generate `overview.md` for every PR, before the review file, per the core's *Overview*, which carries the format and the update rule. Nothing about the subject exempts a PR: the judgement call this replaces answered "skip" for subjects a reader could not follow. Two gno paths on top of the core:
 
-- Write it at the PR directory root — `reviews/pr/<thousand>xxx/<number>-<slug>/overview.md`, NOT inside the round directory: it explains the PR, not one commit.
+- Write it at the PR directory root, `reviews/pr/<thousand>xxx/<number>-<slug>/overview.md`, NOT inside the round directory: it explains the PR, not one commit.
 - Exactly one pointer to the review: a `Review files` link to the PR directory tree on GitHub.
 
 ## Posting
 
 Post with `./scripts/post-pr-review.py <number> <path-to-comment.md>` instead of raw `gh api`:
 
-- It pre-validates anchors against the PR diff and reports invalid ones — move those into Body, or re-run with `--skip-invalid`. `--dry-run` prints the payload without posting.
+- It pre-validates anchors against the PR diff and reports invalid ones: move those into Body, or re-run with `--skip-invalid`. `--dry-run` prints the payload without posting.
 - APPROVE needs the `--approve` flag; the script refuses it otherwise.
 - After a successful post it writes the URLs back into comment.md itself; commit and push the updated draft.
 - The script enforces the core's re-post rule: a draft carrying `Posted:` rewrites the posted review in place, and an anchor with no `[posted]` link aborts it.
