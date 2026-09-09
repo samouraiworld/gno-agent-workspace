@@ -67,7 +67,7 @@ The subagent prompt names the worktree: "The worktree already exists at `<worktr
 
 ## Deep mode
 
-The catalog the core's lens rule names is `skills/invariant-catalog.md`. A large gno PR earns a consensus-impact lens. Deep mode also runs unasked on a change to consensus, gas or allocation accounting, or caller identity, beside the core's advisory trigger. The commit message may suffix `(deep)`.
+The catalog the core's lens rule and the pipeline's `catalog` argument name is `skills/invariant-catalog.md`. A large gno PR earns a consensus-impact lens. Deep mode also runs unasked on a change to consensus, gas or allocation accounting, or caller identity, beside the core's advisory trigger. The commit message may suffix `(deep)`.
 
 ## Run tests
 
