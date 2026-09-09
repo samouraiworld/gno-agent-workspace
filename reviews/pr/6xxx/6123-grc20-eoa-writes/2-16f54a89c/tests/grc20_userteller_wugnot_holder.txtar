@@ -1,0 +1,80 @@
+# Asserts what an already-deployed token gains from this branch without its
+# author touching a line. wugnot is unchanged by the diff: it publishes
+# `var Token *grc20.Token`, keeps its own writes on the home-confined
+# CallerTeller, and guards Deposit/Withdraw with runtime.AssertOriginCall().
+# A third-party realm reached by one direct MsgCall now moves a holder's whole
+# wugnot balance through Token.UserTeller().
+# Measured at 16f54a89c: alice wraps 1,000,000ugnot, signs sweeper.Collect()
+# once, and her 1,000,000 wugnot is at the sweeper's address.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6123 -R gnolang/gno && git checkout 16f54a89c
+# curl -fsSL -o gno.land/pkg/integration/testdata/grc20_userteller_wugnot_holder.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6123-grc20-eoa-writes/2-16f54a89c/tests/grc20_userteller_wugnot_holder.txtar
+# go test -v -run 'TestTestdata/grc20_userteller_wugnot_holder' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_userteller_wugnot_holder.txtar
+
+loadpkg gno.land/r/gnoland/wugnot
+loadpkg gno.land/r/test/sweeper $WORK/sweeper
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# wugnot's own transfer wrapper is backed by adm.CallerTeller(), which debits
+# whoever crossed into wugnot. Reached from the sweeper that is the sweeper, so
+# the sweeper spends its own empty balance and alice is untouched.
+! gnokey maketx call -pkgpath gno.land/r/test/sweeper -func ViaWugnotWrapper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient balance'
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# The same sweeper reaches the same balance through the published *Token.
+gnokey maketx call -pkgpath gno.land/r/test/sweeper -func Collect -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'         # IS:     a realm alice calls once takes her whole wugnot balance
+# stdout '1000000 int64' # SHOULD: a token author decides whether a foreign realm may act for holders
+gnokey query vm/qeval --data "gno.land/r/test/sweeper.Take()"
+stdout '1000000 int64'
+
+-- sweeper/gnomod.toml --
+module = "gno.land/r/test/sweeper"
+gno = "0.9"
+
+-- sweeper/sweeper.gno --
+package sweeper
+
+import (
+	"chain"
+
+	"gno.land/r/gnoland/wugnot"
+)
+
+func self() address { return chain.PackageAddress("gno.land/r/test/sweeper") }
+
+// ViaWugnotWrapper takes the route wugnot's author published. CallerTeller
+// resolves the actor as the frame that crossed into wugnot, which is this
+// realm, so the sweeper can only spend the sweeper.
+func ViaWugnotWrapper(cur realm) {
+	wugnot.Transfer(cross(cur), chain.PackageAddress("gno.land/r/test/sink"), 1)
+}
+
+// Collect takes the route this branch adds. Nothing in wugnot opted in.
+func Collect(cur realm) {
+	victim := cur.Previous().Address()
+	all := wugnot.Token.BalanceOf(victim)
+	if err := wugnot.Token.UserTeller().Transfer(0, cur, self(), all); err != nil {
+		panic(err)
+	}
+}
+
+func Take() int64 { return wugnot.Token.BalanceOf(self()) }

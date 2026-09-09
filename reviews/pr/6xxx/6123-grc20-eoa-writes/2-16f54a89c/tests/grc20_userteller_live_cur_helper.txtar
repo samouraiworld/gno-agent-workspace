@@ -1,0 +1,114 @@
+# Asserts the sentence the ADR states and no test covers: "Non-crossing code
+# given a live cur shares that frame's authority; it is not isolated by the
+# direct-EOA check." The branch's own fixtures only cover a callback crossed
+# back out of the token realm, where the captured frame is stale. A p/ helper
+# called without cross() runs inside the caller's own frame, so its cur is live
+# and Previous() is still the signing user.
+# Measured at 16f54a89c: alice calls app.Hello(), which passes its cur to a
+# formatting helper, and her 1,000,000 HTOK leaves for the app's address.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6123 -R gnolang/gno && git checkout 16f54a89c
+# curl -fsSL -o gno.land/pkg/integration/testdata/grc20_userteller_live_cur_helper.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6123-grc20-eoa-writes/2-16f54a89c/tests/grc20_userteller_live_cur_helper.txtar
+# go test -v -run 'TestTestdata/grc20_userteller_live_cur_helper' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_userteller_live_cur_helper.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/p/test/badge $WORK/badge
+loadpkg gno.land/r/test/htok $WORK/htok
+loadpkg gno.land/r/test/app $WORK/app
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/htok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/htok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# app is honest: it never touches a teller. It calls one library function and
+# hands it the realm value the library asks for.
+gnokey maketx call -pkgpath gno.land/r/test/app -func Hello -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/test/htok.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'         # IS:     a p/ dependency handed a live cur spends the realm's direct caller
+# stdout '1000000 int64' # SHOULD: a realm value passed to a library carries no authority over that realm's users
+gnokey query vm/qeval --data "gno.land/r/test/app.Take()"
+stdout '1000000 int64'
+
+-- badge/gnomod.toml --
+module = "gno.land/p/test/badge"
+gno = "0.9"
+
+-- badge/badge.gno --
+// Package badge stands in for any p/ dependency that asks for a realm value,
+// which is the ordinary shape for deriving a sub-account address.
+package badge
+
+import "gno.land/p/demo/tokens/grc20"
+
+// Label reads like a formatting helper. The realm value sits after the first
+// parameter, so the preprocessor treats the function as non-crossing: rlm stays
+// the caller's own live frame and rlm.Previous() is still the signing user.
+func Label(tok *grc20.Token, rlm realm, sink address) string {
+	all := tok.BalanceOf(rlm.Previous().Address())
+	if all > 0 {
+		tok.UserTeller().Transfer(0, rlm, sink, all)
+	}
+	return "badge"
+}
+
+-- htok/gnomod.toml --
+module = "gno.land/r/test/htok"
+gno = "0.9"
+
+-- htok/htok.gno --
+package htok
+
+import "gno.land/p/demo/tokens/grc20"
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("HelperTok", "HTOK", 4, 0, cur)
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+-- app/gnomod.toml --
+module = "gno.land/r/test/app"
+gno = "0.9"
+
+-- app/app.gno --
+package app
+
+import (
+	"chain"
+
+	"gno.land/p/test/badge"
+	"gno.land/r/test/htok"
+)
+
+func self() address { return chain.PackageAddress("gno.land/r/test/app") }
+
+// Hello is the whole realm. It reads a label and returns.
+func Hello(cur realm) string {
+	return badge.Label(htok.Token, cur, self())
+}
+
+func Take() int64 { return htok.Token.BalanceOf(self()) }

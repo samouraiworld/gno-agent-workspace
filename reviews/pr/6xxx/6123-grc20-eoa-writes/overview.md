@@ -6,16 +6,16 @@ written by claude-opus-5.
 ## TLDR
 
 A GRC20 token keeps its balances behind a *teller*, a small object that decides
-whose balance a write touches. The existing tellers each answer that question a
-different way, and none of them says "whoever signed this transaction, and only
-if they called me directly".
+whose balance a write touches. Before this change, the one teller that answered
+"whoever called me" was reachable only from the token's private ledger and
+refused to work outside the token's own realm.
 
-The branch adds one that does, [`UserTeller`](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L42-L55),
-and a second mechanism on top of it: a token can name other realms it will let
-relay its users' writes, through
-[`TrustHost`](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L60-L66)
-and [`UserTellerTrusted`](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L84-L97).
-The token registry [`grc20reg`](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L152-L167)
+The change adds [`Token.UserTeller()`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L44-L56),
+which answers "whoever called me, and only if that is a signing account calling
+directly". It hangs off the published `*Token` pointer, takes no arguments and
+needs nothing from the token realm, so any realm holding that pointer can build
+one. The token registry
+[`grc20reg`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L145-L158)
 is the first consumer, gaining `UserTransfer`, `UserApprove` and
 `UserTransferFrom`.
 
@@ -25,75 +25,90 @@ is the first consumer, gaining `UserTransfer`, `UserApprove` and
 `MsgCall`, which names a package, a function and a list of string arguments. A
 wallet can show all three before the user signs. `gnokey maketx run` sends a
 `MsgRun`, which carries a whole Gno source file instead, so the same wallet can
-only show that a program is about to execute.
+only show that a program is about to execute. `gnokey maketx addpkg` sends a
+`MsgAddPackage`, which carries source too and runs that source's `init` in the
+same transaction.
 
 **Who the caller is.** Every function a transaction enters receives a `realm`
 value describing the frame that called it. When the transaction is a `MsgCall`
 landing directly on that function, the calling frame is the signing account and
 its package path is empty, which is what
-[`IsUserCall()`](https://github.com/gnolang/gno/blob/e014175d2/gnovm/stdlibs/chain/runtime/frame.gno#L105-L107)
+[`IsUserCall()`](https://github.com/gnolang/gno/blob/16f54a89c/gnovm/stdlibs/chain/runtime/frame.gno#L105-L107)
 tests. When another contract sits in between, the path is that contract's, and
 `IsUserCall()` is false. A `MsgRun` script runs inside a throwaway package at
 `gno.land/e/<address>/run`, so it is false there too.
 
 **The teller kinds.** The account a write debits comes from the teller, not from
-an argument, so the choice of teller is the whole access-control decision.
+an argument, so the choice of teller is the whole access-control decision. The
+right-hand column is what decides who can build one.
 
 | Teller | Debits | Reachable from |
 | --- | --- | --- |
-| `CallerTeller` | whoever called the token realm | the private ledger only |
-| `UserTeller` | whoever called the token realm, refused unless that is a signing account | the private ledger only |
-| `UserTellerTrusted` | same as `UserTeller` | the published `*Token` |
-| `RealmTeller` | the contract that built the teller | the published `*Token` |
-| `ImpersonateTeller` | an address fixed at construction | the private ledger only |
-| `ReadonlyTeller` | nothing, every write fails | the published `*Token` |
+| [`CallerTeller`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L24-L36) | whoever called the realm holding it, and only inside the token's own realm | the private ledger only |
+| [`UserTeller`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L44-L56) | whoever called the realm holding it, refused unless that is a signing account | the published `*Token` |
+| [`RealmTeller`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L79-L95) | the contract that built the teller | the published `*Token` |
+| [`RealmSubTeller`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L102-L118) | a subaccount of the contract that built the teller | the published `*Token` |
+| [`ImpersonateTeller`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L133-L144) | an address fixed at construction | the private ledger only |
+| [`ReadonlyTeller`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L59-L68) | nothing, every write fails | the published `*Token` |
 
 **The home guard.** A teller that resolves its account from the calling frame is
-only meaningful inside the token's own realm, so every such teller also checks
-where it is running. Before this branch that check was one comparison against
-the token's creating realm. Now it also consults the token's trusted set.
+only meaningful inside the token's own realm, so before this change every such
+teller also compared the running realm against the token's creating realm. That
+comparison is now
+[`CallerTeller`'s alone](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L156-L161).
+`UserTeller` resolves its account from the calling frame and carries no such
+comparison, so it works in any realm.
 
-## The decision the branch changes
+## The decision a write makes
+
+After the change. Both the `ErrNotUserCall` branch and the absence of a home
+comparison on the user path are new; the rest is the previous `guardHome`,
+renamed to
+[`guardWrite`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L149-L163).
 
 ```mermaid
 flowchart TD
-    A[a write arrives with the caller's realm value] --> B{is the value the live frame}
+    A[a write arrives with a realm value] --> B{is the value the live frame}
     B -->|no| X[ErrSpoofedRealm]
     B -->|yes| C{is this teller user-only}
-    C -->|yes, and the caller is not a signing account| Y[ErrNotUserCall]
-    C -->|otherwise| D{is the running realm the token's own}
-    D -->|yes| OK[debit the resolved account]
-    D -->|no| E{is this teller user-only and the running realm trusted}
-    E -->|yes| OK
-    E -->|no| Z[ErrForeignCallerTeller]
+    C -->|yes, and the previous frame is a signing account| OK[debit the resolved account]
+    C -->|yes, and it is not| Y[ErrNotUserCall]
+    C -->|no| D{is this teller home-confined}
+    D -->|no| OK
+    D -->|yes, and the running realm is the token's own| OK
+    D -->|yes, and it is not| Z[ErrForeignCallerTeller]
 ```
-
-The `ErrNotUserCall` branch and the trusted branch are new. Everything else is
-the previous `guardHome`, renamed to
-[`guardWrite`](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/p/demo/tokens/grc20/tellers.gno#L223-L238).
 
 ## Who gets served
 
-Rows measured by running the branch's own package tests and two extra scripted
-chains, one per new mechanism, both listed under the review's `tests/` directory.
+After the change. Rows measured by copying each scripted chain under the
+review's `tests/` directory into `gno.land/pkg/integration/testdata/` and
+running it, plus the branch's own
+[`grc20_registry_user_relay.txtar`](https://github.com/gnolang/gno/blob/16f54a89c/gno.land/pkg/integration/testdata/grc20_registry_user_relay.txtar).
 
-| Caller reaches the token by | `CallerTeller` | `UserTeller` | `UserTellerTrusted` from a trusted realm |
-| --- | --- | --- | --- |
-| `MsgCall` straight onto the token realm | debits the signer | debits the signer | debits the signer |
-| `MsgCall` onto another contract, which calls the token realm | debits that contract | refused | refused |
-| `MsgRun` script | debits the signer, whose address the throwaway package shares | refused | refused |
-| `MsgCall` straight onto a trusted relay | refused | refused | debits the signer |
-| any route, from a realm that is neither the token nor trusted | refused | refused | refused |
+| The teller is built and used by | `CallerTeller` | `UserTeller` |
+| --- | --- | --- |
+| the token's own realm, serving a direct `MsgCall` | debits the signer | debits the signer |
+| the token's own realm, serving another realm's cross-call | debits that realm | `ErrNotUserCall` |
+| any other realm, serving a direct `MsgCall` | cannot build one, and a leaked value gives `ErrForeignCallerTeller` | debits the signer |
+| any other realm, serving another realm's cross-call | same | `ErrNotUserCall` |
+| a `MsgRun` script | same | `ErrNotUserCall` |
+| a new package's `init` under `MsgAddPackage` | same | debits the deploying account |
+| a non-crossing helper handed a realm's live `cur` | same | debits that realm's own direct caller |
 
-The last column is the new capability. The bottom-left cells are what makes a
-teller safe to publish: the value can be handed to anyone and stays inert.
+Row three is the new capability, and rows six and seven are it reached without
+the user naming the realm that spends. The bottom cells of the `CallerTeller`
+column are what makes a teller safe to publish: the value can be handed to
+anyone and stays inert.
 
 ## Where the wrapped-GNOT token sits
 
-[`wugnot`](https://github.com/gnolang/gno/blob/e014175d2/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L89-L102)
-is the in-tree token with a full user-facing surface, and the branch adds a
-scripted check for it without changing it. It keeps `CallerTeller`, so the first
-column of the table above is its behaviour today.
+[`wugnot`](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L89-L102)
+is the in-tree token with a full user-facing surface, and the change adds a
+scripted check for it without editing it. It keeps `CallerTeller` for its own
+three wrappers, so the first column above is what those wrappers do. It also
+[publishes its `*Token` and registers it](https://github.com/gnolang/gno/blob/16f54a89c/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L15-L29),
+which is what puts it in the second column as well.
 
 ## Review files
 

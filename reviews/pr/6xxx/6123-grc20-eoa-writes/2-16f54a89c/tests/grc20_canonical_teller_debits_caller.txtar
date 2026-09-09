@@ -1,0 +1,147 @@
+# Asserts what IsCanonicalTeller now clears. Its doc names it as the check to
+# run "at any public entry point that accepts a Teller from an external caller",
+# and this branch adds UserTeller to the canonical set. A router that runs the
+# check exactly as documented, and holds the teller a sponsor registered, pays
+# out of whoever calls the router next.
+# Measured at 16f54a89c: the sponsor registers a UserTeller, alice calls
+# router.Payout(bob, 100) and the 100 RTOK comes out of alice.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6123 -R gnolang/gno && git checkout 16f54a89c
+# curl -fsSL -o gno.land/pkg/integration/testdata/grc20_canonical_teller_debits_caller.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6123-grc20-eoa-writes/2-16f54a89c/tests/grc20_canonical_teller_debits_caller.txtar
+# go test -v -run 'TestTestdata/grc20_canonical_teller_debits_caller' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_canonical_teller_debits_caller.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/rtok $WORK/rtok
+loadpkg gno.land/r/test/router $WORK/router
+loadpkg gno.land/r/test/sponsor $WORK/sponsor
+
+adduser alice
+adduser bob
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/rtok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey maketx call -pkgpath gno.land/r/test/sponsor -func Fund -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/rtok.BalanceOf(\"$alice_user_addr\")"
+stdout '500000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/rtok.SponsorBalance()"
+stdout '500000 int64'
+
+# The sponsor registers its teller. The router runs IsCanonicalTeller and the
+# value passes, because UserTeller is canonical.
+gnokey maketx call -pkgpath gno.land/r/test/sponsor -func Enroll -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/router.Enrolled()"
+stdout 'true bool'
+
+# alice asks the router to pay bob 100 out of the sponsor. She names a recipient
+# and an amount and never names a payer.
+gnokey maketx call -pkgpath gno.land/r/test/router -func Payout -args $bob_user_addr -args 100 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/rtok.SponsorBalance()"
+stdout '500000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/rtok.BalanceOf(\"$alice_user_addr\")"
+stdout '499900 int64'    # IS:     a canonical teller held by an honest router debits the router's direct caller
+# stdout '500000 int64' # SHOULD: IsCanonicalTeller clearing a value means that value cannot debit the validating realm's caller
+gnokey query vm/qeval --data "gno.land/r/test/rtok.BalanceOf(\"$bob_user_addr\")"
+stdout '100 int64'
+
+-- rtok/gnomod.toml --
+module = "gno.land/r/test/rtok"
+gno = "0.9"
+
+-- rtok/rtok.gno --
+package rtok
+
+import (
+	"chain"
+
+	"gno.land/p/demo/tokens/grc20"
+)
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("RouterTok", "RTOK", 4, 0, cur)
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+func SponsorBalance() int64 {
+	return Token.BalanceOf(chain.PackageAddress("gno.land/r/test/sponsor"))
+}
+
+-- router/gnomod.toml --
+module = "gno.land/r/test/router"
+gno = "0.9"
+
+-- router/router.gno --
+package router
+
+import "gno.land/p/demo/tokens/grc20"
+
+var stored grc20.Teller
+
+// Enroll accepts a teller from an external caller behind the canonicity check
+// the grc20 package documents for exactly this position.
+func Enroll(cur realm, t grc20.Teller) {
+	if !grc20.IsCanonicalTeller(t) {
+		panic("router: not a canonical teller")
+	}
+	stored = t
+}
+
+func Enrolled() bool { return stored != nil }
+
+// Payout pays `to` out of the enrolled sponsor. Every teller a foreign realm
+// could enroll before this branch debited the enroller or nobody.
+func Payout(cur realm, to address, amount int64) {
+	if err := stored.Transfer(0, cur, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+-- sponsor/gnomod.toml --
+module = "gno.land/r/test/sponsor"
+gno = "0.9"
+
+-- sponsor/sponsor.gno --
+package sponsor
+
+import (
+	"chain"
+
+	"gno.land/r/test/router"
+	"gno.land/r/test/rtok"
+)
+
+// Fund moves half of the caller's balance into the sponsor, so the sponsor has
+// something a payout could plausibly come out of.
+func Fund(cur realm) {
+	self := chain.PackageAddress("gno.land/r/test/sponsor")
+	if err := rtok.Token.UserTeller().Transfer(0, cur, self, 500_000); err != nil {
+		panic(err)
+	}
+}
+
+// Enroll hands the router a UserTeller. Nothing here is privileged.
+func Enroll(cur realm) {
+	router.Enroll(cross(cur), rtok.Token.UserTeller())
+}

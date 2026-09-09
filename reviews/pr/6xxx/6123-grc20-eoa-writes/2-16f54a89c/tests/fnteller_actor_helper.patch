@@ -1,0 +1,79 @@
+# Folds the prologue the three write methods repeat into one helper, taking the
+# block from 41 lines to 37. The helper takes `_ int` first because a method
+# whose first parameter is a realm is treated as crossing and the preprocessor
+# then requires the name `cur`.
+# Measured at 16f54a89c: gno test passes on p/demo/tokens/grc20,
+# r/demo/defi/grc20reg and r/gnoland/wugnot, and the branch's own
+# grc20_registry_user_relay, grc20_userteller_msgcall, grc20_callerteller_home
+# and grc20_token_no_caller_teller txtars pass unchanged.
+#
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 6123 -R gnolang/gno
+# git apply fnteller_actor_helper.patch
+# cd examples && go run ../gnovm/cmd/gno test ./gno.land/p/demo/tokens/grc20
+# git -C .. checkout examples/gno.land/p/demo/tokens/grc20/tellers.gno
+
+--- a/examples/gno.land/p/demo/tokens/grc20/tellers.gno
++++ b/examples/gno.land/p/demo/tokens/grc20/tellers.gno
+@@ -162,45 +162,41 @@
+ 	return nil
+ }
+ 
+-func (ft *fnTeller) Transfer(_ int, rlm realm, to address, amount int64) error {
++// actor runs every check a write owes and returns the account it debits.
++func (ft *fnTeller) actor(_ int, rlm realm) (address, error) {
+ 	if ft.accountFn == nil {
+-		return ErrReadonly
++		return "", ErrReadonly
+ 	}
+ 	if !rlm.IsCurrent() {
+-		return ErrSpoofedRealm
++		return "", ErrSpoofedRealm
+ 	}
+ 	if err := ft.guardWrite(0, rlm); err != nil {
++		return "", err
++	}
++	return ft.accountFn(0, rlm), nil
++}
++
++func (ft *fnTeller) Transfer(_ int, rlm realm, to address, amount int64) error {
++	caller, err := ft.actor(0, rlm)
++	if err != nil {
+ 		return err
+ 	}
+-	caller := ft.accountFn(0, rlm)
+ 	return ft.Token.ledger.Transfer(caller, to, amount)
+ }
+ 
+ func (ft *fnTeller) Approve(_ int, rlm realm, spender address, amount int64) error {
+-	if ft.accountFn == nil {
+-		return ErrReadonly
+-	}
+-	if !rlm.IsCurrent() {
+-		return ErrSpoofedRealm
+-	}
+-	if err := ft.guardWrite(0, rlm); err != nil {
++	caller, err := ft.actor(0, rlm)
++	if err != nil {
+ 		return err
+ 	}
+-	caller := ft.accountFn(0, rlm)
+ 	return ft.Token.ledger.Approve(caller, spender, amount)
+ }
+ 
+ func (ft *fnTeller) TransferFrom(_ int, rlm realm, owner, to address, amount int64) error {
+-	if ft.accountFn == nil {
+-		return ErrReadonly
+-	}
+-	if !rlm.IsCurrent() {
+-		return ErrSpoofedRealm
+-	}
+-	if err := ft.guardWrite(0, rlm); err != nil {
++	spender, err := ft.actor(0, rlm)
++	if err != nil {
+ 		return err
+ 	}
+-	spender := ft.accountFn(0, rlm)
+ 	return ft.Token.ledger.TransferFrom(owner, spender, to, amount)
+ }
+ 

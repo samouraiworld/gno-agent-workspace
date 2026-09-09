@@ -1,0 +1,166 @@
+# Asserts that one direct MsgCall converts into standing spend authority. A
+# realm reached by a direct MsgCall calls Token.UserTeller().Approve as the
+# signing user, naming itself as spender. The allowance survives the
+# transaction, and RealmTeller().TransferFrom then spends it from every route
+# the direct-EOA gate rejects: another signer, an intermediate realm, MsgRun.
+# Measured at 16f54a89c: alice signs dapp.Subscribe() once and moves nothing;
+# her balance then falls on three later transactions, one of which she did not
+# sign.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6123 -R gnolang/gno && git checkout 16f54a89c
+# curl -fsSL -o gno.land/pkg/integration/testdata/grc20_userteller_approve_persists.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6123-grc20-eoa-writes/2-16f54a89c/tests/grc20_userteller_approve_persists.txtar
+# go test -v -run 'TestTestdata/grc20_userteller_approve_persists' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/grc20_userteller_approve_persists.txtar
+
+loadpkg gno.land/p/demo/tokens/grc20
+loadpkg gno.land/r/test/ptok $WORK/ptok
+loadpkg gno.land/r/test/dapp $WORK/dapp
+loadpkg gno.land/r/test/latermid $WORK/latermid
+
+adduser alice
+adduser bob
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+gnokey maketx send -send 50000000ugnot -to $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/test/ptok -func Faucet -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/ptok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+
+# The one transaction alice signs: dapp.Subscribe(), no arguments. It moves no
+# tokens, so nothing in the receipt or the balance shows what it granted.
+gnokey maketx call -pkgpath gno.land/r/test/dapp -func Subscribe -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/ptok.BalanceOf(\"$alice_user_addr\")"
+stdout '1000000 int64'
+gnokey query vm/qeval --data "gno.land/r/test/ptok.AllowanceToDapp(\"$alice_user_addr\")"
+stdout '9223372036854775807 int64'
+
+# Route 1: a transaction bob signs. alice is not the origin and signs nothing.
+gnokey maketx call -pkgpath gno.land/r/test/dapp -func Sweep -args $alice_user_addr -args 400000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/ptok.BalanceOf(\"$alice_user_addr\")"
+stdout '600000 int64'    # IS:     a transaction alice did not sign moves her balance after her single direct call
+# stdout '1000000 int64' # SHOULD: the authority a direct MsgCall carries ends with that call
+
+# Route 2: an intermediate realm, which UserTeller itself refuses.
+gnokey maketx call -pkgpath gno.land/r/test/latermid -func Relay -args $alice_user_addr -args 300000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test bob
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/ptok.BalanceOf(\"$alice_user_addr\")"
+stdout '300000 int64'
+
+# Route 3: MsgRun, which UserTeller itself refuses.
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test bob $WORK/run/sweep.gno
+stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/ptok.BalanceOf(\"$alice_user_addr\")"
+stdout '0 int64'
+gnokey query vm/qeval --data "gno.land/r/test/dapp.Take()"
+stdout '1000000 int64'
+
+-- ptok/gnomod.toml --
+module = "gno.land/r/test/ptok"
+gno = "0.9"
+
+-- ptok/ptok.gno --
+package ptok
+
+import (
+	"chain"
+
+	"gno.land/p/demo/tokens/grc20"
+)
+
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	Token, adm = grc20.NewToken("PersistTok", "PTOK", 4, 0, cur)
+}
+
+func Faucet(cur realm) {
+	if err := adm.Mint(cur.Previous().Address(), 1_000_000); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
+
+// AllowanceToDapp is the only way to see the grant, and it needs the spender's
+// address up front: *Token exposes no way to list an owner's allowances.
+func AllowanceToDapp(owner address) int64 {
+	return Token.Allowance(owner, chain.PackageAddress("gno.land/r/test/dapp"))
+}
+
+-- dapp/gnomod.toml --
+module = "gno.land/r/test/dapp"
+gno = "0.9"
+
+-- dapp/dapp.gno --
+package dapp
+
+import (
+	"chain"
+
+	"gno.land/r/test/ptok"
+)
+
+func self() address { return chain.PackageAddress("gno.land/r/test/dapp") }
+
+var subscriber address
+
+// Subscribe is what the signing user sees: one function, no arguments, no
+// token, no amount, no spender. UserTeller resolves the actor from the direct
+// MsgCall frame, so the approval is written as alice.
+func Subscribe(cur realm) {
+	subscriber = cur.Previous().Address()
+	if err := ptok.Token.UserTeller().Approve(0, cur, self(), 9223372036854775807); err != nil {
+		panic(err)
+	}
+}
+
+// Sweep spends the standing allowance as this realm. RealmTeller sets no
+// userOnly flag, so guardWrite lets it through from any frame and any signer.
+func Sweep(cur realm, owner address, amount int64) {
+	if err := ptok.Token.RealmTeller(0, cur).TransferFrom(0, cur, owner, self(), amount); err != nil {
+		panic(err)
+	}
+}
+
+// SweepStored is the same spend reached without naming the owner, so a MsgRun
+// script needs no address literal.
+func SweepStored(cur realm, amount int64) {
+	Sweep(cross(cur), subscriber, amount)
+}
+
+func Take() int64 { return ptok.Token.BalanceOf(self()) }
+
+-- latermid/gnomod.toml --
+module = "gno.land/r/test/latermid"
+gno = "0.9"
+
+-- latermid/latermid.gno --
+package latermid
+
+import "gno.land/r/test/dapp"
+
+func Relay(cur realm, owner address, amount int64) {
+	dapp.Sweep(cross(cur), owner, amount)
+}
+
+-- run/sweep.gno --
+package main
+
+import "gno.land/r/test/dapp"
+
+func main(cur realm) {
+	dapp.SweepStored(cross(cur), 300000)
+}

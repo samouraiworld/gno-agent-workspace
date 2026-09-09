@@ -1,0 +1,52 @@
+# Refactor pass, the two rewrites shipped as suggestions. From a plain clone of
+# github.com/gnolang/gno:
+#
+#	gh pr checkout 6139 -R gnolang/gno
+#	git apply refactor_pass.patch
+#	go test ./gnovm/pkg/gnolang/ -run 'TestObjectIDDerivePath|TestDeriveObjectIDCryptoAddrRejectsIncompleteIDs' -count=1
+#	go test ./gnovm/stdlibs/chain/runtime/ -count=1
+#	git checkout -- gnovm/pkg/gnolang/misc.go gnovm/stdlibs/chain/runtime/native.go
+#
+# DeriveObjectIDCryptoAddr goes 15 lines to 7 and X_objectID 13 to 9, with the
+# derived address and every rejection unchanged. Both target packages stay green.
+
+diff --git a/gnovm/pkg/gnolang/misc.go b/gnovm/pkg/gnolang/misc.go
+index 7ef5872a5..9fb94bc27 100644
+--- a/gnovm/pkg/gnolang/misc.go
++++ b/gnovm/pkg/gnolang/misc.go
+@@ -204,16 +204,8 @@ func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
+ // keeps the two preimage spaces apart. Both halves of the ID must be stamped:
+ // an object that was never persisted has no address.
+ func DeriveObjectIDCryptoAddr(objectID ObjectID) crypto.Address {
+-	if objectID.IsZero() {
+-		panic("objectID cannot be zero")
+-	}
+-
+-	if objectID.PkgID.IsZero() {
+-		panic("pkgID cannot be zero")
+-	}
+-
+-	if objectID.NewTime == 0 {
+-		panic("newTime cannot be zero")
++	if objectID.PkgID.IsZero() || objectID.NewTime == 0 {
++		panic("objectID is not fully stamped: " + objectID.String())
+ 	}
+ 
+ 	return crypto.AddressFromPreimage([]byte("objectid:" + objectID.PkgID.String() + ":" + strconv.FormatUint(objectID.NewTime, 10)))
+diff --git a/gnovm/stdlibs/chain/runtime/native.go b/gnovm/stdlibs/chain/runtime/native.go
+index 0b643db10..4cfbbe9c1 100644
+--- a/gnovm/stdlibs/chain/runtime/native.go
++++ b/gnovm/stdlibs/chain/runtime/native.go
+@@ -52,11 +52,7 @@ func ChainHeight(m *gno.Machine) int64 {
+ // the argument arrives as its own Go type. The binding hands the TypedValue
+ // through untouched either way.
+ func X_objectID(m *gno.Machine, v any) string {
+-	tv, ok := v.(gno.TypedValue)
+-	if !ok || tv.V == nil {
+-		m.PanicString("value has no object identity")
+-	}
+-
++	tv, _ := v.(gno.TypedValue)
+ 	oo := tv.GetFirstObject(m.Store)
+ 	if oo == nil {
+ 		m.PanicString("value has no object identity")

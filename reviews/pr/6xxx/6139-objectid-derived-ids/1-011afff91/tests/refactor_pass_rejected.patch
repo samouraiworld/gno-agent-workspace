@@ -1,0 +1,126 @@
+# Refactor pass, the four rewrites run and rejected. Same apply-and-test cycle as
+# refactor_pass.patch; all four keep their packages green, so the line counts and
+# the reasons in the review are what rules them out, not a failure.
+#
+#	misc_test.go:143-163    21 -> 16   one loop for the collision sweep and the subtests
+#	native_test.go:215-247  33 -> 29   the two helpers folded into one closure
+#	mapping.go:145           1 ->  1   t.Methods.NumFields() == 0 covers both clauses
+#	ownership.go:78-85       8 ->  6   DerivePath, comment restating the line under it
+
+diff --git a/gnovm/pkg/gnolang/misc_test.go b/gnovm/pkg/gnolang/misc_test.go
+index 662bc1d2d..3de46a07a 100644
+--- a/gnovm/pkg/gnolang/misc_test.go
++++ b/gnovm/pkg/gnolang/misc_test.go
+@@ -142,16 +142,11 @@ func TestObjectIDDerivePath(t *testing.T) {
+ 	// than in the subtests, which run in parallel and share nothing.
+ 	derived := make(map[string]string, len(tests))
+ 	for _, tt := range tests {
+-		got := tt.oid.DerivePath()
+-		if got == "" {
+-			continue
++		if got := tt.oid.DerivePath(); got != "" {
++			require.NotContains(t, derived, got, "address collision with %q", derived[got])
++			require.NotEqual(t, DerivePkgBech32Addr("gno.land/r/demo/objectid").String(), got)
++			derived[got] = tt.name
+ 		}
+-		require.NotContains(t, derived, got, "address collision with %q", derived[got])
+-		require.NotEqual(t, DerivePkgBech32Addr("gno.land/r/demo/objectid").String(), got)
+-		derived[got] = tt.name
+-	}
+-
+-	for _, tt := range tests {
+ 		t.Run(tt.name, func(t *testing.T) {
+ 			t.Parallel()
+ 
+diff --git a/gnovm/pkg/gnolang/ownership.go b/gnovm/pkg/gnolang/ownership.go
+index 046b37551..568709d1f 100644
+--- a/gnovm/pkg/gnolang/ownership.go
++++ b/gnovm/pkg/gnolang/ownership.go
+@@ -76,11 +76,9 @@ func (oid ObjectID) String() string {
+ // has not been persisted is unnamed rather than sharing an address with every
+ // other unnamed object.
+ func (oid ObjectID) DerivePath() string {
+-	// if the object is not finalized, return an empty string
+ 	if !oid.IsFinalized() {
+ 		return ""
+ 	}
+-
+ 	return DeriveObjectIDCryptoAddr(oid).String()
+ }
+ 
+diff --git a/gnovm/stdlibs/chain/runtime/native_test.go b/gnovm/stdlibs/chain/runtime/native_test.go
+index 456417ea2..a1d18f986 100644
+--- a/gnovm/stdlibs/chain/runtime/native_test.go
++++ b/gnovm/stdlibs/chain/runtime/native_test.go
+@@ -213,9 +213,9 @@ func TestPreviousRealmIsOrigin(t *testing.T) {
+ }
+ 
+ // newObjectIDMachine returns a machine whose realm is a fresh persistent realm
+-// at time 1 (an owner was finalized there), plus that owner and the store
+-// transaction, so the caller can create objects and finalize them.
+-func newObjectIDMachine(t *testing.T, pkgPath string) (*gno.Machine, gno.TransactionStore, *gno.Allocator, gno.Object) {
++// at time 1 (an owner was finalized there), the store transaction, and a
++// constructor for an object owned by that owner, ready to be marked new-real.
++func newObjectIDMachine(t *testing.T, pkgPath string) (*gno.Machine, gno.TransactionStore, func() gno.Object) {
+ 	t.Helper()
+ 
+ 	baseStore := dbadapter.StoreConstructor(memdb.NewMemDB(), storetypes.StoreOptions{})
+@@ -233,22 +233,18 @@ func newObjectIDMachine(t *testing.T, pkgPath string) (*gno.Machine, gno.Transac
+ 	owner := alloc.NewStruct(nil, nil)
+ 	owner.SetPkgID(m.Realm.ID)
+ 	owner.SetNewTime(1)
+-	return m, tx, alloc, owner
+-}
+-
+-// newOwnedObject allocates an object under m's realm, owned by owner, ready to
+-// be marked new-real.
+-func newOwnedObject(m *gno.Machine, alloc *gno.Allocator, owner gno.Object) gno.Object {
+-	oo := alloc.NewStruct(nil, nil)
+-	oo.SetPkgID(m.Realm.ID)
+-	oo.SetOwner(owner)
+-	oo.IncRefCount()
+-	return oo
++	return m, tx, func() gno.Object {
++		oo := alloc.NewStruct(nil, nil)
++		oo.SetPkgID(m.Realm.ID)
++		oo.SetOwner(owner)
++		oo.IncRefCount()
++		return oo
++	}
+ }
+ 
+ func TestObjectID(t *testing.T) {
+-	m, tx, alloc, owner := newObjectIDMachine(t, "gno.land/r/demo/objectid")
+-	object := newOwnedObject(m, alloc, owner)
++	m, tx, newObject := newObjectIDMachine(t, "gno.land/r/demo/objectid")
++	object := newObject()
+ 	tv := gno.TypedValue{V: object}
+ 
+ 	tests := []struct {
+@@ -298,11 +294,11 @@ func TestObjectID(t *testing.T) {
+ // clock, so their addresses differ — which is what makes one usable as an
+ // identifier for the object that carries it.
+ func TestObjectIDIsUniquePerObject(t *testing.T) {
+-	m, tx, alloc, owner := newObjectIDMachine(t, "gno.land/r/demo/objectid_unique")
++	m, tx, newObject := newObjectIDMachine(t, "gno.land/r/demo/objectid_unique")
+ 
+ 	objects := make([]gno.Object, 0, 2)
+ 	for range 2 {
+-		oo := newOwnedObject(m, alloc, owner)
++		oo := newObject()
+ 		m.Realm.MarkNewReal(oo)
+ 		objects = append(objects, oo)
+ 	}
+diff --git a/misc/genstd/mapping.go b/misc/genstd/mapping.go
+index 29401d7a4..580c112a9 100644
+--- a/misc/genstd/mapping.go
++++ b/misc/genstd/mapping.go
+@@ -142,7 +142,7 @@ func (m *mapping) isTypedValue(e ast.Expr) bool {
+ 	}
+ 	switch t := e.(type) {
+ 	case *ast.InterfaceType:
+-		return t.Methods == nil || len(t.Methods.List) == 0
++		return t.Methods.NumFields() == 0
+ 	case *ast.Ident:
+ 		return t.Name == "any"
+ 	}

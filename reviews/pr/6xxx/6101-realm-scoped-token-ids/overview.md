@@ -14,10 +14,10 @@ reading the chain could tell their events apart. That is
 
 The branch takes the number away from the contract and gives it to the virtual
 machine. A new built-in,
-[`runtime.NewRealmID()`](https://github.com/gnolang/gno/blob/911e1a57a/gnovm/stdlibs/chain/runtime/native.go#L45-L60),
+[`runtime.NewRealmID()`](https://github.com/gnolang/gno/blob/20d2a9f2e/gnovm/stdlibs/chain/runtime/native.go#L45-L60),
 returns `<contract path>:<counter>` for the contract the machine is currently
 running, and
-[`grc20.NewToken`](https://github.com/gnolang/gno/blob/911e1a57a/examples/gno.land/p/demo/tokens/grc20/token.gno#L46)
+[`grc20.NewToken`](https://github.com/gnolang/gno/blob/20d2a9f2e/examples/gno.land/p/demo/tokens/grc20/token.gno#L46)
 stores that string as the token's identifier. The `id` parameter every caller
 used to pass is gone from the signature.
 
@@ -36,26 +36,34 @@ draws token identifiers from that same counter, so a token identifier and an
 object identity can never carry the same number for the same contract.
 
 **Which contract the machine is "currently running" is not always the caller.**
-A call into a `/r/` package that is not a crossing call moves the machine onto
-that package's state for the duration of the call, described as borrow rule #1
-in [`machine.go`](https://github.com/gnolang/gno/blob/911e1a57a/gnovm/pkg/gnolang/machine.go#L2545-L2548).
+Two rules in
+[`machine.go`](https://github.com/gnolang/gno/blob/20d2a9f2e/gnovm/pkg/gnolang/machine.go#L2567-L2586)
+move the machine onto another contract's state for the duration of a call that
+is not a crossing call: rule #1 fires on a call into a `/r/` package and selects
+that package, and rule #2 fires on a `/p/`-declared method running on an object
+another contract stored and selects the contract that stores it.
 `runtime.NewRealmID()` reads
-[`m.Realm`](https://github.com/gnolang/gno/blob/911e1a57a/gnovm/stdlibs/chain/runtime/native.go#L49),
-so it answers with whichever contract that rule last selected.
+[`m.Realm`](https://github.com/gnolang/gno/blob/20d2a9f2e/gnovm/stdlibs/chain/runtime/native.go#L49),
+so it answers with whichever contract those rules last selected, and it
+[bumps and saves that contract's counter](https://github.com/gnolang/gno/blob/20d2a9f2e/gnovm/stdlibs/chain/runtime/native.go#L55-L58)
+rather than the calling contract's. Every other built-in that names a contract
+reads
+[`execctx.CurrentRealm`](https://github.com/gnolang/gno/blob/20d2a9f2e/gnovm/stdlibs/internal/execctx/realm.go#L96-L98)
+instead, which walks the crossing frames and so answers with the caller.
 
 **Issuance is off unless the transaction keeps its writes.** The identifier is
 only unique because the counter is saved, so a context that throws its writes
 away must not hand one out. A new flag on the execution context,
-[`RealmIDEnabled`](https://github.com/gnolang/gno/blob/911e1a57a/gnovm/stdlibs/internal/execctx/context.go#L46),
+[`RealmIDEnabled`](https://github.com/gnolang/gno/blob/20d2a9f2e/gnovm/stdlibs/internal/execctx/context.go#L46),
 carries that decision.
 
 | Execution path | Issuance | Why |
 | --- | --- | --- |
-| [`AddPackage`](https://github.com/gnolang/gno/blob/911e1a57a/gno.land/pkg/sdk/vm/keeper.go#L1072-L1074) | on | deployment runs the contract's `init` and keeps the result |
-| [`EnablePackage`](https://github.com/gnolang/gno/blob/911e1a57a/gno.land/pkg/sdk/vm/keeper_inert.go#L287-L289) | on | same, for a contract deployed inert and switched on later |
-| [`Call`](https://github.com/gnolang/gno/blob/911e1a57a/gno.land/pkg/sdk/vm/keeper.go#L1184-L1186) | on | an ordinary transaction |
-| [`Run`](https://github.com/gnolang/gno/blob/911e1a57a/gno.land/pkg/sdk/vm/keeper.go#L1457-L1459) | on | the script is thrown away, the contracts it calls are not |
-| [`gno test`](https://github.com/gnolang/gno/blob/911e1a57a/gnovm/pkg/test/test.go#L76) | on | so tests build tokens the way a chain does |
+| [`AddPackage`](https://github.com/gnolang/gno/blob/20d2a9f2e/gno.land/pkg/sdk/vm/keeper.go#L1072-L1074) | on | deployment runs the contract's `init` and keeps the result |
+| [`EnablePackage`](https://github.com/gnolang/gno/blob/20d2a9f2e/gno.land/pkg/sdk/vm/keeper_inert.go#L287-L289) | on | same, for a contract deployed inert and switched on later |
+| [`Call`](https://github.com/gnolang/gno/blob/20d2a9f2e/gno.land/pkg/sdk/vm/keeper.go#L1184-L1186) | on | an ordinary transaction |
+| [`Run`](https://github.com/gnolang/gno/blob/20d2a9f2e/gno.land/pkg/sdk/vm/keeper.go#L1457-L1459) | on | the script is thrown away, the contracts it calls are not |
+| [`gno test`](https://github.com/gnolang/gno/blob/20d2a9f2e/gnovm/pkg/test/test.go#L76) | on | so tests build tokens the way a chain does |
 | `vm/qeval`, `vm/qrender` | off | a query discards everything it writes |
 | the namespace check the deployer runs | off | a read-only callout into `sys/names` |
 
@@ -69,7 +77,7 @@ carries that decision.
 | symbol inside the identifier | yes | no, it stays metadata |
 | the contract that issued it | first component, up to the first `.` | first component, up to the `:` |
 | registry key | `<contract>.<symbol>` | unchanged |
-| new accessor | none | [`Token.GetOriginRealm()`](https://github.com/gnolang/gno/blob/911e1a57a/examples/gno.land/p/demo/tokens/grc20/token.gno#L121) |
+| new accessor | none | [`Token.GetOriginRealm()`](https://github.com/gnolang/gno/blob/20d2a9f2e/examples/gno.land/p/demo/tokens/grc20/token.gno#L120) |
 
 ## Where the number comes from
 
@@ -86,9 +94,9 @@ were run through the deployment keeper and asked for their first identifier:
 
 The same effect shows in the branch's own scripted chains: `foo20` is
 `gno.land/r/demo/defi/foo20:22` when the chain loads it at
-[genesis](https://github.com/gnolang/gno/blob/911e1a57a/gno.land/pkg/integration/testdata/grc20_registry_emit.txtar#L26)
+[genesis](https://github.com/gnolang/gno/blob/20d2a9f2e/gno.land/pkg/integration/testdata/grc20_registry_emit.txtar#L26)
 and `gno.land/r/demo/defi/foo20:24` when a transaction
-[deploys it with one extra file](https://github.com/gnolang/gno/blob/911e1a57a/gno.land/pkg/integration/testdata/grc20_id_persists_cross_realm.txtar#L16-L17).
+[deploys it with one extra file](https://github.com/gnolang/gno/blob/20d2a9f2e/gno.land/pkg/integration/testdata/grc20_id_persists_cross_realm.txtar#L16-L17).
 
 ## What an event reader gets
 
@@ -107,24 +115,27 @@ and `gno.land/r/demo/defi/foo20:24` when a transaction
 
 The two values reaching `NewToken` come from different places. `origRealm` is
 the contract whose realm value passed
-[`IsCurrent`](https://github.com/gnolang/gno/blob/911e1a57a/examples/gno.land/p/demo/tokens/grc20/token.gno#L23-L25);
+[`IsCurrent`](https://github.com/gnolang/gno/blob/20d2a9f2e/examples/gno.land/p/demo/tokens/grc20/token.gno#L23-L25);
 the identifier is the contract
-[`m.Realm`](https://github.com/gnolang/gno/blob/911e1a57a/gnovm/stdlibs/chain/runtime/native.go#L59)
+[`m.Realm`](https://github.com/gnolang/gno/blob/20d2a9f2e/gnovm/stdlibs/chain/runtime/native.go#L59)
 names. The registry authorises on the first
-([`grc20reg.Register`](https://github.com/gnolang/gno/blob/911e1a57a/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L40)),
+([`grc20reg.Register`](https://github.com/gnolang/gno/blob/20d2a9f2e/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L40)),
 and every event carries the second.
 
 ## Also in the branch
 
 - Object finalisation gains a guard against the counter wrapping past its
-  maximum, [`realm.go`](https://github.com/gnolang/gno/blob/911e1a57a/gnovm/pkg/gnolang/realm.go#L2030-L2032).
+  maximum, [`realm.go`](https://github.com/gnolang/gno/blob/20d2a9f2e/gnovm/pkg/gnolang/realm.go#L2030-L2032).
 - Thirty-five call sites drop their `seqid` argument, including
-  [`foo20`](https://github.com/gnolang/gno/blob/911e1a57a/examples/gno.land/r/demo/defi/foo20/foo20.gno#L22),
-  [`wugnot`](https://github.com/gnolang/gno/blob/911e1a57a/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L26)
-  and [`grc20factory`](https://github.com/gnolang/gno/blob/911e1a57a/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L38).
-- The `NewToken` event drops its `realm` attribute.
+  [`foo20`](https://github.com/gnolang/gno/blob/20d2a9f2e/examples/gno.land/r/demo/defi/foo20/foo20.gno#L22),
+  [`wugnot`](https://github.com/gnolang/gno/blob/20d2a9f2e/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L26)
+  and [`grc20factory`](https://github.com/gnolang/gno/blob/20d2a9f2e/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L38).
+- Every event keeps the attributes it already carried,
+  [`token`, `name`, `symbol` and `decimals` for `NewToken`](https://github.com/gnolang/gno/blob/20d2a9f2e/examples/gno.land/p/demo/tokens/grc20/token.gno#L55-L61).
+  What changes is the value inside `token`, which is
+  [the identifier itself](https://github.com/gnolang/gno/blob/20d2a9f2e/examples/gno.land/p/demo/tokens/grc20/token.gno#L46).
 - An ADR records the decision,
-  [`gno.land/adr/prxxxx_grc20_realm_ids.md`](https://github.com/gnolang/gno/blob/911e1a57a/gno.land/adr/prxxxx_grc20_realm_ids.md?plain=1#L1).
+  [`gno.land/adr/prxxxx_grc20_realm_ids.md`](https://github.com/gnolang/gno/blob/20d2a9f2e/gno.land/adr/prxxxx_grc20_realm_ids.md?plain=1#L1).
 
 ## Review files
 

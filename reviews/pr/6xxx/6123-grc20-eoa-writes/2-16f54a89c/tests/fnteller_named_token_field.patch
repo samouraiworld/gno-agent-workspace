@@ -1,0 +1,39 @@
+# Replaces fnTeller's *Token embed with a named field, so a teller value handed
+# to another realm no longer promotes Token.UserTeller(). Six read methods of
+# the Teller interface came from the embed and are forwarded explicitly, taking
+# the struct block from 8 lines to 21.
+# Measured at 16f54a89c: gno test passes on p/demo/tokens/grc20,
+# r/demo/defi/grc20reg and r/gnoland/wugnot, grc20_userteller_unbounded_relay
+# still passes, and grc20_readonly_teller_promotes_token now fails with
+# `VM panic: no promotion`.
+#
+# Run: from a local clone of gnolang/gno:
+# gh pr checkout 6123 -R gnolang/gno
+# git apply fnteller_named_token_field.patch
+# cd examples && go run ../gnovm/cmd/gno test ./gno.land/p/demo/tokens/grc20
+# git -C .. checkout examples/gno.land/p/demo/tokens/grc20/types.gno
+
+--- a/examples/gno.land/p/demo/tokens/grc20/types.gno
++++ b/examples/gno.land/p/demo/tokens/grc20/types.gno
+@@ -158,7 +158,20 @@
+ 	homeGuard bool
+ 	// userOnly restricts the teller to immediate EOA callers via MsgCall.
+ 	userOnly bool
+-	*Token
++	// Token is named rather than embedded so a teller value handed to another
++	// realm carries no constructor from *Token.
++	Token *Token
++}
++
++func (ft *fnTeller) GetName() string    { return ft.Token.GetName() }
++func (ft *fnTeller) GetSymbol() string  { return ft.Token.GetSymbol() }
++func (ft *fnTeller) GetDecimals() int   { return ft.Token.GetDecimals() }
++func (ft *fnTeller) TotalSupply() int64 { return ft.Token.TotalSupply() }
++
++func (ft *fnTeller) BalanceOf(account address) int64 { return ft.Token.BalanceOf(account) }
++
++func (ft *fnTeller) Allowance(owner, spender address) int64 {
++	return ft.Token.Allowance(owner, spender)
+ }
+ 
+ var _ Teller = (*fnTeller)(nil)
