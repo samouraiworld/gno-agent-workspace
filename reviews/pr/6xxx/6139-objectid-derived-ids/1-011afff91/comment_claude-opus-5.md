@@ -406,7 +406,7 @@ The remaining two are a third outcome: a top-level func value and the native `ru
 Nit: `DerivePath` returns an address rather than a path, and [`runtime.ObjectID`](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native.gno#L13-L21) returns an address rather than an object ID, which is why both doc comments open by correcting the name and `docs/resources/gno-stdlibs.md` spends a paragraph on it. Rename them for what they return.
 
 ## gnovm/adr/prxxxx_objectid_derived_ids.md:1 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/adr/prxxxx_objectid_derived_ids.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/adr/prxxxx_objectid_derived_ids.md#L1)
-Nit: this is the only `prxxxx_` file in `gnovm/adr/`, where 26 of the 35 files carry their pull request number, [`pr6062_originsend_banker_lifetime.md`](https://github.com/gnolang/gno/blob/011afff91/gnovm/adr/pr6062_originsend_banker_lifetime.md?plain=1#L1) for one. Rename to `pr6139_objectid_derived_ids.md`.
+Nit: the filename is wrong. Rename to `pr6139_objectid_derived_ids.md`.
 
 ## gnovm/pkg/gnolang/misc.go:206-220 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/misc.go#L206-L220) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/pkg/gnolang/misc.go#L206)
 Refactor: [`IsZero()`](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/ownership.go#L113) is `PkgID.IsZero() && NewTime == 0`, so no input trips the first panic without tripping the second, and the fifteen lines carry two conditions.
