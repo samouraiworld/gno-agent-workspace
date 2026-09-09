@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-The `grc20reg` re-key to `rlmPath.slug` is a third breaking change the title names neither half of, and its own commit lands six commits after the identity work was already complete and consistent at 089519b45, so it can go out on its own:
+The `grc20reg` re-key to `rlmPath.slug` breaks callers independently of the object-address work, and its own commit lands six commits after that work was already complete and consistent at 089519b45, so it can go out on its own:
 
 - The key of every registration passing an empty slug moves from `<realm>.<SYMBOL>` to `<realm>`, because [`fqname.Construct(rlmPath, slug)`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L46) returns the path bare: [`wugnot`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L27), [`foo20`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/foo20/foo20.gno#L25) and [`test20`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/tests/vm/test20/test20.gno#L23) in tree, while [`grc20factory`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L51) passes the symbol as the slug and keeps its keys.
 - One realm can now register two tokens under one symbol, where master's key was [the overwrite and alias guard](https://github.com/gnolang/gno/blob/d4bb7ab93/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L30-L31) against exactly that, and [`grc20reg_test.gno:48-52`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L48-L52) asserts the second `TST` succeeds, so a lookup by symbol has no single answer.
