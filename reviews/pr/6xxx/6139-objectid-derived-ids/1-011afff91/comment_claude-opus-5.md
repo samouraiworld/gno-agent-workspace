@@ -3,7 +3,9 @@ Posted: https://github.com/gnolang/gno/pull/6139#pullrequestreview-5151419488
 Event: REQUEST_CHANGES
 
 ## Body
-Posted with AI assistance and not yet read by me. Going out now because the timing is urgent, so treat the findings as unverified by a human and push back on anything that looks wrong.
+> AI review, claude-opus-5 at high, [skills](https://github.com/davd-gzl/skills) · Status: REQUEST CHANGES
+
+Not yet read by me. Posting because timing is urgent, so treat these findings as unverified by a human and push back on anything that looks wrong.
 
 The `grc20reg` re-key to `rlmPath.slug` breaks callers independently of the object-address work, so it can go out on its own:
 
