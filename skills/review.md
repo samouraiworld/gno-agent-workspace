@@ -91,6 +91,7 @@ The catalog the core's lens rule and the pipeline's `catalog` argument name is `
   git -C gno show pr5871:docs/resources/gno-ai-contract-review.md
   ```
 - **Invariant catalog, mandatory.** For a PR touching gno code (the GnoVM, stdlibs, or `.gno` packages and realms), load `skills/invariant-catalog.md`, walk every class against the diff, and confirm coverage before writing the Output. Skip for docs- or tooling-only PRs. For a PR that adds or changes a realm, also walk that file's *Realm audit patterns*; cite the fixture pair when a finding matches a pattern.
+- **A change to a deployed realm lists its hardcoded dependents**: grep the tree for the realm's pkgpath string and name every file that carries it, since a redeploy under a new path has to edit each. Removing an exported symbol from such a realm is credited as safe only after the live chain's state and proposal history show no caller.
 - **Gno vs Go comparison.** When the PR contains `.gno` code, write an equivalent Go test to verify behavior parity, run both, note discrepancies, save to the same `tests/` directory.
 - **A fixture pinning an allocation or gas bound is re-run in its sibling shapes before the bound is credited**: slice for array, one value aliased into every slot for fresh values, `_ =` for a named binding, a Go local for a VM object. Each is built by a different op, and a walk proven on one says nothing about the next; the shape that survives is the finding.
 
