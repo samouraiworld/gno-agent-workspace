@@ -1,14 +1,17 @@
 # Review: [#6139](https://github.com/gnolang/gno/pull/6139)
+Posted: https://github.com/gnolang/gno/pull/6139#pullrequestreview-5151419488
 Event: REQUEST_CHANGES
 
 ## Body
+Posted with AI assistance and not yet read by me. Going out now because the timing is urgent, so treat the findings as unverified by a human and push back on anything that looks wrong.
+
 The `grc20reg` re-key to `rlmPath.slug` breaks callers independently of the object-address work, so it can go out on its own:
 
 - The key of every registration passing an empty slug moves from `<realm>.<SYMBOL>` to `<realm>`, because [`fqname.Construct(rlmPath, slug)`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L46) returns the path bare: [`wugnot`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L27), [`foo20`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/foo20/foo20.gno#L25) and [`test20`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/tests/vm/test20/test20.gno#L23) in tree, while [`grc20factory`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L51) passes the symbol as the slug and keeps its keys.
 - One realm can now register two tokens under one symbol, where master's key was [the overwrite and alias guard](https://github.com/gnolang/gno/blob/d4bb7ab93/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L30-L31) against exactly that, and [`grc20reg_test.gno:48-52`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/grc20reg/grc20reg_test.gno#L48-L52) asserts the second `TST` succeeds, so a lookup by symbol has no single answer.
 - The symbol left the provenance check: master compared `token.ID()` against `rlmPath + "." + symbol`, [line 42](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L42) compares realm paths alone, and `symbol` still rides in the `register` event bound to nothing.
 
-## gnovm/stdlibs/chain/runtime/native.go:60 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native.go#L60) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/stdlibs/chain/runtime/native.go#L60)
+## gnovm/stdlibs/chain/runtime/native.go:60 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native.go#L60) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/stdlibs/chain/runtime/native.go#L60) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014888)
 [`Register`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/r/demo/defi/grc20reg/grc20reg.gno#L59) announces one `token_id` for two ledgers that emit two, the ambiguity [issue 6026](https://github.com/gnolang/gno/issues/6026) exists to remove: a `grc20.Token` copied into a struct field or an array element reports the same [`ID()`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/p/demo/tokens/grc20/token.gno#L145-L147) as its sibling copy, since [`GetFirstObject`](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/ownership.go#L415-L420) answers with the base container for a pointer and the backing array for a slice. Resolve the value itself rather than its container, or reject a value whose resolved object is not that value, and drop the copy sentence from [`native.gno:18-19`](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native.gno#L18-L19), [`gno-stdlibs.md:690-691`](https://github.com/gnolang/gno/blob/011afff91/docs/resources/gno-stdlibs.md?plain=1#L690-L691) and [the ADR's Consequences](https://github.com/gnolang/gno/blob/011afff91/gnovm/adr/prxxxx_objectid_derived_ids.md?plain=1#L108).
 
 <details><summary>repro</summary>
@@ -92,7 +95,7 @@ At the GRC20 level with the supplies visible, `pair.A` and `pair.B` holding toke
 The derivation function is not involved: `objectid:<pkgid>:<newtime>` is injective in both halves, and every address above is the right address for the object the resolver picked. `origRealm` copies with the struct, so both copies pass `Register`'s provenance check and land as two public entries whose `register` events carry one `token_id`, while the two ledgers' `Transfer` events carry two. At the merge base the same four shapes answer true on all four, since `Token.ID()` there returns the stored `tok.id`.
 </details>
 
-## gnovm/stdlibs/native_gas.go:143 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/native_gas.go#L143) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/stdlibs/native_gas.go#L143)
+## gnovm/stdlibs/native_gas.go:143 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/native_gas.go#L143) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/stdlibs/native_gas.go#L143) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014899)
 This flat 200 is priced against [`getSessionInfo`](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/native_gas.go#L144), which does no hashing, where [`chain.packageAddress`](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/native_gas.go#L106) charges exactly 908 gas on a 24-character path for the same truncated-SHA256-plus-bech32 derivation, and the ratio between the two natives puts the floor at 527 for any dispatch envelope. Add the benchmark to the [`chain/runtime` section](https://github.com/gnolang/gno/blob/011afff91/gnovm/cmd/calibrate/native_machine_bench_test.go#L826) every other row in that block was fitted from and refit, or record the borrowed base in the header block with the reason 200 cannot undercharge.
 
 <details><summary>repro</summary>
@@ -142,13 +145,13 @@ BenchmarkZZObjectIDDerivePath-6    	 2101833	      1754 ns/op
 Those medians are single-session figures on a shared box and a re-run does not land on them, so the claim rests on the ratio, which held between 0.581 and 0.622 over four sessions. Writing the dispatch envelope both rows pay as `E`, `908 = E + D_p` puts the fair price at `ratio * 908 + (1 - ratio) * E`, at least 527 for any `E` at or above zero. That is a floor: the harness holds a `*StructValue` in the block, so `GetFirstObject`'s `RefValue` branch, the store read the row's comment says the store charges, never runs.
 </details>
 
-## gnovm/adr/prxxxx_objectid_derived_ids.md:101 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/adr/prxxxx_objectid_derived_ids.md?plain=1#L101) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/adr/prxxxx_objectid_derived_ids.md#L101)
+## gnovm/adr/prxxxx_objectid_derived_ids.md:101 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/adr/prxxxx_objectid_derived_ids.md?plain=1#L101) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/adr/prxxxx_objectid_derived_ids.md#L101) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014904)
 Nit: Consequences covers the signature change, the registry re-key and the genesis apphash move, and never says the derivation is fixed once an address is referenced: a scan of the whole file for stable, immutable, upgrade, consensus, migrate, rollback, fund, balance and account returns [one line](https://github.com/gnolang/gno/blob/011afff91/gnovm/adr/prxxxx_objectid_derived_ids.md?plain=1#L13), the sentence calling objects potential accounts, and [`PkgIDFromPkgPath`](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/realm.go#L97) is never named as an input although its [flag nibble](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/realm.go#L103-L116) moves every address in a realm. Add a bullet naming every input to the address and saying that changing one after an address is referenced needs a migration.
 
-## gnovm/stdlibs/chain/runtime/native.gno:13-20 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native.gno#L13-L20) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/stdlibs/chain/runtime/native.gno#L13)
+## gnovm/stdlibs/chain/runtime/native.gno:13-20 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native.gno#L13-L20) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/stdlibs/chain/runtime/native.gno#L13) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014908)
 This returns a `g1…` a realm author cannot tell from a spendable account, and coins sent to one are locked forever: [`NewBanker`](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/banker/banker.gno#L149) binds `pkgAddr` to `rlm.Address()`, which is always a `pkgPath:` derivation, and [`SendCoins`](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/banker/banker.gno#L237-L240) panics unless `from` equals it, so nothing on chain produces a banker for an object address; the one constructor that takes an address verbatim is [`MakeRealmValue`](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/uverse.go#L474), in the test-only `testing` stdlib. Say in this doc comment that no key exists for the address, since the [worked example](https://github.com/gnolang/gno/blob/011afff91/docs/resources/gno-stdlibs.md?plain=1#L677-L697) and the [ADR](https://github.com/gnolang/gno/blob/011afff91/gnovm/adr/prxxxx_objectid_derived_ids.md?plain=1#L13) both read the other way.
 
-## misc/genstd/mapping.go:140-149 [gh](https://github.com/gnolang/gno/blob/011afff91/misc/genstd/mapping.go#L140-L149) · [↗](../../../../../.worktrees/gno-review-6139/misc/genstd/mapping.go#L140)
+## misc/genstd/mapping.go:140-149 [gh](https://github.com/gnolang/gno/blob/011afff91/misc/genstd/mapping.go#L140-L149) · [↗](../../../../../.worktrees/gno-review-6139/misc/genstd/mapping.go#L140) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014913)
 Missing test: the widened predicate has no fixture, and [`fieldListsMatch`](https://github.com/gnolang/gno/blob/011afff91/misc/genstd/mapping.go#L354-L358) consults it to skip the Gno-to-Go parameter type check, so `func foo(n int) string` against `func X_foo(m *Machine, n any) string` now links silently for every native in the stdlib and fails at run time rather than at generation.
 
 <details><summary>test cases</summary>
@@ -255,7 +258,7 @@ func ErrParam(m *gno.Machine, n error) string { return "" }
 ```
 </details>
 
-## gnovm/pkg/gnolang/misc_test.go:126-136 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/misc_test.go#L126-L136) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/pkg/gnolang/misc_test.go#L126)
+## gnovm/pkg/gnolang/misc_test.go:126-136 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/misc_test.go#L126-L136) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/pkg/gnolang/misc_test.go#L126) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014920)
 Nit: three of the five cases here compute `want` by calling `DeriveObjectIDCryptoAddr`, as do [two of the four native cases](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native_test.go#L275-L279), so the package that owns the derivation asserts nothing about the bytes it produces, and [`assignNewObjectID`](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/realm.go#L1988-L1990) makes every address it already produced permanent. Pin the preimage layout and the resulting addresses as literals.
 
 <details><summary>repro</summary>
@@ -374,7 +377,7 @@ FAIL	github.com/gnolang/gno/gnovm/pkg/gnolang	0.062s
 Setting the reserved `0x10` bit in the `PkgID` flag nibble behaves the same way: the branch's unit tests are unmoved, and the golden test reports `RID15A95…` against `RID05A95…` with the message naming the realm whose addresses moved. The integration fixtures do catch both mutations, two directories away: [`grc20_object_id_events.txtar`](https://github.com/gnolang/gno/blob/011afff91/gno.land/pkg/integration/testdata/grc20_object_id_events.txtar#L25) pins `g1ej4f8h7qhwyxy7ys2mat3vcj0g72x8phv2k0w5` on lines 25, 31, 41 and 46, [`grc20_object_id_events_init.txtar`](https://github.com/gnolang/gno/blob/011afff91/gno.land/pkg/integration/testdata/grc20_object_id_events_init.txtar#L41) pins `g1fppxyq8rzamcz7a5rk0mhtvcf23pxuv8krrmz2` on lines 31, 41 and 46, [`token_identity_filetest.gno`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/p/demo/tokens/grc20/filetests/token_identity_filetest.gno#L117) pins two more and [`event_provenance_filetest.gno`](https://github.com/gnolang/gno/blob/011afff91/examples/gno.land/p/demo/tokens/grc20/filetests/event_provenance_filetest.gno#L113) a third. What no fixture gives is an assertion in the package that owns the derivation.
 </details>
 
-## gnovm/pkg/gnolang/ownership.go:78-81 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/ownership.go#L78-L81) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/pkg/gnolang/ownership.go#L78)
+## gnovm/pkg/gnolang/ownership.go:78-81 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/ownership.go#L78-L81) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/pkg/gnolang/ownership.go#L78) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014933)
 Nit: `""` is shared by every unstamped object, against the doc line above saying such an object is unnamed rather than sharing an address, so a realm keying a map by `ID()` merges them all into one entry and [`DeriveObjectIDCryptoAddr`](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/misc.go#L207-L217) raises for the same absence of identity. The comment has to name that shared value.
 
 <details><summary>measured</summary>
@@ -402,13 +405,13 @@ chanish -> g19jt5lxr0g04mpt50ywlm3hjuasxx4v8ey2rrhk
 The remaining two are a third outcome: a top-level func value and the native `runtime.ObjectID` itself resolve through [`GetFirstObject`'s `*FuncValue` case](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/ownership.go#L423-L424) and answer with a stamped address. The ADR accepts the unstamped window for events and does not cover a realm using the value as a key.
 </details>
 
-## gnovm/pkg/gnolang/ownership.go:74 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/ownership.go#L74) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/pkg/gnolang/ownership.go#L74)
+## gnovm/pkg/gnolang/ownership.go:74 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/ownership.go#L74) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/pkg/gnolang/ownership.go#L74) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014943)
 Nit: `DerivePath` returns an address rather than a path, and [`runtime.ObjectID`](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native.gno#L13-L21) returns an address rather than an object ID, which is why both doc comments open by correcting the name and `docs/resources/gno-stdlibs.md` spends a paragraph on it. Rename them for what they return.
 
-## gnovm/adr/prxxxx_objectid_derived_ids.md:1 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/adr/prxxxx_objectid_derived_ids.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/adr/prxxxx_objectid_derived_ids.md#L1)
+## gnovm/adr/prxxxx_objectid_derived_ids.md:1 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/adr/prxxxx_objectid_derived_ids.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/adr/prxxxx_objectid_derived_ids.md#L1) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014950)
 Nit: the filename is wrong. Rename to `pr6139_objectid_derived_ids.md`.
 
-## gnovm/pkg/gnolang/misc.go:206-220 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/misc.go#L206-L220) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/pkg/gnolang/misc.go#L206)
+## gnovm/pkg/gnolang/misc.go:206-220 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/misc.go#L206-L220) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/pkg/gnolang/misc.go#L206) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014958)
 Refactor: [`IsZero()`](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/ownership.go#L113) is `PkgID.IsZero() && NewTime == 0`, so no input trips the first panic without tripping the second, and the fifteen lines carry two conditions.
 
 ```suggestion
@@ -509,7 +512,7 @@ ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	0.038s
 The merged message carries the id, so a caller reads which half was missing rather than which branch fired. The only other thing the dropped branch does is the `debug`-build invariant assertion inside `IsZero`, which every other caller of it still performs.
 </details>
 
-## gnovm/stdlibs/chain/runtime/native.go:54-66 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native.go#L54-L66) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/stdlibs/chain/runtime/native.go#L54)
+## gnovm/stdlibs/chain/runtime/native.go:54-66 [gh](https://github.com/gnolang/gno/blob/011afff91/gnovm/stdlibs/chain/runtime/native.go#L54-L66) · [↗](../../../../../.worktrees/gno-review-6139/gnovm/stdlibs/chain/runtime/native.go#L54) [posted](https://github.com/gnolang/gno/pull/6139#discussion_r3966014993)
 Refactor: [`GetFirstObject`](https://github.com/gnolang/gno/blob/011afff91/gnovm/pkg/gnolang/ownership.go#L449-L450) already returns nil for every value with no object behind it, the zero `TypedValue` a failed type assertion leaves included, so the `tv.V == nil` branch rejects nothing the nil check below rejects.
 
 ```suggestion
