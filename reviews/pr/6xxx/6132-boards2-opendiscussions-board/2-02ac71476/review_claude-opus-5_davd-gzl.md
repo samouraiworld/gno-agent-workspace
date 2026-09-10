@@ -69,7 +69,7 @@ Boards2 is gno.land's forum realm, and every board in it comes from `CreateBoard
 
 ## Suggestions
 
-- **[the multisig still stands between an ordinary account and its first post]** [`boards.gno:68`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68) — the seeded board is open, and an open board refuses a thread from a non-member holding under 3,000 GNOT.
+- **[a non-member's first thread needs 3,000 GNOT and only the owner can move that]** [`boards.gno:68`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68) — the seeded board is open, and an open board refuses a thread from a non-member holding under 3,000 GNOT.
   <details><summary>details</summary>
 
   `validateOpenThreadCreate` at [`permissions_validators_open.gno:111-127`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions_validators_open.gno#L111-L127) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/permissions_validators_open.gno#L111-L127) exempts owners and admins and sends everyone else through `checkAccountHasAmount`, which reads `RequiredAccountAmount`, 3,000,000,000 ugnot at [`boards.gno:25`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L25) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L25).
