@@ -19,7 +19,7 @@ This workspace has no `projects/` tree; the core's `projects/<repo>/reviews/<slu
 - A PR outside `gnolang/gno` goes under `reviews/<repo>/`, not `reviews/pr/`. First review for a repo: create `reviews/<repo>/README.md` with the repo link and one line. Skip the gno-only steps below (worktree, invariant catalog, dual links); cite plain `file:line` from the repo's own checkout and post via `gh`.
 - Never run `./scripts/build-indexes.sh` as part of a review; `reviews/README.md` regenerates only on request.
 - There is no `post-fix.sh` here: post reviews with `./scripts/post-pr-review.py`, issues standalone with `gh issue create`.
-- There is no `prose-check.py` here either: run the `skills/core/writing-style.md` Pass by hand, every step, and say so when handing over.
+- `prose-check.py` is the parent workspace's: `../../../scripts/prose-check.py` from this checkout when it is mounted as `projects/gno-agent-workspace/checkout`, and step 9 runs it from there over both files. A standalone clone, with no parent, runs the `skills/core/writing-style.md` Pass by hand, every step, and says so when handing over.
 
 ## Worktree
 
