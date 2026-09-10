@@ -2,7 +2,7 @@
 Event: COMMENT
 
 ## Body
-- [`misc/govdao-scripts/README.md:17`](https://github.com/gnolang/gno/blob/24d230fc9/misc/govdao-scripts/README.md?plain=1#L17) still lists the command as `add 6 T1 members to govDAO (one-time bootstrap)`, where the roster is now seven and a rerun is the point.
+- [`misc/govdao-scripts/README.md:17`](https://github.com/gnolang/gno/blob/24d230fc9/misc/govdao-scripts/README.md?plain=1#L17) still lists the command as `add 6 T1 members to govDAO (one-time bootstrap)`, where the roster is now seven.
 
 ## misc/govdao-scripts/extend-govdao-t1.sh:50 [gh](https://github.com/gnolang/gno/blob/24d230fc9/misc/govdao-scripts/extend-govdao-t1.sh#L50) · [↗](../../../../../.worktrees/gno-review-6165/misc/govdao-scripts/extend-govdao-t1.sh#L50)
 Related: this `maketx run` [reaches `memberstore.Get`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/memberstore.gno#L186-L188) as [`gno.land/e/<signer>/run`](https://github.com/gnolang/gno/blob/24d230fc9/gno.land/pkg/sdk/vm/keeper.go#L1398), which every network the script names locks out of [`AllowedDAOs`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/proxy.gno#L231-L240), so the script seats nobody. Seating a T1 member on those chains goes through [`NewAddMemberRequest`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/impl/prop_requests.gno#L80) as a govDAO proposal.
@@ -232,3 +232,7 @@ main at gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run/extend_govdao.gn
 
 [`NewMember`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/types.gno#L21) allocates inside `memberstore`, and it is what the genesis scripts on [pearl](https://github.com/gnolang/gno/blob/24d230fc9/misc/deployments/pearl.gno.land/transactions/base/bootstrap/govdao_prop1_pearl.gno#L44) and [test13](https://github.com/gnolang/gno/blob/24d230fc9/misc/deployments/test13.gno.land/transactions/base/bootstrap/govdao_prop1_test13.gno#L97) write in the same slot. With it in place the same run prints six `seat` lines, `skip Manfred -- already T1`, and `OK!`.
 </details>
+
+## SKIP misc/govdao-scripts/extend-govdao-t1.sh:36-37 [gh](https://github.com/gnolang/gno/blob/24d230fc9/misc/govdao-scripts/extend-govdao-t1.sh#L36-L37) · [↗](../../../../../.worktrees/gno-review-6165/misc/govdao-scripts/extend-govdao-t1.sh#L36)
+Nit: nothing reads the signer's tier, so this comment's claim does not hold and a run inside the genesis window seats the whole roster for a key holding no membership.
+Skipped: a finding about a code comment's own wording changes no behaviour.

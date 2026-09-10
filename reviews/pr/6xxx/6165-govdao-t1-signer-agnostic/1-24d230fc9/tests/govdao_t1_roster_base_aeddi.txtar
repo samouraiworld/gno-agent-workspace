@@ -1,0 +1,68 @@
+# Asserts where the pre-diff script actually aborted in the shape the PR
+# describes: aeddi sole T1, genesis window still open. It stops on the
+# allocation at the first roster line, never on ErrMemberAlreadyExists.
+# Passes at the merge base bc35e978a.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6165 -R gnolang/gno && git checkout 24d230fc9
+# curl -fsSL -o gno.land/pkg/integration/testdata/govdao_t1_roster_base_aeddi.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6165-govdao-t1-signer-agnostic/1-24d230fc9/tests/govdao_t1_roster_base_aeddi.txtar
+# go test -v -run 'TestTestdata/govdao_t1_roster_base_aeddi' ./gno.land/pkg/integration/
+# rm gno.land/pkg/integration/testdata/govdao_t1_roster_base_aeddi.txtar
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+! gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1 $WORK/run/extend_govdao.gno
+stderr 'cannot allocate gno.land/r/gov/dao/v3/memberstore.Member in realm gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run'
+stderr 'extend_govdao.gno:15'
+
+# The already-exists path the PR description names is never reached.
+! stderr 'member already exists'
+
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	// Aeddi, the sole T1 member on pearl, sapphire and topaz.
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), memberstore.NewMember(3))
+
+	// AllowedDAOs left empty: the genesis window, the only state where this
+	// script could reach the member tree at all.
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), nil))
+}
+-- run/extend_govdao.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func must(err error) {
+	if err != nil {
+		panic(err.Error())
+	}
+}
+
+func main(cur realm) {
+	ms := memberstore.Get(0, cur)
+	must(ms.SetMember(memberstore.T1, address("g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6"), &memberstore.Member{InvitationPoints: 3})) // Jae
+	must(ms.SetMember(memberstore.T1, address("g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4"), &memberstore.Member{InvitationPoints: 3})) // Morgan
+	must(ms.SetMember(memberstore.T1, address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), &memberstore.Member{InvitationPoints: 3})) // Aeddi
+	must(ms.SetMember(memberstore.T1, address("g1gzhj234kpajz963z5vf42j4ylddscnkez2wvly"), &memberstore.Member{InvitationPoints: 3})) // Dongwon
+	must(ms.SetMember(memberstore.T1, address("g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq"), &memberstore.Member{InvitationPoints: 3})) // Maxwell
+	must(ms.SetMember(memberstore.T1, address("g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"), &memberstore.Member{InvitationPoints: 3})) // Milos
+}

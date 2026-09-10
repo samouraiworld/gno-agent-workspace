@@ -11,13 +11,14 @@ Overview: [overview](../overview.md)
 
 `misc/govdao-scripts/extend-govdao-t1.sh` writes a small gno program to a temp
 file and broadcasts it with `gnokey maketx run`, which seats a fixed list of
-addresses as govDAO T1 members. The list was written as "the six members who are
-not moul", so only moul could sign it. This change turns the six calls into a
-seven-entry table plus a loop, reads each address's current tier with
+addresses as govDAO T1 members. The list held the six T1 members other than moul,
+so it assumed moul as the signer, though no line in it read the signer. This
+change turns the six calls into a seven-entry table plus a loop, reads each
+address's current tier with
 [`GetMember`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/types.gno#L94)
-and skips the ones already seated, which drops the signer's own entry whoever
-signs. The loop also makes a rerun idempotent, where the old `must()` turned the
-first already-seated address into a panic that aborted the whole transaction.
+and skips the ones already seated, so the entry a seated signer occupies drops
+out. Skipping rather than panicking on the first already-seated address would
+also make a rerun idempotent, once a run reaches the loop.
 
 **Verdict: NEEDS DISCUSSION** — the loop and the skip do what the description
 says, proven by a run, but the transaction never reaches them: the composite
@@ -112,6 +113,7 @@ target list needs the read-then-skip that the loop adds.
 
 ## Nits
 
+- **[claim]** `misc/govdao-scripts/extend-govdao-t1.sh:36-37` — the roster comment says the signer is necessarily already a T1 member and that this is what authorizes the MsgRun, and nothing reads the signer's tier.
 - **[docs]** `misc/govdao-scripts/README.md:17` — the command list still reads `add 6 T1 members to govDAO (one-time bootstrap)`, where the roster is now seven and rerunning is the point of the change.
 
 ## Verified
@@ -122,6 +124,12 @@ target list needs the read-then-skip that the loop adds.
   the pearl bootstrap does, and the signed `maketx run` comes back with the
   panic from
   [`memberstore.gno:188`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/memberstore.gno#L188).
+- The base's own failure is not the one the description names.
+  [`tests/govdao_t1_roster_base_aeddi.txtar`](tests/govdao_t1_roster_base_aeddi.txtar)
+  puts the pre-diff program in the pearl shape, aeddi sole T1 and the window
+  open, and it aborts at `extend_govdao.gno:15`, the `// Jae` line, on the
+  allocation. `SetMember` never runs, so `ErrMemberAlreadyExists` is never
+  returned and `must` never sees it.
 - Both aborts reproduce at the merge base bc35e978a with that revision's own
   script body, so neither is caused by this branch. The base run stops at
   `cannot allocate` on its first `SetMember` line.
@@ -133,7 +141,7 @@ target list needs the read-then-skip that the loop adds.
   The untyped string constants in the roster literal assign to the `address`
   field with no conversion, which is why dropping `address(...)` costs nothing.
 - No CI job reaches either finding.
-  [`ci-dir-misc.yml`](https://github.com/gnolang/gno/blob/24d230fc9/.github/workflows/ci-dir-misc.yml?plain=1#L26-L40)
+  [`ci-dir-misc.yml`](https://github.com/gnolang/gno/blob/24d230fc9/.github/workflows/ci-dir-misc.yml?plain=1#L26-L48)
   runs `go test` over a fixed list of Go programs under `misc/`, and nothing in
   it compiles or executes a shell script or the gno source a script embeds. The
   head is green on every check.

@@ -101,7 +101,9 @@ rather than moving it. A caller wanting to seat a list therefore has a choice
 per entry: read the tier first with
 [`GetMember`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/types.gno#L94)
 and skip, or let the error abort everything written so far in the same
-transaction. Skipping also drops the signer's own entry for free, since a signer
-authorised to make this call is by definition already seated.
+transaction. Skipping drops the signer's own entry too, wherever that signer is
+one of the seated addresses. Nothing else reads the signer: the gate above is on
+the calling realm's path, so an unseated key inside the genesis window seats the
+whole list.
 
 Review files: [6165-govdao-t1-signer-agnostic](https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/pr/6xxx/6165-govdao-t1-signer-agnostic)
