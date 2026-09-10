@@ -6,7 +6,7 @@ Every falsifiable claim, the check that would prove it false, and what the check
 | --- | --- | --- | --- | --- |
 | C1 | Body: `init()` runs once, when the realm is deployed | probe filetest prints before any call | `boards after init: 1` on the first line of every probe | yes |
 | C2 | Body: `gnoland1` carries `boards2/v1` and an `OpenDiscussions` board at ID 1 | `abci_query vm/qrender gno.land/r/gnoland/boards2/v1:` on rpc.gno.land | `[OpenDiscussions] ... #1`, created 2026-03-21, then `atomone-governance` | yes |
-| C3 | Body, as posted: the `init()` lands on mainnet at launch | `docs/CONSTITUTION.md:133`, `docs/resources/gnoland-networks.md` | mainnet is "the day $GNOT becomes transferrable" on the running chain; no fresh genesis named | no, corrected in the draft |
+| C3 | Body, as posted: the `init()` lands on mainnet at launch | `docs/CONSTITUTION.md:133`, `docs/resources/gnoland-networks.md` | mainnet is "the day $GNOT becomes transferrable" on the running chain; no fresh genesis named | no; removed from the posted review by hand, and from the draft |
 | C4 | `boards.gno:69` is the `addBoard(..., "OpenDiscussions", true, true)` call | show lines 68-70 | line 69 as claimed | yes |
 | C5 | `CreateRepost` sets a caller-chosen title and body under `PermissionThreadRepost` at `public.gno:340` | show lines 330-350 | `WithPermission(caller, PermissionThreadRepost, ...)` then `repost.Title = title`, `repost.Body = ...` | yes |
 | C6 | no validator on `PermissionThreadRepost` | `git grep PermissionThreadRepost` over the package | 8 grant sites, no `ValidateFunc` | yes |
