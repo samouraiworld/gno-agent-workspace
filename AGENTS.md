@@ -35,8 +35,6 @@ mirror of gno as much as for `gnolang/gno` itself: the target changes, the skill
 
 When asked to **review all** (e.g. "review all", "review all non-reviewed recent PRs"), read and follow `skills/review.md` — see its "Review all" section: review every open, non-draft PR whose number is absent from `reviews/pr/`, excluding `WIP`-titled and dependabot PRs unless explicitly included.
 
-When asked for a **parallel**, **red-team / blue-team**, or **deeper** review of a single PR (or "review and loop until perfect"), read and follow `skills/review.md` — see its "Deep mode" section.
-
 When the user says **post** pointing at a `comment_<model>.md` draft (open file or path in the message), that is one-shot approval for any event: run `./scripts/post-pr-review.py <number> <path>` directly, without reading the draft or the review file. The PR number is the `<number>-<slug>/` segment of the path. If it reports invalid anchors, follow the "GitHub review draft" section of `skills/review.md`. When the draft already carries a `Posted:` line, the script rewrites the posted review in place (body and `[posted]`-linked inline comments); the event doesn't change. After a successful post, commit and push the script-updated draft: `review: PR <number> posted (<event>)`. `post as an AI` is the exception to any event: the Body opens on the marker line `skills/review-comment.md` quotes, the event is `COMMENT` whatever the draft's verdict, and nothing is composed beside the marker. This script has no `--as-ai`, so set `Event: COMMENT` and the marker in the draft before running it.
 
 ## Review History

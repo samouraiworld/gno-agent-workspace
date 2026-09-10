@@ -65,9 +65,9 @@ done < /tmp/open_nondraft.txt
 
 The subagent prompt names the worktree: "The worktree already exists at `<worktree-path>` with the PR checked out: never `worktree add` or `gh pr checkout`." The parent's single commit reads `review: PRs <a> and <b>`.
 
-## Deep mode
+## The catalog
 
-The catalog the core's lens rule and the pipeline's `catalog` argument name is `skills/invariant-catalog.md`. A large gno PR earns a consensus-impact lens. Deep mode also runs unasked on a change to consensus, gas or allocation accounting, or caller identity, beside the core's advisory trigger. The commit message may suffix `(deep)`.
+The catalog the core's finders walk, passed as the workflow's `catalog` argument, is `skills/invariant-catalog.md`. A change to consensus, gas or allocation accounting, or caller identity runs alone, never in a batch, beside the core's security-fix rule.
 
 ## Run tests
 
@@ -129,7 +129,7 @@ Core rules apply; the gno test shapes:
   gh api repos/<repo>/pulls/<n>/reviews --jq '.[]|select(.user.login=="<login>")|.node_id'
   gh api graphql -f query='mutation($id:ID!,$body:String!){updatePullRequestReview(input:{pullRequestReviewId:$id,body:$body}){pullRequestReview{state url}}}' -f id=<node-id> -f body='<text>'
   ```
-- A code comment a `Refactor:` finding proposes runs to three lines at most, whatever the comment it replaces did. The full patch goes under `tests/` and the review file links it.
+- A code comment a `Refactor:` finding proposes runs to three lines at most, whatever the comment it replaces did. The full patch goes under `tests/` and `claims.md` links it.
 - Repro blocks open with `# from a local clone of gnolang/gno:` then `gh pr checkout <N> -R gnolang/gno`.
 
 ## Output
@@ -157,7 +157,7 @@ For a patch-id-equal base-only move, `./scripts/reanchor-round.py <number> <new-
 
 ## PR overview (`overview.md`)
 
-Generate `overview.md` for every PR, before the review file, per the core's *Overview*, which carries the format and the update rule. Nothing about the subject exempts a PR: the judgement call this replaces answered "skip" for subjects a reader could not follow. Two gno paths on top of the core:
+Generate `overview.md` for every PR, the writer's first artifact, per the core's *Overview*, which carries the format and the update rule. Nothing about the subject exempts a PR: the judgement call this replaces answered "skip" for subjects a reader could not follow. Two gno paths on top of the core:
 
 - Write it at the PR directory root, `reviews/pr/<thousand>xxx/<number>-<slug>/overview.md`, NOT inside the round directory: it explains the PR, not one commit.
 - Exactly one pointer to the review: a `Review files` link to the PR directory tree on GitHub.
