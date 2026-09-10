@@ -4,6 +4,7 @@ URL: https://github.com/gnolang/gno/pull/6165
 Author: moul | Base: master | Files: 1 | +36 -13
 Reviewed by: davd-gzl | Model: claude-opus-5, effort xhigh | Commit: 24d230fc9 (latest)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6165 24d230fc9`
+Open the code: [github.dev](https://github.dev/moul/gno/tree/24d230fc9) or [vscode.dev](https://vscode.dev/github/moul/gno/tree/24d230fc9), locally `./scripts/review-worktrees.sh gno 6165`
 Overview: [overview](../overview.md)
 
 ## Overview
