@@ -103,7 +103,7 @@ under go1.25.9.
 
 ## Suggestions
 
-- **[state safety]** `gnovm/pkg/gnolang/op_call.go:752-753` — the `default:` branch is the one branch left returning with the function value and its arguments still on the stack.
+- **[state safety]** `gnovm/pkg/gnolang/op_call.go:752-753` — `default:` returns before the trailing `m.PopValue()`, so it leaves the function value and its arguments on the stack.
   <details><summary>details</summary>
 
   The change gives `case nil` the same stack discipline as `*FuncValue` and

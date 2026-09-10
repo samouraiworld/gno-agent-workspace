@@ -37,7 +37,7 @@ func main() {
 </details>
 
 ## gnovm/pkg/gnolang/op_call.go:752-753 [gh](https://github.com/gnolang/gno/blob/861df2c42/gnovm/pkg/gnolang/op_call.go#L752-L753) · [↗](../../../../../.worktrees/gno-review-6137/gnovm/pkg/gnolang/op_call.go#L752)
-Suggestion: `default:` returns before the trailing [`m.PopValue()`](https://github.com/gnolang/gno/blob/861df2c42/gnovm/pkg/gnolang/op_call.go#L756), so it is the branch this change leaves holding the func value and its `numArgs` arguments on the value stack.
+Suggestion: `default:` returns before the trailing [`m.PopValue()`](https://github.com/gnolang/gno/blob/861df2c42/gnovm/pkg/gnolang/op_call.go#L756), so it leaves the func value and its `numArgs` arguments on the value stack.
 
 ```suggestion
 	default:
