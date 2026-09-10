@@ -1,10 +1,13 @@
 # Review: [#6132](https://github.com/gnolang/gno/pull/6132)
-Event: REQUEST_CHANGES
+Posted: https://github.com/gnolang/gno/pull/6132#pullrequestreview-5169496537
+Event: COMMENT
 
 ## Body
+> AI review, claude-opus-5 at xhigh, [skills](https://github.com/davd-gzl/skills) · Status: REQUEST CHANGES · will follow with a manual review after, posting because it's an urgent topic
+
 This `init()` runs at genesis, so it lands on mainnet at launch, whatever the beta network `gnoland1` already carries.
 
-## examples/gno.land/r/gnoland/boards2/v1/boards.gno:69 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69)
+## examples/gno.land/r/gnoland/boards2/v1/boards.gno:69 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69) [posted](https://github.com/gnolang/gno/pull/6132#discussion_r3981084592)
 `CreateRepost` writes a caller-chosen title and body into the open board [under a check](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/public.gno#L340) that never reads `RequiredAccountAmount`, the 3,000 GNOT gate that [two](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L157-L158) of the board's [three public permissions](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L111-L115) carry. Give `PermissionThreadRepost` the same validator, or seed the board without it.
 
 <details><summary>repro</summary>
@@ -70,10 +73,10 @@ ok      ./gno.land/r/gnoland/zzrepost 	16.96s
 Swapping `CreateRepost` for `CreateThread` in that same file gives `caller is not allowed to create threads: account amount is lower than 3000 GNOT`, which the realm's own `z_create_thread_06_filetest.gno` already pins. Removing a thread its author keeps then takes the [GovDAO multisig](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L153), the board's only owner.
 </details>
 
-## examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno:17 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno#L17) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno#L17)
+## examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno:17 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno#L17) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno#L17) [posted](https://github.com/gnolang/gno/pull/6132#discussion_r3981084602)
 Nit: this file's rewritten output was the last cover of the empty-state branch at [`render.gno:131-135`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/render.gno#L131-L135), which `init()` makes unreachable by seeding a listed board that nothing removes from [`gListedBoardsByID`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/public.gno#L176). Both go: the branch, and this file's opening line still reading "when there are no boards".
 
-## examples/gno.land/r/gnoland/boards2/v1/boards.gno:68 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68)
+## examples/gno.land/r/gnoland/boards2/v1/boards.gno:68 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68) [posted](https://github.com/gnolang/gno/pull/6132#discussion_r3981084611)
 Suggestion: an account under 3,000 GNOT still needs a multisig transaction before its first thread here, since [`validateOpenThreadCreate`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions_validators_open.gno#L111-L127) exempts only owners and admins from [`RequiredAccountAmount`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L25). Set that variable in the same `init()`; the cost is two goldens, `z_create_thread_06_filetest.gno` and `z_create_reply_15_filetest.gno`.
 
 <details><summary>repro</summary>
@@ -130,7 +133,7 @@ boards after init: 1
 Issue the account `3_000_000_000ugnot` instead, and the run goes green with `thread 1`.
 </details>
 
-## examples/gno.land/r/gnoland/boards2/v1/public.gno:157 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/public.gno#L157) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/public.gno#L157)
+## examples/gno.land/r/gnoland/boards2/v1/public.gno:157 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/public.gno#L157) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/public.gno#L157) [posted](https://github.com/gnolang/gno/pull/6132#discussion_r3981084616)
 Suggestion: the helper overwrites every field but the ID of the board it receives. Take `id boards.ID` and call `boards.New(id)` inside, dropping `boards.New` from both call sites.
 
 <details><summary>why the type matters</summary>
