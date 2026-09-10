@@ -2,10 +2,10 @@
 Event: COMMENT
 
 ## Body
-- [`misc/govdao-scripts/README.md:17`](https://github.com/gnolang/gno/blob/24d230fc9/misc/govdao-scripts/README.md?plain=1#L17) still lists the command as `add 6 T1 members to govDAO (one-time bootstrap)`, where the roster is now seven.
+- [`misc/govdao-scripts/README.md:17`](https://github.com/gnolang/gno/blob/24d230fc9/misc/govdao-scripts/README.md?plain=1#L17) describes the command as `add 6 T1 members to govDAO (one-time bootstrap)`, and the roster holds seven.
 
 ## misc/govdao-scripts/extend-govdao-t1.sh:50 [gh](https://github.com/gnolang/gno/blob/24d230fc9/misc/govdao-scripts/extend-govdao-t1.sh#L50) · [↗](../../../../../.worktrees/gno-review-6165/misc/govdao-scripts/extend-govdao-t1.sh#L50)
-Related: this `maketx run` [reaches `memberstore.Get`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/memberstore.gno#L186-L188) as [`gno.land/e/<signer>/run`](https://github.com/gnolang/gno/blob/24d230fc9/gno.land/pkg/sdk/vm/keeper.go#L1398), which every network the script names locks out of [`AllowedDAOs`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/proxy.gno#L231-L240), so the script seats nobody. Seating a T1 member on those chains goes through [`NewAddMemberRequest`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/impl/prop_requests.gno#L80) as a govDAO proposal.
+Related: this [`memberstore.Get`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/memberstore.gno#L186-L188) call sees the caller as [`gno.land/e/<signer>/run`](https://github.com/gnolang/gno/blob/24d230fc9/gno.land/pkg/sdk/vm/keeper.go#L1398), a path missing from [`AllowedDAOs`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/proxy.gno#L231-L240) on every network the script names, so the script seats nobody. Seating a T1 member on those networks goes through [`NewAddMemberRequest`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/impl/prop_requests.gno#L80) as a govDAO proposal.
 
 <details><summary>repro</summary>
 
@@ -118,7 +118,7 @@ main at gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run/extend_govdao.gn
 </details>
 
 ## misc/govdao-scripts/extend-govdao-t1.sh:59 [gh](https://github.com/gnolang/gno/blob/24d230fc9/misc/govdao-scripts/extend-govdao-t1.sh#L59) · [↗](../../../../../.worktrees/gno-review-6165/misc/govdao-scripts/extend-govdao-t1.sh#L59)
-`&memberstore.Member{InvitationPoints: 3}` allocates [a type `memberstore` owns](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/types.gno#L17-L19), which the run realm may not do, so the transaction aborts before the first member is seated.
+`&memberstore.Member{InvitationPoints: 3}` allocates [`memberstore`'s own type](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/types.gno#L17-L19), which the run realm may not do, so the transaction aborts before seating anyone.
 
 ```suggestion
 		if err := ms.SetMember(memberstore.T1, r.addr, memberstore.NewMember(3)); err != nil {
@@ -234,5 +234,5 @@ main at gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run/extend_govdao.gn
 </details>
 
 ## SKIP misc/govdao-scripts/extend-govdao-t1.sh:36-37 [gh](https://github.com/gnolang/gno/blob/24d230fc9/misc/govdao-scripts/extend-govdao-t1.sh#L36-L37) · [↗](../../../../../.worktrees/gno-review-6165/misc/govdao-scripts/extend-govdao-t1.sh#L36)
-Nit: nothing reads the signer's tier, so this comment's claim does not hold and a run inside the genesis window seats the whole roster for a key holding no membership.
+Nit: nothing reads the signer's tier, so a run inside the genesis window seats the whole roster for a key holding no membership.
 Skipped: a finding about a code comment's own wording changes no behaviour.

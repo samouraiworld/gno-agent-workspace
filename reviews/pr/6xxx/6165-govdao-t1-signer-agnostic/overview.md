@@ -9,14 +9,14 @@ file and hands it to `gnokey maketx run`, which deploys it as a throwaway realm
 and calls its `main`. That program asks
 [`memberstore.Get`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/memberstore.gno#L182)
 for the govDAO member tree and writes T1 entries into it. Two properties of the
-chain decide whether the write lands: which realms the govDAO proxy still lets
-touch the member tree, and which realm owns the `Member` value being stored.
+chain decide whether the write lands: which realms the govDAO proxy admits to
+the member tree, and which realm owns the `Member` value being stored.
 
 ## The member tree and its gatekeeper
 
 govDAO v3 keeps members in
-[`r/gov/dao/v3/memberstore`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/memberstore.gno),
-a tier name to address to `*Member` tree. Anyone holding that tree can seat,
+[`r/gov/dao/v3/memberstore`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/memberstore.gno#L15),
+a [tier name to address to `*Member`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/types.gno#L34-L35) tree. Anyone holding that tree can seat,
 promote or remove a member with no vote, so `Get` is the gate:
 
 ```go
@@ -34,7 +34,7 @@ func Get(_ int, rlm realm) MembersByTier {
 answers from a list the govDAO proxy stores. The list starts empty, and an
 empty list means yes to everyone. That is deliberate: a fresh chain has no
 members and therefore no way to vote one in, so genesis needs a window where a
-plain transaction can write the first member directly.
+plain transaction can write the first member.
 
 ## What a MsgRun's realm is called
 
@@ -46,16 +46,15 @@ as a package whose path is built from the signer's address, at
 memPkg.Path = chainDomain + "/e/" + msg.Caller.String() + "/run"
 ```
 
-So a run signed by `g1jg8m...` reaches `memberstore.Get` as
+A run signed by `g1jg8m...` reaches `memberstore.Get` as
 `gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run`, never as an address
 and never as a govDAO realm. Whether that path is on the allowed list is the
 whole question, and the signer's own membership does not enter into it.
 
 ## Where each network stands
 
-Every deployed network closes the genesis window on its last bootstrap line.
-The table reads the five networks the script names, after their bootstrap has
-run:
+Every deployed network closes the genesis window on its last bootstrap line,
+leaving the five the script names here:
 
 | Network | `AllowedDAOs` after bootstrap | A MsgRun reaching `memberstore.Get` |
 | --- | --- | --- |
@@ -102,8 +101,8 @@ per entry: read the tier first with
 [`GetMember`](https://github.com/gnolang/gno/blob/24d230fc9/examples/gno.land/r/gov/dao/v3/memberstore/types.gno#L94)
 and skip, or let the error abort everything written so far in the same
 transaction. Skipping drops the signer's own entry too, wherever that signer is
-one of the seated addresses. Nothing else reads the signer: the gate above is on
-the calling realm's path, so an unseated key inside the genesis window seats the
+one of the seated addresses. Nothing else reads the signer: `memberstore.Get`
+gates on the calling realm's path, so an unseated key inside the genesis window seats the
 whole list.
 
 Review files: [6165-govdao-t1-signer-agnostic](https://github.com/samouraiworld/gno-agent-workspace/tree/main/reviews/pr/6xxx/6165-govdao-t1-signer-agnostic)
