@@ -2,7 +2,7 @@
 Event: REQUEST_CHANGES
 
 ## Body
-This `init()` runs only at a chain's genesis, and the live `gnoland1` chain already carries an [`OpenDiscussions` board at ID 1](https://gno.land/r/gnoland/boards2/v1) beside `atomone-governance` at ID 2.
+This `init()` runs at genesis, so it lands on mainnet at launch, whatever the beta network `gnoland1` already carries.
 
 ## examples/gno.land/r/gnoland/boards2/v1/boards.gno:69 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69)
 `CreateRepost` writes a caller-chosen title and body into the open board [under a check](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/public.gno#L340) that never reads `RequiredAccountAmount`, the 3,000 GNOT gate that [two](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L157-L158) of the board's [three public permissions](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L111-L115) carry. Give `PermissionThreadRepost` the same validator, or seed the board without it.
