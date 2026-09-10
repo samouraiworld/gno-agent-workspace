@@ -1,0 +1,43 @@
+diff --git a/examples/gno.land/r/gnoland/boards2/v1/boards.gno b/examples/gno.land/r/gnoland/boards2/v1/boards.gno
+index c69ed92b7..5b84b3c19 100644
+--- a/examples/gno.land/r/gnoland/boards2/v1/boards.gno
++++ b/examples/gno.land/r/gnoland/boards2/v1/boards.gno
+@@ -66,7 +66,7 @@ func initRealmPermissions(owners ...address) boards.Permissions {
+ }
+ 
+ func init() {
+-	addBoard(boards.New(gBoardsSequence.Next()), initialOwner, "OpenDiscussions", true, true)
++	addBoard(gBoardsSequence.Next(), initialOwner, "OpenDiscussions", true, true)
+ }
+ 
+ // getInviteRequests returns invite requests for a board.
+diff --git a/examples/gno.land/r/gnoland/boards2/v1/public.gno b/examples/gno.land/r/gnoland/boards2/v1/public.gno
+index a7d024c26..755f82509 100644
+--- a/examples/gno.land/r/gnoland/boards2/v1/public.gno
++++ b/examples/gno.land/r/gnoland/boards2/v1/public.gno
+@@ -141,20 +141,20 @@ func CreateBoard(cur realm, name string, listed, open bool) boards.ID {
+ 
+ 	caller := cur.Previous().Address()
+ 	id := gBoardsSequence.Next()
+-	board := boards.New(id)
+-	args := boards.Args{caller, name, board.ID, listed, open}
++	args := boards.Args{caller, name, id, listed, open}
+ 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func() {
+ 		assertRealmIsNotLocked()
+ 		assertBoardNameNotExists(name)
+-		addBoard(board, caller, name, listed, open)
++		addBoard(id, caller, name, listed, open)
+ 	})
+-	return board.ID
++	return id
+ }
+ 
+ // addBoard initializes a board and adds it to the realm storage.
+ // It performs no permission or validation checks, so callers are responsible
+ // for doing their own.
+-func addBoard(board *boards.Board, caller address, name string, listed, open bool) {
++func addBoard(id boards.ID, caller address, name string, listed, open bool) {
++	board := boards.New(id)
+ 	board.Name = name
+ 	board.Creator = caller
+ 	board.Meta = &BoardMeta{

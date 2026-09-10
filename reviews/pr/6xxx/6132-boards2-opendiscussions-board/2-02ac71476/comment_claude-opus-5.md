@@ -1,0 +1,134 @@
+# Review: [#6132](https://github.com/gnolang/gno/pull/6132)
+Event: REQUEST_CHANGES
+
+## Body
+This `init()` runs only at a chain's genesis, and the live `gnoland1` chain already carries an [`OpenDiscussions` board at ID 1](https://gno.land/r/gnoland/boards2/v1) beside `atomone-governance` at ID 2.
+
+## examples/gno.land/r/gnoland/boards2/v1/boards.gno:69 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69)
+`CreateRepost` writes a thread with a caller-chosen title and body [under a permission check](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/public.gno#L340) that never reads the 3,000 GNOT `RequiredAccountAmount` the same account is turned away by on `CreateThread`: of the open board's [three public permissions](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L111-L115) [only two carry a validator](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L157-L158), and removing that thread, when its author will not, takes the board's only [`RoleOwner`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L153), the GovDAO multisig. Give `PermissionThreadRepost` the validator its two siblings carry, or seed the board without it.
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 6132 -R gnolang/gno
+D=examples/gno.land/r/gnoland/zzrepost
+mkdir -p $D
+cat > $D/gnomod.toml <<'EOF'
+module = "gno.land/r/gnoland/zzrepost"
+gno = "0.9"
+EOF
+echo 'package zzrepost' > $D/zzrepost.gno
+cat > $D/z_repost_filetest.gno <<'EOF'
+// PKGPATH: gno.land/r/gnoland/zzrepost/z_repost_filetest
+package z_repost_filetest
+
+import (
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v1"
+)
+
+const (
+	owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
+	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
+)
+
+func init(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+	boards2.CreateThread(cross(cur), 1, "Seed", "Seed body")
+}
+
+func main(cur realm) {
+	// user was never issued any ugnot.
+	testing.SetRealm(testing.NewUserRealm(user))
+	println("threads before:", len(boards2.GetThreads(1, 0, 50)))
+	println("repost id:", boards2.CreateRepost(cross(cur), 1, 1, 1, "Spam title", "Spam body"))
+	println("threads after:", len(boards2.GetThreads(1, 0, 50)))
+}
+
+// Output:
+// threads before: 1
+// repost id: 2
+// threads after: 2
+EOF
+go run ./gnovm/cmd/gno test -C examples -v ./gno.land/r/gnoland/zzrepost
+rm -rf $D
+```
+
+The pass is the finding: the balance check never runs and the second thread lands.
+
+```
+threads before: 1
+repost id: 2
+threads after: 2
+=== RUN   ./gno.land/r/gnoland/zzrepost/z_repost_filetest.gno
+--- PASS: ./gno.land/r/gnoland/zzrepost/z_repost_filetest.gno (elapsed: 0.07s, gas: 3821479, storage: gno.land/r/gnoland/boards2/v1:+15104b)
+ok      ./gno.land/r/gnoland/zzrepost 	16.96s
+```
+
+Swapping `CreateRepost` for `CreateThread` in that same file gives `caller is not allowed to create threads: account amount is lower than 3000 GNOT`, which the realm's own `z_create_thread_06_filetest.gno` already pins.
+</details>
+
+## examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno:17 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno#L17) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno#L17)
+Nit: this file's rewritten output was the last cover of the empty-state branch at [`render.gno:131-135`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/render.gno#L131-L135), which `init()` makes unreachable by seeding a listed board that nothing removes from [`gListedBoardsByID`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/public.gno#L176). Delete the branch and this file's opening line, which still reads "when there are no boards".
+
+## examples/gno.land/r/gnoland/boards2/v1/boards.gno:68 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L68)
+Suggestion: an ordinary account holding under 3,000 GNOT still needs a multisig transaction before its first thread on this board, because [`validateOpenThreadCreate`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions_validators_open.gno#L111-L127) exempts only owners and admins from the balance check against [`RequiredAccountAmount`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L25). Assigning that variable a genesis-appropriate value in the same `init()` avoids it, at the cost of the two filetests that pin the refusal message, `z_create_thread_06_filetest.gno` and `z_create_reply_15_filetest.gno`.
+
+<details><summary>repro</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 6132 -R gnolang/gno
+D=examples/gno.land/r/gnoland/zzgate
+mkdir -p $D
+cat > $D/gnomod.toml <<'EOF'
+module = "gno.land/r/gnoland/zzgate"
+gno = "0.9"
+EOF
+echo 'package zzgate' > $D/zzgate.gno
+cat > $D/z_gate_filetest.gno <<'EOF'
+// PKGPATH: gno.land/r/gnoland/zzgate/z_gate_filetest
+package z_gate_filetest
+
+import (
+	"chain"
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v1"
+)
+
+const user address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
+
+func main(cur realm) {
+	println("boards after init:", boards2.BoardCount())
+	testing.IssueCoins(user, chain.Coins{{"ugnot", 100_000_000}})
+	testing.SetRealm(testing.NewUserRealm(user))
+	println("thread", boards2.CreateThread(cross(cur), 1, "hello", "body"))
+}
+
+// Output:
+// boards after init: 1
+// thread 1
+EOF
+go run ./gnovm/cmd/gno test -C examples -v ./gno.land/r/gnoland/zzgate 2>&1 | head -8
+rm -rf $D
+```
+
+The account holds 100 GNOT and `init()`'s board is the only one:
+
+```
+boards after init: 1
+=== RUN   ./gno.land/r/gnoland/zzgate/z_gate_filetest.gno
+--- FAIL: ./gno.land/r/gnoland/zzgate/z_gate_filetest.gno (elapsed: 0.14s, gas: 3452935)
+unexpected panic: caller is not allowed to create threads: account amount is lower than 3000 GNOT
+output:
+boards after init: 1
+```
+
+Issue the account `3_000_000_000ugnot` instead, and the run goes green with `thread 1`.
+</details>
+
+## examples/gno.land/r/gnoland/boards2/v1/public.gno:157 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/public.gno#L157) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/public.gno#L157)
+Suggestion: the helper assigns every field of the board it is handed, so the ID is the only value a caller supplies, and [`storage.Add`](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/p/gnoland/boards/storage.gno#L99-L112) is a `Set` whose only error is a nil board, so a board whose ID is already in the tree silently replaces that board and its threads. Take `id boards.ID` and call `boards.New(id)` inside, which also drops `boards.New` from both call sites.
