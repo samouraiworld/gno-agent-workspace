@@ -5,7 +5,7 @@ Event: COMMENT
 ## Body
 > AI review, claude-opus-5 at xhigh, [skills](https://github.com/davd-gzl/skills) · Status: REQUEST CHANGES · will follow with a manual review after, posting because it's an urgent topic
 
-This `init()` runs at genesis, so it lands on mainnet at launch, whatever the beta network `gnoland1` already carries.
+`init()` runs once, when the realm is deployed, so this board reaches only a chain that deploys `boards2/v1` fresh from this tree; `gnoland1` already carries the realm and an `OpenDiscussions` board at ID 1.
 
 ## examples/gno.land/r/gnoland/boards2/v1/boards.gno:69 [gh](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69) · [↗](../../../../../.worktrees/gno-review-6132/examples/gno.land/r/gnoland/boards2/v1/boards.gno#L69) [posted](https://github.com/gnolang/gno/pull/6132#discussion_r3981084592)
 `CreateRepost` writes a caller-chosen title and body into the open board [under a check](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/public.gno#L340) that never reads `RequiredAccountAmount`, the 3,000 GNOT gate that [two](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L157-L158) of the board's [three public permissions](https://github.com/gnolang/gno/blob/02ac71476/examples/gno.land/r/gnoland/boards2/v1/permissions.gno#L111-L115) carry. Give `PermissionThreadRepost` the same validator, or seed the board without it.
