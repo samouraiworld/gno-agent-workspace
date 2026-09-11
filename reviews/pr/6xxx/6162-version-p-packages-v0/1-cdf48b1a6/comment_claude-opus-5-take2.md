@@ -7,9 +7,13 @@ Open the code: [github.dev](https://github.dev/gnolang/gno/blob/cdf48b1a6a48aa02
 
 ## Body
 
-- [`"/r/demo/grc20factory:"`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L168) names no package, and the realm ships in gnoland1 genesis, so the dead link freezes with it.
+- The info link on each token row, [`grc20factory.gno:168`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L168), points at `/r/demo/grc20factory`, and the realm lives at `r/demo/defi/grc20factory`.
 
-<details><summary>three self-links naming no package, all in files the diff edits</summary>
+<details><summary>why genesis is the last chance, and the two siblings</summary>
+
+The realm reaches the gnoland1 genesis set, and [`keeper.go:743-744`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/gno.land/pkg/sdk/vm/keeper.go#L743-L744) rejects a re-add of any package that is not `Private`, so the string cannot be corrected at that path afterwards.
+
+Two more `"/r/…"` or `"/p/…"` literals under `examples/gno.land/**` point at paths no package occupies, all three in files the diff edits:
 
 | literal | in | what it should name |
 |---|---|---|
