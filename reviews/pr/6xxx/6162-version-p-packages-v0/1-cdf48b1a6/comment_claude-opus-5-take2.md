@@ -1,4 +1,5 @@
 # Review: [#6162](https://github.com/gnolang/gno/pull/6162)
+Posted: https://github.com/gnolang/gno/pull/6162#pullrequestreview-5178143763
 Event: COMMENT
 Model: claude-opus-5, effort high
 Commit: cdf48b1a6 (latest)
@@ -7,13 +8,11 @@ Open the code: [github.dev](https://github.dev/gnolang/gno/blob/cdf48b1a6a48aa02
 
 ## Body
 
+> AI review, claude-opus-5 at high, [skills](https://github.com/davd-gzl/skills) · Status: COMMENT
+
 - The info link on each token row, [`grc20factory.gno:168`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L168), points at `/r/demo/grc20factory`, and the realm lives at `r/demo/defi/grc20factory`.
 
-<details><summary>why genesis is the last chance, and the two siblings</summary>
-
-The realm reaches the gnoland1 genesis set, and [`keeper.go:743-744`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/gno.land/pkg/sdk/vm/keeper.go#L743-L744) rejects a re-add of any package that is not `Private`, so the string cannot be corrected at that path afterwards.
-
-Two more `"/r/…"` or `"/p/…"` literals under `examples/gno.land/**` point at paths no package occupies, all three in files the diff edits:
+<details><summary>the three literals</summary>
 
 | literal | in | what it should name |
 |---|---|---|
@@ -24,7 +23,7 @@ Two more `"/r/…"` or `"/p/…"` literals under `examples/gno.land/**` point at
 Resolved against the 325 `gnomod.toml` module paths under `examples/`; none changed at the merge base.
 </details>
 
-## misc/deployments/gnoland1/packages.gen.txt:29 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/gnoland1/packages.gen.txt#L29) · [↗](../../../../../.worktrees/gno-review-6162/misc/deployments/gnoland1/packages.gen.txt#L29)
+## misc/deployments/gnoland1/packages.gen.txt:29 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/gnoland1/packages.gen.txt#L29) · [↗](../../../../../.worktrees/gno-review-6162/misc/deployments/gnoland1/packages.gen.txt#L29) [posted](https://github.com/gnolang/gno/pull/6162#discussion_r3988699715)
 
 Suggestion: `boards2/v1` and `r/sys/namereg/v1` never had a `v0`, the absence that renumbered `r/gov/dao/v3`.
 
