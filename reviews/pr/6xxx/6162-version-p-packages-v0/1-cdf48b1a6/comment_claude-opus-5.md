@@ -7,7 +7,7 @@ Open the code: [github.dev](https://github.dev/gnolang/gno/blob/cdf48b1a6a48aa02
 
 ## Body
 
-- `misc/deployments/pearl,sapphire,test13,topaz` keep the paths their chains deployed but not the directories those names resolve to: each reads its package set from [the working tree](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L475) and asks for [`./gno.land/r/sys/validators/v3`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L79) and [`./gno.land/r/demo/defi/grc20reg`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L80), so the [resolution step](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L711) exits 1 under [`set -eo pipefail`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L46). Those four published genesis files can no longer be rebuilt against the hashes their own scripts carry.
+- `misc/deployments/pearl,sapphire,test13,topaz` read their package set from [the working tree](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L475) and ask for [`./gno.land/r/sys/validators/v3`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L79) and [`./gno.land/r/demo/defi/grc20reg`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L80), which are gone, so the [resolution step](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L711) exits 1 under [`set -eo pipefail`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/pearl.gno.land/gen-genesis.sh#L46). A release commit named in each deployment's README would point a reader at the revision those packages still exist on.
 
 <details><summary>repro</summary>
 
@@ -41,7 +41,7 @@ Five occurrences of `gno.land/p/moul/md` became `gno.land/p/moul/md/v0`: two in 
 
 ## gnovm/pkg/gnolang/mempackage.go:211-212 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/gnovm/pkg/gnolang/mempackage.go#L211-L212) · [↗](../../../../../.worktrees/gno-review-6162/gnovm/pkg/gnolang/mempackage.go#L211)
 
-Suggestion: `gno.land/p/demo/tests/v0` carries the prefix the clause below tests, so the equality never decides the result.
+Nit: the line below already returns true for `gno.land/p/demo/tests/v0`, since it tests the prefix `gno.land/p/demo/tests/`, so this comparison is unreachable.
 
 ```suggestion
 	return strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
@@ -54,7 +54,7 @@ Nine paths answer the same with and without the clause: the five test-namespace 
 
 ## examples/quarantined/gno.land/p/nt/grc1155/gnomod.toml:1 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/quarantined/gno.land/p/nt/grc1155/gnomod.toml#L1) · [↗](../../../../../.worktrees/gno-review-6162/examples/quarantined/gno.land/p/nt/grc1155/gnomod.toml#L1)
 
-Suggestion: `grc1155` and `grc777` land unversioned beside [`p/nt/pausable/v0`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/quarantined/gno.land/p/nt/pausable/v0/gnomod.toml#L1) and [`p/nt/watchdog/v0`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/quarantined/gno.land/p/nt/watchdog/v0/gnomod.toml#L1), the two quarantined `p/nt` packages that carry one.
+Nit: `grc1155` and `grc777` land unversioned beside [`p/nt/pausable/v0`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/quarantined/gno.land/p/nt/pausable/v0/gnomod.toml#L1) and [`p/nt/watchdog/v0`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/quarantined/gno.land/p/nt/watchdog/v0/gnomod.toml#L1), the two quarantined `p/nt` packages that carry one.
 
 ## SKIP misc/govdao-scripts/README.md:13-14 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/govdao-scripts/README.md?plain=1#L13-L14) · [↗](../../../../../.worktrees/gno-review-6162/misc/govdao-scripts/README.md#L13)
 
