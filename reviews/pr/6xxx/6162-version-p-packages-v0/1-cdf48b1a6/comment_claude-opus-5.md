@@ -33,21 +33,6 @@ rc=1
 The same block on the merge base prints `rc=0`. `misc/deployments/gnoland1` is unaffected: its list is wildcards only.
 </details>
 
-- [`"/r/demo/grc20factory:"`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L168) renders an info link to a path no package holds, the realm sitting at `r/demo/defi/grc20factory`, and this realm is in the gnoland1 genesis set so the string freezes with it.
-
-<details><summary>every hardcoded self-link in a deployed realm</summary>
-
-Three `"/r/…"` or `"/p/…"` literals under `examples/gno.land/**` name no package at this head, and the diff edits all three files:
-
-| literal | in | what it should name |
-|---|---|---|
-| `/r/demo/grc20reg:` | [`grc20reg.gno:158`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/nt/grc20reg/v0/grc20reg.gno#L158) | `r/nt/grc20reg/v0` |
-| `/r/demo/grc20factory:` | [`grc20factory.gno:168`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L168) | `r/demo/defi/grc20factory` |
-| `/p/gnops/valopers` | [`proposal.gno:76`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/gnops/valopers/proposal/proposal.gno#L76) | `r/gnops/valopers`, and this one is proposal title text rather than a link |
-
-All three read the same at the merge base. The sweep resolves every such literal against the 325 `gnomod.toml` module paths under `examples/`, counting a prefix match as resolving.
-</details>
-
 ## contribs/gnofaucet/github/testdata/events.2.json:33041 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/contribs/gnofaucet/github/testdata/events.2.json#L33041) · [↗](../../../../../.worktrees/gno-review-6162/contribs/gnofaucet/github/testdata/events.2.json#L33041) [posted](https://github.com/gnolang/gno/pull/6162#discussion_r3988511685)
 
 Test: this captured `diff_hunk` now asserts bytes GitHub never sent, and so do [events.3.json:3995](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/contribs/gnofaucet/github/testdata/events.3.json#L3995) and [issues.1.json:5799](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/contribs/gnofaucet/github/testdata/issues.1.json#L5799).
@@ -73,21 +58,6 @@ Nine paths answer the same with and without the clause: the five test-namespace 
 ## examples/quarantined/gno.land/p/nt/grc1155/gnomod.toml:1 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/quarantined/gno.land/p/nt/grc1155/gnomod.toml#L1) · [↗](../../../../../.worktrees/gno-review-6162/examples/quarantined/gno.land/p/nt/grc1155/gnomod.toml#L1) [posted](https://github.com/gnolang/gno/pull/6162#discussion_r3988511699)
 
 Nit: `grc1155` and `grc777` land unversioned beside [`p/nt/pausable/v0`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/quarantined/gno.land/p/nt/pausable/v0/gnomod.toml#L1) and [`p/nt/watchdog/v0`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/quarantined/gno.land/p/nt/watchdog/v0/gnomod.toml#L1), the two quarantined `p/nt` packages that carry one.
-
-## misc/deployments/gnoland1/packages.gen.txt:29 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/deployments/gnoland1/packages.gen.txt#L29) · [↗](../../../../../.worktrees/gno-review-6162/misc/deployments/gnoland1/packages.gen.txt#L29)
-
-Suggestion: `boards2/v1` keeps a number whose `v0` never existed here, the absence this PR used to renumber `r/gov/dao/v3`.
-
-<details><summary>what the history shows</summary>
-
-`git log --diff-filter=A` over each `gnomod.toml` path: `r/gnoland/boards2/v0` never existed, [`r/sys/namereg/v1`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/sys/namereg/v1/gnomod.toml#L1) never had a `v0` either, and `r/gov/dao/v1` never existed while `r/gov/dao/v2` was added by [#2581](https://github.com/gnolang/gno/pull/2581) and later deleted. Both surviving `v1` packages reach the gnoland1 genesis set, so both numbers freeze at launch alongside the renumbered ones.
-</details>
-
-## SKIP examples/gno.land/r/nt/grc20reg/v0/grc20reg.gno:158 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/nt/grc20reg/v0/grc20reg.gno#L158) · [↗](../../../../../.worktrees/gno-review-6162/examples/gno.land/r/nt/grc20reg/v0/grc20reg.gno#L158)
-
-Already raised and answered, so skipped; line 158 sits outside the diff and cannot carry an inline comment: https://github.com/gnolang/gno/pull/6162#discussion_r3988191161
-
-`"/r/demo/grc20reg:"` renders an info link to a path no package holds, and [`grc20reg_test.gno:24`](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/examples/gno.land/r/nt/grc20reg/v0/grc20reg_test.gno#L24) asserts that same string.
 
 ## SKIP misc/govdao-scripts/README.md:13-14 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/misc/govdao-scripts/README.md?plain=1#L13-L14) · [↗](../../../../../.worktrees/gno-review-6162/misc/govdao-scripts/README.md#L13)
 
