@@ -41,7 +41,7 @@ Five occurrences of `gno.land/p/moul/md` became `gno.land/p/moul/md/v0`: two in 
 
 ## gnovm/pkg/gnolang/mempackage.go:211-212 [gh](https://github.com/gnolang/gno/blob/cdf48b1a6a48aa02113e36a1415aca1a88d15e2a/gnovm/pkg/gnolang/mempackage.go#L211-L212) · [↗](../../../../../.worktrees/gno-review-6162/gnovm/pkg/gnolang/mempackage.go#L211)
 
-Nit: the line below already returns true for `gno.land/p/demo/tests/v0`, since it tests the prefix `gno.land/p/demo/tests/`, so this comparison is unreachable.
+Nit: `pkgPath == "gno.land/p/demo/tests/v0"` never changes the answer, since the `strings.HasPrefix` beside it is already true for that same string.
 
 ```suggestion
 	return strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
