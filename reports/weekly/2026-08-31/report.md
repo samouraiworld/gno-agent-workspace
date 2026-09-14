@@ -21,6 +21,7 @@ From 24/08 to 31/08  **: Samourai crew**
 - 📥 docs: concise AI contract review guide follow-up - https://github.com/gnolang/gno/pull/5936 - davd-gzl
 - fix(gnolang): allow indirect cur-call through a local func variable - https://github.com/gnolang/gno/pull/5689 - omarsy
 - ✅ 💥 feat(gnovm): source-level gas profiler ("gas pprof") - https://github.com/gnolang/gno/pull/5967 - omarsy
+- ✅ 📥 feat(tm2): bounded-parallel queries, pre-filled VM type caches, snapshot-isolated simulate - https://github.com/gnolang/gno/pull/6082 - Villaquiranm
 
 ---
 
@@ -35,7 +36,6 @@ From 24/08 to 31/08  **: Samourai crew**
 
 **⚙️ PR Waiting for review (GnoVM / TM2)**
 
-- ✅ 📥 feat(tm2): bounded-parallel queries, pre-filled VM type caches, snapshot-isolated simulate - https://github.com/gnolang/gno/pull/6082 - Villaquiranm
 - ✅ test(misc/e2e): add gnovm audit and e2e regression scripts - https://github.com/gnolang/gno/pull/5663 - louis14448
 - fix(preprocess): avoid shadowing of iota - https://github.com/gnolang/gno/pull/5981 - Villaquiranm (AI: needs discussion)
 - 📥 fix(gnovm): Add missing checks - https://github.com/gnolang/gno/pull/4886 - davd-gzl
