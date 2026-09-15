@@ -394,7 +394,7 @@ https://docs.gno.land/misc/deployments/betanet       404
 Refactor: `${{ inputs.tag || github.ref_name }}` is spelled out four times, here and at [`:94`](https://github.com/gnolang/gno/blob/607942b78/.github/workflows/release-chain-tag.yml#L94), [`:135`](https://github.com/gnolang/gno/blob/607942b78/.github/workflows/release-chain-tag.yml#L135) and [`:147`](https://github.com/gnolang/gno/blob/607942b78/.github/workflows/release-chain-tag.yml#L147), where two job-level `env:` lines carry it once per job.
 
 ## gno.land/pkg/gnoland/app_test.go:2954-2957 [gh](https://github.com/gnolang/gno/blob/607942b78/gno.land/pkg/gnoland/app_test.go#L2954-L2957) · [↗](../../../../../.worktrees/gno-review-6177/gno.land/pkg/gnoland/app_test.go#L2954)
-Refactor: `TestParseGnolandVersion` is named nowhere else in the tree, so this comment is the only trace of a symbol a reader greps for and does not find.
+Incorrect comment: `TestParseGnolandVersion` is named nowhere else in the tree, so this comment is the only trace of a symbol a reader greps for and does not find.
 
 ```suggestion
 ```
@@ -495,7 +495,7 @@ Refactor: the loop over the `[][2]int` literal is three `cmp.Compare` guards, 9 
 Skipped: adopting `semver.Compare` for the pre-release ordering removes this loop outright, so the two edits collide.
 
 ## SKIP gno.land/pkg/gnoland/node_params_version_test.go:80-83 [gh](https://github.com/gnolang/gno/blob/607942b78/gno.land/pkg/gnoland/node_params_version_test.go#L80-L83) · [↗](../../../../../.worktrees/gno-review-6177/gno.land/pkg/gnoland/node_params_version_test.go#L80)
-Nit: a `chain/mainnet` floor still falls through to byte equality, which the rows at [`:120-121`](https://github.com/gnolang/gno/blob/607942b78/gno.land/pkg/gnoland/node_params_version_test.go#L120-L121) assert, so it is not a direction this table orders.
+Incorrect comment: a `chain/mainnet` floor still falls through to byte equality, which the rows at [`:120-121`](https://github.com/gnolang/gno/blob/607942b78/gno.land/pkg/gnoland/node_params_version_test.go#L120-L121) assert, so it is not a direction this table orders.
 
 Skipped: a finding on a code comment's own wording changes no behaviour; the measurement is in `claims.md`.
 
@@ -505,7 +505,7 @@ Test: this row passes on arithmetic, not on a separation of the two tag shapes: 
 Skipped: the behaviour is what the doc comment describes, so the finding is about the case's name.
 
 ## SKIP tm2/pkg/bft/version/version_test.go:42-50 [gh](https://github.com/gnolang/gno/blob/607942b78/tm2/pkg/bft/version/version_test.go#L42-L50) · [↗](../../../../../.worktrees/gno-review-6177/tm2/pkg/bft/version/version_test.go#L42)
-Test: an empty version on one side is refused by every non-empty peer rather than matching it, so the case the comment describes is both sides empty at once. The assertion is true by construction: all four `VersionSet.Set` arguments are package constants the `init()` guard has already compared.
+Incorrect comment: an empty version on one side is refused by every non-empty peer rather than matching it, so the case the comment describes is both sides empty at once. The assertion is true by construction: all four `VersionSet.Set` arguments are package constants the `init()` guard has already compared.
 
 Skipped: a finding on a code comment's own wording, and an assertion that is true by construction changes no behaviour.
 
