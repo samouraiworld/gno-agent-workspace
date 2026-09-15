@@ -1,0 +1,29 @@
+# Repro, from a plain clone of gnolang/gno at 607942b78fa4fdf6f378fecce32bc1d1d984ab8e:
+#
+#   git checkout 607942b78fa4fdf6f378fecce32bc1d1d984ab8e
+#   git apply <this file>
+#   go test ./gno.land/pkg/gnoland/ -run 'TestIsPastChainID|TestValidateSignerInfo' -count=1 -v
+#   grep -rn 'TestParseGnolandVersion' --include=*.go .
+#
+# Result measured: test run is unaffected (TestIsPastChainID and
+# TestValidateSignerInfo both PASS, ok in 0.078s), and the grep for
+# TestParseGnolandVersion returns nothing anywhere in the tree once this hunk
+# is applied (it previously matched only the comment line 2955 removed here).
+#
+# Candidate #43, gno.land/pkg/gnoland/app_test.go:2955-2957.
+# Line count: 3 lines removed, 0 lines added.
+
+diff --git a/gno.land/pkg/gnoland/app_test.go b/gno.land/pkg/gnoland/app_test.go
+index 20fb9d8b8..20b90dc15 100644
+--- a/gno.land/pkg/gnoland/app_test.go
++++ b/gno.land/pkg/gnoland/app_test.go
+@@ -2952,9 +2952,6 @@ func TestValidateSignerInfo(t *testing.T) {
+ 	}
+ }
+
+-// TestMeetsMinVersion and TestParseGnolandVersion moved to
+-// node_params_version_test.go, next to the code they cover, when the parser
+-// gained the vMAJOR.MINOR.PATCH shape.
+
+ func TestIsPastChainID(t *testing.T) {
+ 	t.Parallel()

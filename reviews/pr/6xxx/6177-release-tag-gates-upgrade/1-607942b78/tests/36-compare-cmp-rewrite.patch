@@ -1,0 +1,52 @@
+# Repro, from a plain clone of github.com/gnolang/gno:
+#
+#	gh pr checkout 6177 -R gnolang/gno && git checkout 607942b78fa4fdf6f378fecce32bc1d1d984ab8e
+#	git apply 36-compare-cmp-rewrite.patch
+#	go test ./gno.land/pkg/gnoland/ -run 'TestParseReleaseVersion|TestMeetsMinVersion' -count=1
+#	git checkout -- gno.land/pkg/gnoland/node_params.go
+#
+# releaseVersion.compare's numeric section is a 12-line loop (node_params.go
+# 237-248) over an anonymous [][2]int literal, decoding pair[0]/pair[1] to see
+# that major beats minor beats patch. Swapping in three cmp.Compare guards, the
+# shape gnovm/pkg/gnolang/gnomod.go:84 already uses, drops it to 9 added lines
+# (12 removed, 9 added — no behaviour change): `go test -run
+# 'TestParseReleaseVersion|TestMeetsMinVersion'` is green both before and after
+# this patch.
+diff --git a/gno.land/pkg/gnoland/node_params.go b/gno.land/pkg/gnoland/node_params.go
+index 879b7041c..d32c4cce3 100644
+--- a/gno.land/pkg/gnoland/node_params.go
++++ b/gno.land/pkg/gnoland/node_params.go
+@@ -1,6 +1,7 @@
+ package gnoland
+
+ import (
++	"cmp"
+ 	"fmt"
+ 	"strconv"
+ 	"strings"
+@@ -233,17 +234,14 @@ type releaseVersion struct {
+
+ // compare returns -1, 0 or +1 as v sorts before, equal to, or after o.
+ func (v releaseVersion) compare(o releaseVersion) int {
+-	for _, pair := range [][2]int{
+-		{v.major, o.major},
+-		{v.minor, o.minor},
+-		{v.patch, o.patch},
+-	} {
+-		if pair[0] != pair[1] {
+-			if pair[0] < pair[1] {
+-				return -1
+-			}
+-			return 1
+-		}
++	if c := cmp.Compare(v.major, o.major); c != 0 {
++		return c
++	}
++	if c := cmp.Compare(v.minor, o.minor); c != 0 {
++		return c
++	}
++	if c := cmp.Compare(v.patch, o.patch); c != 0 {
++		return c
+ 	}
+
+ 	// Equal numbers: a release outranks any pre-release of itself. Two

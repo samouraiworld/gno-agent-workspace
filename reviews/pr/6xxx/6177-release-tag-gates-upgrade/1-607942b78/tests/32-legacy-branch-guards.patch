@@ -1,0 +1,19 @@
+/* Run: from a gno checkout:
+gh pr checkout 6177 -R gnolang/gno && git checkout 607942b78fa4fdf6f378fecce32bc1d1d984ab8e
+git apply <this file>   # adds two cases to TestParseReleaseVersion
+go test -run 'TestParseReleaseVersion' ./gno.land/pkg/gnoland/ -v
+git checkout -- gno.land/pkg/gnoland/node_params_version_test.go
+*/
+diff --git a/gno.land/pkg/gnoland/node_params_version_test.go b/gno.land/pkg/gnoland/node_params_version_test.go
+index fa95f74ab..77c1b62cd 100644
+--- a/gno.land/pkg/gnoland/node_params_version_test.go
++++ b/gno.land/pkg/gnoland/node_params_version_test.go
+@@ -50,6 +50,8 @@ func TestParseReleaseVersion(t *testing.T) {
+ 		{"leading zero", "v1.02.0", releaseVersion{}, false},
+ 		{"legacy without minor", "chain/gnoland1", releaseVersion{}, false},
+ 		{"legacy non numeric", "chain/gnolandX.Y", releaseVersion{}, false},
++		{"legacy negative", "chain/gnoland-1.0", releaseVersion{}, false},
++		{"legacy leading zero", "chain/gnoland1.01", releaseVersion{}, false},
+ 	}
+
+ 	for _, tt := range tests {

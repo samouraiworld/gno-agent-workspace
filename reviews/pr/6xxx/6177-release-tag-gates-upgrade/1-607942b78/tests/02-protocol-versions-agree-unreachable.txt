@@ -1,0 +1,28 @@
+# candidate 2: TestProtocolVersionsAgree's own assertions never execute; an
+# init() panic in the same import graph fires first, so the message the test
+# exists to print ("run misc/release/bump-protocol-version.sh") never shows.
+#
+# from a local clone of gnolang/gno, at 607942b78fa4fdf6f378fecce32bc1d1d984ab8e:
+#   sed -i 's/const Version = "v1.0.0-rc.0"/const Version = "v1.0.0-rc.1"/' tm2/pkg/crypto/version.go
+#   go test -run TestProtocolVersionsAgree ./tm2/pkg/bft/version/
+#   # revert: git checkout -- tm2/pkg/crypto/version.go
+
+=== observed output (tm2/pkg/crypto/version.go's Version bumped to v1.0.0-rc.1) ===
+panic: protocol version mismatch: crypto.Version is v1.0.0-rc.1 but BlockVersion is v1.0.0-rc.0; the protocol-version constants must move together (see RELEASING.md)
+
+goroutine 1 [running]:
+github.com/gnolang/gno/tm2/pkg/bft/types/version.init.0()
+	tm2/pkg/bft/types/version/version.go:18 +0x25
+FAIL	github.com/gnolang/gno/tm2/pkg/bft/version	0.011s
+FAIL
+
+# No TestProtocolVersionsAgree run line, no assert.Equal message, no
+# PASS/FAIL per-test line: `go test` dies during package init, before any
+# Test function is invoked. This confirms the failure surfaces as a bare
+# panic trace, not the diagnostic the test's assert.Equal messages promise
+# ("%s disagrees with tm2/pkg/bft/version.Version; run
+# misc/release/bump-protocol-version.sh"), matching RELEASING.md:160's and
+# bump-protocol-version.sh:98-99's claim that TestProtocolVersionsAgree is
+# what fails — it is the init panic that fails, always, for any single-
+# constant drift, because the init guards form a spanning tree over all six
+# constants before Test functions can run.

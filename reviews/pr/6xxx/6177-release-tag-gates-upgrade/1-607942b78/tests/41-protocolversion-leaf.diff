@@ -1,0 +1,145 @@
+# Rewrite for candidate #41 (misc/release/bump-protocol-version.sh:33).
+#
+# Adds a dependency-free leaf package tm2/pkg/protocolversion with the single
+# const, and points the six existing files at it via one-line aliases,
+# replacing the sed-rewriting script, the three init() panics and the
+# TestProtocolVersionsAgree test with a compiler-enforced invariant.
+#
+# Repro from a plain gnolang/gno clone at 607942b78fa4fdf6f378fecce32bc1d1d984ab8e:
+#   git checkout 607942b78fa4fdf6f378fecce32bc1d1d984ab8e
+#   mkdir -p tm2/pkg/protocolversion
+#   git apply this-file  # (after adding the new file below)
+#   go build ./tm2/...
+#   go test ./tm2/pkg/bft/version/ -count=1
+#
+# New file needed alongside this diff, tm2/pkg/protocolversion/version.go:
+#
+#   package protocolversion
+#
+#   // Version is the single protocol-version constant negotiated with peers.
+#   // See RELEASING.md ("Protocol versions").
+#   const Version = "v1.0.0-rc.0"
+#
+# Observed: `go build ./tm2/...` reported no compile errors (no import
+# cycle); `go test ./tm2/pkg/bft/version/ -count=1` printed:
+#   ok  	github.com/gnolang/gno/tm2/pkg/bft/version	0.008s
+#
+# Line counts: misc/release/bump-protocol-version.sh is 163 lines and
+# tm2/pkg/bft/version/version_test.go's TestProtocolVersionsAgree machinery
+# is part of a 52-line test file; both would be removable under this
+# rewrite. The rewrite itself is +15/-43 across the six existing files plus
+# a new 5-line leaf package (see diff below).
+
+diff --git a/tm2/pkg/bft/abci/version/version.go b/tm2/pkg/bft/abci/version/version.go
+index 99e52d026..8033d3f96 100644
+--- a/tm2/pkg/bft/abci/version/version.go
++++ b/tm2/pkg/bft/abci/version/version.go
+@@ -1,5 +1,5 @@
+ package abciver
+
+-// One of the six protocol-version constants that must move together; see
+-// RELEASING.md ("Protocol versions") and misc/release/bump-protocol-version.sh.
+-const Version = "v1.0.0-rc.0"
++import "github.com/gnolang/gno/tm2/pkg/protocolversion"
++
++const Version = protocolversion.Version
+diff --git a/tm2/pkg/bft/blockchain/version/version.go b/tm2/pkg/bft/blockchain/version/version.go
+index 6945c3667..c5d2d6811 100644
+--- a/tm2/pkg/bft/blockchain/version/version.go
++++ b/tm2/pkg/bft/blockchain/version/version.go
+@@ -1,17 +1,5 @@
+ package bcver
+
+-import (
+-	types "github.com/gnolang/gno/tm2/pkg/bft/types/version"
+-)
++import "github.com/gnolang/gno/tm2/pkg/protocolversion"
+
+-// One of the six protocol-version constants that must move together; see
+-// RELEASING.md ("Protocol versions") and misc/release/bump-protocol-version.sh.
+-const Version = "v1.0.0-rc.0"
+-
+-func init() {
+-	if types.BlockVersion != Version {
+-		panic("protocol version mismatch: types.BlockVersion is " + types.BlockVersion +
+-			" but bcver.Version is " + Version +
+-			"; the protocol-version constants must move together (see RELEASING.md)")
+-	}
+-}
++const Version = protocolversion.Version
+diff --git a/tm2/pkg/bft/types/version/version.go b/tm2/pkg/bft/types/version/version.go
+index 88fa3f559..7af6a0094 100644
+--- a/tm2/pkg/bft/types/version/version.go
++++ b/tm2/pkg/bft/types/version/version.go
+@@ -1,22 +1,5 @@
+ package version
+
+-import (
+-	"github.com/gnolang/gno/tm2/pkg/crypto"
+-)
++import "github.com/gnolang/gno/tm2/pkg/protocolversion"
+
+-// Versioning for just the structure of the block.
+-//
+-// One of the six protocol-version constants that must move together; see
+-// RELEASING.md ("Protocol versions") and misc/release/bump-protocol-version.sh.
+-const BlockVersion string = "v1.0.0-rc.0"
+-
+-func init() {
+-	// Compare against the constant rather than a repeated literal: bumping a
+-	// protocol version should be an edit to the constants alone, not a hunt for
+-	// every literal that mirrors them.
+-	if crypto.Version != BlockVersion {
+-		panic("protocol version mismatch: crypto.Version is " + crypto.Version +
+-			" but BlockVersion is " + BlockVersion +
+-			"; the protocol-version constants must move together (see RELEASING.md)")
+-	}
+-}
++const BlockVersion string = protocolversion.Version
+diff --git a/tm2/pkg/bft/version/version.go b/tm2/pkg/bft/version/version.go
+index c9cac0bf5..3b0743664 100644
+--- a/tm2/pkg/bft/version/version.go
++++ b/tm2/pkg/bft/version/version.go
+@@ -4,6 +4,7 @@ import (
+ 	abciver "github.com/gnolang/gno/tm2/pkg/bft/abci/version"
+ 	bcver "github.com/gnolang/gno/tm2/pkg/bft/blockchain/version"
+ 	p2pver "github.com/gnolang/gno/tm2/pkg/p2p/version"
++	"github.com/gnolang/gno/tm2/pkg/protocolversion"
+ 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
+ )
+
+@@ -19,7 +20,7 @@ var (
+ 	// halt_min_version compares against. This constant is the protocol version
+ 	// negotiated with peers: VersionSet.CompatibleWith rejects a peer whose major
+ 	// differs, so bumping it partitions the network and is its own flag day.
+-	Version    = "v1.0.0-rc.0"
++	Version    = protocolversion.Version
+ 	VersionSet verset.VersionSet
+ )
+
+diff --git a/tm2/pkg/crypto/version.go b/tm2/pkg/crypto/version.go
+index 971a251c8..9567a87fa 100644
+--- a/tm2/pkg/crypto/version.go
++++ b/tm2/pkg/crypto/version.go
+@@ -1,5 +1,5 @@
+ package crypto
+
+-// One of the six protocol-version constants that must move together; see
+-// RELEASING.md ("Protocol versions") and misc/release/bump-protocol-version.sh.
+-const Version = "v1.0.0-rc.0"
++import "github.com/gnolang/gno/tm2/pkg/protocolversion"
++
++const Version = protocolversion.Version
+diff --git a/tm2/pkg/p2p/version/version.go b/tm2/pkg/p2p/version/version.go
+index 509a34d1d..d09455fa2 100644
+--- a/tm2/pkg/p2p/version/version.go
++++ b/tm2/pkg/p2p/version/version.go
+@@ -1,5 +1,5 @@
+ package p2pver
+
+-// One of the six protocol-version constants that must move together; see
+-// RELEASING.md ("Protocol versions") and misc/release/bump-protocol-version.sh.
+-const Version = "v1.0.0-rc.0"
++import "github.com/gnolang/gno/tm2/pkg/protocolversion"
++
++const Version = protocolversion.Version
