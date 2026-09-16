@@ -1,0 +1,58 @@
+# Candidate #46 — Func(tokenKey, op) discards source and Route.Prefix, so a
+# consumer following the doc's own advice builds an arity-wrong call on a
+# keyed realm.
+#
+# from a local clone of gnolang/gno, at 3aa06ef757b87d731a3e554e96c7540a209fd9a3:
+#   git checkout 3aa06ef757b87d731a3e554e96c7540a209fd9a3
+#   go test ./gno.land/pkg/integration/ -run 'TestTestdata/grc20routes_keyed_proof' -p 1 -parallel 1
+#
+# The fixture below is the PR's own shipped txtar (unmodified), reproduced
+# here for the record; only the last two queries are the load-bearing pair.
+
+# ... (full setup: mint FOO and BAR through grc20factory, run BeginKeyedProof/
+# FinishKeyedProof so the realm is proven keyed — see the shipped fixture at
+# gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar lines 1-63
+# for the untouched setup)
+
+# After the proof, JSON says the call needs a leading "BAR" argument:
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/defi/grc20factory.BAR\")"
+stdout '\\"prefix\\":\[\\"BAR\\"\],\\"source\\":\\"proven\\"'
+
+# But Func — the "single-operation getter, which is all a wallet building one
+# message needs" per the txtar's own comment, and per the PR body's "Func
+# (tokenKey, op) returns just the one name if the whole route is more than the
+# caller needs" — returns only the bare entry-point name, with neither the
+# prefix nor the source:
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.Func(\"gno.land/r/demo/defi/grc20factory.BAR\",\"approve\")"
+stdout 'Approve'
+
+# grc20factory.Approve's real signature (grc20factory.gno:88) is
+# Approve(cur realm, symbol string, spender address, amount int64) — the
+# leading "symbol" IS the "BAR" that JSON's prefix field carries and Func
+# drops. A wallet that takes Func's advice literally and builds
+# MsgCall{PkgPath: pkgPath, Func: "Approve", Args: [spender, amount]} omits
+# the symbol argument and aborts on arity — the exact failure grc20routes
+# exists to remove, one level in.
+
+-- confirming run (this session, worktree at the same commit) --
+$ go test ./gno.land/pkg/integration/ -run 'TestTestdata/grc20routes_keyed_proof' -p 1 -parallel 1
+ok  	github.com/gnolang/gno/gno.land/pkg/integration	(cached)
+
+# The exported surface has no companion getter to pair with Func and recover
+# the missing prefix:
+$ grep -n '^func [A-Z]' examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno
+func Canonical() Route {
+func Keyed(key string) Route {
+func ProbeAddress() address { return probe }
+func Register(cur realm, symbol string, r Route) string {
+func BeginKeyedProof(cur realm, tokenKeyA, tokenKeyB string, nonceA, nonceB int64) {
+func FinishKeyedProof(cur realm, tokenKeyA, tokenKeyB string) {
+func Get(tokenKey string) (Route, string) {
+func PkgPath(tokenKey string) string { return mustToken(tokenKey) }
+func IsKeyedRealm(pkgPath string) bool { return provenKeyed.Has(pkgPath) }
+func JSON(tokenKey string) string {
+func Func(tokenKey, op string) string {
+func Render(path string) string {
+
+# No Prefix(tokenKey) getter, so the only complete answer is Get/JSON, not the
+# one-value Func the docs point a wallet-building caller at.

@@ -1,0 +1,170 @@
+# Candidate 42 -- collapse the duplicated grc20reg lookups behind one helper
+#
+# Before: 740 lines. After: 757 lines (+39/-22 over this hunk).
+# Registry traversals per call, before -> after:
+#   Get              1 -> 1 (unchanged)
+#   JSON             2 (mustToken + Get's own mustToken) -> 1 (getRoute)
+#   renderToken      1 lookup + 2 fqname.Parse -> 1 lookup + <=1 fqname.Parse
+#   BeginKeyedProof  4 (2x mustToken, 2x grc20reg.MustGet via allowanceOf) -> 2 (2x resolve)
+#   FinishKeyedProof 3 (mustToken + 2x MustGet via allowanceOf) -> 2 (2x resolve)
+#
+# from a local clone of gnolang/gno, at 3aa06ef757b87d731a3e554e96c7540a209fd9a3:
+#   git worktree add --detach /tmp/gno6187-42 3aa06ef757b87d731a3e554e96c7540a209fd9a3
+#   cd /tmp/gno6187-42
+#   git apply 42-dedupe-registry-lookups.patch
+#   cd examples && gno test ./gno.land/r/nt/grc20routes/v0   # gno from the branch's own source
+#   cd .. && go test ./gno.land/pkg/integration/ -run 'TestTestdata/grc20routes_keyed_proof' -p 1 -parallel 1
+#
+# Observed (this run, head 3aa06ef75, applied in a scratch worktree):
+#   ok      ./gno.land/r/nt/grc20routes/v0   3.67s
+#   ok      github.com/gnolang/gno/gno.land/pkg/integration   7.5s
+# Panic message "grc20routes: unknown token: " (TestRejectsUnknownToken) stays byte-identical:
+# resolve() keeps the exact string, only the caller of grc20reg.Get moved.
+
+diff --git a/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno b/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno
+index b80af2948..16fdddbdc 100644
+--- a/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno
++++ b/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno
+@@ -143,6 +143,7 @@ import (
+ 	"gno.land/p/moul/md/v0"
+ 	"gno.land/p/nt/avl/v0"
+ 	"gno.land/p/nt/fqname/v0"
++	"gno.land/p/nt/grc20/v0"
+ 	"gno.land/p/nt/ufmt/v0"
+ 
+ 	"gno.land/r/nt/grc20reg/v0"
+@@ -356,8 +357,8 @@ type proof struct {
+ func BeginKeyedProof(cur realm, tokenKeyA, tokenKeyB string, nonceA, nonceB int64) {
+ 	prover := cur.Previous().Address()
+ 
+-	pathA := mustToken(tokenKeyA)
+-	pathB := mustToken(tokenKeyB)
++	tokA, pathA := resolve(tokenKeyA)
++	tokB, pathB := resolve(tokenKeyB)
+ 	if pathA != pathB {
+ 		panic("grc20routes: both tokens must live in the same realm")
+ 	}
+@@ -370,7 +371,7 @@ func BeginKeyedProof(cur realm, tokenKeyA, tokenKeyB string, nonceA, nonceB int6
+ 	if nonceA == nonceB {
+ 		panic("grc20routes: nonces must differ")
+ 	}
+-	if allowanceOf(tokenKeyA, prover) == nonceA || allowanceOf(tokenKeyB, prover) == nonceB {
++	if tokA.Allowance(prover, probe) == nonceA || tokB.Allowance(prover, probe) == nonceB {
+ 		panic("grc20routes: nonce already parked on the probe; pick another")
+ 	}
+ 
+@@ -390,7 +391,7 @@ func BeginKeyedProof(cur realm, tokenKeyA, tokenKeyB string, nonceA, nonceB int6
+ // something else.
+ func FinishKeyedProof(cur realm, tokenKeyA, tokenKeyB string) {
+ 	prover := cur.Previous().Address()
+-	pathA := mustToken(tokenKeyA)
++	tokA, pathA := resolve(tokenKeyA)
+ 
+ 	pk := pendingKey(prover, pathA)
+ 	v := pending.Get(pk)
+@@ -402,13 +403,15 @@ func FinishKeyedProof(cur realm, tokenKeyA, tokenKeyB string) {
+ 		panic("grc20routes: tokens do not match the proof in progress")
+ 	}
+ 
++	tokB, _ := resolve(tokenKeyB)
++
+ 	// The load-bearing check. Two distinct registry keys at one realm, each
+ 	// carrying the exact allowance claimed for it. An unkeyed Approve reaches
+ 	// one token, so it cannot produce both.
+-	if allowanceOf(p.keyA, prover) != p.nonceA {
++	if tokA.Allowance(prover, probe) != p.nonceA {
+ 		panic("grc20routes: " + p.keyA + " does not carry its nonce")
+ 	}
+-	if allowanceOf(p.keyB, prover) != p.nonceB {
++	if tokB.Allowance(prover, probe) != p.nonceB {
+ 		panic("grc20routes: " + p.keyB + " does not carry its nonce")
+ 	}
+ 
+@@ -422,8 +425,17 @@ func pendingKey(prover address, pkgPath string) string {
+ 	return prover.String() + "/" + pkgPath
+ }
+ 
+-func allowanceOf(tokenKey string, owner address) int64 {
+-	return grc20reg.MustGet(tokenKey).Allowance(owner, probe)
++// resolve returns the token at tokenKey and the realm it routes to, doing one
++// registry traversal and one fqname.Parse for both.
++//
++// Panics if tokenKey is not a registered token.
++func resolve(tokenKey string) (*grc20.Token, string) {
++	tok := grc20reg.Get(tokenKey)
++	if tok == nil {
++		panic("grc20routes: unknown token: " + tokenKey)
++	}
++	pkgPath, _ := fqname.Parse(tokenKey)
++	return tok, hostOf(pkgPath)
+ }
+ 
+ // ------------------------------------------------------------------ reading
+@@ -434,16 +446,25 @@ func allowanceOf(tokenKey string, owner address) int64 {
+ //
+ // Panics if tokenKey is not a registered token.
+ func Get(tokenKey string) (Route, string) {
+-	pkgPath := mustToken(tokenKey)
++	_, _, r, source := getRoute(tokenKey)
++	return r, source
++}
++
++// getRoute is Get plus the pkgPath and symbol its callers already need, so a
++// caller wanting more than the route does one registry traversal, not two.
++// symbol is only computed on the proven path; other callers that need it
++// parse tokenKey themselves.
++func getRoute(tokenKey string) (pkgPath, symbol string, r Route, source string) {
++	pkgPath = mustToken(tokenKey)
+ 
+ 	if v := declared.Get(tokenKey); v != nil {
+-		return *(v.(*Route)), SourceDeclared
++		return pkgPath, "", *(v.(*Route)), SourceDeclared
+ 	}
+ 	if provenKeyed.Has(pkgPath) {
+-		_, symbol := fqname.Parse(tokenKey)
+-		return Keyed(symbol), SourceProven
++		_, symbol = fqname.Parse(tokenKey)
++		return pkgPath, symbol, Keyed(symbol), SourceProven
+ 	}
+-	return Canonical(), SourceConvention
++	return pkgPath, "", Canonical(), SourceConvention
+ }
+ 
+ // PkgPath returns the realm a user sends the MsgCall to, which is the package
+@@ -464,8 +485,7 @@ func IsKeyedRealm(pkgPath string) bool { return provenKeyed.Has(pkgPath) }
+ // registry key, or validated on the way in (see validate), so the output needs
+ // no escaping and cannot be made to carry a quote or a backslash.
+ func JSON(tokenKey string) string {
+-	pkgPath := mustToken(tokenKey)
+-	r, source := Get(tokenKey)
++	pkgPath, _, r, source := getRoute(tokenKey)
+ 
+ 	prefix := ""
+ 	for i, p := range r.Prefix {
+@@ -512,11 +532,8 @@ func Func(tokenKey, op string) string {
+ // here to "<path>" — the realm a user can actually call. This is the same
+ // normalization grc20's guardHome applies for the same reason.
+ func mustToken(tokenKey string) string {
+-	if grc20reg.Get(tokenKey) == nil {
+-		panic("grc20routes: unknown token: " + tokenKey)
+-	}
+-	pkgPath, _ := fqname.Parse(tokenKey)
+-	return hostOf(pkgPath)
++	_, pkgPath := resolve(tokenKey)
++	return pkgPath
+ }
+ 
+ // hostOf drops the "#subpath" a realm carries under a sub identity.
+@@ -697,8 +714,10 @@ func Render(path string) string {
+ }
+ 
+ func renderToken(tokenKey string) string {
+-	r, source := Get(tokenKey)
+-	pkgPath, symbol := fqname.Parse(tokenKey)
++	pkgPath, symbol, r, source := getRoute(tokenKey)
++	if symbol == "" {
++		_, symbol = fqname.Parse(tokenKey)
++	}
+ 
+ 	s := ufmt.Sprintf("# %s\n\n", md.EscapeText(symbol))
+ 	s += "- token key: " + md.InlineCode(tokenKey) + "\n"

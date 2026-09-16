@@ -1,0 +1,51 @@
+# BeginKeyedProof's cross-realm guard (grc20routes.gno:361) has no test at this head:
+# its suite mints all 24 of its tokens under the one realm selfPath, and
+# grc20routes_keyed_proof.txtar never pairs two realms. This asserts the guard, and is
+# the only red in that suite plus the testdata once the guard is neutralized to `_ = pathB`.
+#
+# from a plain clone of github.com/gnolang/gno:
+#   git checkout 3aa06ef757b87d731a3e554e96c7540a209fd9a3
+#   cp 20-cross-realm-keyed-proof-untested.txtar gno.land/pkg/integration/testdata/
+#   go test ./gno.land/pkg/integration/ -run 'TestTestdata/20-cross-realm-keyed-proof-untested' -p 1 -parallel 1
+
+loadpkg gno.land/r/demo/defi/grc20factory
+loadpkg gno.land/r/gnoland/wugnot
+loadpkg gno.land/r/nt/grc20routes/v0
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+# One token on the factory realm, which really is keyed by symbol.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func New -args Foo -args FOO -args 6 -args 1000000 -args 0 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# The victim: wugnot hosts exactly one token and its Approve(cur, spender, amount)
+# takes no leading symbol, so the convention is the right route for it.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/gnoland/wugnot.wugnot\")"
+stdout '\\"prefix\\":\[\],\\"source\\":\\"convention\\"'
+
+# The guard. Pairing the victim's only token with a token of an unrelated realm is
+# what a prover needs to reach two distinct registry keys without a keyed Approve.
+! gnokey maketx call -pkgpath gno.land/r/nt/grc20routes/v0 -func BeginKeyedProof -args gno.land/r/gnoland/wugnot.wugnot -args gno.land/r/demo/defi/grc20factory.FOO -args 111 -args 222 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stderr 'both tokens must live in the same realm'
+
+# Everything else the pair needs is an ordinary call alice may already make: both
+# allowances land on the probe address (grc20routes' own realm address) unaided.
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Approve -args g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep -args 111 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Approve -args FOO -args g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep -args 222 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# So only the rejected open stands between that state and provenKeyed[wugnot].
+! gnokey maketx call -pkgpath gno.land/r/nt/grc20routes/v0 -func FinishKeyedProof -args gno.land/r/gnoland/wugnot.wugnot -args gno.land/r/demo/defi/grc20factory.FOO -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stderr 'no proof in progress for gno.land/r/gnoland/wugnot'
+
+# wugnot still routes by the convention. Were it proven, a wallet would build
+# Approve("wugnot", spender, amount) against a two-argument entry point.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/gnoland/wugnot.wugnot\")"
+stdout '\\"prefix\\":\[\],\\"source\\":\\"convention\\"'

@@ -1,0 +1,106 @@
+# A realm that IS keyed, but by an internal denom rather than by the grc20
+# symbol, is marked proven and then routed by the SYMBOL: JSON reports
+# prefix ["VCHA"], and the MsgCall a wallet builds from it aborts at the realm.
+# Fails at 3aa06ef757b87d731a3e554e96c7540a209fd9a3 on the "post-fix" stdout
+# below, which expects the leading argument the proof actually observed.
+#
+# From a plain clone of github.com/gnolang/gno:
+#   git checkout 3aa06ef757b87d731a3e554e96c7540a209fd9a3
+#   cp 01-proven-route-assumes-the-key-is-the-symbol.txtar \
+#      gno.land/pkg/integration/testdata/grc20routes_denom_keyed.txtar
+#   go test ./gno.land/pkg/integration/ -run 'TestTestdata/grc20routes_denom_keyed' -p 1 -parallel 1
+#
+# g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep is grc20routes' own realm address,
+# the probe the proof parks its throwaway allowance on.
+
+loadpkg gno.land/r/nt/grc20routes/v0
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+# zdenomv hosts two registered tokens behind grc20factory's exact Approve
+# shape. Only the identifier space of the leading argument differs: an IBC
+# denom, not the grc20 symbol. grc20routes' own doc shows this realm shape at
+# grc20routes.gno:130-136 (Prefix: []string{ibcDenom}).
+gnokey maketx addpkg -pkgdir $WORK/zdenomv -pkgpath gno.land/r/demo/zdenomv -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# The four documented proof calls, run honestly: the prover passes the realm's
+# REAL leading argument, so both allowances land through the realm's own entry
+# point. Nothing is forged here.
+gnokey maketx call -pkgpath gno.land/r/nt/grc20routes/v0 -func BeginKeyedProof -args gno.land/r/demo/zdenomv.VCHA -args gno.land/r/demo/zdenomv.VCHB -args 111 -args 222 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/demo/zdenomv -func Approve -args ibc/27394FB092D2ECCD56123C74F36E4C1F926001CEADA9CA97EA622B25F41E5EB2 -args g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep -args 111 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/demo/zdenomv -func Approve -args ibc/9117A26BA81E29FA4F78F57DC2BD90CD3D26848101BA880445F119B22A1E254E -args g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep -args 222 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/grc20routes/v0 -func FinishKeyedProof -args gno.land/r/demo/zdenomv.VCHA -args gno.land/r/demo/zdenomv.VCHB -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# The route a wallet now reads.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/zdenomv.VCHA\")"
+# Post-fix: the route carries the leading argument the proof observed.
+stdout '\\"prefix\\":\[\\"ibc/27394FB092D2ECCD56123C74F36E4C1F926001CEADA9CA97EA622B25F41E5EB2\\"\],\\"source\\":\\"proven\\"'
+# Head, the finding: the registry symbol, which this realm never accepts.
+# stdout '\\"prefix\\":\[\\"VCHA\\"\],\\"source\\":\\"proven\\"'
+
+# The consequence, spelled out: MsgCall{Func: "Approve", Args: prefix + [spender, amount]}
+# built from the head route above.
+! gnokey maketx call -pkgpath gno.land/r/demo/zdenomv -func Approve -args VCHA -args $alice_user_addr -args 1 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stderr 'unknown denom VCHA'
+
+-- zdenomv/gnomod.toml --
+module = "gno.land/r/demo/zdenomv"
+gno = "0.9"
+-- zdenomv/zdenomv.gno --
+package zdenomv
+
+import (
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/grc20/v0"
+	"gno.land/p/nt/seqid/v0"
+
+	"gno.land/r/nt/grc20reg/v0"
+)
+
+// The leading argument this realm accepts. Neither is a grc20 symbol.
+const (
+	DenomA = "ibc/27394FB092D2ECCD56123C74F36E4C1F926001CEADA9CA97EA622B25F41E5EB2"
+	DenomB = "ibc/9117A26BA81E29FA4F78F57DC2BD90CD3D26848101BA880445F119B22A1E254E"
+)
+
+var (
+	id      seqid.ID
+	ledgers = avl.NewTree() // denom -> *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+	ta, la := grc20.NewToken("Voucher A", "VCHA", 6, id.Next(), cur)
+	grc20reg.Register(cross(cur), ta, "")
+	ledgers.Set(DenomA, la)
+
+	tb, lb := grc20.NewToken("Voucher B", "VCHB", 6, id.Next(), cur)
+	grc20reg.Register(cross(cur), tb, "")
+	ledgers.Set(DenomB, lb)
+}
+
+// Approve is grc20factory.Approve (grc20factory.gno:88-93) with the instance
+// looked up by denom instead of by symbol.
+func Approve(cur realm, denom string, spender address, amount int64) {
+	v := ledgers.Get(denom)
+	if v == nil {
+		panic("zdenomv: unknown denom " + denom)
+	}
+	caller := cur.Previous().Address()
+	teller := v.(*grc20.PrivateLedger).ImpersonateTeller(caller)
+	if err := teller.Approve(0, cur, spender, amount); err != nil {
+		panic(err)
+	}
+}

@@ -1,0 +1,95 @@
+# Runs the DECLARED half of grc20routes with a real foreign caller, which nothing
+# at this head does: grc20routes_keyed_proof.txtar loads only grc20factory and
+# wugnot, neither of which can call Register, and every Register in the package
+# suite runs with cur.Previous().PkgPath() == selfPath. It passes at this head.
+#
+# Oracle. Replace Register's `rlmPath := cur.Previous().PkgPath()`
+# (grc20routes.gno:296) with the literal "gno.land/r/nt/grc20routes/v0", so every
+# realm's route is keyed under grc20routes' own path:
+#
+#   suite / fixture                          head    mutant
+#   gno test ./gno.land/r/nt/grc20routes/v0  ok      ok 3.30s
+#   testdata/grc20routes_keyed_proof.txtar   ok      ok 6.81s
+#   this file                                ok      FAIL 5.03s
+#     "grc20routes: not registered in grc20reg: gno.land/r/nt/grc20routes/v0.PRB"
+#
+# from a plain clone of github.com/gnolang/gno:
+#   git checkout 3aa06ef757b87d731a3e554e96c7540a209fd9a3
+#   cp 55-declared-path-no-integration-coverage.txtar gno.land/pkg/integration/testdata/
+#   go test ./gno.land/pkg/integration/ -run 'TestTestdata/55-declared-path-no-integration-coverage' -p 1 -parallel 1
+loadpkg gno.land/r/nt/grc20routes/v0
+loadpkg gno.land/r/demo/zdeclare $WORK/zdeclare
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+# Before: nothing recorded, so the canonical convention -- which is wrong for
+# this realm, whose entry points take the symbol first and rename approve.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/zdeclare.PRB\")"
+stdout '\\"prefix\\":\[\],\\"source\\":\\"convention\\"'
+
+# The declared path, with a real MsgCall frame: zdeclare builds the Route in its
+# own realm and hands it across. cur.Previous().PkgPath() is gno.land/r/demo/zdeclare.
+gnokey maketx call -pkgpath gno.land/r/demo/zdeclare -func Declare -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+stdout 'gno.land/r/demo/zdeclare.PRB'
+
+# After: the caller-built Route survived the cross-realm hand-off, the sort and
+# the store, with its arbitrary entry point name intact.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/zdeclare.PRB\")"
+stdout '\\"prefix\\":\[\\"PRB\\"\],\\"source\\":\\"declared\\"'
+stdout '\\"approve\\":\\"ApproveExact\\"'
+stdout '\\"transfer\\":\\"Transfer\\",\\"transfer_from\\":\\"TransferFrom\\"'
+
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.Func(\"gno.land/r/demo/zdeclare.PRB\",\"approve\")"
+stdout 'ApproveExact'
+
+# A second Register from the same realm overwrites its own key.
+gnokey maketx call -pkgpath gno.land/r/demo/zdeclare -func Redeclare -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/zdeclare.PRB\")"
+stdout '\\"prefix\\":\[\],\\"source\\":\\"declared\\"'
+stdout '\\"approve\\":\\"Approve\\"'
+
+-- zdeclare/gnomod.toml --
+module = "gno.land/r/demo/zdeclare"
+gno = "0.9"
+
+-- zdeclare/zdeclare.gno --
+package zdeclare
+
+import (
+	"gno.land/p/nt/grc20/v0"
+	"gno.land/p/nt/seqid/v0"
+
+	"gno.land/r/nt/grc20reg/v0"
+	"gno.land/r/nt/grc20routes/v0"
+)
+
+var (
+	tok *grc20.Token
+	led *grc20.PrivateLedger
+	id  seqid.ID
+)
+
+func init(cur realm) {
+	tok, led = grc20.NewToken("Probe", "PRB", 6, id.Next(), cur)
+	grc20reg.Register(cross(cur), tok, "")
+}
+
+// Declare is the cross-realm Register neither the package suite nor the
+// testdata exercises: the Route is built in THIS realm and handed across.
+func Declare(cur realm) string {
+	r := grc20routes.Keyed("PRB").With(grc20routes.OpApprove, "ApproveExact")
+	return grc20routes.Register(cross(cur), "PRB", r)
+}
+
+// Redeclare overwrites the realm's own key with the canonical shape.
+func Redeclare(cur realm) string {
+	return grc20routes.Register(cross(cur), "PRB", grc20routes.Canonical())
+}

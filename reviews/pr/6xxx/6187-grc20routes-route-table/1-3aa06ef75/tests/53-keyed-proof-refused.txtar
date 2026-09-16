@@ -1,0 +1,60 @@
+# The negative control grc20routes_keyed_proof.txtar has no step for: a proof
+# whose second allowance never moved must be refused, and the realm must stay on
+# the convention. Passes at 3aa06ef757b87d731a3e554e96c7540a209fd9a3; delete the
+# two allowance checks in FinishKeyedProof (grc20routes.gno:408-413) and this
+# goes red in 6.4s while the shipped fixture still passes.
+#
+# from a local clone of github.com/gnolang/gno:
+#   git checkout 3aa06ef757b87d731a3e554e96c7540a209fd9a3
+#   cp 53-keyed-proof-refused.txtar gno.land/pkg/integration/testdata/
+#   go test ./gno.land/pkg/integration/ -run 'TestTestdata/53-keyed-proof-refused' -p 1 -parallel 1
+#
+# g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep is grc20routes' own realm address,
+# the probe the proof parks its throwaway allowance on.
+
+loadpkg gno.land/r/demo/defi/grc20factory
+loadpkg gno.land/r/nt/grc20routes/v0
+
+adduser alice
+
+gnoland start
+
+gnokey maketx send -send 50000000ugnot -to $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func New -args Foo -args FOO -args 6 -args 1000000 -args 0 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func New -args Bar -args BAR -args 6 -args 1000000 -args 0 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# The proof opens, and only the FIRST token's allowance moves. This is the shape
+# an unkeyed realm can produce: one token per call.
+gnokey maketx call -pkgpath gno.land/r/nt/grc20routes/v0 -func BeginKeyedProof -args gno.land/r/demo/defi/grc20factory.FOO -args gno.land/r/demo/defi/grc20factory.BAR -args 111 -args 222 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Approve -args FOO -args g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep -args 111 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+# The step the shipped fixture never takes: FinishKeyedProof must abort.
+! gnokey maketx call -pkgpath gno.land/r/nt/grc20routes/v0 -func FinishKeyedProof -args gno.land/r/demo/defi/grc20factory.FOO -args gno.land/r/demo/defi/grc20factory.BAR -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stderr 'gno.land/r/demo/defi/grc20factory.BAR does not carry its nonce'
+
+# ...and the refusal leaves nothing behind: the realm still reads as the
+# convention, for every token it hosts.
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/defi/grc20factory.FOO\")"
+stdout '\\"prefix\\":\[\],\\"source\\":\\"convention\\"'
+
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/defi/grc20factory.BAR\")"
+stdout '\\"prefix\\":\[\],\\"source\\":\\"convention\\"'
+
+# Completing the second allowance is the only difference between the refusal
+# above and a proof: the same pending entry then commits.
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Approve -args BAR -args g1v58us0p32wfaxfnhzqwd72hpu56fg4ktfkhyep -args 222 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/nt/grc20routes/v0 -func FinishKeyedProof -args gno.land/r/demo/defi/grc20factory.FOO -args gno.land/r/demo/defi/grc20factory.BAR -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid tendermint_test alice
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/demo/defi/grc20factory.FOO\")"
+stdout '\\"prefix\\":\[\\"FOO\\"\],\\"source\\":\\"proven\\"'

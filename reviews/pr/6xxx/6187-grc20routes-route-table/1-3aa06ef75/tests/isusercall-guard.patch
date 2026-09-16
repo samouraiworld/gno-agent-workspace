@@ -1,0 +1,12 @@
+--- examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno	2026-09-16 11:55:26.047174308 +0000
++++ /tmp/agent-workspace/pr6187/examples-probe/gno.land/r/nt/grc20routes/v0/grc20routes.gno	2026-09-16 12:06:21.612700489 +0000
+@@ -354,6 +354,9 @@
+ // and a realm that is not keyed cannot make two different tokens' allowances
+ // land at once.
+ func BeginKeyedProof(cur realm, tokenKeyA, tokenKeyB string, nonceA, nonceB int64) {
++	if !cur.Previous().IsUserCall() {
++		panic("grc20routes: a proof must be driven by a signing user")
++	}
+ 	prover := cur.Previous().Address()
+ 
+ 	pathA := mustToken(tokenKeyA)
