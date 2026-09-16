@@ -99,6 +99,7 @@ The catalog the core's finders walk, passed as the workflow's `catalog` argument
 
 Core rules apply; the gno test shapes:
 
+- A question of the shape "can a caller outside the package do this" is a probe realm, never a filetest: `examples/gno.land/r/demo/<name>/` in a full copy of examples with a `gnomod.toml`, one exported `Try*` per variant and a one-line `_test.gno` driver, then `gno test -v ./gno.land/r/demo/<name>` once per variant, since a construction abort escapes the VM uncatchable and a second variant in the same run is never reached; the realm's three files are the artifact under `tests/`.
 - Fill a filetest golden by seeding the `// Realm:` directive with a placeholder line, then `go test -run 'TestFiles/<name>.gno$' -update-golden-tests .` from `gnovm/pkg/gnolang/`; an empty `// Realm:` is stripped, not populated.
 - Assert with `// Output:` carrying the correct values, not `// Error:` matching the panic; `// Error:` only when rejection is the correct outcome.
 - The `/* Run: */` header (use `/* */`, not `//` per line) must be runnable from a gnolang/gno clone alone:
