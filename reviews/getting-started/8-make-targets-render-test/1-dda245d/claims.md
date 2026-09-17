@@ -82,6 +82,11 @@ state leak and its vacuous needle, were drafted as one `Missing test` section on
 `hello_test.gno:24-27` and cut from the comment on the reviewer's call. Both rows
 stay above with their runs; nothing about them is posted.
 
+**Already raised by the reviewer.** The `Render` surface nit at `AGENTS.md:45-46`
+duplicates davd-gzl's own inline comment on `README.md:56`, posted at 16:10 on the
+same head, which says `entire public surface` is wrong because `Get` and `Set` are
+public too. The section ships `SKIP` with an `Already raised:` line.
+
 **Wording set by the reviewer.** Three sections were rewritten after the round:
 the Body dropped its `AGENTS.md` framing, the Warning dropped its repro block,
 the `Render` surface nit dropped its replacement text, and the hardcoded-link

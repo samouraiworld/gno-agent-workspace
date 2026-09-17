@@ -1,3 +1,5 @@
+# Review: [#8](https://github.com/gnolang/getting-started/pull/8)
+Posted: https://github.com/gnolang/getting-started/pull/8#pullrequestreview-5238472902
 Verdict: REQUEST CHANGES. The new `AGENTS.md` teaches that map iteration order in Gno is unspecified, which is the reverse of what the VM does, in the one file this repository offers as its Gno-versus-Go reference; the rest is nits on the doc's other claims and on the `GNO` override's coverage.
 Event: REQUEST_CHANGES
 Model: `claude-opus-5`, standard review, high effort
@@ -11,7 +13,7 @@ Round: 1. 2 finders, no reflector, 11 candidates, the Criticals and Warnings run
 
 The Makefile is now this repository's single entry point.
 
-## AGENTS.md:49-50 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L49-L50) · Warning
+## AGENTS.md:49-50 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L49-L50) · Warning [posted](https://github.com/gnolang/getting-started/pull/8#discussion_r4039078338)
 
 The premise beside this rule states the reverse: Gno ranges a map in [insertion order](https://github.com/gnolang/gno/blob/4598c267daf8318d6ca05532ed772dbf9a886208/docs/resources/gno-data-structures.md?plain=1#L84-L87) on every run.
 
@@ -20,15 +22,17 @@ The premise beside this rule states the reverse: Gno ranges a map in [insertion 
   is not a guarantee to build output on, so never build output by ranging a map.
 ```
 
-## AGENTS.md:43-44 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L43-L44) · Nit
+## AGENTS.md:43-44 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L43-L44) · Nit [posted](https://github.com/gnolang/getting-started/pull/8#discussion_r4039078358)
 
 Nit: [`Set`](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/hello.gno#L20) spells its crossing parameter `_`, not the `cur realm` this sentence promises, so only the [test](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/hello_test.gno#L8) half of the pair shows one.
 
-## AGENTS.md:45-46 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L45-L46) · Nit
+## SKIP AGENTS.md:45-46 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L45-L46) · Nit
+
+Already raised: https://github.com/gnolang/getting-started/pull/8#discussion_r4038647755
 
 Nit: [`Set`](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/hello.gno#L20) and [`Get`](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/hello.gno#L25) are exported too, and the rendered page itself [links a call to `Set`](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/hello.gno#L16), a claim [the README](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/README.md?plain=1#L56) repeats.
 
-## AGENTS.md:53 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L53) · Nit
+## AGENTS.md:53 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L53) · Nit [posted](https://github.com/gnolang/getting-started/pull/8#discussion_r4039078366)
 
 Nit: `ufmt.Sprintf("%-5s", "ab")` returns `(unhandled verb: %-)5s`, four characters longer than documented, and those four land in whatever the realm renders.
 
@@ -74,7 +78,7 @@ ok      . 	0.53s
 
 </details>
 
-## Makefile:19 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/Makefile#L19) · Nit
+## Makefile:19 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/Makefile#L19) · Nit [posted](https://github.com/gnolang/getting-started/pull/8#discussion_r4039078376)
 
 Nit: `dev` calls `gnodev` by name while [`GNO ?= gno`](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/Makefile#L3) routes the other three, so a toolchain off `PATH` runs test, lint and fmt and fails [the local chain](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L17).
 
@@ -83,7 +87,7 @@ GNO ?= gno
 GNODEV ?= gnodev
 ```
 
-## AGENTS.md:23-25 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L23-L25) · Suggestion
+## AGENTS.md:23-25 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/AGENTS.md?plain=1#L23-L25) · Suggestion [posted](https://github.com/gnolang/getting-started/pull/8#discussion_r4039078386)
 
 Suggestion: [CI builds its gno from master at job time](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/.github/workflows/ci.yml#L22-L25) while [`GNO ?= gno`](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/Makefile#L3) takes whatever the contributor installed last, so a green local run promises no green CI.
 
@@ -93,7 +97,7 @@ against a gno built from `gnolang/gno` master, so a green run on a freshly
 installed toolchain means a green CI. Re-run `make install` when CI disagrees.
 ```
 
-## README.md:60-62 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/README.md?plain=1#L60-L62) · Suggestion
+## README.md:60-62 [gh](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/README.md?plain=1#L60-L62) · Suggestion [posted](https://github.com/gnolang/getting-started/pull/8#discussion_r4039078395)
 
 Related suggestion: [`Render`](https://github.com/gnolang/getting-started/blob/dda245ddc4556d0b83e471b67830d17c0df7b666/hello.gno#L16) hardcodes `/r/example/hello`, so a reader who re-points `module` ships a page whose one button calls a realm they do not own. Build the path from `CurrentRealm().PkgPath()` instead.
 
