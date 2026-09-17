@@ -51,3 +51,49 @@ the key relation and carries the `Related:` opener. A fix belongs in
 reworked, since `Token.ID()` keeps the raw creation path on purpose. Whether a
 sub identity should register as its host is the author's call, and the round
 takes no position on it beyond naming the two directions that break today.
+
+## Retro
+
+Measured with `./scripts/review-retro.py` over the round's workflow directory,
+and with the overview agent's own task notification, which reports a raw total
+this table cannot split.
+
+| | Agents | Turns | Output | Cache read | Cache write |
+| --- | --- | --- | --- | --- | --- |
+| triage | 1 | 2 | 0k | 0.1M | 0.06M |
+| solo | 1 | 26 | 48k | 3.0M | 0.16M |
+| round | 2 | 28 | 49k | 3.1M | 0.22M |
+
+The overview agent ran outside the workflow: 218k tokens over 59 tool calls and
+six minutes, from its notification.
+
+**What failed.** Nothing died and no cap was hit. Three drafting defects
+survived the writer and were repaired by the parent at step 5: the `Model:` line
+recorded the triage class where `./scripts/post-review.sh` reads the preset, the
+Body affirmed what held and pointed at the sections below it, and the repro
+block opened on a `git checkout <sha>` pin where the gno delta writes
+`gh pr checkout`. The Warning ran to 90 words over two sentences and came down
+to one of 29.
+
+**What worked.** Removed was the angle that paid: `grep -rn '":subpath"'` and
+`grep -rn 'origRealm'` over the whole tree, by shape and not by name, turned up
+both stale siblings the diff left behind. Reach found the one consumer of
+`Token.ID()` outside the package and that is where the Warning is. Claims took
+each of the three corrections back to the code it describes and refuted its own
+three candidates against it.
+
+**Hit rate per tier.** Every file in this diff is warm, so the table cannot
+compare one tier against the next: 3 confirmed of 6 rows, all warm. A
+comment-only diff gives `round risk` no hot signal to work with, which is the
+expected shape rather than a weight to revisit.
+
+**Row 3 ships no section.** The ADR wording finding is a finding on the
+project's governing document, which *Calibration* in the gno delta bans outright;
+the measurement stays here and never reaches a draft.
+
+**One upgrade.** The finder quoted a private repository's name out of the PR
+body into `candidates/*.json` on this round's sibling, and nothing between the
+finder and the commit reads a round against `./scripts/private-names`. Written
+up as a line of the workspace `TODO.md` in this turn. Estimate: one check inside
+`round check`, over the draft, `claims.md`, `candidates/` and `verdicts/`, about
+20 lines and no new agent, so no change to a round's token cost.
