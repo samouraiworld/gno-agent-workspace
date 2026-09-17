@@ -1,0 +1,87 @@
+{
+  "agent": "solo",
+  "candidates": [
+    {
+      "index": 1,
+      "file": "examples/gno.land/p/nt/grc20/v0/token.gno",
+      "line": 33,
+      "angle": "claims",
+      "summary": "the registry key is derived from the registering frame's raw pkgpath, so realm.Sub splits one realm's symbol namespace and strands a sub-created token",
+      "failure_scenario": "grc20reg.Register takes rlmPath from cur.Previous().PkgPath(), which carries the \"#sub\" realm.Sub synthesizes. A realm registering under cur.Sub(\"a\"), cur.Sub(\"b\") and its primary cur gets three live keys for one symbol, against Register's own godoc claim that the key stops a realm registering two tokens under the same symbol. The mirror case panics: a token created under cur.Sub(\"vault\") has origRealm == host but ID() == \"host#vault.SYM.0\", so the host frame's Register fails the HasPrefix check and aborts with \"token must be registered from its own realm\".",
+      "verify_by": "two filetests in examples/gno.land/p/nt/grc20/v0/filetests, run with gno test -v ./gno.land/p/nt/grc20/v0: one registering the same symbol from two subs and the host, one registering a sub-created token from the host frame",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "key a: gno.land/r/demo/grc20subdup#a.SREG / key b: gno.land/r/demo/grc20subdup#b.SREG / key c: gno.land/r/demo/grc20subdup.SREG, all three registered; the host-frame case panics \"grc20reg: token must be registered from its own realm\" at grc20reg.gno:44",
+      "repro_path": "tests/solo-subrealm-registry-key.gno"
+    },
+    {
+      "index": 2,
+      "file": "examples/gno.land/p/nt/grc721/v0/token.gno",
+      "line": 13,
+      "angle": "removed",
+      "summary": "the grc721 NewToken godoc still says the PkgPath becomes origRealm, which the same file contradicts 27 lines down",
+      "failure_scenario": "The diff corrected the grc20 NewToken godoc to say the subpath is stripped and corrected grc721's inline comment at line 40, but left grc721/token.gno:13 reading \"its PkgPath becomes the unforgeable origRealm\". A reader of the exported godoc takes origRealm to be the raw path.",
+      "verify_by": "read examples/gno.land/p/nt/grc721/v0/token.gno lines 13 and 40-45 at the head",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "gno.land/adr/acd01fa29_grc20_caller_teller_home_binding.md",
+      "line": 47,
+      "angle": "removed",
+      "summary": "the ADR that introduced the home binding still spells the separator \":subpath\"",
+      "failure_scenario": "After this sweep it is the only \":subpath\" left in the tree, and it is the document a reader reaches from the comments the diff corrected.",
+      "verify_by": "grep -rn '\":subpath\"' over the head worktree",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "examples/gno.land/p/nt/grc20/v0/tellers.gno",
+      "line": 144,
+      "angle": "claims",
+      "summary": "the separator correction from \":subpath\" to \"#subpath\" may itself be wrong",
+      "failure_scenario": "If the sub-realm separator were not \"#\", every comment the diff rewrites would be freshly wrong on the path a reader reimplements.",
+      "verify_by": "grep for the subRealmSep constant in gnovm/pkg/gnolang/uverse.go and gnovm/stdlibs/chain/address.gno",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "repro_path": ""
+    },
+    {
+      "index": 5,
+      "file": "examples/gno.land/p/nt/grc20/v0/token.gno",
+      "line": 138,
+      "angle": "claims",
+      "summary": "the ID() godoc's new claim that the id keeps the raw pkgpath may be wrong",
+      "failure_scenario": "If Token.ID() were built from the stripped origRealm, the corrected godoc would misdescribe the id that every event and registry key carries.",
+      "verify_by": "read NewToken's construction at token.gno:60-73 and print a sub-created token's ID() in a filetest",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "id: gno.land/r/demo/grc20subhost#vault.SHOS.0000000",
+      "repro_path": "tests/solo-subrealm-registry-host.gno"
+    },
+    {
+      "index": 6,
+      "file": "examples/gno.land/p/nt/grc20/v0/token.gno",
+      "line": 34,
+      "angle": "claims",
+      "summary": "the new sentence calling the registry key the rlmPath.symbol prefix of Token.ID() may be wrong",
+      "failure_scenario": "fqname.Construct could shape the key differently from the id's leading components, leaving the sentence false for every token.",
+      "verify_by": "read fqname.Construct and grc20reg.Register's HasPrefix guard, then register a token and print the key",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "key c: gno.land/r/demo/grc20subdup.SREG for id gno.land/r/demo/grc20subdup.SREG.0000002",
+      "repro_path": "tests/solo-subrealm-registry-key.gno"
+    }
+  ],
+  "dropped": []
+}

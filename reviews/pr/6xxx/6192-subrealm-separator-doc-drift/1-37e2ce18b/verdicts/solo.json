@@ -1,0 +1,92 @@
+{
+  "agent": "solo",
+  "verdicts": [
+    {
+      "index": 1,
+      "angle": "claims",
+      "state": "CONFIRMED",
+      "band": "Warning",
+      "file": "examples/gno.land/p/nt/grc20/v0/token.gno",
+      "line": 33,
+      "tldr": "one realm registers the same symbol once per realm.Sub identity, and a sub-created token cannot be registered from its host frame",
+      "details": "grc20reg.Register reads rlmPath from cur.Previous().PkgPath() (grc20reg.gno:39), which carries the \"#sub\" realm.Sub synthesizes, and keys with fqname.Construct(rlmPath, symbol). Nothing strips the subpath, so \"host#a.SREG\", \"host#b.SREG\" and \"host.SREG\" coexist for one realm, against the overwrite/alias guard Register's godoc states at grc20reg.gno:28-31. The HasPrefix guard at grc20reg.gno:43 compares against Token.ID(), which keeps the raw creation path, so the host frame is refused for a token its own realm created under a sub identity even though origRealm strips that subpath precisely to keep the token with the host.",
+      "evidence": "gno test -v ./gno.land/p/nt/grc20/v0: key a: gno.land/r/demo/grc20subdup#a.SREG, key b: gno.land/r/demo/grc20subdup#b.SREG, key c: gno.land/r/demo/grc20subdup.SREG, all three PASS; the host-frame filetest aborts with grc20reg: token must be registered from its own realm at grc20reg.gno:44",
+      "repro_path": "tests/solo-subrealm-registry-key.gno",
+      "base_behaves_the_same": true,
+      "verify_by": "two filetests copied into examples/gno.land/p/nt/grc20/v0/filetests, run with gno test -v ./gno.land/p/nt/grc20/v0"
+    },
+    {
+      "index": 2,
+      "angle": "removed",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "examples/gno.land/p/nt/grc721/v0/token.gno",
+      "line": 13,
+      "tldr": "the grc721 NewToken godoc and the construction comment 27 lines below it disagree about origRealm",
+      "details": "Line 13 reads \"its PkgPath becomes the unforgeable origRealm\"; line 40, which this diff rewrote, says origRealm is the host path with the subpath stripped. The diff made the same correction in grc20's NewToken godoc and left grc721's.",
+      "evidence": "examples/gno.land/p/nt/grc721/v0/token.gno:13 against :40-45 at the head",
+      "repro_path": "",
+      "base_behaves_the_same": true,
+      "verify_by": "read both comments at the head"
+    },
+    {
+      "index": 3,
+      "angle": "removed",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "gno.land/adr/acd01fa29_grc20_caller_teller_home_binding.md",
+      "line": 47,
+      "tldr": "the ADR behind the home binding is the last place spelling the separator \":subpath\"",
+      "details": "grep over the head worktree returns exactly one hit for \":subpath\" after this diff, in the ADR the corrected comments describe.",
+      "evidence": "grep -rn '\":subpath\"' <head>: gno.land/adr/acd01fa29_grc20_caller_teller_home_binding.md:47",
+      "repro_path": "",
+      "base_behaves_the_same": true,
+      "verify_by": "grep -rn '\":subpath\"' over the head worktree"
+    },
+    {
+      "index": 4,
+      "angle": "claims",
+      "state": "REFUTED",
+      "band": "Nit",
+      "file": "examples/gno.land/p/nt/grc20/v0/tellers.gno",
+      "line": 144,
+      "tldr": "the separator is \"#\", so the correction holds",
+      "details": "Both definitions of the constant are \"#\", and chain.SplitPkgSubPath cuts on it.",
+      "evidence": "gnovm/pkg/gnolang/uverse.go:255 and gnovm/stdlibs/chain/address.gno:13 both read const subRealmSep = \"#\"; uverse.go:1732 synthesizes host + subRealmSep + subpath",
+      "repro_path": "",
+      "base_behaves_the_same": true,
+      "refuted_by": "gnovm/stdlibs/chain/address.gno:13 const subRealmSep = \"#\"",
+      "verify_by": "grep for subRealmSep in the runtime and the chain stdlib"
+    },
+    {
+      "index": 5,
+      "angle": "claims",
+      "state": "REFUTED",
+      "band": "Nit",
+      "file": "examples/gno.land/p/nt/grc20/v0/token.gno",
+      "line": 138,
+      "tldr": "Token.ID() does keep the raw creation pkgpath, subpath included",
+      "details": "NewToken builds id from pkgPath, the unsplit rlm.PkgPath(), and derives origRealm separately through chain.SplitPkgSubPath.",
+      "evidence": "a token created under cur.Sub(\"vault\") prints id: gno.land/r/demo/grc20subhost#vault.SHOS.0000000",
+      "repro_path": "tests/solo-subrealm-registry-host.gno",
+      "base_behaves_the_same": true,
+      "refuted_by": "examples/gno.land/p/nt/grc20/v0/token.gno:67 id: pkgPath + \".\" + symbol + \".\" + id.String()",
+      "verify_by": "read the construction and print a sub-created token's ID()"
+    },
+    {
+      "index": 6,
+      "angle": "claims",
+      "state": "REFUTED",
+      "band": "Nit",
+      "file": "examples/gno.land/p/nt/grc20/v0/token.gno",
+      "line": 34,
+      "tldr": "the key is the id without its trailing sequence id whenever Register returns",
+      "details": "fqname.Construct joins with a dot and Register aborts unless Token.ID() starts with key + \".\", so a returned key is always that prefix. What the sentence leaves out is the frame it is true of, which is candidate 1.",
+      "evidence": "key c: gno.land/r/demo/grc20subdup.SREG for id gno.land/r/demo/grc20subdup.SREG.0000002",
+      "repro_path": "tests/solo-subrealm-registry-key.gno",
+      "base_behaves_the_same": true,
+      "refuted_by": "examples/gno.land/r/nt/grc20reg/v0/grc20reg.gno:43 if !strings.HasPrefix(token.ID(), key+\".\")",
+      "verify_by": "read fqname.Construct and the HasPrefix guard, then register a token and print the key"
+    }
+  ]
+}
