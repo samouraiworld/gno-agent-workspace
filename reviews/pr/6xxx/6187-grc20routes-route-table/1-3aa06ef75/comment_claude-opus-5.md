@@ -1,8 +1,9 @@
-# PR [#6187](https://github.com/gnolang/gno/pull/6187): feat(examples): add r/nt/grc20routes, a MsgCall route table for GRC20 tokens
+# Review: [#6187](https://github.com/gnolang/gno/pull/6187)
+Posted: https://github.com/gnolang/gno/pull/6187#pullrequestreview-5232826856
 Verdict: REQUEST CHANGES, on seven defects in the route this realm hands a wallet: a keyed proof needs no call to the realm whose shape it claims, the proven prefix is the registry symbol rather than the leading argument the proof observed, a realm marked keyed stays keyed for every token it will ever register, a sub identity's token and its host's token of the same symbol publish byte-identical routes, a dotted subpath rides in front of the symbol, `Func` alone cannot build a keyed call, and the rendered argument arrives markdown-escaped.
 Event: REQUEST_CHANGES
 Model: claude-opus-5[1m], standard review
-Commit: 3aa06ef75 (latest)
+Commit: 3aa06ef75 (stale — +2 commits since, both master merges, the branch's own files byte-identical)
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/3aa06ef757b87d731a3e554e96c7540a209fd9a3) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/3aa06ef757b87d731a3e554e96c7540a209fd9a3)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6187 3aa06ef75`
@@ -10,8 +11,9 @@ Round: 1. 6 finders, one critic, 58 candidates, each run from scratch by an agen
 
 ## Body
 - Every read here takes a `grc20reg` key, whose `#subpath` half [`grc20reg.Register` writes raw](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20reg/v0/grc20reg.gno#L39-L40), and this realm has no one place deciding what that half means.
+- 19 missing-test cases, 17 nits, 5 test-code changes and 3 suggestions, off the thread and each with its repro: [full review](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6187-grc20routes-route-table/1-3aa06ef75/comment_claude-opus-5.md)
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:408-413 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408-L413) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408)
+## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:408-413 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408-L413) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408) [posted](https://github.com/gnolang/gno/pull/6187#discussion_r4034524138)
 [`grc20reg.Approve`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20reg/v0/grc20reg.gno#L126-L128) sets the calling realm's own allowance on any registered token, so both comparisons pass for any realm hosting two of them, whatever shape its entry points take. Refusing a prover that is not a signing user, [`IsUserCall`](https://github.com/gnolang/gno/blob/3aa06ef75/gnovm/stdlibs/chain/runtime/frame.gno#L105) on `cur.Previous()`, leaves only allowances a token's own realm can move.
 
 <details><summary>repro</summary>
@@ -131,7 +133,7 @@ data: (true bool)
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:444 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L444) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L444)
+## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:444 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L444) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L444) [posted](https://github.com/gnolang/gno/pull/6187#discussion_r4034524150)
 [`FinishKeyedProof`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408-L412) compares two nonces and never observes the leading argument that carried them, so the published prefix is the registry symbol and a realm keyed by [an IBC denom](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L130-L136) gets a route that aborts at every operation. Recording the leading argument the prover passed, instead of deriving it from the registry key, keeps the prefix to what the proof observed.
 
 <details><summary>repro</summary>
@@ -249,10 +251,10 @@ FAIL	github.com/gnolang/gno/gno.land/pkg/integration	6.003s
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:416 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L416) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L416)
+## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:416 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L416) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L416) [posted](https://github.com/gnolang/gno/pull/6187#discussion_r4034524157)
 Nothing removes an entry from `provenKeyed`, so a realm marked keyed by a proof that does not describe its call shape stays marked for every token it hosts now or later. The only correction is [`Register`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L295), which [replaces one token's route and leaves its siblings proven](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L272-L294) and is unreachable to a realm deployed before this one, the population the proven path serves.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:443 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L443) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L443)
+## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:443 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L443) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L443) [posted](https://github.com/gnolang/gno/pull/6187#discussion_r4034524160)
 [`fqname.Parse`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/p/nt/fqname/v0/fqname.gno#L33) splits at the first dot after the last slash, and [`isValidSubpathSegment`](https://github.com/gnolang/gno/blob/3aa06ef75/gnovm/stdlibs/chain/address.gno#L74) allows a dot inside a subpath. A token registered under the sub identity `a.b` publishes `b.SUBTK` as its prefix, so the wallet's `Approve` carries a leading argument [the declared path refuses outright](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L590-L593).
 
 <details><summary>repro</summary>
@@ -320,7 +322,7 @@ FAIL: 0 build errors, 1 test errors
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:500 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L500) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L500)
+## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:500 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L500) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L500) [posted](https://github.com/gnolang/gno/pull/6187#discussion_r4034524169)
 `Func` drops the route's [`Prefix`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L502) and returns the entry point name alone. A proven-keyed token's realm entry point is [`Approve(cur, symbol, spender, amount)`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/demo/defi/grc20factory/grc20factory.gno#L88), so a `MsgCall` built from that one value is one argument short.
 
 <details><summary>the two answers the shipped fixture asks for</summary>
@@ -340,7 +342,7 @@ stdout 'Approve'
 The `BAR` that `JSON` reports as the prefix is the `symbol` parameter of the real entry point, and the only working call in the same fixture passes it: [`-func Approve -args BAR -args <spender> -args 222`](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L53). The exported surface has no `Prefix(tokenKey)` getter to pair with `Func`, so the complete answer is only reachable through [`Get`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L436) or [`JSON`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L466).
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:519 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L519) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L519)
+## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:519 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L519) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L519) [posted](https://github.com/gnolang/gno/pull/6187#discussion_r4034524173)
 `mustToken` drops the `#subpath` and [`Get`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L443-L444) never restores it, so a sub identity's token and its host's token of the same symbol publish byte-identical routes. A wallet following the sub token's route approves the host's token instead.
 
 <details><summary>repro</summary>
@@ -436,7 +438,7 @@ allowance on treasury BAR: 0
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:737 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L737) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L737)
+## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:737 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L737) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L737) [posted](https://github.com/gnolang/gno/pull/6187#discussion_r4034524179)
 [`md.EscapeText`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/p/moul/md/v0/md.gno#L414) runs over the prefix argument on its way into a code span, and [`inlineEscapeSet` escapes](https://github.com/gnolang/gno/blob/3aa06ef75/gnovm/stdlibs/chain/markdown/markdown.go#L86) both `_` and `-`, which [`validateSymbol` permits](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L591) in a symbol. The page prints `Approve(cur, A\_B, spender, amount)` for a user to copy out.
 
 ```suggestion
@@ -496,7 +498,7 @@ Missing test: no test exercises `maxIdentLen`, `maxOpLen`, `maxSymbolLen`, `maxE
 
 Skipped: the same edit closes it as the section anchored on the `maxEntries` guard.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:295 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L295) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L295)
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:295 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L295) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L295)
 Missing test: no test calls `Register` from another realm. [`sortEntries`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L310) reorders the caller's own `Route.Funcs` in place and [`declared.Set`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L311) stores that same backing array, so a realm that reads back the route it built sees a different order.
 
 <details><summary>test cases</summary>
@@ -568,7 +570,9 @@ func TestRegisterLeavesTheCallersRouteAlone(cur realm, t *testing.T) {
 At this head the test fails on `approve,transfer,transfer_from,deposit,withdraw,` becoming `approve,deposit,transfer,transfer_from,withdraw,`.
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:317 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L317) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L317)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:317 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L317) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L317)
 Missing test: this `register` event and [`proven`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L418) are the realm's only push-side output, and no package test or txtar step asserts either, so deleting both `chain.Emit` calls leaves the suite and [`grc20routes_keyed_proof.txtar`](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar) green. [`grc20reg.Register`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20reg/v0/grc20reg.gno#L50) emits its own event typed `register` in the same transaction, so an indexer filtering on the type name alone receives both and has to discriminate on `pkg_path`.
 
 <details><summary>test cases</summary>
@@ -788,7 +792,9 @@ func main(cur realm) {
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:401-403 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L401-L403) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L401)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:401-403 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L401-L403) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L401)
 Missing test: every `FinishKeyedProof` in the suite and in [the keyed-proof fixture](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar) passes the keys its `BeginKeyedProof` opened. Deleting this pair check leaves both green and turns `tokenKeyB` into an argument the function reads nowhere.
 
 <details><summary>test cases</summary>
@@ -822,12 +828,14 @@ func TestFinishKeyedProofRejectsADifferentPair(cur realm, t *testing.T) {
 ```
 </details>
 
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
 ## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:408 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408)
 Missing test: no test reaches the token-A half of this check, so deleting it leaves the package suite and [`grc20routes_keyed_proof.txtar`](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar) green and a realm that moved only its second token comes out keyed.
 
 Skipped: grc20routes_test.gno:211 carries the same gap and the same mirror test.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:415 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L415) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L415)
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:415 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L415) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L415)
 Missing test: no test asserts that a committed proof clears the [`pending`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L377) entry it consumed, so deleting `pending.Remove` leaves the whole suite green.
 
 <details><summary>test cases</summary>
@@ -853,7 +861,9 @@ func TestFinishKeyedProofClearsItsPendingEntry(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:540-542 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L540-L542) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L540)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:540-542 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L540-L542) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L540)
 Missing test: [`TestValidationRejectsUnsafeValues`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L321) has eleven cases and none exceeds a length cap. Deleting this `maxEntries` guard, or the ones on [`maxPrefixArg`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L562-L564), [`maxOpLen`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L604-L606) or [`maxIdentLen`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L616-L618), leaves the package suite green.
 
 <details><summary>test cases</summary>
@@ -931,7 +941,9 @@ func TestValidationAcceptsValuesAtTheCap(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:652 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L652) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L652)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:652 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L652) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L652)
 Missing test: `Render` through [`renderEntry`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L734-L739) is 89 lines and the realm's only human-facing surface, and neither the package suite nor [the keyed-proof fixture](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar) calls `Render` once.
 
 <details><summary>test cases</summary>
@@ -966,7 +978,9 @@ ref(gno.land/r/nt/grc20routes/v0).Render(gno.land/r/demo/nope.NOPE)
 The remaining cases: both trees empty, one proof and one declaration, a token page on each of the three sources, and a declared route carrying a prefix and a non-canonical operation, which is where `opTail` and `renderEntry` run.
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:136 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L136) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L136)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:136 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L136) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L136)
 Missing test: every `With` in the suite starts from the prefix-less [`Canonical()`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L246-L251), so nothing pins the [`Prefix: r.Prefix` carry-over](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L267) the keyed builder rests on.
 
 <details><summary>test cases</summary>
@@ -1007,7 +1021,9 @@ func TestWithKeepsThePrefix(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:174 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L174) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L174)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:174 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L174) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L174)
 Missing test: this asserts `hostOf` against two literals, so no `<host>#<sub>.<SYM>` key reaches `PkgPath`, `JSON` or `Get`. Drop the [strip](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L519) and a wallet reads `gno.land/r/nt/grc20routes/v0#admin` as its MsgCall destination, the suite and the fixture still green.
 
 <details><summary>test cases</summary>
@@ -1058,7 +1074,9 @@ func TestSubRealmTokenRoutesToCallableHost(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:195 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L195) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L195)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:195 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L195) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L195)
 Missing test: every keyed-proof test proves the realm it runs inside, which declares no `Approve` of any arity, so deleting the [same-realm guard](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L361-L363) or loosening [the exact-nonce comparison](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408-L413) to any nonzero allowance keeps the suite green. The case nothing covers is a second realm hosting two registered tokens, exposing no keyed `Approve`, that must still read `source=convention`, which needs a txtar beside [`grc20routes_keyed_proof.txtar`](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar).
 
 <details><summary>repro</summary>
@@ -1124,7 +1142,9 @@ mutation 2: exact nonce no longer required exit=0  ok  ./gno.land/r/nt/grc20rout
 Mutation 2 survives because the one rejection test, [`TestKeyedProofFailsWhenOnlyOneTokenMoves`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L211), leaves the second allowance at 0, where the weakened comparison still aborts.
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:211 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L211) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L211)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:211 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L211) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L211)
 Missing test: `TestKeyedProofFailsWhenOnlyOneTokenMoves` moves token A and lands on [the token-B branch](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L411-L413), and every other `FinishKeyedProof` in the suite and in [the fixture](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L50-L56) has both allowances correct. Deleting [the token-A branch](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408-L410) reddens nothing, and a realm whose second token alone moved is marked keyed.
 
 <details><summary>test cases</summary>
@@ -1151,7 +1171,9 @@ func TestKeyedProofFailsWhenOnlyTokenBMoves(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:226 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L226) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L226)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:226 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L226) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L226)
 Missing test: this parks the stale nonce on token A alone, so the token-B half of the [already-parked guard](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L373) is unpinned. One ordinary `Approve` then keys the realm for a prover who parked nonceB in advance.
 
 <details><summary>test cases</summary>
@@ -1185,7 +1207,9 @@ func TestKeyedProofRejectsPreExistingAllowanceOnTokenB(cur realm, t *testing.T) 
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:238 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L238) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L238)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:238 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L238) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L238)
 Missing test: no case here covers the cross-realm rejection, and every token in the suite registers under `selfPath`. Neutralize [`pathA != pathB`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L361) and any account pairs `wugnot.wugnot` with `grc20factory.FOO` to read wugnot back as proven.
 
 <details><summary>test cases</summary>
@@ -1249,7 +1273,9 @@ stdout '\\"prefix\\":\[\],\\"source\\":\\"convention\\"'
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:248-249 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L248-L249) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L248)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:248-249 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L248-L249) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L248)
 Missing test: this case passes `(0, 2)`, so only the `nonceA` half of the [positivity guard](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L367) is reached. Dropping `|| nonceB <= 0` admits a negative nonceB, since zero still falls to the already-parked guard.
 
 <details><summary>test cases</summary>
@@ -1289,7 +1315,9 @@ func TestKeyedProofRejectsNonPositiveNonceB(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:321 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L321) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L321)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:321 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L321) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L321)
 Missing test: the eleven cases here are all character-class, emptiness or duplicate rejections, so [`maxEntries`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L540), [`maxPrefixArg`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L562), [`maxSymbolLen`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L587), [`maxOpLen`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L604) and [`maxIdentLen`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L616) fire on no input the suite builds. Deleting any one of the five leaves the suite green on the one write path a third-party realm reaches.
 
 <details><summary>test cases</summary>
@@ -1377,7 +1405,9 @@ func TestValidationAcceptsValuesAtTheCap(cur realm, t *testing.T) {
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:395 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L395) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L395)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:395 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L395) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L395)
 Missing test: every `Register` test runs inside `package grc20routes` and mints through `mint`, so [`cur.Previous().PkgPath()`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L296) is always `selfPath` and `TestRouteAlwaysPointsAtItsOwnRealm` restates the key `Register` just built from it. Letting the `symbol` argument override `rlmPath` keeps all 20 tests green, so the case with no coverage is a second realm calling `Register` with a key aimed at the first realm's token.
 
 <details><summary>repro</summary>
@@ -1417,7 +1447,9 @@ ok      ./gno.land/r/nt/grc20routes/v0 	3.12s
 ```
 </details>
 
-## gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar:14 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L14) · [↗](../../../../../.worktrees/gno-review-6187/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L14)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar:14 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L14) · [↗](../../../../../.worktrees/gno-review-6187/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L14)
 Missing test: this fixture has no step that is expected to fail, so deleting the [two allowance comparisons](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L408-L413) in `FinishKeyedProof` keeps it green against grc20factory as deployed.
 
 <details><summary>test cases</summary>
@@ -1493,7 +1525,9 @@ stdout '\\"prefix\\":\[\\"FOO\\"\],\\"source\\":\\"proven\\"'
 ```
 </details>
 
-## gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar:24 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L24) · [↗](../../../../../.worktrees/gno-review-6187/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L24)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar:24 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L24) · [↗](../../../../../.worktrees/gno-review-6187/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L24)
 Missing test: the realms loaded beside grc20routes never call `Register`, so [`cur.Previous().PkgPath()`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L296) evaluates to a foreign path nowhere in the repository. Replace it with the literal `gno.land/r/nt/grc20routes/v0` and the package suite and this fixture both stay green.
 
 <details><summary>test cases</summary>
@@ -1599,31 +1633,43 @@ func Redeclare(cur realm) string {
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:194 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L194) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L194)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:194 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L194) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L194)
 Nit: `maxSymbolLen` is 64 while [`grc20.MaxSymbolLen`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/p/nt/grc20/v0/types.gno#L142) caps every token symbol at 11, so this bound can only fire on a symbol no registry key can hold. It also runs [ahead of the `grc20reg` lookup](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L300-L307) that would give the accurate reason.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:241 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L241) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L241)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:241 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L241) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L241)
 Nit: `Func` returns `""` both for an operation a realm declared out and for one nothing was recorded about, and [its doc names only the first](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L492-L493), so [`Func("gno.land/r/gnoland/wugnot.wugnot", "deposit")`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L500-L503) reports no deposit entry point while wugnot exports [`Deposit`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/gnoland/wugnot/wugnot.gno#L31). A second return value carrying whether the entry point was found separates the two, which `Get` already gives a caller willing to read the whole route.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:267 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L267) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L267)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:267 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L267) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L267)
 Nit: `With` rebuilds `Funcs` into a fresh slice and copies only the `Prefix` slice header, so every route chained off one [`Keyed`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L256) call shares one backing array, which no exported call writes into today.
 
 ```suggestion
 	out := Route{Prefix: append([]string(nil), r.Prefix...)}
 ```
 
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
 ## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:345 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L345) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L345)
 Nit: [`PrivateLedger.Approve`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/p/nt/grc20/v0/token.gno#L276) writes the allowance of any `owner` the token realm names and never checks the caller, so a token realm can park or clear a probe allowance on an address that never called it.
 
 Skipped: a finding on a code comment's own wording, which changes no behaviour.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:367 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L367) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L367)
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:367 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L367) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L367)
 Test: no test passes a negative nonce or `math.MaxInt64`, so the nonce sign guard is reached only at `0` and narrowing `<= 0` to `== 0` would stay green.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:456 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L456) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L456)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:456 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L456) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L456)
 Nit: `IsKeyedRealm` looks its argument up raw while [`Get`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L437) and [`PkgPath`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L453) both normalize through [`hostOf`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L523-L525), so the package-path half of a `<host>#<sub>.<SYM>` registry key answers false on a realm those two report as proven.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:470-484 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L470-L484) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L470)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:470-484 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L470-L484) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L470)
 Nit: the prefix and funcs fragments are built by two index-guarded concatenation loops, 15 lines, where [`strings.Join`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L321-L322) over two prebuilt slices is 11 and emits the same bytes.
 
 ```suggestion
@@ -1640,15 +1686,19 @@ Nit: the prefix and funcs fragments are built by two index-guarded concatenation
 	funcs := strings.Join(funcParts, ",")
 ```
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:549 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L549) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L549)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:549 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L549) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L549)
 Nit: the duplicate-operation check rescans `r.Funcs[:i]` for every entry, 5 lines, where [sorting before validating](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L309-L310) makes it the one-line test `i > 0 && r.Funcs[i-1].Op == e.Op`. The cost is reordering the caller's slice before a route can be rejected.
+
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
 
 ## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:573 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L573) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L573)
 Nit: `validateSymbol`, [`validateOpName`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L600) and [`validateFuncName`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L615) each hand-roll a length check and a per-rune allowed-set loop over three slightly different sets, 58 lines for one skeleton.
 
 Skipped: the shared-helper version measures 48 lines against 58, and it reddens `TestValidationRejectsUnsafeValues` and `TestRegisterRejectsCraftedSymbols`, because the three panic strings differ in shape and one shared message cannot carry them all.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:615-616 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L615-L616) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L615)
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:615-616 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L615-L616) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L615)
 Nit: `validateFuncName` returns without panicking on `""`, its loop running zero times, so the exported-identifier contract holds only while [`validate`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L545-L547) guards the one call site. [`validateOpName`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L601-L603) rejects `""` itself.
 
 ```suggestion
@@ -1659,15 +1709,19 @@ func validateFuncName(field, name string) {
 	if len(name) > maxIdentLen {
 ```
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:653 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L653) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L653)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:653 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L653) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L653)
 Nit: `Render` hands every non-empty path to `renderToken`, which [panics with `grc20routes: unknown token:`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L515-L516) on any path that is not a live registry key. A mistyped or stale gnoweb link aborts the call instead of rendering a not-found page with a way back to the index.
+
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
 
 ## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:654 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L654) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L654)
 Nit: `renderToken` takes any non-empty path and aborts through `mustToken`, so an arbitrary user-supplied subpath under the realm takes the page down.
 
 Skipped: the same edit closes it as the section anchored on the branch one line above.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:664-672 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L664-L672) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L664)
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:664-672 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L664-L672) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L664)
 Nit: `n` is incremented across the whole walk and read once as a flag, here and again in [the declared block](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L675-L695), where `Size()` on each tree answers the same question and drops 4 lines.
 
 ```suggestion
@@ -1680,29 +1734,39 @@ Nit: `n` is incremented across the whole walk and read once as a flag, here and 
 	})
 ```
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:665 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L665) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L665)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:665 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L665) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L665)
 Nit: the home page walks `provenKeyed` here and [`declared`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L676) end to end, with no start key and a callback that always returns `false`. The page's gas cost grows with every realm proven and every route declared, and neither tree has a removal path.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:701 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L701) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L701)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:701 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L701) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L701)
 Nit: `renderToken` parses `tokenKey` itself instead of reusing [`PkgPath`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L453), so for a token registered under a sub identity [the realm line and its link](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L705) name `<path>#<sub>`, the form [`mustToken` strips](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L505-L513) because it is not a `MsgCall` destination.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:722 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L722) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L722)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:722 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L722) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L722)
 Nit: `opTail` returns `, …` for every operation outside the fixed three, so a route declaring [`deposit`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L265) renders as `Deposit(cur, …)` while `approve` on the same route renders its argument names. The open operation set is exactly what a reader comes to the page for.
+
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
 
 ## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:731 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L731) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L731)
 Nit: `opTail` returns `", …"` for every operation outside the canonical three, so a declared `deposit` renders as `Deposit(cur, …)` and carries nothing the `Func` name did not, on exactly [the open set the `Funcs` doc argues this realm exists for](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L217-L223).
 
 Skipped: the same edit closes it as the section anchored on the `default` arm nine lines above.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:735 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L735) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L735)
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:735 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L735) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L735)
 Nit: `args` is seeded with `cur`, which the VM injects and no signer can pass, so the page prints `Approve(cur, FOO, spender, amount)`. The call that works takes three arguments, [`-func Approve -args FOO -args <spender> -args <amount>`](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/integration/testdata/grc20routes_keyed_proof.txtar#L50), as [the same page's own header](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L659-L661) says.
+
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
 
 ## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:39 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L39) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L39)
 Test: the suite's keyed-proof assertions hold for any value of `probe`, since `approveAs` parks the allowance at `ProbeAddress()` and [`allowanceOf`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L426) reads it back at that same variable.
 
 Skipped: nothing here asks the author for a change, and the integration fixture's literal address already pins what the suite cannot.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:60-64 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L60-L64) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L60)
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:60-64 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L60-L64) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L60)
 Test: the convention cases assert nothing about `IsKeyedRealm(selfPath)`. They fail whenever a proof test declared above them marks the realm first.
 
 ```suggestion
@@ -1732,18 +1796,22 @@ should be false - a keyed-proof test declared above this one inverts every asser
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:155-156 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L155-L156) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L155)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:155-156 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L155-L156) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L155)
 Test: no case reaches this mint, since [`validateSymbol`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L300) aborts all six symbols in the table below before the [`grc20reg.Get` lookup](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L305).
 
 ```suggestion
 ```
+
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
 
 ## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno:254 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L254) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes_test.gno#L254)
 Test: bob's `FinishKeyedProof` aborts at the prover-scoped pending lookup, so the allowance comparisons below it never run.
 
 Skipped: the finding is the comment's own wording, which changes no behaviour.
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:296-299 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L296-L299) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L296)
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:296-299 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L296-L299) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L296)
 Suggestion: `Register` takes a `Route` struct, and [`convertArgToGno`](https://github.com/gnolang/gno/blob/3aa06ef75/gno.land/pkg/sdk/vm/convert.go#L226) panics on any contract argument outside a primitive, array or slice, so no `MsgCall` can reach this function and `cur.Previous().PkgPath()` is never empty.
 
 ```suggestion
@@ -1767,7 +1835,9 @@ ok      ./gno.land/r/nt/grc20routes/v0 	3.19s
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:361-363 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L361-L363) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L361)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:361-363 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L361-L363) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L361)
 Suggestion: the same-realm check compares paths [`mustToken`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L514-L519) has already stripped of `#subpath`, so a realm's top-level token and one it registered under `cur.Sub("x")` pass as one realm, and the host's token comes out proven from two approvals through separate ledgers. Comparing the raw registry paths, before `hostOf` strips them, keeps a sub identity's token out of its host's proof.
 
 <details><summary>repro</summary>
@@ -1840,7 +1910,9 @@ route(host token): proven slice[("HOST" string)]
 ```
 </details>
 
-## examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:467 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L467) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L467)
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
+
+## SKIP examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:467 [gh](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L467) · [↗](../../../../../.worktrees/gno-review-6187/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L467)
 Suggestion: `mustToken` traverses `grc20reg` and [`Get`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L437) traverses it again on the next line, and [`BeginKeyedProof`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L359-L360) and [`FinishKeyedProof`](https://github.com/gnolang/gno/blob/3aa06ef75/examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno#L393) make 4 and 3 traversals where 2 each answer the same questions. One `resolve(tokenKey) (*grc20.Token, string)` helper, plus a `getRoute` returning the `pkgPath` and `symbol` its callers already need, brings the three to 1, 2 and 2, at 757 lines against 740.
 
 <details><summary>patch</summary>
@@ -1995,3 +2067,5 @@ Traversals per call, before and after: `JSON` 2 to 1, `BeginKeyedProof` 4 to 2, 
  	s += "- token key: " + md.InlineCode(tokenKey) + "\n"
 ```
 </details>
+
+Skipped: held off the thread by the cut to the seven findings that block; the Body link carries it.
