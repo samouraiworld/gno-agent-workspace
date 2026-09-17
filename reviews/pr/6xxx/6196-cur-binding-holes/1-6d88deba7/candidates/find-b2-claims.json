@@ -1,0 +1,95 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6117,
+      "angle": "claims",
+      "summary": "isCrossingCurParam tests only IsCrossing(), not that the resolved name is the first parameter, so a named result `cur` in a crossing function with an unnamed first realm param is refused as the parameter",
+      "failure_scenario": "`func namedResult(_ realm) (cur realm) { cur = nil; return cur }` in a realm package. The unnamed first parameter becomes `.arg_0` (preprocess.go:560), which the FuncTypeExpr naming rule allows (preprocess.go:2827), and IsCrossing() compares only Params[0].Type to gRealmType (types.go:1393), so the named result resolves to a crossing FuncDecl and the write is refused at preprocess with \"cannot reassign the crossing `cur` parameter\". The ADR's Decision (\"Package-level vars, named results, and block-scoped shadows stay writable\"), isCrossingCurParam's own godoc, and the new fixture zrealm_cur_other_legal.gno all state the opposite; the fixture only covers a non-crossing enclosing function (`func namedResult(x int) (cur realm)`), so the class the PR sweeps has a member it missed. Pre-existing: the base refuses it too via the name+type rule, so the loss is that the advertised fix does not reach this shape, not a regression.",
+      "verify_by": "cp reviews/.../tests/b2-claims-named-result-write.gno gnovm/tests/files/zrealm_b2claims_namedresult.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_b2claims_namedresult.gno$' at 6d88deba7: expect PASS printing ok per the ADR, observe the preprocess panic. Then add `&& ft.Params[0].Name == \"cur\"` to both arms and re-run, with go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_.*\\.gno$' to confirm no fixture regresses.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "At 6d88deba7: `--- FAIL: TestFiles/zrealm_b2claims_namedresult.gno` / `unexpected panic: gno.land/r/demo/curnamedres/zrealm_b2claims_namedresult.gno:27:2-11: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame`. Identical panic at merge base b7845fb2d, so pre-existing, not caused by the diff. With `ft.IsCrossing() && ft.Params[0].Name == \"cur\"` in both switch arms: `ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.050s` for the fixture and `ok ... 0.930s` for all 31 zrealm_cur_* filetests.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b2-claims-named-result-write.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2160,
+      "angle": "claims",
+      "summary": "the cur-call provenance check accepts a named result `cur` of a crossing function as a frame identity, so the ADR's \"backstop with no known reachable source route\" has one and it reports the wrong mistake",
+      "failure_scenario": "`func forward(_ realm) (cur realm) { target(cur); return }` where `func target(cur realm)`. The provenance switch tests only `dft.IsCrossing()` on the declaring FuncDecl, so the named result passes as if it were the parameter; preprocess accepts, and installInheritedCur's identity check panics at runtime with \"the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur)\", which names none of what the author wrote. The ADR's Consequences claim \"The identity check is now a backstop with no known reachable source route\"; this is plain source and reaches it. Fail-closed and pre-existing (same panic at the merge base), so the loss is a compile-time refusal turned into a misleading runtime abort.",
+      "verify_by": "cp reviews/.../tests/b2-claims-named-result-forward.gno gnovm/tests/files/zrealm_b2claims_namedforward.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_b2claims_namedforward.gno$': observe the runtime stale-capture panic where the existing \"only the `cur` argument of a containing crossing function maybe passed by cross-call\" preprocess error belongs. Adding `|| dft.Params[0].Name != \"cur\"` to both arms at 2160 and 2169 moves it to preprocess.",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "At 6d88deba7 and at merge base b7845fb2d alike: `unexpected panic: crossing function gno.land/r/demo/curnamedfwd.target was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur)`, with the stacktrace showing forward<VPBlock(3,1)> passing cur<VPBlock(1,0)>.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b2-claims-named-result-forward.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 67,
+      "angle": "claims",
+      "summary": "\"the VM has no version gate for gas changes (zero `Hardfork` references in `gnovm/`)\"",
+      "settled_by": "grep -rn 'Hardfork' gnovm/ returns exactly one line, the ADR's own sentence at gnovm/adr/prxxxx_cur_binding_followups.md:67; zero in code. Claim holds."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 19,
+      "angle": "claims",
+      "summary": "\"three preprocess write rules — assignment, address-of, range assignment target\"",
+      "settled_by": "grep -n isCrossingCurParam gnovm/pkg/gnolang/preprocess.go returns exactly three call sites: 2583 (UnaryExpr address-of), 3011 (AssignStmt), 3116 (RangeStmt). Count and kinds hold."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 21,
+      "angle": "claims",
+      "summary": "\"That landed as `3d9f4dc8e`\"",
+      "settled_by": "git log -1 --oneline 3d9f4dc8e: `3d9f4dc8e feat(gnovm): make the crossing `cur` parameter a fixed binding (#6193)`. Holds."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 54,
+      "angle": "claims",
+      "summary": "\"`harnessSeedsCur` skips the mismatch panic when the calling frame belongs to package `testing`\"; \"the same carve-out already exists (`crossingFromTestFile`, `TestingBasePkgPath`)\"",
+      "settled_by": "grep: op_call.go:558 func (m *Machine) harnessSeedsCur, guarding the panic at op_call.go:513; op_call.go:229 crossingFromTestFile; preprocess.go:22 TestingBasePkgPath = \"testing\", used at op_call.go:560 and preprocess.go:2070. All three symbols exist and are wired as described."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 71,
+      "angle": "claims",
+      "summary": "\"`funcDisplayName` falls back to the source location for a function literal and to `<func literal>` when there is no source\"",
+      "settled_by": "op_call.go:567-577 reads exactly that: Name != \"\" → PkgPath.Name; Source != nil → \"%s func literal at %s:%d\"; else PkgPath + \".<func literal>\". Holds."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 111,
+      "angle": "claims",
+      "summary": "\"Go unit tests in `op_call_test.go` for the harness exemption and the display-name fallback\"",
+      "settled_by": "grep -n '^func Test' gnovm/pkg/gnolang/op_call_test.go: TestHarnessSeedsCur:82 (three cases, require.True/False on m.harnessSeedsCur()) and TestFuncDisplayName:110. Holds."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 69,
+      "angle": "claims",
+      "summary": "\"A `NOTE` at the call site points there\" (a tracker outside this repository)",
+      "settled_by": "op_call.go:448-452 carries the NOTE above m.topCrossingCur(), naming OpCPUSlopeEnterCrossing and a tracker outside this repository. Holds."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 50,
+      "angle": "claims",
+      "summary": "\"the shadow still cannot be cur-called, which `zrealm_cur_shadow_call.gno`, `_if`, and `_range` pin\", and shadow becomes a positive control",
+      "settled_by": "ls gnovm/tests/files: all three exist; zrealm_cur_shadow_call.gno ends on `// Error: ... only the `cur` argument of a containing crossing function maybe passed by cross-call`, and zrealm_cur_shadow.gno now rebinds and takes &cur with `// Output: ok`. TestFiles covers all of them in CI."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 30,
+      "angle": "claims",
+      "summary": "PR body: \"No `.gno` source that compiled and ran before is rejected now\", against the newly-refused same-block `cur, x := ...` rebind",
+      "settled_by": "grep -rn --include='*.gno' -E '^[[:space:]]*(cur,|[A-Za-z_]+, cur)[^=]*:=' examples gno.land gnovm/stdlibs returns 3 hits (commondao/v0/proposal_bylaws.gno:106, p/nt/bylaws/v0/patch.gno:91 and :216); all three are string cursors from a Get, in non-crossing methods (Bylaws.Diff, Bylaws.Apply, amendBylawsKind.New), so none resolves to a crossing param. No in-tree source is newly rejected."
+    }
+  ]
+}

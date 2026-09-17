@@ -1,0 +1,112 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 6111,
+   "angle": "reach",
+   "band": "Warning",
+   "checked": true,
+   "run": true,
+   "summary": "isCrossingCurParam tests neither the declared type nor the first parameter's name, so a non-realm `cur` in a crossing function is refused as the frame identity",
+   "failure_scenario": "The base gated all three write rules on the resolved type (`evalStaticTypeOf(store, last, ne) == gRealmType` at 2890 and 3116, `xt == gRealmType` at 2584). Head replaced that with isCrossingCurParam, which checks the name and the declaring node only. A crossing function's first realm parameter may be blank or unnamed (preprocess.go:2828 admits a `.arg` prefix), so any other `cur` it declares resolves to a crossing FuncDecl/FuncLitExpr. `func F(_ realm, cur int) int { cur = cur + 1; return cur }` compiles on b7845fb2d and is refused at 6d88deba7 with \"cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as\"; `p := &cur` on the same int parameter is refused with \"cannot take the address of a realm-typed `cur` ... `realm` is an interface, so a *realm is never needed\", both false of an int. Same for a crossing function literal with a `cur string` parameter. `func F(_ realm, ...)` is idiomatic in the tree (r/gnoland/blog/admin.gno:26-109, r/gnoland/boards2/v0/public.gno:118), so the precondition is ordinary; no fixture covers the shape, so no CI job reaches it. The PR body's Compatibility paragraph, \"No .gno source that compiled and ran before is rejected now: the write rules only got narrower\", is false in this direction.",
+   "verify_by": "cp the two artifacts into gnovm/tests/files/ and run `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/PROBE.gno$' -v` at 6d88deba7 and at b7845fb2d; head FAILs both, base PASSes both. Adding `&& ft.Params[0].Name == \"cur\"` to both arms, or restoring the gRealmType test, clears it.",
+   "evidence": "head 6d88deba7: `--- FAIL: TestFiles/zrealm_probe_f.gno` / `unexpected panic: .../zrealm_probe_f.gno:9:2-15: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame`; `unexpected panic: .../zrealm_probe_g.gno:7:7-11: cannot take the address of a realm-typed `cur`: ... `realm` is an interface, so a *realm is never needed - pass `cur` by value`; `unexpected panic: .../zrealm_probe_h.gno:9:3-18: cannot reassign the crossing `cur` parameter` (func literal, `cur string`). base b7845fb2d, same three files: `--- PASS: TestFiles/zrealm_probe_f.gno`, `--- PASS: TestFiles/zrealm_probe_g.gno`, `--- PASS: TestFiles/zrealm_probe_h.gno`.",
+   "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b3-lines-removed-claims-tests-reach-refactor-catalog-nonrealm-cur-write.gno"
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_cur_other_legal.gno",
+   "line": 16,
+   "angle": "tests",
+   "band": "Missing test",
+   "checked": true,
+   "run": true,
+   "summary": "the named-result arm covers only a non-crossing declarer, and the crossing declarer, the shape that fails, is absent",
+   "failure_scenario": "`func namedResult(x int) (cur realm)` is not crossing (first parameter is int), so isCrossingCurParam falls through its switch on any declarer test. The file's header claims \"Only the parameter is fixed\", which is false for a crossing function whose first realm parameter is blank or unnamed: `func F(_ realm) (cur realm) { cur = nil; return cur }` is refused with \"cannot reassign the crossing `cur` parameter\" at 6d88deba7. It is refused on b7845fb2d too, so the diff does not cause it; the diff sweeps this class (\"The write rules refused more than the parameter\") and misses this member, and the fixture that certifies the sweep is the one that does not cover it.",
+   "verify_by": "cp the artifact into gnovm/tests/files/ and run `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/PROBE.gno$' -v` at 6d88deba7: expect ok, observe the reassign panic.",
+   "evidence": "head 6d88deba7: `unexpected panic: gno.land/r/demo/curprobea/zrealm_probe_a.gno:9:2-11: cannot reassign the crossing `cur` parameter`; the unnamed spelling `func F(realm) (cur realm)` fails the same way at 7:2-11. base b7845fb2d: `--- FAIL` for both, so pre-existing.",
+   "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b3-lines-removed-claims-tests-reach-refactor-catalog-named-result-crossing.gno"
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_cur_other_legal.gno",
+   "line": 9,
+   "angle": "tests",
+   "band": "Missing test",
+   "checked": true,
+   "run": true,
+   "summary": "the package-level arm is spelled `pkgCur`, a name no write rule ever looked at, so it pins nothing",
+   "failure_scenario": "isCrossingCurParam returns false on its first line for any name but `cur` (preprocess.go:6112), and the base's rules tested `ne.Name != \"cur\"` first too, so `var pkgCur realm` plus `pkgCur = r` is green on both revisions. The PR body names \"package-level `var cur realm`\" as one of the shapes finding 2 restores, and that spelling appears in no fixture: reverting isCrossingCurParam to name-only keying leaves this arm green while the `cur` spelling goes red. A later regression on the package-block path would ship with TestFiles green.",
+   "verify_by": "mutate isCrossingCurParam to `return nx.Name == \"cur\"` and run both spellings: `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/(zrealm_probe_c|zrealm_probe_d).gno$' -v`, where probe_c is `var cur realm` and probe_d is the committed `pkgCur` arm verbatim.",
+   "evidence": "mutated head: `unexpected panic: gno.land/r/demo/curprobec/zrealm_probe_c.gno:11:2-9: cannot reassign the crossing `cur` parameter` while `--- PASS: TestFiles/zrealm_probe_d.gno`. Unmutated head: probe_c passes; base b7845fb2d: `--- FAIL: TestFiles/zrealm_probe_c.gno`, `--- PASS: TestFiles/zrealm_probe_d.gno`.",
+   "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b3-lines-removed-claims-tests-reach-refactor-catalog-pkgvar-cur.gno"
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_cur_other_legal.gno",
+   "line": 29,
+   "angle": "reach",
+   "band": "Suggestion",
+   "checked": true,
+   "run": false,
+   "summary": "the positive control passes nil into every realm slot, so it shows the write rules silent and never that the shapes carry a realm",
+   "failure_scenario": "main is non-crossing, so no realm value exists in the file: setPkgCur(0, nil), namedResult(0) and rangeLocal(0, nil) exercise the three bindings with nil only. Threading a real realm into them is refused one level up, at the declaration: `func namedResult(r realm) (cur realm)` panics with \"a crossing function's first realm argument must have name `cur`\" (preprocess.go:2828), and a package-level realm var holding a non-nil realm panics at finalize (\"cannot persist realm value\", pinned by zrealm_cur_persist_var.gno). Saying so in the header is what stops the next reader from taking the file as proof these bindings are usable.",
+   "verify_by": "`go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_probe_e.gno$' -v` on `func namedResult(r realm) (cur realm) { cur = r; return cur }` called from a crossing main: expect ok, observe the declaration panic.",
+   "evidence": "head 6d88deba7: `unexpected panic: gno.land/r/demo/curprobee/zrealm_probe_e.gno:7:1-38: a crossing function's first realm argument must have name `cur``.",
+   "repro_path": ""
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_cur_other_legal.gno",
+   "line": 21,
+   "angle": "tests",
+   "band": "Nit",
+   "checked": true,
+   "run": false,
+   "summary": "the leading `x int` is what keeps setPkgCur and rangeLocal non-crossing, and nothing in the file says so",
+   "failure_scenario": "Both helpers read as if the int parameter were filler. Dropping it makes the first parameter realm, so the function is crossing (types.go:1393 tests only the first parameter's resolved type) and the file changes meaning: `func rangeLocal(r realm)` then fails at the declaration on preprocess.go:2828, and with the parameter renamed to cur the range assignment the arm exists to allow is refused instead. One clause on the signature keeps the next editor from deleting the load-bearing parameter.",
+   "verify_by": "delete `x int` from rangeLocal and run `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_other_legal.gno$'`: the file goes red.",
+   "evidence": "read of types.go:1393-1400 (IsCrossing tests Params[0].Type == gRealmType) and preprocess.go:2820-2833 (first realm parameter must be named cur or `.arg`-prefixed).",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gnovm/tests/files/zrealm_cur_shadow.gno",
+   "line": 15,
+   "angle": "reach",
+   "summary": "the flipped fixture demonstrates `p := &cur; *p = nil` on a shadow, so the same shape might reach the real crossing parameter",
+   "settled_by": "grep -n 'cannot take the address of a realm-typed' preprocess.go returns 2583-2585, guarding StarExpr writes via isCrossingCurParam, and gnovm/tests/files/zrealm_cur_addr.gno:24 pins it: \"zrealm_cur_addr.gno:18:7-11: cannot take the address of a realm-typed `cur`\""
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_cur_shadow.gno",
+   "line": 3,
+   "angle": "removed",
+   "summary": "flipping the fixture from Error to Output removes the only assertion that an inner-block shadow cannot be laundered",
+   "settled_by": "cat gnovm/tests/files/zrealm_cur_shadow_call.gno: line 21 asserts \"only the `cur` argument of a containing crossing function maybe passed by cross-call\" for the same shadow, and zrealm_cur_shadow_if.gno and zrealm_cur_shadow_range.gno carry the if-init and range-define spellings"
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_cur_reassign_define.gno",
+   "line": 8,
+   "angle": "claims",
+   "summary": "the header claims the old DEFINE carve-out left the rebind to doOpCall's runtime check; unverified",
+   "settled_by": "restoring the carve-out (`if !ok || n.Op == DEFINE || !isCrossingCurParam(...)`) and running the fixture prints exactly that fallthrough: \"crossing function gno.land/r/demo/curreassigndef.probe was entered without cross() ... not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur)\""
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_cur_closure.gno",
+   "line": 10,
+   "angle": "tests",
+   "summary": "the closure fixture may pin nothing, since the literal is never called",
+   "settled_by": "mutating the *FuncLitExpr arm of isCrossingCurParam to `return false` turns it red at preprocess time: \"Error diff: -zrealm_cur_closure.gno:10:3-23: cannot reassign the crossing `cur` parameter / +\""
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_cur_reassign_define.gno",
+   "line": 15,
+   "angle": "tests",
+   "summary": "the define-rebind fixture may pass for the runtime reason rather than the new preprocess ordering",
+   "settled_by": "same mutation run: with the DEFINE carve-out restored the expected preprocess error is replaced by the runtime stale-capture panic, so the fixture pins the after-DEFINE ordering specifically"
+  }
+ ],
+ "blocks_rewritten": [
+  "zrealm_cur_other_legal.gno: folding the three arms into one function. Rejected: each arm exists to produce a different declaring node (package block, named result, body-level local), and merging them collapses the distinction the file tests.",
+  "zrealm_cur_other_legal.gno: dropping the leading `x int` from setPkgCur and rangeLocal to shorten the signatures. Rejected: it is what keeps them non-crossing, which is the fixture's whole premise (kept as a Nit asking for one clause saying so).",
+  "zrealm_cur_closure.gno and zrealm_cur_reassign_define.gno merged into one file. Rejected: a filetest stops at the first preprocess panic, so two Error assertions cannot share a file.",
+  "zrealm_cur_shadow.gno: dropping `p := &cur; *p = nil` as covered by the plain assignment above it. Rejected: it is the only pin that the address-of rule at preprocess.go:2583 resolves the declaring node too rather than matching the name."
+ ]
+}

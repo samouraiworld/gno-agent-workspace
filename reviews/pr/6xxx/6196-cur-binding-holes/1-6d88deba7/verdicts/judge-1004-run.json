@@ -1,0 +1,16 @@
+{"verdicts": [
+  {
+    "index": 26,
+    "angle": "claims",
+    "state": "CONFIRMED",
+    "band": "Warning",
+    "file": "gnovm/pkg/gnolang/preprocess.go",
+    "line": 3009,
+    "tldr": "a same-block `cur, x := ...` that forwards nothing ran on the merge base and is rejected at preprocess here, against the body's Compatibility sentence",
+    "details": "Reran the finder's fixture from the file in my own scratch worktrees at both shas. At 6d88deba7 the new post-DEFINE loop at preprocess.go:3009-3015 panics on the rebound name: `zrealm_cur_nofwd.gno:38:2-29: cannot reassign the crossing `cur` parameter`, at preprocess, before any frame exists. At the merge base b7845fb2d, which already carries #6193, the same file compiles, runs and prints `ok`: installInheritedCur's identity check fires on a crossing entry only, and this source forwards the rebound `cur` nowhere, so nothing ever checks it. The PR body's Compatibility section states the opposite, that the DEFINE rebind it still rejects `was already fail-closed at call time`, and that is the sentence a maintainer reads instead of running a state-compat check. Narrowness is real and belongs in the details, not the band: ltzmaxwell measured examples/, gno.land/ and the stdlibs and found no realm-typed `cur` declared outside a parameter, and the shape needs a multi-name DEFINE since a bare `cur := x` is already `no new variables on left side of :=`. One sub-claim of the failure scenario does not stand on its own evidence: setBlockNode (store.go) never writes to the backend, its Set is commented out behind `TODO: implement copyValueWithRefs() for Nodes`, and cacheNodes is tx-scoped, so realm source is re-preprocessed rather than read back, which is consistent with the reload framing, but I ran no chain-level repro for it and it should not be asserted as measured. Fix: correct the Compatibility sentence to name the shape this rejects, a same-block DEFINE rebind whose `cur` is never forwarded, which ran before and does not now, and say why that break is acceptable, the argument ltzmaxwell already made in the thread and thehowl accepted.",
+    "evidence": "head, my worktree at 6d88deba7, `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_nofwd.gno$'`: `--- FAIL: TestFiles/zrealm_cur_nofwd.gno` / `files_test.go:135: unexpected panic: gno.land/r/demo/curnofwd/zrealm_cur_nofwd.gno:38:2-29: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame` / `FAIL github.com/gnolang/gno/gnovm/pkg/gnolang 0.042s`. merge base, my worktree at b7845fb2da9a21bfb895e1c008f016776f8342d0, same file, same command: `ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.041s`. Case space: head only.",
+    "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b2-claims-r2-define-rebind-no-forward.gno",
+    "base_behaves_the_same": false,
+    "verify_by": "cp tests/b2-claims-r2-define-rebind-no-forward.gno gnovm/tests/files/zrealm_cur_nofwd.gno at 6d88deba7 and at b7845fb2da9a21bfb895e1c008f016776f8342d0, then `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_nofwd.gno$'` in each: head FAILs at preprocess, base is ok"
+  }
+]}

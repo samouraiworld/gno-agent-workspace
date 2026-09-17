@@ -1,0 +1,67 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/tests/stdlibs/testing/cur_subtest_test.gno",
+      "line": 12,
+      "angle": "tests",
+      "summary": "the carve-out's only end-to-end test asserts cur.IsCurrent(), which the VM makes true on every crossing entry, so it pins the abort and never the identity the exemption is there to preserve",
+      "failure_scenario": "harnessSeedsCur widens or shifts (prefix match instead of equality, the frame index moving, the exemption firing for a deeper frame) and a foreign realm's cur is installed as the sub-test's frame identity instead of the entry aborting. TestCurSubtestAfterCross still passes: its only check is `if !cur.IsCurrent() { panic }` in curSubtestTarget, and the VM sets the entered cur as the current realm whatever realm it names, so that condition is false by construction. Flipping it to `if cur.IsCurrent()` fires the sentinel, proving the shipped panic is unreachable.",
+      "verify_by": "cp reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-tests-r2-subtest-identity.gno over gnovm/tests/stdlibs/testing/cur_subtest_test.gno, then go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing': the sentinel panic fires, so the shipped assertion can never fail",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "with the sentinel in place: 'panic: SENTINEL: IsCurrent() was true' then '--- FAIL: TestCurSubtestAfterCross/sub (0.00s)'. Unmodified, the same command is '--- PASS: TestCurSubtestAfterCross (0.00s)'. What the test does pin is the abort: dropping '!m.harnessSeedsCur() && ' from op_call.go:513 turns it red with 'panic: crossing function testing_test func literal at cur_subtest_test.gno:18 was entered without cross()'.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-tests-r2-subtest-identity.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3011,
+      "angle": "tests",
+      "summary": "the write rule drops its realm-type test and legalises rebinding a realm-typed `cur` shadow for the first time, and the control that pins it ends before it reads the parameter back",
+      "failure_scenario": "`cur := cur; cur = nil; p := &cur; *p = nil` inside a crossing function was refused at the merge base and is accepted at head; zrealm_cur_shadow.gno flipped from an expected rejection to a positive control in the same commit. Its main ends on println(\"ok\") and never touches the parameter after the block, so a regression in which the shadow's slot aliased the crossing parameter, nulling the frame's identity, leaves the file green: nothing after the block reads cur. Adding `probe(cur)` after the block is the assertion that discriminates, and it passes at head.",
+      "verify_by": "cp reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-tests-r2-shadow-readback.gno to gnovm/tests/files/zz_cur_shadow_readback.gno and run go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_cur_shadow_readback.gno$' -v; then read gnovm/tests/files/zrealm_cur_shadow.gno lines 11-20 for the absent read-back",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "'--- PASS: TestFiles/zz_cur_shadow_readback.gno (0.00s)' with the added `probe(cur)` after the block printing 'true' then 'ok', so the shadow write does not reach the parameter slot and the behaviour is right; zrealm_cur_shadow.gno:19 is println(\"ok\") and no line between the closing brace and the end of main mentions cur.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-tests-r2-shadow-readback.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/tests/stdlibs/testing/cur_subtest_test.gno",
+      "line": 23,
+      "angle": "tests",
+      "summary": "the PR's only gno-side regression test sits under gnovm/tests/stdlibs, which the Makefile's gno pass never walks, so no runner executes it",
+      "settled_by": "TestStdlibs walks tests/stdlibs (files_test.go:235) and skips only dirs that also exist under gnovm/stdlibs (files_test.go:244); `ls gnovm/stdlibs/testing` answers 'No such file or directory', and `go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing' -v` prints '=== RUN TestCurSubtestAfterCross' then '--- PASS: TestCurSubtestAfterCross (0.00s)'"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 513,
+      "angle": "tests",
+      "summary": "the new '!m.harnessSeedsCur()' term is pinned by nothing: TestHarnessSeedsCur unit-tests the helper, and removing the term from the guard leaves the suite green",
+      "settled_by": "sed removed the term at op_call.go:513; `go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing'` then FAILs with 'panic: crossing function testing_test func literal at cur_subtest_test.gno:18 was entered without cross()' and '--- FAIL: TestCurSubtestAfterCross/sub'"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3116,
+      "angle": "tests",
+      "summary": "the range-clause arm of the rewritten write rule has no filetest",
+      "settled_by": "grep -rln 'in a range clause' over the head worktree returns gnovm/tests/files/zrealm_cur_range.gno beside preprocess.go (the earlier miss was grepping the comment-blanked copy, where a filetest's `// Error:` block is erased)"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 571,
+      "angle": "tests",
+      "summary": "funcDisplayName's source-location arm prints a line number the file does not have (the stacktrace under the panic shows :493 for a 25-line file)",
+      "settled_by": "the real panic text from the mutated run reads 'crossing function testing_test func literal at cur_subtest_test.gno:18'; line 18 of that 25-line file is the `t.Run(\"sub\", func(cur realm, t *testing.T) {` literal, so the arm's location is correct and the :493 belongs to testing.gno's own frame"
+    },
+    {
+      "file": "gnovm/tests/files/zrealm_cur_shadow.gno",
+      "line": 8,
+      "angle": "tests",
+      "summary": "the rewritten control's header claims its matching half is pinned by zrealm_cur_shadow_call.gno, a file that may not exist",
+      "settled_by": "`ls -l gnovm/tests/files/zrealm_cur_shadow_call.gno` returns a 604-byte file expecting 'only the `cur` argument of a containing crossing function maybe passed by cross-call', and zrealm_cur_shadow_if.gno and zrealm_cur_shadow_range.gno pin the same refusal for the if-init and range shapes"
+    }
+  ]
+}

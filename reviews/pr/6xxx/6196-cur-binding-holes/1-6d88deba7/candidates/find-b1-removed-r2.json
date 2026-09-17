@@ -1,0 +1,79 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2160,
+      "angle": "removed",
+      "summary": "the sweep converted three write rules to the declaring-node test and left the fourth member, the cur-call provenance switch, so a crossing function's realm-typed named result is accepted as a frame identity at preprocess and only the runtime backstop refuses it, naming the wrong cause",
+      "failure_scenario": "func Target(cur realm){}; func F(_ realm) (cur realm) { Target(cur); return }. `_ realm` is legal as a crossing first parameter (preprocess.go:2827 admits the `.arg` form), so `cur` here is a named RESULT whose declaring block node is a crossing FuncDecl. The provenance switch's two `if !dft.IsCrossing()` arms (L2160, L2169) test only that declaring node, exactly like the new isCrossingCurParam, so preprocess accepts the forward. The realm then panics at call time with \"crossing function gno.land/r/demo/curprov.Target was entered without cross() ... a stale capture from another frame, a sibling frame, or a rebound cur\", which describes a different mistake than the one written: the developer passed a named result, not a stale capture. The same shape with a non-crossing declarer is refused at preprocess with the right message, so a realm deploys and fails on call instead of failing to compile. Fail-closed (the identity backstop holds) and pre-existing: the provenance switch is unchanged by the diff. In scope because this diff sweeps that class, rewriting three of its members into isCrossingCurParam, and the PR body states the write rule now makes \"the same test the cur-call provenance check makes, so 'may be cur-called' and 'may not be written' agree by construction\" — at the reviewed sha they agree on a test that is wrong in both directions, refusing the write of that named result while accepting its forward.",
+      "verify_by": "go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_b1_prov_namedresult.gno$' with the finding fixture copied into gnovm/tests/files/, then the same with 'TestFiles/zz_b1_prov_control.gno$' for the non-crossing declarer; expect the preprocess error in both, observe it only in the control",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "finding file at 6d88deba7: \"files_test.go:135: unexpected panic: crossing function gno.land/r/demo/curprov.Target was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur).\" with the stack through \"gnolang.(*Machine).installInheritedCur ... op_call.go:521\" — preprocess let it through. Control file, identical but for `func G(x int) (cur realm)`: \"files_test.go:135: unexpected panic: gno.land/r/demo/curprovctl/zz_b1_prov_control.gno:13:2-13: only the `cur` argument of a containing crossing function maybe passed by cross-call\". Only the declarer's crossing-ness differs.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-removed-r2-provenance-named-result.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2827,
+      "angle": "removed",
+      "summary": "no fixture anywhere exercises a crossing function with a blank first realm parameter, the `.arg` form this line admits, which is the whole cell the rewrite's declaring-node keying newly decides",
+      "failure_scenario": "The FuncTypeExpr rule accepts a crossing first realm parameter named `cur` OR prefixed `.arg` (a blank `_`). Every cur fixture under gnovm/tests/files spells the parameter `cur` (zrealm_cur_reassign_define.gno, zrealm_cur_closure.gno, zrealm_cur_shadow.gno, zrealm_cur_other_legal.gno), so the `_ realm` declarer, where the name `cur` in the body is provably NOT the parameter, is untested on both sides of the rewrite: the write rule refuses what should compile, and the provenance switch accepts what should be refused. Both directions run green today, so a later edit to isCrossingCurParam cannot be told from a correct one.",
+      "verify_by": "grep -rl 'realm)' gnovm/tests/files/zrealm_cur_*.gno then grep each for a crossing signature whose first realm parameter is `_`; expect at least one, observe none",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep over gnovm/tests/files at 6d88deba7: every zrealm_cur_* fixture declares the crossing parameter as `cur realm`; zrealm_cur_other_legal.gno's three arms are all non-crossing declarers (`func setPkgCur(x int, r realm)`, `func namedResult(x int)`, `func rangeLocal(x int, r realm)`).",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-removed-r2-provenance-named-result.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 229,
+      "angle": "removed",
+      "summary": "crossingFromTestFile is the package's existing \"this call came from test code\" test and the new harness carve-out does not use it, so the VM now carries three disagreeing spellings of the same predicate",
+      "failure_scenario": "op_call.go:229 exempts a crossing entry when the caller's file name ends `_test.gno`; preprocess.go:2070 exempts a whole package when the node being preprocessed has PkgPath `testing`; the diff adds a third at op_call.go:560 keyed on the immediate caller frame's PkgPath being `testing`. The three disagree on the cells that matter: a `_test.gno` caller that seeds a cur without routing through package testing is exempt from the realm-package gate and not from the identity gate, and a helper in package testing dispatching from a non-test file is exempt from the identity gate. A future harness path lands in whichever cell nobody wrote a fixture for, and the fix is then a fourth spelling.",
+      "verify_by": "grep -n 'TestingBasePkgPath\\|crossingFromTestFile' gnovm/pkg/gnolang/*.go and read each site's predicate",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "op_call.go:229 crossingFromTestFile → strings.HasSuffix(fv.FileName, \"_test.gno\"); preprocess.go:2070 ctxpn.PkgPath == TestingBasePkgPath; op_call.go:560 caller.Func.PkgPath == TestingBasePkgPath.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/debugger.go",
+      "line": 811,
+      "angle": "removed",
+      "summary": "the sibling of the display shape funcDisplayName fixes: the debugger's frame list still formats PkgPath plus Name and renders a bare trailing dot for a func literal",
+      "failure_scenario": "The diff replaced `fv.PkgPath, fv.Name` in the identity panic because a func literal has an empty Name and the message named nothing. debugger.go:811 formats the same pair for every non-method frame, so stepping through a realm whose frame is a closure prints `gno.land/r/demo/x.` with nothing after the dot, and the stack the debugger shows disagrees with the panic text beside it. funcDisplayName is in the same package and takes the same argument.",
+      "verify_by": "read debugger.go:807-813 and confirm the non-method arm formats ff.PkgPath and ff.Name with no empty-name fallback",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "debugger.go:811 `fname = fmt.Sprintf(\"%v.%v\", ff.PkgPath, ff.Name)`, no Name != \"\" arm; op_call.go:567-574 funcDisplayName carries the three arms.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3011,
+      "angle": "removed",
+      "summary": "the AssignStmt write rule lost its `n.Op != DEFINE` guard while the RangeStmt sibling kept it, so a declaration is now judged as a rebind",
+      "settled_by": "The asymmetry is correct and deliberate. gnovm/tests/files/zrealm_cur_reassign_define.gno pins the DEFINE case with `// Error: ... cannot reassign the crossing `cur` parameter` and its header states the reason: a `:=` whose name is already declared in the same block assigns that slot. A RangeStmt pushes its own block at TRANS_BLOCK (pushInitBlock) and defines the key and value there, so a range DEFINE always declares a new binding and the guard it keeps is the right one. Every remaining DEFINE spelling (if-init, switch-init, for-init, inner BlockStmt) also lands in a pushed block, pinned by zrealm_cur_shadow.gno and zrealm_cur_shadow_if.gno."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6112,
+      "angle": "removed",
+      "summary": "isCrossingCurParam adds a `nx.Path.Type != VPBlock` gate the three write rules never had, so a spelling of `cur` whose path is not VPBlock would slip the rule; a heap-escaped capture is the candidate",
+      "settled_by": "go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_b1_heapcur.gno$' on `func main(cur realm) { f := func() { _ = cur }; cur = nil; _ = f }` → \"unexpected panic: gno.land/r/demo/curheap/zz_b1_heapcur.gno:10:2-11: cannot reassign the crossing `cur` parameter\". Capturing cur into a closure keeps the name's path VPBlock, so the rebind is still refused."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 439,
+      "angle": "removed",
+      "summary": "isLikeWithCross is a fourth member of the class keyed on the bare name `cur` with no declaration resolution at all, which the sweep did not convert",
+      "settled_by": "grep -rn 'isLikeWithCross' gnovm/pkg/gnolang/*.go returns two lines: its definition at nodes.go:433 and its only call at nodes.go:450, inside SetWithCross, which preprocess reaches only after the provenance switch has already accepted the argument. It asserts, it does not gate."
+    }
+  ]
+}

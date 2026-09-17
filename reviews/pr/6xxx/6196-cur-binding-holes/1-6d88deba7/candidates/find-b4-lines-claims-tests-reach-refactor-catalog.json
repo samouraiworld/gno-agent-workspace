@@ -1,0 +1,59 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/tests/stdlibs/testing/cur_subtest_test.gno",
+      "line": 12,
+      "angle": "catalog",
+      "summary": "the new fixture's only written assertion, `if !cur.IsCurrent()`, is dead code: a crossing function's own first `cur` is current by construction (25 lines -> 22 with it dropped, same regression power)",
+      "failure_scenario": "curSubtestTarget is a crossing function, so the VM installs the value passed as that frame's own cur before the body runs; cur.IsCurrent() is then true whatever the sub-test was seeded with. Flipping the guard to `if cur.IsCurrent()` panics on every run, so the written branch can never be taken. The fixture's real assertion is only that the dispatch does not panic, and that fires at the func literal's entry (line 18) before the body is reached: with the exemption removed the panic names `func literal at cur_subtest_test.gno:18`, not the target. Shipped into the stdlib test suite it reads as an example of the IsCurrent-on-own-cur shape gnovm/adr/interrealm_v2.md calls dead code.",
+      "verify_by": "copy tests/b4-lines-claims-tests-reach-refactor-catalog-iscurrent-vacuous.gno into gnovm/tests/stdlibs/testing/zzprobe_iscurrent_test.gno and run `go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing' -v`: the flipped guard panics. Then put tests/b4-lines-claims-tests-reach-refactor-catalog-rewrite.gno in place of the committed file: green at head, and still FAIL after `sed -i 's/ && !m.harnessSeedsCur()//' gnovm/pkg/gnolang/op_call.go`.",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "probe: `=== RUN TestZZProbeIsCurrentVacuous/sub` then `panic: IS-CURRENT-VACUOUS: the guard in cur_subtest_test.gno can never fire` / `--- FAIL: TestZZProbeIsCurrentVacuous (0.00s)`. rewrite at head: `ok github.com/gnolang/gno/gnovm/pkg/gnolang 2.889s`; rewrite with the exemption removed: `panic: crossing function testing_test func literal at cur_subtest_test.gno:16 was entered without cross()` / `FAIL`. Committed file with the exemption removed: same panic naming line 18, i.e. before curSubtestTarget is called.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b4-lines-claims-tests-reach-refactor-catalog-iscurrent-vacuous.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/tests/stdlibs/testing/cur_subtest_test.gno",
+      "line": 23,
+      "angle": "tests",
+      "summary": "suspected the fixture never runs, or stays green with the fix reverted",
+      "settled_by": "`go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing' -v` at 6d88deba7 prints `--- PASS: TestCurSubtestAfterCross/sub`; with `!m.harnessSeedsCur() &&` deleted from op_call.go:513 the same command prints `files_test.go:262: panic: crossing function testing_test func literal at cur_subtest_test.gno:18 was entered without cross()` and `--- FAIL: TestStdlibs/test-testing`. gnovm/stdlibs/testing does not exist, so the files_test.go:244 os.Stat skip does not cover this directory."
+    },
+    {
+      "file": "gnovm/tests/stdlibs/testing/cur_subtest_test.gno",
+      "line": 18,
+      "angle": "reach",
+      "summary": "suspected sibling dispatch shapes the exemption does not reach (nested t.Run, cross() inside the sub-test, a non-crossing func(*T) sub-test, two stacked crosses, a realm-path test package)",
+      "settled_by": "all five run green at 6d88deba7: `--- PASS: TestSibNested/outer/inner`, `--- PASS: TestSibCrossInSub/sub`, `--- PASS: TestSibPlain/plain`, `--- PASS: TestSibDeep/deep` under `go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing' -v`, and `--- PASS: TestCurSubtestRealm/sub` / `ok ./gno.land/r/zzcursub` from `gno test -v ./gno.land/r/zzcursub` on a throwaway realm package with the same cross-then-t.Run shape."
+    },
+    {
+      "file": "gnovm/tests/stdlibs/testing/cur_subtest_test.gno",
+      "line": 6,
+      "angle": "claims",
+      "summary": "the header says t.Run seeds the sub-test with the TOP-LEVEL test's cur; the mechanism is the parent T's cur, which differs once sub-tests nest",
+      "settled_by": "testing.gno:177 `cur: t.cur` on the receiver, so a nested t.Run seeds from the enclosing sub-test; TestSibNested (nested crossing t.Run after a cross) passes, so no defect follows. A candidate whose only fix is a comment's wording is not returned."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 513,
+      "angle": "reach",
+      "summary": "suspected harnessSeedsCur adds an unmetered frame walk to every no-cross crossing entry, the class this PR defers for installInheritedCur",
+      "settled_by": "machine.go:2915 peekCallFrame returns at the second frame with IsCall() true, so the walk is bounded by the block frames between the callee and its caller, not by stack depth; installInheritedCur's own walk already ran to produce hasCallerCur before this call. Out of bundle 4 in any case."
+    },
+    {
+      "file": "gnovm/tests/stdlibs/testing/cur_subtest_test.gno",
+      "line": 18,
+      "angle": "tests",
+      "summary": "nothing pins WHICH cur the sub-test is seeded with, so a change to t.Run's seeding would not turn the fixture red",
+      "settled_by": "testing.gno:171-200 has no realm value in scope inside Run other than t.cur, so the seeding cannot be swapped for a mutation; the fixture already goes red on the real mutation (the exemption removed), and op_call_test.go:82 TestHarnessSeedsCur pins both arms of the caller-frame test."
+    }
+  ],
+  "blocks_rewritten": [
+    "dropping curSubtestTarget entirely and leaving the sub-test body empty: rejected, it loses the second no-cross crossing entry, the only non-vacuous property the body carries (the seeded cur staying forwardable)",
+    "folding curSubtestHelper into TestCurSubtestAfterCross: rejected, the helper's own crossing frame is what mints the cur that diverges from the seeded one, so the regression needs the separate frame",
+    "replacing the VM carve-out by seeding the sub-test from the live crossing frame inside t.Run: rejected, package testing is a non-realm package with no realm value in scope besides t.cur, so the deeper fix would require changing t.Run's signature for every realm test in examples/"
+  ]
+}

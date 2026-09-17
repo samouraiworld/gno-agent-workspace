@@ -1,0 +1,96 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3009,
+      "angle": "claims",
+      "summary": "the PR's Compatibility claim is false: a same-block `cur, x := ...` that never forwards cur compiled and ran on the merge base and is rejected at preprocess here",
+      "failure_scenario": "A realm whose crossing function contains `cur, x := cur.Previous(), 1` and never passes the rebound cur to a crossing call. installInheritedCur's identity check only runs on a crossing entry, so on the merge base b7845fb2d this source preprocessed, ran and printed `ok`. At 6d88deba7 the write rule moved after the DEFINE/ASSIGN branch rejects it at preprocess: `zrealm_cur_nofwd.gno:9:2-29: cannot reassign the crossing `cur` parameter`. Packages are re-preprocessed when loaded from the store, so an already-deployed realm carrying that shape stops loading rather than stopping at a call. The PR body's Compatibility section asserts the opposite (\"No `.gno` source that compiled and ran before is rejected now ... the `DEFINE` rebind they still reject was already fail-closed at call time\"), and that sentence is what a maintainer reads to decide no addpkg-rejection or reload risk exists.",
+      "verify_by": "cp tests/b2-claims-r2-define-rebind-no-forward.gno gnovm/tests/files/zrealm_cur_nofwd.gno at 6d88deba7 and at b7845fb2da9a21bfb895e1c008f016776f8342d0, then `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_nofwd.gno$'` in each: head FAILs at preprocess, base is ok",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6d88deba7: `--- FAIL: TestFiles/zrealm_cur_nofwd.gno ... unexpected panic: gno.land/r/demo/curnofwd/zrealm_cur_nofwd.gno:9:2-29: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame`. merge base b7845fb2d, same file, same command: `ok  github.com/gnolang/gno/gnovm/pkg/gnolang 0.040s`. The fixture forwards nothing, so the runtime check the claim leans on never fires.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b2-claims-r2-define-rebind-no-forward.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 571,
+      "angle": "claims",
+      "summary": "funcDisplayName's source-location branch, the substance of fix 4, is pinned by nothing: deleting it leaves TestFuncDisplayName and every zrealm_cur filetest green",
+      "failure_scenario": "A real function-literal FuncValue always has Source set, so the `if fv.Source != nil` arm is the only one that fires in production; the `<func literal>` arm TestFuncDisplayName pins is unreachable for a literal built by doOpFuncLit. Deleting the Source arm silently regresses the identity panic from `gno.land/r/demo/x func literal at file.gno:7` back to the bare `gno.land/r/demo/x.<func literal>` the ADR says fix 4 replaces, and nothing anywhere in the tree turns red: `func literal at` matches only op_call.go:573.",
+      "verify_by": "delete the `if fv.Source != nil { ... }` block from funcDisplayName at op_call.go:571-574, then `go test ./gnovm/pkg/gnolang/ -run 'TestFuncDisplayName'`, `-run 'TestHarnessSeedsCur'` and `-run 'TestFiles/zrealm_cur'`; all three stay green. Adding tests/b2-claims-r2-funclit-display-name.gno as gnovm/tests/files/zrealm_cur_litname.gno makes the mutation fail.",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "with the Source arm deleted at head: `TestFuncDisplayName` -> `ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.009s`; `TestHarnessSeedsCur` -> `ok`; `TestFiles/zrealm_cur` -> `ok ... 1.081s`. `grep -rn 'func literal at' --include='*.gno' --include='*.go' --include='*.txtar' --include='*.golden'` over the worktree returns 1 hit, op_call.go:573 itself. The proposed fixture renders `crossing function gno.land/r/demo/curlitname func literal at zrealm_cur_litname.gno:7 was entered without cross(), ...`.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b2-claims-r2-funclit-display-name.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 67,
+      "angle": "claims",
+      "summary": "\"the VM has no version gate for gas changes (zero `Hardfork` references in `gnovm/`)\" recounted",
+      "settled_by": "grep -rIn 'Hardfork' gnovm/ returns 1 line, the ADR's own sentence; the count is zero elsewhere in gnovm/. Case-insensitive 'hardfork|hard fork|version gate' hits only other ADRs' prose (pr5544, pr6171, pr6164), no code gate."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 21,
+      "angle": "claims",
+      "summary": "\"That landed as `3d9f4dc8e`\"",
+      "settled_by": "git log --oneline -1 3d9f4dc8e -> `3d9f4dc8e feat(gnovm): make the crossing `cur` parameter a fixed binding (#6193)`"
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 81,
+      "angle": "claims",
+      "summary": "\"funcDisplayName falls back to the source location for a function literal ... so the panic never renders as a bare trailing dot\"",
+      "settled_by": "a filetest driving the identity panic with a crossing func literal as callee renders `crossing function gno.land/r/demo/curlitname func literal at zrealm_cur_litname.gno:7 was entered without cross(), ...`; setNodeLocations (preprocess.go:6567) sets a Location on every BlockNode, FuncLitExpr included. The claim holds; only its coverage does not."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3113,
+      "angle": "claims",
+      "summary": "the surviving `n.Op != DEFINE` carve-out in the RangeStmt rule, whose comment claims `for _, cur := range` binds a new name",
+      "settled_by": "filetest `for _, cur := range []realm{cur.Previous()} { _ = cur }; probe(cur)` in a crossing main at 6d88deba7 -> `ok`, printing `probe: gno.land/r/demo/currangedef`: the range DEFINE binds a fresh name in the range block and leaves the parameter slot intact, so the carve-out is sound and is not the assignment carve-out the PR removed."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 557,
+      "angle": "claims",
+      "summary": "\"The testing package cannot be reached from on-chain code, so this exemption is test-only\" (harnessSeedsCur keys on caller.Func.PkgPath == \"testing\")",
+      "settled_by": "ls gnovm/stdlibs/ has no `testing`; `testing` lives in gnovm/tests/stdlibs/testing, the test-only stdlib set, and a chain package path cannot be the bare string `testing`. The exemption also covers only the frame being installed into, so a nested stale-capture inside a sub-test closure still has the realm as its caller and is still checked."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 69,
+      "angle": "claims",
+      "summary": "\"A `NOTE` at the call site points there\" (a tracker outside this repository)",
+      "settled_by": "op_call.go:448-452 carries `// NOTE: this walk is not metered. ... see a tracker outside this repository.` immediately above the m.topCrossingCur() call in installInheritedCur"
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 116,
+      "angle": "claims",
+      "summary": "\"`zrealm_cur_shadow.gno` becomes a positive control ... the `zrealm_cur_shadow_{call,if,range}` fixtures keep pinning that it cannot be cur-called\"",
+      "settled_by": "zrealm_cur_shadow.gno at head ends `// Output:\\n// ok`; zrealm_cur_shadow_call.gno, _if.gno and _range.gno are present in gnovm/tests/files/ and `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur'` is `ok` at 6d88deba7"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6106,
+      "angle": "claims",
+      "summary": "isCrossingCurParam's godoc: \"the same declaration test the cur-call provenance check makes ... so 'may be cur-called' and 'may not be written' agree by construction\"",
+      "settled_by": "read both: isCrossingCurParam (6111-6122) switches on GetBlockNodeForPath and returns getType(&dbn.Type).(*FuncType).IsCrossing() for FuncDecl/FuncLitExpr, false otherwise; the provenance switch (2155-2176) panics unless the same node is a FuncDecl/FuncLitExpr whose dft.IsCrossing(). The two sets are identical, so the agreement claim holds (both being wrong for an unnamed first realm param is the already-reported preprocess.go:6117 finding, not a disagreement)."
+    },
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 114,
+      "angle": "claims",
+      "summary": "\"Gas: unchanged\" / \"this PR charges no gas and changes no gas schedule\"",
+      "settled_by": "go test ./gno.land/pkg/sdk/vm/ -run Gas at 6d88deba7 -> `ok github.com/gnolang/gno/gno.land/pkg/sdk/vm 1.205s`; the diff adds no ConsumeGas and no OpCPU constant, and the one known gap is the unmetered walk the NOTE at op_call.go:448 defers"
+    }
+  ],
+  "blocks_rewritten": []
+}

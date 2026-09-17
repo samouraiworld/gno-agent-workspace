@@ -1,0 +1,100 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2584,
+      "angle": "claims",
+      "summary": "the RefExpr rule's comment and message still say \"realm-typed `cur`\", but the guard it now calls tests no type, so `&cur` on an int parameter of a crossing function is refused",
+      "failure_scenario": "`func F(_ realm, cur int) int { p := &cur; *p = 5; return cur }` in a realm package compiles and prints 5 at the merge base. At 6d88deba7 preprocess aborts the whole package with `cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame ...` on an int. The FuncTypeExpr rule (preprocess.go:2820-2833) only constrains realm-typed parameters, so a second parameter named `cur` of any other type is legal Gno and its declaring node is the crossing FuncDecl that isCrossingCurParam keys on.",
+      "verify_by": "cp the fixture to gnovm/tests/files/zrealm_cur_argname_ref.gno and run `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_argname_ref.gno$'` at 6d88deba7 and at b7845fb2d",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6d88deba7: `--- FAIL: TestFiles/zrealm_cur_argname_ref.gno` / `files_test.go:135: unexpected panic: gno.land/r/demo/curargref/zrealm_cur_argname_ref.gno:27:7-11: cannot take the address of a realm-typed ` + \"`cur`\" + `` , frame `preprocess1.func1 ... preprocess.go:2584`. merge base b7845fb2d, same file: `ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.046s` (the `// Output: 5` expectation matches).",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-claims-r2-refexpr-nonrealm-cur.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2160,
+      "angle": "claims",
+      "summary": "the new godoc's \"same test ... agree by construction\" holds, and the shared test lets a non-parameter `cur` be cur-called: the provenance switch accepts any name declared by a crossing FuncDecl",
+      "failure_scenario": "`func Target(cur realm) {}` plus `func F(_ realm) (cur realm) { Target(cur); return }`: the named result's declaring node is a crossing FuncDecl, so the switch at 2155-2176 accepts the forward with no check that the first parameter is named `cur`. It reaches the runtime, where installInheritedCur refuses it with the stale-capture message, which names a mistake the author did not make (nothing was captured and nothing rebound). Fail-closed, so the cost is the diagnostic and a compile-time rejection that never happens.",
+      "verify_by": "filetest with that pair in a realm package: expect the preprocess error `only the `cur` argument of a containing crossing function maybe passed by cross-call`, observe the runtime `crossing function ... stale capture ...` panic instead",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "read: preprocess.go:2157-2176 tests only `dft.IsCrossing()` on the declaring node; preprocess.go:2825-2830 allows an unnamed first realm parameter (`.arg` prefix) and constrains no result name; isCrossingCurParam (6111-6119) makes the identical test.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 559,
+      "angle": "claims",
+      "summary": "harnessSeedsCur's godoc says it reads \"the frame that called the function being installed into\", which is false at the defer call site, where PeekCallFrame(2) is the frame that deferred the call",
+      "failure_scenario": "doOpReturnCallDefers pushes the deferred callee's frame (op_call.go:833) while the deferring function's frame is still on the stack, then calls installInheritedCur (op_call.go:841). PeekCallFrame(2) is therefore the deferring function, never package testing, so the exemption cannot fire on the defer path. The comment eight lines above says the helper is SHARED so the two paths \"cannot drift apart again\"; the new third conjunct means a different thing on each.",
+      "verify_by": "read op_call.go:831-841 against machine.go:2915-2930, then a realm test that does `defer target(cur)` inside a crossing sub-test dispatched by t.Run",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "read: op_call.go:833 `m.PushFrameCall(&dfr.Source.Call, fv, recv, true)` then :841 `m.installInheritedCur(m.LastFrame(), fv, b)`; peekCallFrame walks call frames from the top.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 501,
+      "angle": "claims",
+      "summary": "the reworded comment reverses what the merged version claimed about delegating `cur` to a callback, and the preprocess layer still allows exactly that shape",
+      "failure_scenario": "The removed lines said threading `cur` and \"delegating it to another realm's executor or callback\" both preserve HIV identity; the new lines say a `cur` \"captured in one crossing frame and forwarded from another\" does not. The code agrees with the new text, and preprocess.go:2180 still states that closure-captured `cur` is deliberately allowed. A realm that hands a crossing callback its `cur` and runs it from a different frame preprocesses cleanly and aborts at runtime; the only carve-out this PR adds is for package testing.",
+      "verify_by": "read preprocess.go:2177-2186 against op_call.go:496-527, then run gnovm/tests/files/zrealm_cur_backstop.gno, which pins the abort",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "read: preprocess.go:2178 `NOTE: closure-captured cur is allowed here`; zrealm_cur_backstop.gno:39 pins the runtime panic for the closure shape.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 556,
+      "angle": "claims",
+      "summary": "godoc claims the testing package cannot be reached from on-chain code, so the exemption is test-only",
+      "settled_by": "`ls gnovm/stdlibs/` has no testing directory; `ls gnovm/tests/stdlibs/` has it, and TestingBasePkgPath is \"testing\" (preprocess.go:22). Claim holds."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 552,
+      "angle": "claims",
+      "summary": "godoc claims t.Run hands a crossing sub-test closure the top-level test's cur (gnovm/tests/stdlibs/testing/testing.gno)",
+      "settled_by": "testing.gno:176 `cur: t.cur` on the sub-T, :193-196 `tRunner_cur(subT, fn, t.cur, t.verbose)`. Claim holds."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 122,
+      "angle": "claims",
+      "summary": "godoc claims a materialized per-tx origin, including the test harness's, is a fresh allocation that never matches the singleton",
+      "settled_by": "gnovm/pkg/test/test.go:595-603: `Both paths use NewOriginRealmTV to allocate a FRESH origin-shape struct rather than the singleton gOriginRealmTV`. Claim holds."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 119,
+      "angle": "claims",
+      "summary": "godoc enumerates the `.cur` baking sites as runFunc and MaybeInjectCurForEval only",
+      "settled_by": "a third site exists, gnovm/pkg/test/test.go:600-603 `gno.NewConstExpr(gno.Nx(\".cur\"), ...)`, which preprocess.go:2063-2070 documents; it allocates a fresh origin shape, so no behaviour differs and the gap is the enumeration's wording alone."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6111,
+      "angle": "claims",
+      "summary": "suspected that getType(&dbn.Type) returns the unbound type for a method, so every crossing method would escape the write rules",
+      "settled_by": "preprocess.go:5876-5879 evaluates `ft := evalStaticType(store, last, &d.Type)` and stores `ubft := ft.UnboundType(rft)` on the FuncValue only; d.Type keeps the declared type, so isCrossingCurParam covers crossing methods."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call_test.go",
+      "line": 60,
+      "angle": "claims",
+      "summary": "the body's test plan claims `-run 'TestStdlibs/test-testing'` includes the new t.Run regression",
+      "settled_by": "files_test.go:235-252 walks ../../tests/stdlibs/ and names each subtest \"test-\"+path; gnovm/stdlibs/testing does not exist, so the skip at :242 does not fire and the subtest is test-testing. Claim holds."
+    }
+  ]
+}

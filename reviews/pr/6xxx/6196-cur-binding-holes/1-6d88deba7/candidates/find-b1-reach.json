@@ -1,0 +1,79 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6111,
+      "angle": "reach",
+      "summary": "isCrossingCurParam keys on the declaring block node, not on the binding, so a crossing function with an unnamed first realm param has every `cur` declared in its own block refused whatever its type",
+      "failure_scenario": "`func localIntCur(_ realm) int { var cur int; cur = 5; return cur }` in a realm package compiles and prints 5 at merge base b7845fb2d; at head 6d88deba7 preprocess panics \"cannot reassign the crossing `cur` parameter\". Four more shapes flip the same way: `p := &cur` on that int local panics with \"cannot take the address of a realm-typed `cur`\" (it is an int), `for _, cur = range []int{1,2,9}` panics with \"cannot assign to a realm-typed `cur` in a range clause\", a method receiver named `cur` on a crossing method (`func (cur *counter) Bump(_ realm) int`) panics on `cur = &counter{...}`, and the same int local inside a crossing function literal `func(_ realm) int` panics too. The trigger is `_ realm` as the first parameter, which frees the name `cur` for something else in the same block; the three call sites (2583 RefExpr, 3011 AssignStmt, 3116 RangeStmt) each dropped the `== gRealmType` test the base used, so nothing narrows the rule back to the realm binding. This contradicts the PR's own Compatibility section, \"No .gno source that compiled and ran before is rejected now\", and the messages name a realm type the value does not have. The reviewer thread's `func F(_ realm) (cur realm)` is the sixth shape and is pre-existing: it is rejected at both revisions.",
+      "verify_by": "bash reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-reach-cur-decl-block-overreach.sh from a gno clone; it writes six filetests into gnovm/tests/files/ at each revision and runs `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzreach'`. Base must show 1 FAIL, head 6.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-reach-cur-decl-block-overreach.sh",
+      "evidence": "base b7845fb2d: `--- PASS: TestFiles/zzreach_cur_addr_int.gno`, `--- PASS: TestFiles/zzreach_cur_local_int.gno`, only `--- FAIL: TestFiles/zzreach_cur_named_result.gno`. head 6d88deba7: all six FAIL, e.g. `unexpected panic: gno.land/r/demo/curreach2/zzreach_cur_local_int.gno:6:2-9: cannot reassign the crossing `cur` parameter` and `gno.land/r/demo/curreach3/zzreach_cur_addr_int.gno:6:7-11: cannot take the address of a realm-typed `cur`` and `gno.land/r/demo/curreach5/zzreach_cur_recv.gno:8:2-24: cannot reassign the crossing `cur` parameter`."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 567,
+      "angle": "reach",
+      "summary": "funcDisplayName's tested branch is the one no func literal reaches; the branch every literal does reach is unexercised",
+      "failure_scenario": "doOpFuncLit builds every func-literal FuncValue with `Name: \"\"` and `Source: x` (op_expressions.go:774-778), so at the identity panic a literal always takes the `fv.Source != nil` arm and prints `%s func literal at %s:%d`. TestFuncDisplayName (op_call_test.go:110-115) asserts only `gno.land/r/test/realm_a.Target` and the `Source == nil` fallback `gno.land/r/test/realm_a.<func literal>`, a string the VM never produces. The format users will actually read, including whether loc.File is the bare file name or a path and whether loc.Line is set at that point, is pinned by nothing, so a wrong or empty location ships green. A crossing func literal entered without cross() with a mismatched cur is the input the test is missing.",
+      "verify_by": "grep -n 'Source:' gnovm/pkg/gnolang/op_expressions.go around doOpFuncLit to confirm Source is always set and Name is empty, then grep funcDisplayName in op_call_test.go for any assertion on the 'func literal at' format; add a filetest whose crossing func literal trips the identity panic and read the message.",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "repro_path": "",
+      "evidence": "op_expressions.go:774-786 `fv := &FuncValue{ ... IsClosure: true, Source: x, Name: \"\", ... Crossing: ft.IsCrossing(), ... }`. op_call_test.go:110-115 asserts only the Name arm and the `.<func literal>` fallback."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 513,
+      "angle": "reach",
+      "summary": "harnessSeedsCur's frame walk is evaluated before the cheap pointer compare, so it runs on every inherited-cur crossing entry including chain code",
+      "failure_scenario": "The guard reads `hasCallerCur && !rebuilt && !m.harnessSeedsCur() && !realmMatchesCurHIV(...)`. harnessSeedsCur calls PeekCallFrame(2), which scans m.Frames backwards past every block frame until it has seen two call frames, so a deeply nested body pays that scan on each no-cross crossing entry. realmMatchesCurHIV is a couple of pointer compares and is true on the overwhelming majority of entries. Swapping the last two conjuncts to `!realmMatchesCurHIV(...) && !m.harnessSeedsCur()` gives the identical verdict and confines the walk to the failing path. The PR defers metering installInheritedCur's frame walk because charging it is consensus-visible; adding a second unmetered walk in front of the fast path pulls in the same direction.",
+      "verify_by": "read op_call.go:513 and machine.go:2915-2930 (peekCallFrame loops over all frames, skipping non-call ones); swap the two conjuncts and run `go test ./gnovm/pkg/gnolang/ -run 'TestFiles$' -short` plus `go test ./gnovm/pkg/gnolang/ -run TestStdlibs/test-testing` for the same results.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "repro_path": "",
+      "evidence": "machine.go:2915-2928 `for i := len(m.Frames) - 1; i >= 0; i-- { fr := &m.Frames[i]; if fr.IsCall() { if n == 1 { return fr } else { n-- } } }`."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 560,
+      "angle": "reach",
+      "summary": "the `caller.Func != nil` conjunct in harnessSeedsCur can never be false",
+      "failure_scenario": "peekCallFrame only ever returns a frame for which `fr.IsCall()` holds, and `func (fr *Frame) IsCall() bool { return fr.Func != nil }` (frame.go:78-80). So `caller != nil && caller.Func != nil` is `caller != nil`, and the extra conjunct reads as a guard against a state the accessor rules out, which the next reader has to re-derive. TestHarnessSeedsCur's \"no caller frame\" subtest covers the nil-frame case and no test can reach the second one.",
+      "verify_by": "read frame.go:78-80 and machine.go:2915-2930; drop `&& caller.Func != nil` and run `go test ./gnovm/pkg/gnolang/ -run TestHarnessSeedsCur`.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "repro_path": "",
+      "evidence": "frame.go:78 `func (fr *Frame) IsCall() bool { return fr.Func != nil }`; machine.go:2921 `if fr.IsCall() {` is the only return path of peekCallFrame."
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 558,
+      "angle": "reach",
+      "summary": "suspected that the testing-package exemption is reachable from chain code, which would let a caller suppress the stale-capture identity check on-chain",
+      "settled_by": "`ls -d head/gnovm/stdlibs/testing` -> `No such file or directory`; the package exists only at `gnovm/tests/stdlibs/testing`, so TestingBasePkgPath (\"testing\", preprocess.go:22) is not importable by a deployed realm and the PR body's claim holds."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6111,
+      "angle": "reach",
+      "summary": "suspected the reviewer thread's `func F(_ realm) (cur realm)` write refusal is a regression this diff introduces",
+      "settled_by": "`go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzreach'` at base b7845fb2d: `--- FAIL: TestFiles/zzreach_cur_named_result.gno ... cannot reassign the crossing `cur` parameter`. It fails at both revisions, so that shape is pre-existing; only the non-realm-typed siblings are new."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3011,
+      "angle": "reach",
+      "summary": "suspected that dropping the `n.Op != DEFINE` carve-out makes an inner-block shadow `cur := cur` refuse, breaking previously legal source",
+      "settled_by": "`go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_shadow'` passes at head: the shadow's declaring node is the BlockStmt, not the FuncDecl, so isCrossingCurParam returns false and the write is allowed."
+    }
+  ]
+}

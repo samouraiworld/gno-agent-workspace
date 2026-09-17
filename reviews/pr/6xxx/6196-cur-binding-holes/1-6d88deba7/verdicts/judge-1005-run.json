@@ -1,0 +1,17 @@
+{"verdicts": [
+  {
+    "index": 23,
+    "angle": "refactor",
+    "verify_by": "read op_call.go:404 and :841 for what each passes as fr, and machine.go:2908-2925 for what PeekCallFrame(2) skips; then go test ./gnovm/pkg/gnolang/ -run 'TestHarnessSeedsCur'",
+    "state": "REFUTED",
+    "band": "Nit",
+    "file": "gnovm/pkg/gnolang/op_call.go",
+    "line": 559,
+    "tldr": "installInheritedCur already required fr to be the top call frame before this PR, so harnessSeedsCur's PeekCallFrame(2) adds no coupling and the proposed patch keeps the index",
+    "details": "Both call sites pass m.LastFrame() (op_call.go:315 feeds :404, and :841 passes m.LastFrame() straight after PushFrameCall), and an assertion wired into installInheritedCur fired 47 times across five filetests with fr != m.PeekCallFrame(1) never once true. The assumption is not new and is not harnessSeedsCur's: the same function already reads the frame stack from the top with no reference to fr at head:453, a line that sits unchanged at base:442, and its own comment ('topCrossingCur skips frames whose Cur is still unset, so right now it resolves to the caller's, not ours') is only true when fr is the top frame. A third caller passing a non-top frame would therefore hand callerCur the wrong realm and break the identity check itself, a stronger pre-existing precondition than the exemption the candidate worries about. The proposed harnessSeedsCur(m.PeekCallFrame(2)) is 3 lines against the current 4 (op_call.go:558-561) and relocates the literal 2 into installInheritedCur without consulting fr, so the unwritten precondition survives intact. Fix: none; drop the candidate, since the rewrite moves the index rather than removing the coupling.",
+    "evidence": "go test ./gnovm/pkg/gnolang/ -run 'TestHarnessSeedsCur' -v at 6d88deba7: '--- PASS: TestHarnessSeedsCur (0.00s)' with all three subtests PASS. Instrumented run of the same tree, panic if fr != m.PeekCallFrame(1): 'assertion executions: 47', 'assertion failures: 0', 'ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.546s'. Merge base b7845fb2d carries the same top-frame dependency: grep in the base worktree returns 'op_call.go:442: callerCur, hasCallerCur := m.topCrossingCur()' inside installInheritedCur (base:411), whose signature is identical.",
+    "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/judge-23-installinheritedcur-top-frame.sh",
+    "base_behaves_the_same": true,
+    "refuted_by": "op_call.go:453 (base:442) callerCur, hasCallerCur := m.topCrossingCur()"
+  }
+]}

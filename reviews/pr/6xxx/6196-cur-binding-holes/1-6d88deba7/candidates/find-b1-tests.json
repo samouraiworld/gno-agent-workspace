@@ -1,0 +1,85 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/op_call_test.go",
+      "line": 113,
+      "angle": "tests",
+      "summary": "TestFuncDisplayName asserts the Source==nil fallback and leaves the reachable func-literal branch, the one the change was written for, pinned by nothing",
+      "failure_scenario": "funcDisplayName's middle branch renders `<pkg> func literal at <file>:<line>` for a crossing function literal, the exact callee shape the identity panic is worded for. Mutating that format string to \"MUTATED-%s-%s-%d\" at 6d88deba7 leaves TestFuncDisplayName, TestFiles/zrealm_cur_backstop.gno, zrealm_cur_defer.gno, zrealm_cur_method_backstop.gno and TestStdlibs/test-testing all green, so a later edit that drops the file:line, or reorders the branches, ships an unactionable panic message with CI silent. The case the test does assert (Source nil) is the last-resort fallback, not the one users meet.",
+      "verify_by": "cd <head worktree scratch>; sed -i 's|\"%s func literal at %s:%d\"|\"MUTATED-%s-%s-%d\"|' gnovm/pkg/gnolang/op_call.go; go test ./gnovm/pkg/gnolang/ -count=1 -run 'TestFuncDisplayName' and -run 'TestFiles/zrealm_cur_backstop.gno$' and -run 'TestStdlibs/test-testing' -- all ok. Then copy tests/b1-tests-funclit-name.gno to gnovm/tests/files/zrealm_cur_litname.gno: PASS unmutated, FAIL mutated.",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "Mutated head: 'ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.011s' (TestFuncDisplayName), 'ok ... 0.133s' (zrealm_cur_backstop.gno), 'ok ... 8.848s' (TestStdlibs/test-testing). The new filetest unmutated: 'ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.055s'; mutated: '--- FAIL: TestFiles/zrealm_cur_litname.gno' with '+crossing function MUTATED-gno.land/r/demo/curlitname-zrealm_cur_litname.gno-26 was entered without cross()'. Head, unmutated, produces 'crossing function gno.land/r/demo/curlitname func literal at zrealm_cur_litname.gno:26 was entered without cross()'.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-tests-funclit-name.gno"
+    },
+    {
+      "file": "gnovm/tests/files/zrealm_cur_other_legal.gno",
+      "line": 16,
+      "angle": "tests",
+      "summary": "the new positive control pins the narrowed write rule with a named result of a NON-crossing function, the cell that passes; the same shape inside a crossing function is still refused and no test covers it",
+      "failure_scenario": "zrealm_cur_other_legal.gno claims 'realm-typed bindings named cur that are NOT a crossing parameter keep compiling' and demonstrates it with func namedResult(x int) (cur realm). isCrossingCurParam tests the DECLARING node's signature, not whether the written name is that signature's first parameter, so `func F(_ realm) (cur realm) { cur = nil }` is refused: the named result is not the parameter, and the file's own claim does not hold for it. A realm author who writes that signature gets 'cannot reassign the crossing `cur` parameter' about a result they did declare. Both head 6d88deba7 and merge base b7845fb2d refuse it, so the branch did not cause it; the branch sweeps this rule's class and its new control covers the passing cell only. Reviewer ltzmaxwell claims this shape on the thread at preprocess.go:6111; his claim that it reproduces on the branch holds, but this round's base run shows it is not a regression of it.",
+      "verify_by": "copy tests/b1-tests-namedres-crossing.gno to gnovm/tests/files/zrealm_cur_namedres.gno in a scratch worktree at 6d88deba7 and at b7845fb2d; go test ./gnovm/pkg/gnolang/ -count=1 -run 'TestFiles/zrealm_cur_namedres.gno$' in each",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6d88deba7: '--- FAIL: TestFiles/zrealm_cur_namedres.gno ... unexpected panic: gno.land/r/demo/curnamedres/zrealm_cur_namedres.gno:27:2-11: cannot reassign the crossing `cur` parameter'. merge base b7845fb2d, same file, byte-identical failure: 'unexpected panic: ...zrealm_cur_namedres.gno:27:2-11: cannot reassign the crossing `cur` parameter'.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-tests-namedres-crossing.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call_test.go",
+      "line": 82,
+      "angle": "tests",
+      "summary": "TestHarnessSeedsCur pins that the exemption fires for an immediate testing caller, and nothing pins that it stops there",
+      "failure_scenario": "Widen harnessSeedsCur to return true when ANY ancestor call frame belongs to package testing and the whole suite stays green: TestHarnessSeedsCur, the three stale-capture filetests and TestStdlibs/test-testing all pass. Under `gno test` every user test function is dispatched by testing.tRunner_cur, so that widening silently disables the stale-capture identity check for every crossing call made anywhere in a test run: a realm whose package tests pass then hits the panic only on chain. The suite's own backstop file (zrealm_cur_backstop.gno) exists to make the check deletion-detectable and cannot see this, because a filetest has no testing frame at all.",
+      "verify_by": "sh tests/b1-tests-harness-narrowness.sh in a scratch worktree at 6d88deba7: it widens harnessSeedsCur to walk ancestors and runs TestHarnessSeedsCur, the three backstop filetests and TestStdlibs/test-testing",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "With the widened helper: TestHarnessSeedsCur 'ok ... 0.009s', zrealm_cur_backstop.gno 'ok ... 0.036s', zrealm_cur_defer.gno 'ok ... 0.046s', zrealm_cur_method_backstop.gno 'ok ... 0.039s', TestStdlibs/test-testing 'ok ... 2.468s'. Control at the same sha: deleting '&& !m.harnessSeedsCur()' makes TestStdlibs/test-testing FAIL inside TestCurSubtestAfterCross/sub, so the exemption's presence is covered and only its narrowness is not.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-tests-harness-narrowness.sh"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 560,
+      "angle": "tests",
+      "summary": "the `caller.Func != nil` conjunct in harnessSeedsCur cannot be false, and the test's third subtest reads as if it covered it",
+      "failure_scenario": "peekCallFrame returns only frames where fr.IsCall(), and frame.go:78 is `func (fr *Frame) IsCall() bool { return fr.Func != nil }`, so every non-nil return already has Func set. The conjunct is dead, and TestHarnessSeedsCur's 'no caller frame' subtest covers the caller==nil case, not this one, so a reader takes the guard for tested protection against a frame with no Func.",
+      "verify_by": "sed -n '78,80p' gnovm/pkg/gnolang/frame.go and sed -n '2915,2930p' gnovm/pkg/gnolang/machine.go; drop '&& caller.Func != nil' and run go test ./gnovm/pkg/gnolang/ -run 'TestHarnessSeedsCur'",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "frame.go:78 'func (fr *Frame) IsCall() bool { return fr.Func != nil }'; machine.go peekCallFrame returns &m.Frames[i] only under 'if fr.IsCall()'.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call_test.go",
+      "line": 87,
+      "angle": "tests",
+      "summary": "the fixtures set Crossing: true on the callee frame, which harnessSeedsCur never reads",
+      "failure_scenario": "All three subtests build the callee as Frame{Func: &FuncValue{Crossing: true}}, so a reader takes the exemption to be conditioned on the callee being crossing. harnessSeedsCur reads only PeekCallFrame(2).Func.PkgPath; dropping Crossing: true changes no assertion. The real condition on the callee lives in installInheritedCur's outer `if fv.IsCrossing() && ...`, which this test does not exercise.",
+      "verify_by": "read op_call.go:558-561, then delete 'Crossing: true' from the three fixtures and run go test ./gnovm/pkg/gnolang/ -run 'TestHarnessSeedsCur'",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "op_call.go:559-560 reads only caller.Func.PkgPath; the callee frame's fields are never consulted by the helper.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 513,
+      "angle": "tests",
+      "summary": "suspected that the new harnessSeedsCur exemption has no test that turns red when it is removed",
+      "settled_by": "In a scratch worktree at 6d88deba7, removing '&& !m.harnessSeedsCur()' from the condition: go test ./gnovm/pkg/gnolang/ -count=1 -run 'TestStdlibs/test-testing' -> 'FAIL github.com/gnolang/gno/gnovm/pkg/gnolang 4.776s', panicking inside TestCurSubtestAfterCross/sub with the stale-capture message (stack shows testing/testing.gno:493 tRunner_cur -> cur_subtest_test.gno)."
+    },
+    {
+      "file": "gnovm/tests/stdlibs/testing/cur_subtest_test.gno",
+      "line": 1,
+      "angle": "tests",
+      "summary": "suspected that the new filetest is never executed, since files_test.go skips a tests/stdlibs directory that also exists under gnovm/stdlibs",
+      "settled_by": "gnovm/stdlibs/testing does not exist (ls: No such file or directory), so the os.Stat skip at files_test.go:244 does not fire; go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing' -v prints '=== RUN TestCurSubtestAfterCross', '=== RUN TestCurSubtestAfterCross/sub', '--- PASS: TestCurSubtestAfterCross/sub (0.00s)'."
+    }
+  ]
+}

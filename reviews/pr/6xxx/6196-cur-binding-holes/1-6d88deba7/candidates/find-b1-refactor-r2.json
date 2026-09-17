@@ -1,0 +1,66 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3113,
+      "angle": "refactor",
+      "summary": "the RangeStmt rule's `if n.Op != DEFINE` wrapper is a guard isCrossingCurParam already applies; 13 lines fold to 7",
+      "failure_scenario": "`for cur := range xs` inside a crossing function: the DEFINE key is declared into the RangeStmt's own block (pushInitBlock at TRANS_BLOCK *RangeStmt), so isCrossingCurParam resolves the name to the *RangeStmt node and returns false on the declaring-node test alone. The wrapper plus its 4-line comment restate a case the helper already rules out, and the next reader has to re-derive that the two agree; the helper's own contract is the single place that should decide it.",
+      "verify_by": "replace `if n.Op != DEFINE {` with `if true {` at preprocess.go:3113, copy tests/b1-refactor-r2-range-define-guard.gno to gnovm/tests/files/zzz_b1_range_cur_define.gno, and run `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/z'`: every zrealm_cur* filetest and the new DEFINE fixture still pass, so the guard changes no outcome",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "unmutated head, `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzz_b1'`: the DEFINE fixture passes (only the unrelated decompose probe failed). With `if n.Op != DEFINE {` replaced by `if true {`: `ok  github.com/gnolang/gno/gnovm/pkg/gnolang  8.904s` over `-run 'TestFiles/z'`, and `--- PASS: TestFiles/zzz_b1_range_cur_define.gno`. preprocess.go restored with `git checkout --` afterwards.",
+      "repro_path": "tests/b1-refactor-r2-range-define-guard.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 569,
+      "angle": "refactor",
+      "summary": "funcDisplayName's named arm drops the receiver, so a crossing method renders as `pkg.M`; it is a third private spelling of a display name debugger.go:809 already renders receiver-first",
+      "failure_scenario": "Two types in one realm each with a crossing method of the same name — `func (a *A) target(cur realm)` and `func (b *B) target(cur realm)` — both produce `crossing function gno.land/r/demo/x.target was entered without cross() ...`, and the reader cannot tell which method faulted. The shape is already in the tree: gnovm/tests/files/zrealm_cur_method_backstop.gno pins the expected error `crossing function gno.land/r/demo/curmethbs.target ...` for `(*S).target`. The diff sweeps exactly this class (it added the func-literal arm because an empty name made the panic unactionable) and left the method arm alone, while the project's own renderer at debugger.go:809 spells it `%v.(%v).%v` with the receiver type.",
+      "verify_by": "read op_call.go:567-575 against debugger.go:809-811 and the `// Error:` line of gnovm/tests/files/zrealm_cur_method_backstop.gno; fv.IsMethod is the flag installInheritedCur already reads a few lines up, so the arm costs one branch",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "debugger.go:809 `fname = fmt.Sprintf(\"%v.(%v).%v\", ff.PkgPath, ff.Type.(*FuncType).Params[0].Type, ff.Name)` vs op_call.go:569 `return fv.PkgPath + \".\" + string(fv.Name)`; zrealm_cur_method_backstop.gno expected output: `crossing function gno.land/r/demo/curmethbs.target was entered without cross()...` for the method `(*S).target`.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2583,
+      "angle": "refactor",
+      "summary": "the cur write rules are three per-statement call sites asking one question (RefExpr 2583, AssignStmt 3011, RangeStmt 3116); the deeper form marks the binding where the crossing param is defined and refuses the write once, where a NameExpr resolves in a write position",
+      "failure_scenario": "Every new write spelling needs a fourth rule, and until someone writes it the shape gets no compile-time refusal — only doOpCall's runtime check at call time. The file's own comments record two shapes missed in sequence: the RefExpr note says `p := &cur; *p = cur.Previous()` \"preprocesses cleanly and reaches the callee's frame Cur\", and the RangeStmt note calls `for _, cur = range rs` \"the third write shape into one slot, and the second one the syntactic rules missed\". The FuncDecl/FuncLitExpr TRANS_BLOCK loops that define the params already know which slot is the crossing `cur` (i == 0, ft.IsCrossing()), so the fact can be recorded once instead of re-derived per statement kind through GetBlockNodeForPath. An unresolved thread proposes the opposite deeper form — reserve the name `cur` for the parameter and drop scope resolution entirely; this is the other direction, keep the narrowing and record the fact at the definition, and both collapse the per-statement enumeration to one site.",
+      "verify_by": "enumerate the TRANS_LEAVE statement kinds that can write a block slot (*AssignStmt, *RangeStmt, *ValueDecl, *RefExpr) and grep which call isCrossingCurParam (three of four), then probe the two the rules do not reach: tests/b1-refactor-r2-write-shape-sweep.sh runs `var cur realm = ...` and `cur, x = f()` and shows what refuses each",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "`var cur realm = cur.Previous()` at body level: `zzz_b1_var_cur_decl.gno:14:6: cur redeclared in this block / previous declaration at zzz_b1_var_cur_decl.gno:13:11` — refused by ParseMemPackageAsType, not by a write rule. `cur, x = two(cur)`: `zzz_b1_decompose_cur.gno:17:2-19: cannot reassign the crossing `cur` parameter...` — the decompose rewrite replaces n.Lhs with .decompose_ names, but the split-out ASSIGN is re-Preprocessed and the AssignStmt rule fires on the original Lhs. Neither is a live hole today; the cost is the four-place rule set itself.",
+      "repro_path": "tests/b1-refactor-r2-write-shape-sweep.sh"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3214,
+      "angle": "refactor",
+      "summary": "suspected a fourth write shape the three rules miss: `var cur realm = ...` at the function body's own level, which goes through *ValueDecl/defineOrDecl and no cur rule",
+      "settled_by": "`go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzz_b1'` on a fixture with `var cur realm = cur.Previous()` in main(cur realm): `unexpected panic: zzz_b1_var_cur_decl.gno:14:6: cur redeclared in this block / previous declaration at zzz_b1_var_cur_decl.gno:13:11` — the parser refuses the redeclaration before preprocess runs, so no write rule is needed"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3009,
+      "angle": "refactor",
+      "summary": "suspected the new AssignStmt loop is bypassed for `cur, x = f()`, because the decompose rewrite replaces n.Lhs with .decompose_ names before the loop runs over n.Lhs",
+      "settled_by": "`go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzz_b1'` on a fixture with `cur, x = two(cur)`: `zzz_b1_decompose_cur.gno:17:2-19: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame` — the split-out ASSIGN carrying the original Lhs is re-Preprocessed and the rule fires there"
+    }
+  ],
+  "blocks_rewritten": [
+    "isCrossingCurParam's two identical switch arms folded through the existing funcOf helper (preprocess.go:4782): rejected. funcOf walks UP from its argument, so a block-scoped or package-level `cur` would resolve to the enclosing crossing func and answer true, and it has no termination for a PackageNode; the shape that keeps the semantics is `switch dbn.(type) { case *FuncDecl, *FuncLitExpr: default: return false }` plus `_, fte := funcOf(dbn)`, 8 lines against the switch's 7.",
+    "harnessSeedsCur inlined into its single call site (op_call.go:522): rejected. The condition is already a 4-term conjunction across two lines, and the godoc carrying the gnovm/tests/stdlibs/testing/testing.gno reference has nowhere else to live.",
+    "funcDisplayName inlined at its one call site: rejected. Three arms inside a fmt.Sprintf argument list would double the panic block; the helper earns its name.",
+    "TestHarnessSeedsCur's three subtests folded into a table (op_call_test.go:82): rejected. The frame slices differ in length as well as content, so the table row needs a []Frame field and the rewrite lands at 21 lines against 24.",
+    "the AssignStmt and RangeStmt loops rewritten to take Expr so isCrossingCurParam absorbs the *NameExpr assertion: not returned, already on this round's list."
+  ]
+}

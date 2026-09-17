@@ -1,0 +1,52 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2583,
+      "angle": "lines",
+      "summary": "the address-of rule now refuses `&cur` on a non-realm value and says the value is realm-typed",
+      "failure_scenario": "func main(_ realm) { var cur int = 42; p := &cur; *p = 7 } fails at preprocess with \"cannot take the address of a realm-typed `cur`\". The value is an int. The same body under a non-crossing declarer compiles and runs, so the refusal keys on the crossing declarer, not on the type the message names.",
+      "verify_by": "cp tests/b1-lines-r2-addr-nonrealm-cur.gno gnovm/tests/files/zrealm_cur_addr_int.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_addr_int.gno$'",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "FAIL: TestFiles/zrealm_cur_addr_int.gno -- files_test.go:135: unexpected panic: gno.land/r/demo/curaddrint/zrealm_cur_addr_int.gno:10:7-11: cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame ... (raised at preprocess.go:2584). Counterfactual with the same body in a non-crossing helper at the same sha: ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.040s",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-lines-r2-addr-nonrealm-cur.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6121,
+      "angle": "lines",
+      "summary": "isCrossingCurParam fails open on its unknown case where its twin, the cur-call provenance switch, fails closed",
+      "failure_scenario": "A `cur` whose declaring block node is neither *FuncDecl nor *FuncLitExpr, or whose path type is not VPBlock, falls to `return false` and the write is permitted; the provenance switch over the same lookup panics in that position instead. The helper's godoc calls the two the same test, so a future block-node kind silently reopens the rebinding hole on one side and hard-errors on the other.",
+      "verify_by": "read preprocess.go:6112 and 6121 against the provenance switch's default arm; any node kind added to GetBlockNodeForPath changes one site's answer and not the other's",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3113,
+      "angle": "lines",
+      "summary": "the `n.Op != DEFINE` guard on the range rule is dead under the new helper, and its sibling at 3009 dropped it",
+      "failure_scenario": "A range DEFINE binds the name in the RangeStmt's own block, which isCrossingCurParam can never resolve to a crossing FuncDecl or FuncLitExpr, so the guard can no longer change the rule's answer. Deleting it leaves zrealm_cur_range, zrealm_cur_shadow_range and a new `for cur := range xs` filetest green, identical to keeping it.",
+      "verify_by": "sed -i '3113s/if n.Op != DEFINE {/if true {/' gnovm/pkg/gnolang/preprocess.go && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/(zrealm_cur_range_def|zrealm_cur_range|zrealm_cur_shadow_range).gno$'",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "guarded: ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.052s; mutated to `if true {`: ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.044s",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-lines-r2-range-define-dead-guard.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6112,
+      "angle": "lines",
+      "summary": "all three write rules key on the literal name `cur` while installCrossingCur binds the identity by index, so a crossing function whose realm param is named `rlm` can rebind it with no rule firing",
+      "settled_by": "the first-argument rule at preprocess.go:2108 already requires the literal name: `if !ok || nx.Name != Name(\"cur\") && nx.Name != Name(\".cur\") && nx.Name != Name(\".origin\")` panics with \"only `cur` or `cross(rlm)` are allowed as the first argument to a crossing function\", so a differently-named realm param can never be passed on to a crossing callee and the rebind cannot launder an identity"
+    }
+  ]
+}

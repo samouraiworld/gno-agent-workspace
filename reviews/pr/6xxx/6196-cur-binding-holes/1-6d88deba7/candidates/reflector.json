@@ -1,0 +1,32 @@
+{
+  "dropped": [],
+  "drop_note": "No candidate is contradicted by a quotable line in the diff or at the head. The two clusters that looked breakable were run instead of guessed: (a) the narrowed write rule does NOT under-reach - a write to the enclosing crossing param from inside a nested non-crossing closure, and p := &cur on the param itself, are both still refused at 6d88deba7 (zrealm_zzrefl_capture.gno, zrealm_zzrefl_addrparam.gno, both FAIL with the preprocess panics, files removed after); (b) the package-level `var cur realm` spelling the PR headlines compiles and prints ok at head, so candidate 17 keeps its premise and no over-reach candidate is weakened. peekCallFrame returns only IsCall() frames (machine.go:2919-2928, frame.go:78-80), which CONFIRMS candidate 6 rather than settling it. uverse.go:461 and :474 both open with `prevField := gOriginRealmTV`, which confirms candidate 10's premise. TestingBasePkgPath = \"testing\" (preprocess.go:22) and `testing` exists only under gnovm/tests/stdlibs, never gnovm/stdlibs, so the exemption's 'not reachable from chain code' claim holds and candidates 5/15 are confined to `gno test`.",
+  "candidates": [
+    {
+      "file": "gnovm/adr/prxxxx_cur_binding_followups.md",
+      "line": 1,
+      "angle": "reflector-completeness",
+      "band": "Nit",
+      "summary": "the ADR merges under a placeholder filename with a placeholder Status, and it is the only file in gnovm/adr that names neither a PR nor a sha",
+      "failure_scenario": "gnovm/adr holds 20+ records, every one named pr<digits>_<topic>.md or <sha>_<topic>.md (pr5048_pkg_name_matches_path.md, pr5641_protectedsprint_gas.md, acd01fa29_predefine_decl_lookup.md). This one lands as prxxxx_cur_binding_followups.md with a Status reading 'Implemented on fix/cur-binding-followups. PR number pending'. After merge the branch is deleted and the number is known, so the permanent record of the decision is the one entry a reader cannot map back to the change: grepping gnovm/adr for 6196 returns nothing. The whole ADR file drew no candidate from any of the 10 finders despite being 116 new lines, and this is its one concrete line.",
+      "verify_by": "ls gnovm/adr and compare every entry's naming with the new file; grep -rn 'prxxxx' gnovm/ returns 3 hits, all added by this PR",
+      "checked": true,
+      "evidence": "ls gnovm/adr at 6d88deba7: pr4264_lint_transpile.md, pr4890_interrealm_cases.md, pr5048_pkg_name_matches_path.md, pr5217_type_switch_clause_gas.md, pr5247_initialization_order.md, pr5269_const_conversion_overflow.md, pr5285_realm_obj_owner.md, pr5436_fix_gc_alloc_mismatch.md, pr5439_iterative_exception_recovery.md, pr5440_fix_debug_mode_panics.md, pr5544_typevalue_ref_persistence.md, pr5641_protectedsprint_gas.md, pr5648_spanfromgo_quadratic.md, plus acd01fa29_*.md and topic files; prxxxx_ is unique to this PR",
+      "run": false,
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 452,
+      "angle": "reflector-completeness",
+      "band": "Nit",
+      "summary": "the NOTE carrying the PR's one deferred finding points at a tracker outside this repository, the only cross-repo issue reference anywhere in the VM source",
+      "failure_scenario": "The unmetered install walk is deferred, and the NOTE at op_call.go:452 is the durable artifact that is supposed to keep it findable: 'see a tracker outside this repository'. grep -rn 'that tracker' over gnovm/ and gno.land/ returns exactly three hits, all added by this PR (op_call.go:452 and two ADR lines), so nothing else in the tree cites an issue outside gnolang/gno. A gnolang/gno contributor who meets this comment while touching the gas schedule cannot open the tracker it names, and there is no gnolang/gno issue for the deferral, so the one gap the change knowingly leaves is tracked where the code's own readers cannot see it. A gnolang/gno issue, referenced instead or as well, costs one line.",
+      "verify_by": "grep the head worktree for the NOTE's cross-repo issue reference (3 hits, all new here); grep -rEn '(TODO|NOTE|see) .{0,20}(gnolang/gno#|issues/)[0-9]+' gnovm/pkg/gnolang/*.go for the convention the tree uses (no hits); then confirm a tracker outside this repository is openable by an unaffiliated contributor",
+      "checked": true,
+      "evidence": "grep -rn 'that tracker' over gnovm/ and gno.land/ at 6d88deba7: op_call.go:452, prxxxx_cur_binding_followups.md:69, :106 - no other cross-repo issue pointer exists in gnovm/pkg/gnolang",
+      "run": false,
+      "repro_path": ""
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2583,
+      "angle": "reach",
+      "summary": "the narrowing half of both rewritten guards ships untested: no fixture writes or addresses a package-level `var cur realm`, and the new legal-shapes fixture spells that arm `pkgCur`, a name neither guard ever keyed on",
+      "failure_scenario": "A realm declares `var cur realm` at package level and a non-crossing setter `func set(x int, r realm) { cur = r; p := &cur }`. Both lines panic at the merge base (the removed guards keyed on the name `cur` plus `evalStaticTypeOf(ne) == gRealmType`) and both compile and run at head, which is the compat repair fix 2 names. Nothing pins it: gnovm/tests/files/zrealm_cur_other_legal.gno declares its package-level var as `pkgCur` (line 9), so that arm is green on the base too, and the two address-of fixtures (zrealm_cur_addr.gno:18, zrealm_cur_addr_arg.gno:20) pin only the parameter refusal. A later tightening of isCrossingCurParam that re-refuses a package-level `cur` leaves every filetest green.",
+      "verify_by": "cp reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-reach-r2-pkglevel-cur-untested.gno gnovm/tests/files/zrealm_cur_pkglevel_probe.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_pkglevel_probe.gno$' : green at head, and the same file at b7845fb2d panics on `cur = r`. Then grep the tree for a committed fixture declaring `cur` (not `pkgCur`) at package level: none.",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "Head 6d88deba7, fixture verbatim from the artifact: `ok \tgithub.com/gnolang/gno/gnovm/pkg/gnolang\t0.039s`. Coverage grep: `grep -rln 'cannot take the address of a realm-typed' gnovm/tests/` returns only zrealm_cur_addr.gno and zrealm_cur_addr_arg.gno, both refusal fixtures on a crossing parameter. zrealm_cur_other_legal.gno line 9 reads `var pkgCur realm`, line 12 `pkgCur = r`.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-reach-r2-pkglevel-cur-untested.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 841,
+      "angle": "reach",
+      "summary": "harnessSeedsCur's hardcoded frame index is exercised from one of installInheritedCur's two call sites; nothing drives the exemption through the defer path",
+      "failure_scenario": "installInheritedCur is called from doOpCall (op_call.go:404) and from doOpReturnCallDefers (op_call.go:841), and its own header says the two paths exist precisely because the defer copy once drifted from doOpCall. harnessSeedsCur reads m.PeekCallFrame(2) with the comment `1 is the callee frame being installed`, which holds on the defer path only because PushFrameCall runs before the block is populated; on that path frame 2 is the frame running its defers, not the frame that made the call. TestHarnessSeedsCur builds two synthetic frames by hand and no test enters the exemption through a deferred crossing call, so a future reordering of doOpReturnCallDefers (pushing the frame after the parameter loop, say) moves the index silently and the test stays green.",
+      "verify_by": "grep -n 'installInheritedCur' gnovm/pkg/gnolang/op_call.go gives two call sites; grep -rn 'harnessSeedsCur' gnovm/pkg/gnolang/*_test.go gives only TestHarnessSeedsCur, which never runs a deferred call. A gno-level test would be a `defer target(cur)` inside a t.Run sub-test in gnovm/tests/stdlibs/testing/.",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "op_call.go:404 `m.installInheritedCur(fr, fv, b)` and op_call.go:841 `m.installInheritedCur(m.LastFrame(), fv, b)`; op_call.go:795 `m.PushFrameCall(&dfr.Source.Call, fv, recv, true)` is what makes index 2 the deferring frame. op_call_test.go:82-110 builds Frames literally.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3100,
+      "angle": "reach",
+      "summary": "the range guard keeps the `n.Op != DEFINE` carve-out that fix 1 removed from the assign guard, and it can never change the outcome",
+      "failure_scenario": "Fix 1's premise is that a DEFINE can be a rebind, so the assign guard at 3011 now runs for every op. The range guard at 3100 still skips DEFINE. It cannot matter: RangeStmt's TRANS_BLOCK calls pushInitBlock before defining the key and value, so a range DEFINE always declares in the RangeStmt's own block and isCrossingCurParam returns false for it regardless. One rule now reads two ways across two sites, and the next reader has to redo the block-push argument to see that the surviving carve-out is not a second hole of the kind fix 1 closed.",
+      "verify_by": "Delete the `if n.Op != DEFINE {` wrapper at preprocess.go:3100 and run go test ./gnovm/pkg/gnolang/ -run 'TestFiles$' -short: no new failure, since `for cur := range xs` inside a crossing function defines in the RangeStmt block.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "preprocess.go RangeStmt TRANS_BLOCK: `pushInitBlock(n, &last, &stack)` precedes every `last.Define(kn, ...)` for the DEFINE arm; preprocess.go:3011 has no op guard.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3011,
+      "angle": "reach",
+      "summary": "suspected sibling of the `:=` rebind fix 1 closes: `var cur realm` at a crossing function's body level rebinding the parameter slot, which no write rule inspects (ValueDecl is not AssignStmt)",
+      "settled_by": "go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_vardecl_probe.gno$' on `func main(cur realm) { var cur realm = cur.Previous() }` at head: `TypeCheckError ... cur redeclared in this block; ...:10:21: other declaration of cur`. The Go type-checker rejects the shape before preprocess, so the class has no member."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2583,
+      "angle": "reach",
+      "summary": "suspected paren-shaped hole in the address-of guard, which matches only a bare *NameExpr: `p := &(cur); *p = cur.Previous()`",
+      "settled_by": "go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_paren_probe.gno$' at head panics `zrealm_cur_paren_probe.gno:12:7-13: cannot take the address of a realm-typed cur: ...`; go2gno.go:336 folds ast.ParenExpr away before the AST reaches preprocess."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6113,
+      "angle": "reach",
+      "summary": "suspected repeat of the receiver blind spot op_call.go:434 documents: getType(&dbn.Type).(*FuncType).IsCrossing() reading a method's unbound type, which would leave every crossing method's cur param writable",
+      "settled_by": "go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_method_probe.gno$' on `func (s *S) M(cur realm) { cur = cur.Previous() }` at head: `unexpected panic: ...:9:2-22: cannot reassign the crossing cur parameter`. The preprocess FuncDecl type excludes the receiver, so the method arm is protected."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 560,
+      "angle": "reach",
+      "summary": "suspected chain-reachable identity bypass: harnessSeedsCur exempts any crossing entry whose caller frame has PkgPath == TestingBasePkgPath (\"testing\"), which would forge frame identity if a realm could import testing",
+      "settled_by": "ls gnovm/stdlibs/testing: `No such file or directory`; the package exists only at gnovm/tests/stdlibs/testing, and gotypecheck.go:200 resolves it through tgetter for testing files alone. The exemption's godoc claim holds."
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "verdicts": [
+    {
+      "index": 30,
+      "angle": "refactor + lines + catalog",
+      "verify_by": "replace `if n.Op != DEFINE {` with `if true {` at preprocess.go:3113, copy tests/b1-refactor-r2-range-define-guard.gno to gnovm/tests/files/zzz_b1_range_cur_define.gno, and run `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/z'`: every zrealm_cur* filetest and the new DEFINE fixture still pass, so the guard changes no outcome | sed -i '3113s/if n.Op != DEFINE {/if true {/' gnovm/pkg/gnolang/preprocess.go && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/(zrealm_cur_range_def|zrealm_cur_range|zrealm_cur_shadow_range).gno$' | in a worktree at 6d88deba7, delete the `if n.Op != DEFINE {` wrapper and its closing brace around the range-clause cur rule (preprocess.go:3113-3121), then run go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_range.gno$', 'TestFiles/zrealm_cur_shadow_range.gno$', 'TestFiles/zrealm_cur_legal.gno$', 'TestFiles/zrealm_cur_shadow.gno$' and the repro filetest: all ok with and without the wrapper",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3113,
+      "tldr": "the RangeStmt rule's `n.Op != DEFINE` wrapper is residue of the old shape: isCrossingCurParam already answers false for every range DEFINE, 13 lines fold to 7",
+      "details": "isCrossingCurParam switches on last.GetBlockNodeForPath(store, nx.Path) and returns true only for *FuncDecl and *FuncLitExpr (preprocess.go:6115-6121). A range DEFINE binds its key and value into the RangeStmt's own block at TRANS_BLOCK (`last.Define(kn, anyValue(kt))`, preprocess.go:3049-3086) and the block is still on the stack at the RangeStmt's TRANS_LEAVE, so the name resolves to a *RangeStmt and the helper returns false whatever n.Op is. The wrapper plus its four-line comment therefore restate a case the helper decides on its own; the guard was load-bearing at the merge base, where the test was `ne.Name == \"cur\" && evalStaticTypeOf(...) == gRealmType` with no declaring-node check, and this diff's own helper is what killed it. Fix: delete `if n.Op != DEFINE {`, its closing brace and the DEFINE comment, dedent the loop; the live ASSIGN rejection is unaffected.",
+      "evidence": "Head 6d88deba7, own scratch worktree. Baseline, guard present: go test ./gnovm/pkg/gnolang/ -v -run 'TestFiles/(zz_cur_rangedefine|zrealm_cur_range|zrealm_cur_shadow_range|zrealm_cur_legal|zrealm_cur_shadow).gno$' -> ok 0.056s, 5 PASS. Guard neutralised (sed 3113 -> `if true {`): same five, all PASS, including the discriminating fixture `--- PASS: TestFiles/zz_cur_rangedefine.gno` (crossing main, `for cur := range xs`, no cur-call in the body, so the range rule is the only thing that could panic; it would have failed on the range-clause panic had the helper answered true). Fold applied (judge-30 patch): gofmt -l silent, go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur' -> ok 0.857s, 31 PASS 0 FAIL, zrealm_cur_range.gno (the ASSIGN rejection) among them. Merge base b7845fb2d read only, preprocess.go:3110-3120: the wrapper guarded a name-and-type test with no declaring-node check, so it was live there.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/judge-30-range-define-guard.patch",
+      "base_behaves_the_same": false
+    }
+  ]
+}

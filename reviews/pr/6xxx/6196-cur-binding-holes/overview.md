@@ -107,9 +107,9 @@ name to its declaring node and requires a crossing `FuncDecl` or `FuncLitExpr`,
 [`isCrossingCurParam`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/preprocess.go#L6111-L6122)
 takes the written name's block path, reads the node that declares it, and
 answers true only for a crossing `FuncDecl` or `FuncLitExpr`. The forwarding
-rule already made that test, so a binding may be cur-called exactly when it may
-not be written. A package-level `var cur realm`, a named result `(cur realm)`
-and a block-scoped shadow stay writable, and
+rule already ran that test, so both rules now share it. A package-level
+`var cur realm`, a named result of a non-crossing function and a block-scoped
+shadow stay writable, and
 [`zrealm_cur_other_legal.gno`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/tests/files/zrealm_cur_other_legal.gno)
 pins them.
 

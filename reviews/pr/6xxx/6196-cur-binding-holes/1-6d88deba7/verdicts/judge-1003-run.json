@@ -1,0 +1,15 @@
+{"verdicts": [
+ {"index": 31,
+  "state": "REFUTED",
+  "band": "Nit",
+  "angle": "refactor",
+  "file": "gnovm/pkg/gnolang/op_call.go",
+  "line": 569,
+  "tldr": "the receiver-less name is real, but the gno stacktrace printed with the panic names the receiver and the line, so no reader is left guessing",
+  "details": "funcDisplayName's named arm does drop the receiver: a fixture with (*A).target and (*B).target in one realm, faulting on B, renders 'crossing function gno.land/r/demo/curambig.target'. The loss the scenario claims does not follow. The panic is rendered with the gno stacktrace beside it, whose top frame is 'b<~VPBlock(1,0)>.target(cur<~VPBlock(1,1)>)' at 'gno.land/r/demo/curambig/zjudge31_ambig.gno:19', naming both the receiver expression and the faulting line. The proposed reuse is also not one branch: copying debugger.go:809's '%v.(%v).%v' yields 'gno.land/r/demo/curambig.(*gno.land/r/demo/curambig.B).target', a doubled package path that reads worse than what it replaces, and it breaks the pinned golden in zrealm_cur_method_backstop.gno. Line counts: the named arm is 3 lines today, 8 with the receiver branch, plus 1 golden line and a method case in TestFuncDisplayName. Fix: none.",
+  "evidence": "head, go test ./ -run 'TestFiles/judge31_methodname.gno$' with a PLACEHOLDER golden: '+crossing function gno.land/r/demo/curambig.target was entered without cross() ...' followed by 'stacktrace:' / 'b<~VPBlock(1,0)>.target(cur<~VPBlock(1,1)>)' / 'gno.land/r/demo/curambig/zjudge31_ambig.gno:19'. Same fixture with the receiver arm applied: '+crossing function gno.land/r/demo/curambig.(*gno.land/r/demo/curambig.B).target ...', and TestFiles/zrealm_cur_method_backstop.gno then FAILs on its golden. Merge base op_call.go:510 formats 'crossing function %s.%s' from PkgPath and Name, the same receiver-less rendering. Artifact passes at head: ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.044s.",
+  "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/judge-31-method-display-name.gno",
+  "base_behaves_the_same": true,
+  "refuted_by": "stacktrace beside the panic: b<~VPBlock(1,0)>.target(cur<~VPBlock(1,1)>) at gno.land/r/demo/curambig/zjudge31_ambig.gno:19",
+  "verify_by": "read op_call.go:567-575 against debugger.go:809-811 and the `// Error:` line of gnovm/tests/files/zrealm_cur_method_backstop.gno; fv.IsMethod is the flag installInheritedCur already reads a few lines up, so the arm costs one branch"}
+]}

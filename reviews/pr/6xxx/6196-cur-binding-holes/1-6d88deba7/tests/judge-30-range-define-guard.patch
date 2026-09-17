@@ -1,0 +1,56 @@
+# judge-30: drop the dead `n.Op != DEFINE` wrapper on the RangeStmt cur rule
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin pull/6196/head && git checkout 6d88deba71165b165641b65541259d00aba20377
+#   # 1. the guard is inert at head: neutralise it and nothing changes
+#   sed -i '3113s/if n\.Op != DEFINE {/if true {/' gnovm/pkg/gnolang/preprocess.go
+#   go test ./gnovm/pkg/gnolang/ -v -run 'TestFiles/zrealm_cur'   # 31 pass, 0 fail
+#   git checkout -- gnovm/pkg/gnolang/preprocess.go
+#   # 2. the fold itself
+#   git apply <this file>
+#   gofmt -l gnovm/pkg/gnolang/preprocess.go                      # no output
+#   go test ./gnovm/pkg/gnolang/ -v -run 'TestFiles/zrealm_cur'   # 31 pass, 0 fail
+#
+# preprocess.go 3109-3121 (13 lines) -> 7 lines; net -6.
+#
+# A range DEFINE binds key/value into the RangeStmt's own block (pushInitBlock
+# at TRANS_BLOCK *RangeStmt), so isCrossingCurParam's declaring-node switch,
+# *FuncDecl and *FuncLitExpr only, resolves the name to a *RangeStmt and
+# returns false whatever n.Op is. The live case, `for _, cur = range rs` with
+# ASSIGN (zrealm_cur_range.gno), still rejects with the wrapper gone.
+#
+# The wrapper was load-bearing at the merge base b7845fb2d, where the test was
+# `ne.Name == "cur" && evalStaticTypeOf(...) == gRealmType` with no declaring-
+# block test: without it, zrealm_cur_shadow_range.gno's legal
+# `for _, cur := range []realm{cur.Previous()}` would have panicked. Replacing
+# that test with isCrossingCurParam in this diff is what killed it.
+
+diff --git a/gnovm/pkg/gnolang/preprocess.go b/gnovm/pkg/gnolang/preprocess.go
+index 75c9fd1cb..90cf745af 100644
+--- a/gnovm/pkg/gnolang/preprocess.go
++++ b/gnovm/pkg/gnolang/preprocess.go
+@@ -3106,18 +3106,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
+ 				// whole argument for keeping that runtime check: this is the
+ 				// third write shape into one slot, and the second one the
+ 				// syntactic rules missed.
+-				// DEFINE (`for _, cur := range`) is not a write to the
+-				// parameter — it binds a new name, which cannot be cur-called
+-				// (the provenance check below refuses a name whose declaring
+-				// block is not a crossing FuncDecl/FuncLitExpr).
+-				if n.Op != DEFINE {
+-					for _, lh := range []Expr{n.Key, n.Value} {
+-						ne, ok := lh.(*NameExpr)
+-						if !ok || !isCrossingCurParam(store, last, ne) {
+-							continue
+-						}
+-						panic("cannot assign to a realm-typed `cur` in a range clause: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
++				for _, lh := range []Expr{n.Key, n.Value} {
++					ne, ok := lh.(*NameExpr)
++					if !ok || !isCrossingCurParam(store, last, ne) {
++						continue
+ 					}
++					panic("cannot assign to a realm-typed `cur` in a range clause: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
+ 				}
+ 
+ 			// TRANS_LEAVE -----------------------

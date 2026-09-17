@@ -1,0 +1,92 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6111,
+      "angle": "catalog",
+      "summary": "isCrossingCurParam dropped the realm-type test, so any function-scope name `cur` in a crossing function whose first realm param is not named `cur` is now unwritable and undeclarable; code that compiled and ran at the merge base is rejected",
+      "failure_scenario": "func F(_ realm, xs []int) int { cur := 0; for _, x := range xs { cur = cur + x }; return cur } compiles and prints 6 at b7845fb2d. At 6d88deba7 preprocess panics at the `cur := 0` line with \"cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame\". The base rule gated on evalStaticTypeOf(ne) == gRealmType and skipped n.Op == DEFINE; the new helper asks only the name plus the declaring node's IsCrossing(), and the DEFINE carve-out was removed, so an int cursor named `cur` is caught. `func X(_ realm, ...)` is a common crossing shape in examples/. A deployed realm carrying that shape stops preprocessing after the upgrade, so it becomes uncallable with no migration named. Adding `&& ft.Params[0].Name == \"cur\"` in both arms closes it.",
+      "verify_by": "cp tests/b1-catalog-cur-local-regression.gno gnovm/tests/files/zzb1intlocal.gno; go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzb1intlocal.gno$' at 6d88deba7 and at b7845fb2da9a21bfb895e1c008f016776f8342d0",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6d88deba7: '--- FAIL: TestFiles/zzb1intlocal.gno  files_test.go:135: unexpected panic: gno.land/r/demo/curzz6/zzb1intlocal.gno:5:2-10: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame'. base b7845fb2d: 'ok  github.com/gnolang/gno/gnovm/pkg/gnolang 0.042s'. Line 5 is `cur := 0`, so the declaration itself is refused.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-catalog-cur-local-regression.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6117,
+      "angle": "catalog",
+      "summary": "a named result `cur realm` of a crossing function is refused as if it were the crossing parameter, the case the PR's own fix 2 set out to clear",
+      "failure_scenario": "func F(_ realm) (cur realm) { cur = nil; return cur } is refused at preprocess with \"cannot reassign the crossing `cur` parameter\". The named result is not any frame's identity: installInheritedCur never reads it, and the PR body lists named results as the shape the new declaration test frees. It frees `func F(x int) (cur realm)` (zrealm_cur_other_legal.gno) and misses the crossing-function variant, because IsCrossing() asks only whether Params[0] is realm-typed, never whether it is named `cur`, which the FuncTypeExpr rule leaves free. Same root cause and same one-line fix as the finding above.",
+      "verify_by": "cp tests/b1-catalog-crossing-named-result.gno gnovm/tests/files/zzb1namedres.gno; go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzb1namedres.gno$' at 6d88deba7 and at the merge base",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "head: 'unexpected panic: gno.land/r/demo/curzz1/zzb1namedres.gno:5:2-11: cannot reassign the crossing `cur` parameter: ...'. base b7845fb2d: same panic at 5:2-11, so the refusal predates the branch and the branch did not clear it while sweeping its class.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-catalog-crossing-named-result.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6112,
+      "angle": "catalog",
+      "summary": "no filetest pins that a non-realm-typed local named `cur` stays writable, which is the guard the dropped type test used to give",
+      "failure_scenario": "zrealm_cur_other_legal.gno covers a package-level realm var, a non-crossing named result and a block-scoped realm local, all realm-typed. Nothing covers a `cur` of another type, so the removal of the base rule's `evalStaticTypeOf(ne) == gRealmType` test crosses CI green. Adding `func F(_ realm, xs []int) int { cur := 0; ... }` to that fixture turns it red at this sha and holds the boundary for whichever shape of the rule lands.",
+      "verify_by": "grep -n 'cur' gnovm/tests/files/zrealm_cur_other_legal.gno and confirm every binding it declares is realm-typed; then run tests/b1-catalog-cur-local-regression.gno",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "zrealm_cur_other_legal.gno declares `var pkgCur realm`, `func namedResult(x int) (cur realm)` and `cur := r` in rangeLocal; all three are realm-typed, so no case exercises the dropped type test.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-catalog-cur-local-regression.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2160,
+      "angle": "catalog",
+      "summary": "preprocess accepts a crossing function's named result as a cur-call argument and the VM then rejects it, violating the catalog rule that preprocessing rejects what the VM cannot run",
+      "failure_scenario": "func Target(cur realm) {} with func F(_ realm) (cur realm) { Target(cur); return } passes the provenance switch, whose FuncDecl arm asks only dft.IsCrossing(). At run time installInheritedCur panics with the stale-capture text, which names a mistake the source does not make. Fail-closed, so nothing is laundered; the cost is a compile-time error surfacing as a misleading runtime abort.",
+      "verify_by": "cp tests/b1-catalog-provenance-runtime-panic.gno gnovm/tests/files/zzb1provenance.gno; go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzb1provenance.gno$' at 6d88deba7 and at the merge base",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "head and base b7845fb2d both: 'unexpected panic: crossing function gno.land/r/demo/curzz2.Target was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur)'. Pre-existing.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-catalog-provenance-runtime-panic.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 522,
+      "angle": "catalog",
+      "summary": "the identity guard is a bare Go panic, so gno recover() cannot catch a fault user .gno can trigger",
+      "failure_scenario": "A realm wrapping a call in defer/recover to degrade gracefully gets no chance: the panic at op_call.go:522 unwinds the Go stack past the VM op loop instead of going through m.Panic or panic(&Exception{}), so the deferred recover in the calling gno frame never runs. Catalog class VM-fault recoverability. Pre-existing from #6193; this diff rewrites that panic's message, so the line is in the sweep.",
+      "verify_by": "cp tests/b1-catalog-uncatchable-identity-panic.gno gnovm/tests/files/zzb1recover.gno; go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzb1recover.gno$' and check whether 'recovered' is printed",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6d88deba7: '--- FAIL: TestFiles/zzb1recover.gno  files_test.go:135: unexpected panic: crossing function gno.land/r/demo/curzz3.Target was entered without cross()...' with 'output:' empty — the deferred recover in F never printed 'recovered'.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-catalog-uncatchable-identity-panic.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 558,
+      "angle": "catalog",
+      "summary": "harnessSeedsCur exempts the identity guard whenever the calling frame's PkgPath is \"testing\", which would be an identity-laundering hole if chain code could reach that package",
+      "settled_by": "ls gnovm/stdlibs/testing gnovm/tests/stdlibs/testing: 'No such file or directory' for gnovm/stdlibs/testing, the directory exists only under gnovm/tests/stdlibs. The testing package is a test overlay, never shipped to the chain store, so no deployed realm can put a frame with PkgPath \"testing\" below a crossing call. The body's claim holds."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3112,
+      "angle": "catalog",
+      "summary": "the RangeStmt arm keeps the `if n.Op != DEFINE` carve-out the AssignStmt arm dropped, so a same-scope `for cur, x := range ...` rebind looks unguarded",
+      "settled_by": "go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzb1rangedef.gno$' on `for cur := range []realm{cur.Previous()}` followed by probe(cur): output diff shows the actual run printing 'probe: true', so the outer cur is untouched. Range-define declares into the RangeStmt's own block, as Go specifies, so there is no same-scope rebind to catch."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6116,
+      "angle": "catalog",
+      "summary": "a crossing method's receiver could shift Params[0] so IsCrossing() reads the receiver and the write rule never fires on the method's own cur",
+      "settled_by": "go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzb1method.gno$' on `func (s *S) M(cur realm) { cur = cur.Previous() }`: 'unexpected panic: gno.land/r/demo/curzz4/zzb1method.gno:11:2-22: cannot reassign the crossing `cur` parameter'. FuncDecl.Type carries no receiver, so Params[0] is the cur parameter and the rule fires."
+    }
+  ]
+}

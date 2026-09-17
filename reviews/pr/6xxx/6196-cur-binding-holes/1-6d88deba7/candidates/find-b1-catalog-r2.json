@@ -1,0 +1,75 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3113,
+      "angle": "catalog",
+      "summary": "the `n.Op != DEFINE` wrapper left on the range-clause cur rule is dead once isCrossingCurParam does the resolution, and the same diff deleted the identical wrapper from the AssignStmt rule",
+      "failure_scenario": "`func main(cur realm) { xs := []int{7,8}; for cur := range xs { println(cur) } }` in a realm: a range DEFINE binds its key/value in the RangeStmt's own block, so isCrossingCurParam resolves the name to a *RangeStmt and returns false whatever n.Op is. With the wrapper deleted the same file preprocesses and prints the same three lines, and zrealm_cur_range.gno, zrealm_cur_shadow_range.gno, zrealm_cur_legal.gno and zrealm_cur_shadow.gno all stay green. The cost is a reader of this diff seeing the three swept write rules disagree about DEFINE for no behavioural reason, one hunk after the AssignStmt rule dropped the same guard.",
+      "verify_by": "in a worktree at 6d88deba7, delete the `if n.Op != DEFINE {` wrapper and its closing brace around the range-clause cur rule (preprocess.go:3113-3121), then run go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_range.gno$', 'TestFiles/zrealm_cur_shadow_range.gno$', 'TestFiles/zrealm_cur_legal.gno$', 'TestFiles/zrealm_cur_shadow.gno$' and the repro filetest: all ok with and without the wrapper",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "guard present: TestFiles/zz_cur_rangedefine.gno -> 'ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.040s'. Guard removed (wrapper deleted, loop kept): zz_cur_rangedefine.gno 'ok ... 0.041s', zrealm_cur_range.gno 'ok ... 0.047s', zrealm_cur_shadow_range.gno 'ok ... 0.056s', zrealm_cur_legal.gno 'ok ... 0.073s', zrealm_cur_shadow.gno 'ok ... 0.046s'. The comment sitting above the wrapper already states the reason it is dead: 'it binds a new name, which cannot be cur-called (the provenance check below refuses a name whose declaring block is not a crossing FuncDecl/FuncLitExpr)'.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-catalog-r2-range-define-guard.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3005,
+      "angle": "catalog",
+      "summary": "a ValueDecl route past the three write rules: `var cur realm = cur.Previous()` at a crossing function's top level, which no rule matches",
+      "settled_by": "go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_cur_vardecl.gno$' -> 'unexpected panic: zz_cur_vardecl.gno:9:6: cur redeclared in this block / previous declaration at zz_cur_vardecl.gno:8:11' (ParseMemPackageAsType, the Go typechecker, before preprocess)"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3005,
+      "angle": "catalog",
+      "summary": "a parenthesized LHS route: `(cur) = cur.Previous()` is not a *NameExpr, so the loop's `lh.(*NameExpr)` would skip it",
+      "settled_by": "go2gno.go:336 unwraps *ast.ParenExpr via toExpr(fs, gon.X); go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_cur_paren.gno$' -> 'unexpected panic: zz_cur_paren.gno:9:2-24: cannot reassign the crossing `cur` parameter'"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3005,
+      "angle": "catalog",
+      "summary": "a multi-value route: `cur, x = two(cur)` and `cur, x := two(cur)` in a crossing function, where the preprocessor may rewrite the LHS before the tail loop reads n.Lhs",
+      "settled_by": "go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_cur_multi.gno$' -> 'zz_cur_multi.gno:14:2-19: cannot reassign the crossing `cur` parameter'; same for the DEFINE form, 'zz_cur_definemulti.gno:13:2-20: cannot reassign the crossing `cur` parameter'"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2583,
+      "angle": "catalog",
+      "summary": "the fourth cell: a realm-typed name `cur` whose declaring block is NOT a crossing function (an inner-block shadow) is now writable and addressable where the merge base refused it, and nothing pins the relaxation",
+      "settled_by": "gnovm/tests/files/zrealm_cur_shadow.gno, added by this PR, pins exactly that shape: `{ cur := cur; cur = nil; p := &cur; *p = nil }` inside `func main(cur realm)` with `// Output: ok`; go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_shadow.gno$' -> ok"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 558,
+      "angle": "catalog",
+      "summary": "harnessSeedsCur's godoc claims the testing package cannot be reached from on-chain code, so an on-chain package published at that path would disable the cur identity check",
+      "settled_by": "ls gnovm/stdlibs/testing -> 'No such file or directory'; the only testing package is gnovm/tests/stdlibs/testing, imported solely by gnovm/pkg/test (imports.go:16, filetest.go:19), and TestingBasePkgPath is the bare path \"testing\" (preprocess.go:22), which no gno.land/r/ or gno.land/p/ package path can equal"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 559,
+      "angle": "catalog",
+      "summary": "PeekCallFrame(2) off by one on the deferred-call path, where installInheritedCur is called with m.LastFrame() rather than the frame doOpCall pushed",
+      "settled_by": "op_call.go:786 `m.PushFrameCall(&dfr.Source.Call, fv, recv, true)` runs before op_call.go:841 `m.installInheritedCur(m.LastFrame(), fv, b)`, and the deferring frame is deliberately left on the stack ('OpReturnFromBlock needs frame, don't pop here'), so index 1 is the deferred callee and index 2 is the deferrer, which is the caller whose identity the deferred call inherits"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call_test.go",
+      "line": 84,
+      "angle": "catalog",
+      "summary": "the exemption is pinned only by a unit test with hand-built Frames, so nothing exercises the t.Run sub-test shape it exists for",
+      "settled_by": "gnovm/tests/stdlibs/testing/cur_subtest_test.gno exists and testing.gno:168-196 threads t.cur into tRunner_cur for the `func(cur realm, *T)` sub-test form, so the end-to-end shape is covered outside this package"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 513,
+      "angle": "catalog",
+      "summary": "determinism class: the guard the diff edits decides a consensus-visible panic by comparing *HeapItemValue pointers",
+      "settled_by": "realmMatchesCurHIV takes both operands from one machine's live frames (fr.Cur and m.topCrossingCur()), compares them for reference equality only and never reads or serialises an address, so the answer is fixed by the op sequence every node replays; the comparison predates this diff (#6193) and the diff only adds a conjunct in front of it"
+    }
+  ]
+}

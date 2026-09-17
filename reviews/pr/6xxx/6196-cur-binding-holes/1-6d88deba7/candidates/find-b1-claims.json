@@ -1,0 +1,112 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6112,
+      "angle": "claims",
+      "summary": "isCrossingCurParam dropped the realm-type test, so any body-level name `cur` in a crossing function with an unnamed first realm parameter is refused, including an int local that compiled and ran on the merge base",
+      "failure_scenario": "In a realm: `func F(_ realm) int { cur := 1; cur = 2; return cur }` — the `_ realm` shape is used by r/gnoland/blog, r/gnoland/boards2/v0, r/demo/counter, r/sys/users and others, so the function has no `cur` parameter at all. The body-level `cur` is declared by the crossing FuncDecl's own block, and the rewritten write rule keys on name plus declaring node with the old `evalStaticTypeOf(store, last, ne) == gRealmType` gate removed, so preprocess panics at the DEFINE with \"cannot reassign the crossing `cur` parameter\". The same file compiles and prints 2 on the merge base, where DEFINE was skipped wholesale and ASSIGN required the realm type. The `&cur` arm carries the same hole: its message still says \"realm-typed `cur`\" while nothing checks the type.",
+      "verify_by": "cp tests/b1-claims-nonrealm-cur-local.gno gnovm/tests/files/zz_b1_local_int.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_b1_local_int.gno$' at 6d88deba7 (expect the preprocess panic) and at b7845fb2d (expect PASS)",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6d88deba7: \"--- FAIL: TestFiles/zz_b1_local_int.gno ... unexpected panic: gno.land/r/demo/b1local/zz_b1_local_int.gno:9:2-10: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame\" — 9:2-10 is `cur := 1`, the declaration. merge base b7845fb2da9a21bfb895e1c008f016776f8342d0, same file and command: no FAIL line for zz_b1_local_int.gno, the filetest's `// Output: 2` matched.",
+      "repro_path": "tests/b1-claims-nonrealm-cur-local.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6117,
+      "angle": "claims",
+      "summary": "the FuncDecl/FuncLitExpr arms test IsCrossing() alone, so a named result `cur` in a crossing function whose first realm parameter is unnamed is refused, against the godoc's \"a named result ... stays writable\"",
+      "failure_scenario": "`func F(_ realm) (cur realm) { cur = nil; return cur }` in a realm: IsCrossing() only asks whether Params[0].Type == gRealmType, and the FuncTypeExpr naming rule lets that parameter be unnamed (`.arg` prefix), so a `cur` that is a named result resolves to the same crossing FuncDecl and the write is refused with a message naming a parameter the function does not have. This predates the branch (it fails on the merge base too), but the branch sweeps exactly this class — its godoc, the PR body's fix 2 and the new zrealm_cur_other_legal.gno all state that a named result stays writable — and misses this member. Adding `&& ft.Params[0].Name == \"cur\"` to both arms closes it.",
+      "verify_by": "cp tests/b1-claims-named-result.gno gnovm/tests/files/zz_b1_named_result.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_b1_named_result.gno$' at 6d88deba7 and at b7845fb2d",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6d88deba7: \"unexpected panic: gno.land/r/demo/b1named/zz_b1_named_result.gno:9:2-11: cannot reassign the crossing `cur` parameter: ...\". merge base b7845fb2d: identical panic, so the shape predates the branch and the branch's own claim about it is what is new.",
+      "repro_path": "tests/b1-claims-named-result.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call_test.go",
+      "line": 110,
+      "angle": "claims",
+      "summary": "TestFuncDisplayName pins the fv.Source == nil fallback, which no real function literal reaches, and leaves the source-location branch the panic actually prints untested",
+      "failure_scenario": "funcDisplayName has three branches; a FuncValue built by doOpFuncLit always carries Source, so every real closure takes `fmt.Sprintf(\"%s func literal at %s:%d\", ...)` and the `.<func literal>` string the test asserts is reachable only from a hand-built FuncValue. A regression in the location branch — an empty loc.File, a zero Line, the wrong separator — leaves TestFuncDisplayName green and ships an unactionable panic, which is the exact failure the test header says it exists to prevent.",
+      "verify_by": "grep -rn 'func literal at' gnovm/ (only op_call.go:573, no test), then cp tests/b1-claims-funclit-display-name.gno gnovm/tests/files/zz_b1_litname.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_b1_litname.gno$' to see the branch's real output",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "grep over gnovm/ for 'func literal at': one hit, gnovm/pkg/gnolang/op_call.go:573. The filetest drives it: \"unexpected panic: crossing function gno.land/r/demo/b1lit func literal at zz_b1_litname.gno:10 was entered without cross(), ...\" — the live branch, and nothing asserts that string.",
+      "repro_path": "tests/b1-claims-funclit-display-name.gno"
+    },
+    {
+      "file": "gnovm/tests/files/zrealm_cur_other_legal.gno",
+      "line": 17,
+      "angle": "claims",
+      "summary": "the legal-shapes filetest's namedResult is non-crossing, so it pins nothing about the named-result claim its header makes and stays green while the crossing shape is refused",
+      "failure_scenario": "The header says a package-level var, a named result and a block-scoped local \"keep compiling\" because they are not a crossing parameter, but `func namedResult(x int) (cur realm)` has an int first parameter, so isCrossingCurParam returns false at the first hop (the declaring node is a non-crossing FuncDecl) and the write rule never resolves anything. The shape the claim is about — a named result in a function the declaration test calls crossing — is `func F(_ realm) (cur realm)`, and it panics. The fixture therefore certifies a rule the code does not implement, and would stay green through a fix or a further regression.",
+      "verify_by": "append `func namedResultCrossing(_ realm) (cur realm) { cur = nil; return cur }` to gnovm/tests/files/zrealm_cur_other_legal.gno and run go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_other_legal.gno$': expect PASS per the header, observe the preprocess panic",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "Same mutation in standalone form (tests/b1-claims-named-result.gno): \"unexpected panic: ... cannot reassign the crossing `cur` parameter\" at head, while the unmodified zrealm_cur_other_legal.gno is green.",
+      "repro_path": "tests/b1-claims-named-result.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2160,
+      "angle": "claims",
+      "summary": "the provenance arms test IsCrossing() alone too, so a named result `cur` is accepted as a frame identity at preprocess and rejected at runtime under the stale-capture wording, which names a mistake the source did not make",
+      "failure_scenario": "`func F(_ realm) (cur realm) { Target(cur); return }` with `func Target(cur realm)` in the same realm: the cur-call check resolves `cur` to the crossing FuncDecl, accepts it, and the value forwarded is the result's zero realm. installInheritedCur then panics with \"a stale capture from another frame, a sibling frame, or a rebound cur\" and the remedy \"pass the caller's own `cur` unchanged\", neither of which describes writing `Target(cur)` inside a function whose `cur` is a result. Fail-closed and pre-existing, so the cost is a wrong diagnosis; the same `Params[0].Name == \"cur\"` test that closes the write rule turns it into the existing preprocess error.",
+      "verify_by": "cp tests/b1-claims-provenance-named-result.gno gnovm/tests/files/zz_b1_provenance.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_b1_provenance.gno$' at 6d88deba7 and b7845fb2d",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "Both shas: \"unexpected panic: crossing function gno.land/r/demo/b1prov.Target was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur)\", with the stack entering through installInheritedCur at op_call.go:521. Identical at the merge base, so the branch neither causes nor fixes it.",
+      "repro_path": "tests/b1-claims-provenance-named-result.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 153,
+      "angle": "claims",
+      "summary": "the rewritten header's \"a fresh allocation that never matches\" holds only for prevs that are PointerValues; NewConcreteRealm and MakeRealmValue plant gOriginRealmTV itself as the prev field whenever the prev argument is not one",
+      "failure_scenario": "curUsesPreprocessOrigin reads Fields[2] and compares its HeapItemValue to originPlaceholderHIV(). Both realm constructors start from `prevField := gOriginRealmTV` and only replace it when `prev.V.(PointerValue)` holds with a non-nil TV, so any realm minted with a nil or non-pointer prev carries the one global placeholder as its prev and answers the predicate true. A cur that answers true is rebuilt from buildOriginRealm and, through `rebuilt`, is exempted from the caller-identity check below — the fail-open the header says identity comparison closed. MakeRealmValue is the testing stdlib's own constructor (X_makeRealm), so the reachable surface today is test-only; the claim as written is what a later caller would rely on.",
+      "verify_by": "grep -n 'prevField := gOriginRealmTV' gnovm/pkg/gnolang/uverse.go (two hits, NewConcreteRealm and MakeRealmValue), then a Go test in package gnolang: build tv := MakeRealmValue(nil, \"g1...\", \"gno.land/r/x\", TypedValue{}) and assert (&Machine{}).curUsesPreprocessOrigin(&tv) is false; observe true",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "Read only: uverse.go:461 and uverse.go:474 both open with `prevField := gOriginRealmTV`; buildOriginRealm (uverse.go:415) returns newRealmHIVPointer(m.Alloc, addr, pkgPath, TypedValue{}), whose own Fields[2].V is nil, so the materialized origin itself is correctly not matched — the gap is one hop up, in what is stored as another realm's prev.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 449,
+      "angle": "claims",
+      "summary": "the deferred-gas NOTE claims doOpEnterCrossing charges OpCPUSlopeEnterCrossing per call frame for the same traversal and that this PR charges no gas",
+      "settled_by": "grep -rn 'OpCPUSlopeEnterCrossing' gnovm/pkg/gnolang: the only charges are op_call.go:290 and :299, both `m.incrCPU(i * OpCPUSlopeEnterCrossing)` inside doOpEnterCrossing's frame walk; the constant is machine.go:1697, untouched by the diff, and the diff adds no incrCPU call."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 556,
+      "angle": "claims",
+      "summary": "harnessSeedsCur's godoc claims the testing package cannot be reached from on-chain code, so the exemption is test-only",
+      "settled_by": "TestingBasePkgPath = \"testing\" (preprocess.go:22); `ls gnovm/stdlibs` has no testing package, only gnovm/tests/stdlibs/testing, which is loaded by the test harness; the parallel carve-out the body cites is real, preprocess.go:2070 `if ctxpn.PkgPath == TestingBasePkgPath { goto LEAVE_CALL_EXPR_END_CHECK_CROSSING }`."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 559,
+      "angle": "claims",
+      "summary": "the `// 1 is the callee frame being installed` comment on PeekCallFrame(2), checked on the defer path where installInheritedCur is called with m.LastFrame()",
+      "settled_by": "op_call.go:789 `m.PushFrameCall(&dfr.Source.Call, fv, recv, true)` precedes the block push, and PushBlock does not append to m.Frames, so m.LastFrame() at op_call.go:841 is that call frame; peekCallFrame (machine.go:2915) skips frames where !fr.IsCall(), IsCall being fr.Func != nil (frame.go:78), so index 2 is the deferring frame on both paths."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 122,
+      "angle": "claims",
+      "summary": "the header's claim that a materialized per-tx origin, including one with an empty OriginCaller, never matches the placeholder",
+      "settled_by": "buildOriginRealm (uverse.go:403-416) returns newRealmHIVPointer(m.Alloc, addr, pkgPath, TypedValue{}); its Fields[2].V is nil, so curUsesPreprocessOrigin returns false at `prev, ok := sv.Fields[2].V.(PointerValue)`, and a cur whose prev is that value carries the fresh HIV, not originPlaceholderHIV(). The residual case is filed as a candidate on NewConcreteRealm's fallback, not on this claim."
+    }
+  ]
+}

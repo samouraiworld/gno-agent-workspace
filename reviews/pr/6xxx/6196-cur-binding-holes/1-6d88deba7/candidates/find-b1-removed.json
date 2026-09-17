@@ -1,0 +1,66 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6111,
+      "angle": "removed",
+      "summary": "isCrossingCurParam dropped the realm static-type test the three write rules carried, so any name `cur` declared in a crossing function's own block is unwritable whatever its type",
+      "failure_scenario": "func sum(_ realm, n int) int { cur := 0; for i := 0; i < n; i++ { cur += i }; return cur } no longer compiles: the unnamed first realm parameter (.arg_0) leaves the function crossing while the FuncDecl block owns an int named cur, so isCrossingCurParam resolves the declaring node, returns true, and the assignment rule panics \"cannot reassign the crossing `cur` parameter\". Same for a named result (cur int) written, address-taken (&cur, message: \"realm-typed `cur`\") or range-assigned. 56 `(_ realm` signatures exist under examples/ at this sha, and `cur` is an ordinary cursor name. All four shapes run on the merge base b7845fb2d and are rejected at head, against the PR body's Compatibility claim that the write rules only got narrower.",
+      "verify_by": "cp reviews/.../tests/b1-removed-nonrealm-cur-binding.gno into gnovm/tests/files/zrealm_cur_nonrealm_local.gno and run go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_nonrealm' -v at 6d88deba7, then again after git checkout b7845fb2da9a21bfb895e1c008f016776f8342d0 -- gnovm/pkg/gnolang/preprocess.go",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6d88deba7, four files: 'unexpected panic: .../zrealm_cur_nonrealm_local.gno:8:2-10: cannot reassign the crossing `cur` parameter', '.../zrealm_cur_nonrealm_assign.gno:8:2-9: cannot reassign the crossing `cur` parameter', '.../zrealm_cur_nonrealm_ref.gno:5:7-11: cannot take the address of a realm-typed `cur`', '.../zrealm_cur_nonrealm_range.gno:5:2-6:3: cannot assign to a realm-typed `cur` in a range clause'; with base preprocess.go only: '--- PASS: TestFiles/zrealm_cur_nonrealm_local.gno', '--- PASS: TestFiles/zrealm_cur_nonrealm_assign.gno', '--- PASS: TestFiles/zrealm_cur_nonrealm_ref.gno', '--- PASS: TestFiles/zrealm_cur_nonrealm_range.gno'. The same predicate also refuses the realm-typed named result the reviewer thread names (func f(_ realm) (cur realm) { cur = nil }): that one panics at head and at b7845fb2d alike, so it is a member of the class finding 2 claims to fix rather than a regression. The reviewer's proposed `ft.Params[0].Name == \"cur\"` conjunct closes both.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-removed-nonrealm-cur-binding.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call_test.go",
+      "line": 110,
+      "angle": "removed",
+      "summary": "TestFuncDisplayName pins only the branch a real func literal never takes, leaving the rewritten panic's literal path untested",
+      "failure_scenario": "funcDisplayName's second branch (fv.Source != nil, \"%s func literal at %s:%d\") is what every runtime func literal takes, since doOpFuncLit sets Source (op_expressions.go:779). The test asserts the Name branch and the Source==nil fallback \"<func literal>\", which only a FuncValue with no source reaches. Change the location format, or lose GetLocation's File/Line, and the message the PR's finding 4 exists to produce degrades with every test still green.",
+      "verify_by": "read gnovm/pkg/gnolang/op_call_test.go:110-118 against funcDisplayName at op_call.go:567; grep 'Source:' for the FuncValue built by doOpFuncLit (op_expressions.go:779). Then add a crossing func-literal backstop filetest and confirm the panic text is 'func literal at <file>:<line>'.",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "op_expressions.go:779 'Source:     x,' in the FuncValue built for a FuncLitExpr; values.go:717 treats fv.Source == nil as the unset case.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 513,
+      "angle": "removed",
+      "summary": "the harness carve-out drops the identity check for every no-cross crossing entry dispatched by package testing, not only the cur the harness seeds",
+      "failure_scenario": "harnessSeedsCur keys on the caller frame's PkgPath alone, so any crossing function a realm test enters without cross() from a testing-package frame skips realmMatchesCurHIV. A realm test that forwards a stale or sibling cur through a testing-dispatched call passes under gno test while the same call panics on chain, which is the failure the check was added to surface to the author.",
+      "verify_by": "narrow the exemption to the seeded value: compare fr.Cur against the cur the top-level test frame holds, rather than exempting the whole caller package; then re-run go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing' and the new cur_subtest_test.gno",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "op_call.go:558 harnessSeedsCur returns caller.Func.PkgPath == TestingBasePkgPath (\"testing\", preprocess.go:22) with no test of the value in fr.Cur.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3113,
+      "angle": "removed",
+      "summary": "the RangeStmt write rule kept the `n.Op != DEFINE` carve-out the AssignStmt rule dropped, so a range-define rebind of cur would slip through",
+      "settled_by": "read of TRANS_BLOCK case *RangeStmt: pushInitBlock(n, &last, &stack) then last.Define(kn/vn, ...) - a range DEFINE always declares into the RangeStmt's own pushed block, so it can never resolve to the enclosing FuncDecl slot the way `cur, x := ...` at body level does"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3011,
+      "angle": "removed",
+      "summary": "moving the write rule after the DEFINE/ASSIGN branch lets the decompose rewrite replace n.Lhs with .decompose_ names before the rule reads it",
+      "settled_by": "read of preprocess.go:2561 'asx = Preprocess(store, last, asx).(*AssignStmt)' - the appended statement keeps the original Lhs and is preprocessed inside the decompose branch, so its own TRANS_LEAVE runs the rule on the real `cur` name"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 521,
+      "angle": "removed",
+      "summary": "the identity panic's format changed from PkgPath.Name to funcDisplayName, which could move the text three filetests pin",
+      "settled_by": "grep -rln 'was entered without cross' gnovm -> zrealm_cur_backstop.gno, zrealm_cur_method_backstop.gno, zrealm_cur_defer.gno, none touched by the diff; funcDisplayName returns fv.PkgPath+\".\"+fv.Name whenever Name != \"\", byte-identical to the old %s.%s"
+    }
+  ]
+}

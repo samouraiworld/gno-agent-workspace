@@ -1,0 +1,18 @@
+{
+  "verdicts": [
+    {
+      "index": 37,
+      "angle": "claims",
+      "verify_by": "cp the fixture to gnovm/tests/files/zrealm_cur_argname_ref.gno and run `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_argname_ref.gno$'` at 6d88deba7 and at b7845fb2d",
+      "state": "CONFIRMED",
+      "band": "Warning",
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2584,
+      "tldr": "`&cur` on a non-realm parameter named `cur` now aborts the package, with a message calling it realm-typed",
+      "details": "isCrossingCurParam (preprocess.go:6111) returns true for any NameExpr spelled `cur` with a VPBlock path whose declaring node is a crossing FuncDecl or FuncLitExpr; it tests no type at all, where the rule it replaced tested `xt == gRealmType`. The FuncTypeExpr rule (preprocess.go:2819-2833) skips every parameter whose resolved type is not gRealmType and accepts a first realm parameter named `.arg0`, so `func F(_ realm, cur int)` is legal Gno and its int `cur` is declared by a crossing FuncDecl. The RefExpr guard at 2584 then refuses `p := &cur` inside F and preprocess aborts the whole realm package, quoting \"cannot take the address of a realm-typed `cur`\" about an int. The same untyped predicate is also what the AssignStmt rules at 3011 and 3116 call, so the class is wider than the address form. Fix: test the resolved type alongside the declaring node in isCrossingCurParam, returning false unless the binding's type is gRealmType.",
+      "evidence": "Head 6d88deba7, own run in a scratch worktree: `--- FAIL: TestFiles/zrealm_cur_argname_ref.gno` / `files_test.go:135: unexpected panic: gno.land/r/demo/curargref/zrealm_cur_argname_ref.gno:37:7-11: cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame, ...` with the frame at `gnovm/pkg/gnolang/preprocess.go:2584`. Merge base b7845fb2d, same fixture, same command: `ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.045s`, so the `// Output: 5` expectation holds there and the rejection is introduced by this diff.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-claims-r2-refexpr-nonrealm-cur.gno",
+      "base_behaves_the_same": false
+    }
+  ]
+}

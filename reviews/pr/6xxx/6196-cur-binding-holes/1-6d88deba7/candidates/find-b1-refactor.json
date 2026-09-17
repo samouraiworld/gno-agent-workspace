@@ -1,0 +1,112 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 571,
+      "angle": "refactor",
+      "summary": "funcDisplayName's source-location arm, the one fix 4 in the body advertises, has no test anywhere: TestFuncDisplayName pins only the Name!=\"\" and Source==nil arms",
+      "failure_scenario": "A crossing func literal entered without cross() with a cur captured in another frame hits op_call.go:571-573, the only arm that renders a location. Nothing in the tree reaches it: `grep -rn 'func literal at' gnovm/tests/` is empty at 6d88deba7, and op_call_test.go:110-115 asserts the other two arms. Delete lines 571-574 and every test in the repository still passes, so the panic goes back to naming a callee `gno.land/r/x.<func literal>` with no location, which is the unactionable message the block was added to fix.",
+      "verify_by": "cp the artifact to gnovm/tests/files/zrealm_cur_literal_name.gno and run go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_literal_name.gno$' (passes at head); then delete op_call.go:571-574 and re-run: only this filetest turns red, and `grep -rn 'func literal at' gnovm/tests/` is empty without it",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "Reached by construction in 12 lines of ordinary gno. Panic at head: \"crossing function gno.land/r/demo/curlitname func literal at zrealm_cur_literal_name.gno:27 was entered without cross(), ...\". Before adding the file, `grep -rn 'func literal at' gnovm/tests/` returned nothing; the three filetests that do reach the identity panic (zrealm_cur_defer, zrealm_cur_backstop, zrealm_cur_method_backstop) all call named functions.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-refactor-literal-name.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2155,
+      "angle": "refactor",
+      "summary": "the cur-call provenance switch is a second copy of isCrossingCurParam, 24 lines that fold to 6, and the helper's own godoc calls them the same test",
+      "failure_scenario": "isCrossingCurParam (6111) says it is \"the same declaration test the cur-call provenance check makes ... so 'may be cur-called' and 'may not be written' agree by construction\", but 2155-2177 is an independent copy of that switch, so they agree only while both are edited together. The live cost is in this PR's own review: ltzmaxwell's fix (add `&& ft.Params[0].Name == \"cur\"`) has to be written into four arms across two functions, and the two suggestion blocks on the thread patch them separately. Folding the call site into the helper puts the next such edit in one place.",
+      "verify_by": "apply tests/b1-refactor-provenance-fold.patch, then gofmt -l gnovm/pkg/gnolang/preprocess.go; go test ./gnovm/pkg/gnolang/ -run 'TestFiles$' -short; go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing'",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "Rewrite is -21/+3 (24 lines -> 6), gofmt clean. `go test ./gnovm/pkg/gnolang/ -run 'TestFiles$' -short` => \"ok github.com/gnolang/gno/gnovm/pkg/gnolang 43.499s\", zero failures; all 32 TestFiles/zrealm_cur* pass, including the three that pin the provenance message (zrealm_cur_shadow_call/_if/_range); TestStdlibs/test-testing ok.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-refactor-provenance-fold.patch"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 572,
+      "angle": "refactor",
+      "summary": "funcDisplayName hand-formats a location the tree already renders: 2 lines become 1 with Location.String(), and the message stops disagreeing with the stacktrace under it",
+      "failure_scenario": "The panic prints \"gno.land/r/demo/curlitname func literal at zrealm_cur_literal_name.gno:27\" while the stacktrace two lines below prints \"gno.land/r/demo/curlitname/zrealm_cur_literal_name.gno:28\" for the same file. A reader gets a bare basename with no column span in one place and a full pkgpath-qualified span in the other, and a second location format has to be maintained in op_call.go.",
+      "verify_by": "replace lines 572-573 with `return fmt.Sprintf(\"func literal at %s\", fv.Source.GetLocation())`, then run the artifact filetest: go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_literal_name.gno$'",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "With the one-liner applied the same filetest prints \"crossing function func literal at gno.land/r/demo/curlitname/zrealm_cur_literal_name.gno:27:7-55 was entered without cross(), ...\", matching Location.String() (nodes_location.go:304) and the stacktrace format. 2 lines -> 1.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-refactor-literal-name.gno"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 513,
+      "angle": "refactor",
+      "summary": "the test-only exemption is the third conjunct, so every no-cross crossing entry pays a frame walk for an answer that only matters once the identity compare has already failed",
+      "failure_scenario": "`hasCallerCur && !rebuilt && !m.harnessSeedsCur() && !realmMatchesCurHIV(...)` evaluates harnessSeedsCur on every crossing call entered without cross() that has a live crossing caller, which is the ordinary on-chain path; harnessSeedsCur scans m.Frames backwards for two IsCall frames (machine.go:2915) and can only ever answer true under the test harness. Moving it last leaves the common path with pointer compares only and reads as what it is, a carve-out on the failure branch. Same conjunction, same result, no side effects.",
+      "verify_by": "move `!m.harnessSeedsCur()` to the end of the condition at line 513 and run go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing' and -run 'TestFiles/zrealm_cur'",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "harnessSeedsCur is pure (op_call.go:558-561: PeekCallFrame + two nil checks + a string compare), so the reorder cannot change the verdict; realmMatchesCurHIV is pointer identity (op_call.go:532-547).",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6111,
+      "angle": "refactor",
+      "summary": "isCrossingCurParam takes *NameExpr, so each of its three call sites repeats the type assertion it could absorb; taking Expr turns two 7-line loops into 5-line ones",
+      "failure_scenario": "At 3009-3015 and 3114-3120 the loop reads `ne, ok := lh.(*NameExpr); if !ok || !isCrossingCurParam(...) { continue }; panic(...)` — an inverted guard whose only job is feeding the helper a type it could test itself. With the parameter typed Expr the helper's first line becomes `nx, ok := x.(*NameExpr); if !ok || nx.Name != \"cur\" ...` and all three sites read `if isCrossingCurParam(store, last, lh) { panic(...) }`. 15 lines across the three sites become 11, and the next call site cannot forget the assertion.",
+      "verify_by": "change the parameter to Expr, fold the assertion into the helper, update the three call sites (2583, 3009, 3114), then go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur'",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "Three call sites confirmed at preprocess.go:2583 (RefExpr), 3009-3015 (AssignStmt), 3114-3120 (RangeStmt); each asserts *NameExpr before calling.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 559,
+      "angle": "refactor",
+      "summary": "harnessSeedsCur re-derives by a magic index the frame its only caller already holds, and the coupling appears in no signature",
+      "failure_scenario": "installInheritedCur is handed `fr` and then calls harnessSeedsCur, which assumes `fr` is m.PeekCallFrame(1) so that PeekCallFrame(2) is the caller. That holds today only because both call sites pass the top call frame (op_call.go:404 passes doOpCall's `fr = m.LastFrame()`, op_call.go:841 passes m.LastFrame() after PushFrameCall). A third caller, or a caller that installs into a frame that is not the top one, silently reads a different frame and exempts the wrong call — in the function whose own header says it exists so two paths \"cannot drift apart again\". Passing the caller frame in (`harnessSeedsCur(m.PeekCallFrame(2))`) puts the index next to `fr`, where the assumption is visible.",
+      "verify_by": "read op_call.go:404 and :841 for what each passes as fr, and machine.go:2908-2925 for what PeekCallFrame(2) skips; then go test ./gnovm/pkg/gnolang/ -run 'TestHarnessSeedsCur'",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "op_call.go:315 `fr := m.LastFrame()` in doOpCall; op_call.go:841 `m.installInheritedCur(m.LastFrame(), fv, b)` in doOpReturnCallDefers; PushBlock (machine.go:2377) appends to m.Blocks, not m.Frames, so both are the top call frame today.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 558,
+      "angle": "refactor",
+      "summary": "the exemption is wider than its stated cause: it clears any crossing call whose immediate caller is in package testing, not just tRunner_cur's sub-test dispatch, so `&& caller.Func.Name == \"tRunner_cur\"` would name the dispatch it documents",
+      "settled_by": "gnovm/tests/stdlibs/testing/testing.gno:489-493 already carves out the whole package at preprocess — \"Normally the first argument must be `cur` or `cross`, but from this package it is possible to pass a realm value without crossing\" — with the call `fn(next, t)` on 493. Narrowing the runtime key to one function name would diverge from the carve-out the VM already grants that package."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6115,
+      "angle": "refactor",
+      "summary": "isCrossingCurParam's two switch arms have identical bodies and look mergeable",
+      "settled_by": "Go's type switch binds dbn per arm, so `case *FuncDecl, *FuncLitExpr:` leaves dbn typed BlockNode with no .Type field; every merged form (a *FuncTypeExpr local set per arm, then one return) is the same length or longer. Tried and no shorter form exists."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6111,
+      "angle": "refactor",
+      "summary": "the deeper form of fixes 1 and 2 is to refuse declaring a realm-typed `cur` anywhere but a crossing function's first parameter, which deletes isCrossingCurParam and the after-DEFINE ordering",
+      "settled_by": "Already the open design thread on the PR (ltzmaxwell 2026-09-17T13:27:01Z) and accepted by the author in the same thread (\"Changing this PR to do that\"); it is not this round's finding."
+    }
+  ],
+  "blocks_rewritten": [
+    "isCrossingCurParam's type switch (preprocess.go:6115-6119) - every merged form is the same length or longer in Go; rejected",
+    "TestHarnessSeedsCur (op_call_test.go:82-106) as a table over {pkgPath, frames, want} - 25 lines to ~14, but pure test style with no behaviour or maintenance consequence; not returned",
+    "installInheritedCur's heap-unwrap block (op_call.go:466-474) - shorter as `fr.Cur = bvSlot.V.(*HeapItemValue).Value` guarded, but the block predates this diff (merged #6193) and the diff does not sweep its class; out of scope",
+    "The identity panic's message block (op_call.go:514-523) - only wording changes remain, which ship SKIP per Calibration",
+    "harnessSeedsCur narrowed to `caller.Func.Name == \"tRunner_cur\"` - rejected, see dropped: the package-wide carve-out already exists at preprocess"
+  ]
+}

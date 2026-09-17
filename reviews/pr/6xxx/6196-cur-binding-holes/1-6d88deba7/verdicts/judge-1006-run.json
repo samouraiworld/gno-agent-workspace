@@ -1,0 +1,18 @@
+{
+  "verdicts": [
+    {
+      "index": 1,
+      "angle": "claims + claims + catalog",
+      "verify_by": "cp the artifact to gnovm/tests/files/zrealm_b2claims_namedresult.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_b2claims_namedresult.gno$' at 6d88deba7: expect PASS printing ok per the ADR, observe the preprocess panic. Then add `&& ft.Params[0].Name == \"cur\"` to both switch arms and re-run, with go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_.*\\.gno$' to confirm no fixture regresses. | cp tests/b1-claims-named-result.gno gnovm/tests/files/zz_b1_named_result.gno && go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zz_b1_named_result.gno$' at 6d88deba7 and at b7845fb2d | cp tests/b1-catalog-crossing-named-result.gno gnovm/tests/files/zzb1namedres.gno; go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zzb1namedres.gno$' at 6d88deba7 and at the merge base",
+      "state": "CONFIRMED",
+      "band": "Warning",
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6117,
+      "tldr": "a named result `cur realm` is refused whenever the enclosing function's first realm parameter is blank, the one member of the class this PR's fix 2 leaves behind",
+      "details": "Both arms of isCrossingCurParam ask only getType(&dbn.Type).(*FuncType).IsCrossing(), and IsCrossing (types.go:1393) compares Params[0].Type to gRealmType and nothing else. A named result `cur` is declared in the FuncDecl's own block, so GetBlockNodeForPath resolves it to that FuncDecl and the function answers true for a result it is documented to leave alone. The shape is reachable because a blank first parameter is renamed to `.arg_0` (preprocess.go:557) and the FuncTypeExpr crossing-name rule accepts any `.arg` prefix (preprocess.go:2827), so `func F(_ realm) (cur realm)` is a well-formed crossing function. The user loses a legal program: `cur = nil` in its body is rejected at preprocess with a message that names the result as this frame's realm identity, while the ADR's Decision, isCrossingCurParam's own godoc and the new zrealm_cur_other_legal.gno all say a named result stays writable. That fixture covers only the non-crossing enclosing form `func namedResult(x int) (cur realm)`. Fix: gate both arms on the first parameter actually carrying the name, `ft.IsCrossing() && ft.Params[0].Name == \"cur\"`.",
+      "evidence": "My own runs, scratch worktrees detached at each sha. Head 6d88deba7, finder's artifact copied to gnovm/tests/files/zrealm_b2claims_namedresult.gno: `--- FAIL: TestFiles/zrealm_b2claims_namedresult.gno` / `files_test.go:135: unexpected panic: gno.land/r/demo/curnamedres/zrealm_b2claims_namedresult.gno:27:2-11: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame` (line 27 is the `cur = nil` inside `func namedResult(_ realm) (cur realm)`). Merge base b7845fb2d, same fixture: byte-identical panic at the same position, so the case space is both-fail, not head-only. With `ft.Params[0].Name == \"cur\"` added to both arms at head: fixture `ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.053s`, and `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_.*\\.gno$' -v` gives 31 PASS subtests and `ok ... 1.223s`, no fixture regressing.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b2-claims-named-result-write.gno",
+      "base_behaves_the_same": true
+    }
+  ]
+}

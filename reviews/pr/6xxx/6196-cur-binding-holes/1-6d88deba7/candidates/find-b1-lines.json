@@ -1,0 +1,66 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6111,
+      "angle": "lines",
+      "summary": "isCrossingCurParam tests only the declaring node, not the binding's type nor that the crossing function's first parameter is named `cur`, so in a `func F(_ realm, ...)` every block-level `cur` of any type is refused as the frame identity",
+      "failure_scenario": "A crossing function whose leading realm parameter is unnamed, the `func F(_ realm, ...)` idiom, 56 occurrences under examples/ and gnovm/ at this sha. Any binding named `cur` declared at that function's own block level now resolves to a crossing FuncDecl and is refused whatever its type: `func f(_ realm, cur int) { cur = cur + 1 }`, `func g(_ realm) { cur := 41; cur = cur + 1 }` and `func h(_ realm, cur int) *int { return &cur }` all compile and run at the merge base b7845fb2d and are rejected at 6d88deba7 with `cannot reassign the crossing `cur` parameter` (the RefExpr site, preprocess.go:2583, with `cannot take the address of a realm-typed `cur``). The realm author loses a plain cursor local named `cur`, the idiom `cur := i.Next()` used in examples/gno.land/p/nt/seqid/v0, and the error names a realm binding on a line that has no realm in it. No CI job reaches it: no in-tree .gno file happens to put a `cur` binding inside an unnamed-realm crossing function, so the whole `TestFiles` suite is green on the regression. The PR body's Compatibility paragraph, \"No .gno source that compiled and ran before is rejected now: the write rules only got narrower through the declaration test\", is false for these three shapes: dropping `evalStaticTypeOf(ne) == gRealmType` widened the rule on the type axis while the declaration test narrowed it on the scope axis. The same missing test leaves the shape the PR claims to have fixed still refused: `func k(_ realm) (cur realm) { cur = nil }` is rejected at head and at base, while fix 2's own fixture zrealm_cur_other_legal.gno only spells the non-crossing `func namedResult(x int) (cur realm)`. ltzmaxwell's thread proposes `ft.Params[0].Name == \"cur\"` beside `IsCrossing()`; that patch closes all four shapes, since a crossing function whose first parameter IS named `cur` cannot hold a second `cur` in the same block (duplicate declaration), and it is the same guard preprocess.go:2827 already enforces at declaration.",
+      "verify_by": "bash reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-lines-cur-nonrealm-bindings.sh <worktree> at 6d88deba7 and at b7845fb2d; the three int-typed shapes flip COMPILES -> REFUSED across the pair",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "HEAD 6d88deba7: b1local REFUSED 'cannot reassign the crossing `cur` parameter', b1define REFUSED same, b1ref REFUSED 'cannot take the address of a realm-typed `cur`', b1result REFUSED same. BASE b7845fb2d: b1local COMPILES, b1define COMPILES, b1ref COMPILES, b1result REFUSED. Per-shape panic sites at head: zrealm_cur_b1local.gno:5:2-15, zrealm_cur_b1define.gno:5:2-11, zrealm_cur_b1ref.gno:5:9-13, zrealm_cur_b1result.gno:5:2-11. Idiom count: `grep -rnE '\\(_ realm' --include='*.gno' examples gnovm | wc -l` -> 56.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-lines-cur-nonrealm-bindings.sh"
+    },
+    {
+      "file": "gnovm/tests/files/zrealm_cur_other_legal.gno",
+      "line": 16,
+      "angle": "lines",
+      "summary": "the named-result fixture spells the non-crossing form, which is legal at the merge base too, so it pins nothing about the rule this PR adds",
+      "failure_scenario": "`func namedResult(x int) (cur realm)` has an int first parameter, so it is not crossing, so isCrossingCurParam returns false through the switch default that a package-level var also takes. The fixture is green at b7845fb2d unchanged, which means it cannot go red if isCrossingCurParam is deleted and the rule reverts to name-plus-type: it is not a regression test for fix 2. The shape fix 2 is about, a realm-typed named result inside a crossing function, is `func k(_ realm) (cur realm) { cur = nil }`, and that one is still refused at this sha. Adding it as a filetest makes the hole visible and would go green with the Params[0].Name test.",
+      "verify_by": "run zrealm_cur_other_legal.gno at b7845fb2d: `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_other_legal.gno$'` in a base worktree; it passes there, so the fixture distinguishes nothing",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "b1result in the harness above is exactly the crossing spelling and REFUSED at both shas, while the committed fixture's non-crossing spelling passes at both. Base run of the four shapes: b1local COMPILES / b1define COMPILES / b1ref COMPILES / b1result REFUSED.",
+      "repro_path": "reviews/pr/6xxx/6196-cur-binding-holes/1-6d88deba7/tests/b1-lines-cur-nonrealm-bindings.sh"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 513,
+      "angle": "lines",
+      "summary": "the new `!m.harnessSeedsCur()` term sits before the pointer compare, so every no-cross crossing entry pays a frame walk instead of only the mismatching ones",
+      "failure_scenario": "`hasCallerCur && !rebuilt && !m.harnessSeedsCur() && !realmMatchesCurHIV(...)` evaluates left to right, so harnessSeedsCur's peekCallFrame(2) walk runs on the ordinary path where the identities match, which is every no-cross crossing call on chain. realmMatchesCurHIV is a pointer comparison over already-loaded fields and settles that path on its own. Swapping the two terms leaves behaviour identical and confines the walk to the rare mismatch. It is also the walk the PR defers as unmetered (a tracker outside this repository): this line adds a second unmetered traversal per crossing entry to the one already deferred, which widens the gap the deferred gas change has to close.",
+      "verify_by": "read op_call.go:513 and machine.go:2915 peekCallFrame; confirm Go's left-to-right && and that realmMatchesCurHIV performs no traversal",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "peekCallFrame loops `for i := len(m.Frames) - 1; i >= 0; i--` skipping non-call frames until the 2nd call frame; realmMatchesCurHIV does derefRealmStruct plus two pointer compares and no loop.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2160,
+      "angle": "lines",
+      "summary": "the cur-call provenance switch accepts a crossing function's realm-typed named result as a frame identity, so `func F(_ realm) (cur realm) { Target(cur) }` passes preprocess and dies at run time with the stale-capture message (ltzmaxwell thread 1, claim 2)",
+      "settled_by": "same filetest at both shas: `go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur_b1prov.gno$'` panics identically at 6d88deba7 and at b7845fb2d with 'crossing function gno.land/r/demo/b1prov.Target was entered without cross(), so it takes its caller's identity'. Reproduces on the merge base, so the diff does not cause it; it fails closed and the new funcDisplayName names the callee correctly. The Params[0].Name test proposed for isCrossingCurParam closes it as well, which is why it is carried inside candidate 1 rather than filed as its own."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 6113,
+      "angle": "lines",
+      "summary": "getType(&dbn.Type).(*FuncType) is an unchecked assertion that would panic with an interface-conversion error if the declaring node's type were not yet evaluated",
+      "settled_by": "`sed -n '2800,2830p'` and the FuncLitExpr TRANS_BLOCK case: `ft := evalStaticType(store, last, &n.Type)` runs before the ATTR_PREPROCESS_SKIPPED check, and the FuncDecl TRANS_BLOCK case runs `ft := getType(&n.Type).(*FuncType)` on entry, so ATTR_TYPEOF_VALUE is set on both declaring shapes before any body statement is walked. Not reachable."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 3115,
+      "angle": "lines",
+      "summary": "the RangeStmt rule keeps `if n.Op != DEFINE` while the AssignStmt rule dropped it, an asymmetry that would miss a range rebind of the frame's cur",
+      "settled_by": "preprocess.go RangeStmt TRANS_BLOCK calls pushInitBlock(n, &last, &stack) before the key/value names are defined, so a `for cur := range` DEFINE always declares in the RangeStmt's own block and GetBlockNodeForPath returns that block, never the crossing FuncDecl. The DEFINE case cannot rebind the parameter, so the carve-out is correct there and its removal in AssignStmt is what fix 1 needed."
+    }
+  ]
+}
