@@ -77,10 +77,19 @@ wrong parameter, and the `hello.gno:16` candidate on `README.md:60-62`, the
 instruction that makes the hardcoded link reachable, opening `Related
 suggestion:`. The table above keeps the finders' anchors.
 
-**Merged sections.** Candidates 1 and 2 both resolve in one edit to
-`TestRender`: asserting against a literal leaves the state leak, and fixing the
-ordering leaves the vacuous needle. They ship as one `Missing test` section on
-`hello_test.gno:24-27` carrying both cases.
+**Dropped at the author's direction.** Candidates 1 and 2, the `TestRender`
+state leak and its vacuous needle, were drafted as one `Missing test` section on
+`hello_test.gno:24-27` and cut from the comment on the reviewer's call. Both rows
+stay above with their runs; nothing about them is posted.
+
+**Wording set by the reviewer.** Three sections were rewritten after the round:
+the Body dropped its `AGENTS.md` framing, the Warning dropped its repro block,
+the `Render` surface nit dropped its replacement text, and the hardcoded-link
+suggestion names `CurrentRealm().PkgPath()` rather than a package-qualified
+form. `Render` takes no `realm` parameter, measured at `hello.gno:7`, so `cur`
+is not in scope there; on gno master `bbd9b2ffe` the free function sits in
+`chain/runtime/unsafe` and `cur.PkgPath()` is the method form where a `cur`
+exists.
 
 **Refuted.** One row: `Render` ignoring `path` is the shape every single-page
 realm has, and no claim in the diff says otherwise.
