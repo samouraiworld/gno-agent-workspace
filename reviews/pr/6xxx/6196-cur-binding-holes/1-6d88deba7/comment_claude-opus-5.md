@@ -3,14 +3,13 @@ Verdict: REQUEST CHANGES, on one defect this branch causes: `isCrossingCurParam`
 Event: REQUEST_CHANGES
 Model: claude-opus-5, standard review
 Commit: 6d88deba7
+Status: not posted. The head advanced to 75fee7566 while this round ran, and 379fc44c5 rewrote the write rules to key on the static type at every site. The Warning below is fixed there: the round's own fixture passes at 75fee7566 and fails at 6d88deba7. The ADR is renamed pr6196_cur_binding_followups.md, which closes the Nit on its filename. Round 2 decides the rest.
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/6d88deba71165b165641b65541259d00aba20377) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/6d88deba71165b165641b65541259d00aba20377)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6196 6d88deba7`
 Round: 1. 10 finders, one reflector, 38 candidates, the Criticals and Warnings run by their finders and judged by an agent that was not the finder, the rest judged by read; 8 refuted, none of them above Nit.
 
 ## Body
-- A debugger stack line through a closure frame renders the realm path and stops at the separator, `gno.land/r/demo/x.`, since [the non-method arm](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/debugger.go#L807-L812) formats `PkgPath` and `Name` with no empty-name branch and [every literal's `FuncValue`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_expressions.go#L775-L780) carries an empty `Name`.
-
 ## gnovm/pkg/gnolang/preprocess.go:6111 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/preprocess.go#L6111) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/pkg/gnolang/preprocess.go#L6111) · Warning
 `isCrossingCurParam` consults no type, so every body-level `cur` in a crossing function with an unnamed first realm parameter is refused [at its own `:=`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/preprocess.go#L3009-L3015), [under `&cur`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/preprocess.go#L2583-L2584) and [in a range clause](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/preprocess.go#L3113-L3119), and the realm package stops compiling.
 
@@ -90,7 +89,7 @@ Missing test: [`doOpFuncLit`](https://github.com/gnolang/gno/blob/6d88deba7/gnov
 
 Skipped: the same edit as the section anchored on `TestFuncDisplayName`.
 
-## gnovm/pkg/gnolang/op_call_test.go:82 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call_test.go#L82) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/pkg/gnolang/op_call_test.go#L82) · Missing test
+## SKIP gnovm/pkg/gnolang/op_call_test.go:82 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call_test.go#L82) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/pkg/gnolang/op_call_test.go#L82) · Missing test
 Missing test: no subtest puts a `testing` frame below the immediate caller, so widening [`harnessSeedsCur`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call.go#L558-L561) to any ancestor frame leaves all three cases green and stops the stale-capture check firing for every crossing call made under `gno test`.
 
 <details>
@@ -112,7 +111,9 @@ With `harnessSeedsCur` replaced by a loop over `PeekCallFrame(n)` that returns t
 
 </details>
 
-## gnovm/pkg/gnolang/op_call_test.go:110 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call_test.go#L110) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/pkg/gnolang/op_call_test.go#L110) · Missing test
+
+Skipped: a mutation nobody ran, on a branch that adds six test files; the check stays in `claims.md`.
+## SKIP gnovm/pkg/gnolang/op_call_test.go:110 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call_test.go#L110) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/pkg/gnolang/op_call_test.go#L110) · Missing test
 Missing test: `TestFuncDisplayName` pins the [`fv.Source == nil` fallback](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call.go#L575), which only a hand-built `FuncValue` reaches, and never the [source-location arm](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call.go#L571-L573) every literal from [`doOpFuncLit`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_expressions.go#L775-L780) takes.
 
 <details>
@@ -146,7 +147,9 @@ func main(cur realm) {
 
 </details>
 
-## gnovm/pkg/gnolang/op_call_test.go:113 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call_test.go#L113) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/pkg/gnolang/op_call_test.go#L113) · Missing test
+
+Skipped: the uncovered arm is one branch of a two-branch helper, which costs the author a case and no behaviour.
+## SKIP gnovm/pkg/gnolang/op_call_test.go:113 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call_test.go#L113) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/pkg/gnolang/op_call_test.go#L113) · Missing test
 Missing test: nothing in the tree asserts the `%s func literal at %s:%d` arm of [`funcDisplayName`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call.go#L571-L573), so an edit dropping the file and line from it leaves the identity panic without a location and the suite green.
 
 <details>
@@ -181,7 +184,9 @@ The named-func arm is already pinned by `zrealm_cur_backstop.gno`; the fallback 
 
 </details>
 
-## gnovm/tests/files/zrealm_cur_shadow.gno:19 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/tests/files/zrealm_cur_shadow.gno#L19) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/tests/files/zrealm_cur_shadow.gno#L19) · Missing test
+
+Skipped: the same missing arm as the section above it, so one case covers both.
+## SKIP gnovm/tests/files/zrealm_cur_shadow.gno:19 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/tests/files/zrealm_cur_shadow.gno#L19) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/tests/files/zrealm_cur_shadow.gno#L19) · Missing test
 Missing test: the file ends on `println("ok")` without reading `cur` back, so its four writes assert only that the block preprocesses: a shadow aliasing the parameter's heap item would null main's identity with every line here passing.
 
 <details>
@@ -215,7 +220,9 @@ The static half is self-pinning: a shadow resolving to the parameter would make 
 
 </details>
 
-## gnovm/tests/files/zrealm_cur_other_legal.gno:9 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/tests/files/zrealm_cur_other_legal.gno#L9) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/tests/files/zrealm_cur_other_legal.gno#L9) · Missing test
+
+Skipped: the fixture pins what the branch changed, and the read-back is an addition rather than a gap.
+## SKIP gnovm/tests/files/zrealm_cur_other_legal.gno:9 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/tests/files/zrealm_cur_other_legal.gno#L9) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/tests/files/zrealm_cur_other_legal.gno#L9) · Missing test
 Missing test: the package-level arm is spelled `pkgCur`, a name [`isCrossingCurParam`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/preprocess.go#L6112) rejects before it looks at the declaring block, so no fixture in the tree covers a package-level `var cur realm`.
 
 <details>
@@ -249,7 +256,9 @@ func main() {
 
 </details>
 
-## gnovm/tests/files/zrealm_cur_other_legal.gno:17 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/tests/files/zrealm_cur_other_legal.gno#L17) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/tests/files/zrealm_cur_other_legal.gno#L17) · Missing test
+
+Skipped: the fixture covers the class and spells one name differently, which costs a rename and no behaviour.
+## SKIP gnovm/tests/files/zrealm_cur_other_legal.gno:17 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/tests/files/zrealm_cur_other_legal.gno#L17) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/tests/files/zrealm_cur_other_legal.gno#L17) · Missing test
 Missing test: this named result belongs to `namedResult`, which is not crossing, so nothing covers `cur` as the named result of a crossing `func F(_ realm) (cur realm)`, where [`isCrossingCurParam`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/preprocess.go#L6115-L6119) refuses the write as the crossing `cur` parameter.
 
 <details>
@@ -289,13 +298,15 @@ A blank first realm parameter is renamed `.arg`, so the declaration is legal and
 
 </details>
 
+
+Skipped: the shape it asks for is the one the open thread on `isCrossingCurParam` already argues.
 ## gnovm/adr/prxxxx_cur_binding_followups.md:1 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/adr/prxxxx_cur_binding_followups.md?plain=1#L1) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/adr/prxxxx_cur_binding_followups.md#L1) · Nit
 Nit: the filename keeps `prxxxx` and the [Status](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/adr/prxxxx_cur_binding_followups.md?plain=1#L5) names the branch it was implemented on, so deleting the branch leaves the record with no pointer to the change it decides.
 
 ## SKIP gnovm/pkg/gnolang/debugger.go:811 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/debugger.go#L811) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/pkg/gnolang/debugger.go#L811) · Nit
 Related nit: the non-method arm formats `PkgPath` and `Name` unconditionally and a function literal's `FuncValue` carries an empty `Name`, so a stack line through a closure frame renders as `gno.land/r/demo/x.` with nothing after the separator, where the identity panic names the literal's file and line.
 
-SKIP: `debugger.go` carries no hunk in this diff, so an inline anchor on it is rejected at post time; the finding is in the Body.
+SKIP: `debugger.go` carries no hunk in this diff, so an inline anchor on it is rejected at post time.
 
 ## SKIP gnovm/pkg/gnolang/op_call.go:452 [gh](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/op_call.go#L452) · [↗](../../../../../.worktrees/gno-review-6196/gnovm/pkg/gnolang/op_call.go#L452) · Nit
 Nit: the `NOTE` carrying the deferred unmetered walk points at a tracker outside this repository, the only cross-repo issue reference in the VM source, where the comparable one beside it, [`nocompile_on_32bits.go:7`](https://github.com/gnolang/gno/blob/6d88deba7/gnovm/pkg/gnolang/nocompile_on_32bits.go#L7), names an issue in this repository.
