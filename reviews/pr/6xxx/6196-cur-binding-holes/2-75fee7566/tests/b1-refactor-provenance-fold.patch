@@ -1,0 +1,48 @@
+# b1-refactor: fold the cur-call provenance switch into isCrossingCurParam
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin pull/6196/head && git checkout 6d88deba71165b165641b65541259d00aba20377
+#   git apply <this file>
+#   gofmt -l gnovm/pkg/gnolang/preprocess.go            # no output
+#   go test ./gnovm/pkg/gnolang/ -run 'TestFiles$' -short   # ok, 0 failures
+#   go test ./gnovm/pkg/gnolang/ -run 'TestStdlibs/test-testing'
+#   go test ./gnovm/pkg/gnolang/ -run 'TestFiles/zrealm_cur'  # 32 pass
+#
+# preprocess.go 2154-2177 (24 lines) -> 6 lines; net -21/+3.
+
+diff --git a/gnovm/pkg/gnolang/preprocess.go b/gnovm/pkg/gnolang/preprocess.go
+index 75c9fd1cb..98f6ab9d9 100644
+--- a/gnovm/pkg/gnolang/preprocess.go
++++ b/gnovm/pkg/gnolang/preprocess.go
+@@ -2152,27 +2152,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
+ 									}
+ 								}
+ 								// Check `cur` directly from parent crossing function's argument.
+-								dbn := last.GetBlockNodeForPath(store, nx.Path)
+-								switch dbn := dbn.(type) {
+-								case *FuncDecl:
+-									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
+-									dft := getType(&dbn.Type).(*FuncType)
+-									if !dft.IsCrossing() {
+-										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
+-									}
+-									// at this point we know that `cur` is from a containing crossing function.
+-									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
+-									// argument of the crossing function.
+-								case *FuncLitExpr:
+-									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
+-									dft := getType(&dbn.Type).(*FuncType)
+-									if !dft.IsCrossing() {
+-										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
+-									}
+-									// at this point we know that `cur` is from a containing crossing function.
+-									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
+-									// argument of the crossing function.
+-								default:
++								// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the
++								// first argument of the crossing function.
++								if !isCrossingCurParam(store, last, nx) {
+ 									panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
+ 								}
+ 								// NOTE: closure-captured cur is allowed here. With pointer-

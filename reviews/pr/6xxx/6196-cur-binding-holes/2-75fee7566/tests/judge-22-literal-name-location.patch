@@ -1,0 +1,33 @@
+# funcDisplayName's function-literal arm hand-formats a location the tree
+# already renders. 2 lines become 1; the rendering gains the pkgpath the
+# stacktrace under it carries. TestFuncDisplayName still passes (it pins only
+# the Name and the Source==nil arms).
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin pull/6196/head
+#   git checkout 6d88deba71165b165641b65541259d00aba20377
+#   git apply <this file>
+#   gofmt -l gnovm/pkg/gnolang/op_call.go          # silent
+#   go test ./gnovm/pkg/gnolang/ -run 'TestFuncDisplayName' -v   # PASS
+#   grep -rn "func literal at" gnovm/tests/        # empty: no golden pins the old text
+#   git checkout -- gnovm/pkg/gnolang/op_call.go
+#
+# Rendering before:  gno.land/r/demo/curlitname func literal at zrealm_cur_literal_name.gno:27
+# Rendering after:   func literal at gno.land/r/demo/curlitname/zrealm_cur_literal_name.gno:27:7-55
+# Stacktrace line:   gno.land/r/demo/curlitname/zrealm_cur_literal_name.gno:28   (frame.go:166, "%s/%s:%d")
+
+diff --git a/gnovm/pkg/gnolang/op_call.go b/gnovm/pkg/gnolang/op_call.go
+index fd4a44bf6..eb7b1b606 100644
+--- a/gnovm/pkg/gnolang/op_call.go
++++ b/gnovm/pkg/gnolang/op_call.go
+@@ -569,8 +569,7 @@ func funcDisplayName(fv *FuncValue) string {
+ 		return fv.PkgPath + "." + string(fv.Name)
+ 	}
+ 	if fv.Source != nil {
+-		loc := fv.Source.GetLocation()
+-		return fmt.Sprintf("%s func literal at %s:%d", fv.PkgPath, loc.File, loc.Line)
++		return fmt.Sprintf("func literal at %s", fv.Source.GetLocation())
+ 	}
+ 	return fv.PkgPath + ".<func literal>"
+ }
