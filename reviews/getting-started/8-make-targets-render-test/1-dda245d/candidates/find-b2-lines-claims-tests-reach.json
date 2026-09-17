@@ -1,0 +1,93 @@
+{
+  "candidates": [
+    {
+      "file": "hello_test.gno",
+      "line": 24,
+      "angle": "tests",
+      "summary": "no test asserts what a freshly deployed realm renders: realm state leaks from TestSetAndGet, so TestRender runs against \"Hello, Test!\"",
+      "failure_scenario": "gno test runs TestSetAndGet first, which writes message = \"Hello, Test!\" to realm state; that state persists into TestRender, whose assertion is relative to Get(), so it passes on the mutated message. Break the initial value or the header of Render's default output and the suite stays green: `gno test -v .` logs `message after the suite = \"Hello, Test!\"` and `Render() does NOT contain the initial message`. The one thing a newcomer sees first, the page a just-deployed realm renders, is the case the suite never pins.",
+      "verify_by": "cp projects/getting-started/reviews/8-make-targets-render-test/1-dda245d/tests/b2-lines-claims-tests-reach-render-state-leak.gno <clone>/zz_state_leak_test.gno && gno test -v . ; then gno test -v . -run TestRenderSeesLeakedState for the isolated half",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "full suite: `message after the suite = \"Hello, Test!\"` / `Render() does NOT contain the initial message; TestRender asserted against \"Hello, Test!\"`. Alone (-run TestRenderSeesLeakedState): `message after the suite = \"Hello, Gno!\"` / `Render() contains the initial message`. gno built from gnolang/gno master bbd9b2ffe; the PR body reports master.184+393b6f92a, a different sha.",
+      "repro_path": "projects/getting-started/reviews/8-make-targets-render-test/1-dda245d/tests/b2-lines-claims-tests-reach-render-state-leak.gno"
+    },
+    {
+      "file": "hello_test.gno",
+      "line": 26,
+      "angle": "tests",
+      "summary": "strings.Contains(out, Get()) is true by construction once the message is empty, so the test passes against a Render that drops the realm state",
+      "failure_scenario": "hello.gno invites editing the initial message (\"try changing the initial message above\") and Set accepts \"\". With `var message string = \"\"`, `strings.Contains(out, \"\")` holds for every output, including one that carries no realm state at all: `gno test -v . -run TestRender` passes with Render mutated to `return \"# oops...\"`. The test the PR is built around then asserts nothing, and stays green while Render is broken.",
+      "verify_by": "in a scratch worktree: sed -i 's/var message string = \"Hello, Gno!\"/var message string = \"\"/' hello.gno; perl -0pi -e 's/return `# ` \\+ message \\+ `/return `# oops/' hello.gno; gno test -v . -run TestRender  => expect FAIL, observe PASS. Or drop tests/b2-lines-claims-tests-reach-render-assertion-vacuous.gno into the clone and run gno test -v .",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "mutated tree: `=== RUN TestRender` / `--- PASS: TestRender (0.00s)` / `ok . 0.64s` with Render returning `# oops` and message empty. Artifact run: `shipped assertion passes against output carrying no realm state: Get()=\"\"`. Control (message at its default, Render mutated): `--- FAIL: TestRender` / `failed: \"TestRender\"`, so the test has teeth only while the message is non-empty.",
+      "repro_path": "projects/getting-started/reviews/8-make-targets-render-test/1-dda245d/tests/b2-lines-claims-tests-reach-render-assertion-vacuous.gno"
+    },
+    {
+      "file": "hello.gno",
+      "line": 16,
+      "angle": "reach",
+      "summary": "Render's only call-to-action link hardcodes /r/example/hello, which is the wrong realm after the README's documented module re-point",
+      "failure_scenario": "README.md:61 now tells the newcomer to point `module` in gnomod.toml at `gno.land/r/<your-address>/hello` and deploy. Render's body still emits `[And click here](/r/example/hello$help&func=Set&newMsg=Hello%20from%20Gnokey!)`, so on their deployed page the single clickable action goes to a realm they do not own: a dead link where r/example/hello does not exist on that network, and a call against someone else's realm where it does, which leaves their own page unchanged. Pre-existing in hello.gno; in scope because this PR writes the re-point instruction and adds the first test that asserts Render's output.",
+      "verify_by": "grep -n 'And click here' hello.gno against README.md:61; then boot `gnodev .` with module set to gno.land/r/g1.../hello and follow the rendered link",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "Render's live output, captured from `gno test -v . -run TestRender` on a mutated tree: `[And click here](/r/example/hello$help&func=Set&newMsg=Hello%20from%20Gnokey!)`. README.md:61: \"point `module` in `gnomod.toml` at a path you control — `gno.land/r/<your-address>/hello`\". The link is a literal in the returned string, so no module value changes it.",
+      "repro_path": ""
+    },
+    {
+      "file": "hello_test.gno",
+      "line": 25,
+      "angle": "reach",
+      "summary": "TestRender exercises only the empty path, so nothing pins Render's behaviour for the sub-paths gnoweb passes",
+      "failure_scenario": "gnoweb calls Render with whatever follows the realm path, and Render ignores its `path` argument entirely. The new test calls Render(\"\") only, so a future edit that starts branching on path, which the repo invites, has no case asserting the root page still renders.",
+      "verify_by": "read hello.gno:7-18 for any use of path, then gno test -v . with an added Render(\"/foo\") case",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "hello_test.gno",
+      "line": 24,
+      "angle": "tests",
+      "summary": "TestRender might never run, the way AGENTS.md says an Example* without // Output: is skipped silently",
+      "settled_by": "gno test -v . in the scratch worktree at dda245d: `=== RUN TestRender` / `--- PASS: TestRender (0.00s)` / `--- GAS: 393458`, so it executes"
+    },
+    {
+      "file": "hello_test.gno",
+      "line": 27,
+      "angle": "lines",
+      "summary": "t.Errorf's %q may degrade under gno's ufmt-based formatting, the way AGENTS.md records %-5s doing",
+      "settled_by": "mutated Render, gno test -v . -run TestRender printed `Render() should show the message \"Hello, Gno!\", got:` verbatim; a direct probe of ufmt.Sprintf(\"%q\", \"hi\") returned `\"hi\"`"
+    },
+    {
+      "file": "hello_test.gno",
+      "line": 24,
+      "angle": "claims",
+      "summary": "PR body: TestRender was checked against a deliberately broken Render (fails) and the restored one (passes)",
+      "settled_by": "broken Render: `--- FAIL: TestRender (0.00s)` / `failed: \"TestRender\"` / `FAIL: 0 build errors, 1 test errors`; restored: `--- PASS: TestRender`. Holds on gno master bbd9b2ffe, a different sha from the body's master.184+393b6f92a"
+    },
+    {
+      "file": "hello_test.gno",
+      "line": 1,
+      "angle": "claims",
+      "summary": "PR body: gno fmt -diff . reports no diff",
+      "settled_by": "gno fmt -diff . at dda245d printed nothing, rc=0"
+    },
+    {
+      "file": "hello_test.gno",
+      "line": 21,
+      "angle": "claims",
+      "summary": "the test comment's \"Render is the realm's entire public surface\" is false: Set and Get are exported and callable, and Render's own output links to $help&func=Set",
+      "settled_by": "grep -n '^func ' hello.gno lists Render:7, Set:20, Get:25; a comment's own wording is never a candidate per the Finders rules, and the code it decorates is correct"
+    }
+  ]
+}

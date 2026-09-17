@@ -1,0 +1,32 @@
+{
+  "verdicts": [
+    {
+      "index": 5,
+      "angle": "claims",
+      "state": "CONFIRMED",
+      "band": "Warning",
+      "file": "AGENTS.md",
+      "line": 49,
+      "tldr": "the new Gno-vs-Go list teaches that map order is unspecified; GnoVM ranges maps in insertion order",
+      "details": "AGENTS.md:49-50 reads \"Map iteration order is unspecified, so never build output by ranging a map.\" GnoVM's MapValue is a doubly-linked MapList plus a vmap index (gnovm/pkg/gnolang/values.go:931-1016), so range walks insertion order: my own probe, a different key set from the finder's, returned INSERT=\"mqaze\" for keys inserted m,q,a,z,e, kept \"q\" in place on an overwrite, moved \"a\" to the tail on delete-then-re-insert (REINSERT=\"mqzea\"), and gave INTKEYS=[9 3 7 1] for integer keys, identical on every run. gnolang/gno docs/resources/gno-data-structures.md:132-135 states it outright and then gives the real reason for the rule, that a realm must not lean on that order for public Render output. The rule survives; the premise printed beside it is the opposite of what the VM does, in the one file this PR offers as the Gno-vs-Go reference for the repo a newcomer runs first. Fix: keep the rule and replace the premise, for instance \"map iteration follows insertion order, which is not a guarantee to build Render output on\".",
+      "evidence": "head, my artifact rerun from its file, gno built from gnolang/gno master bbd9b2ffe: INSERT=\"mqaze\" OVERWRITE=\"mqaze\" REINSERT=\"mqzea\" INTKEYS=[9 3 7 1], --- PASS: TestJudge5MapOrder, ok . 0.58s; stable across three consecutive runs, where Go randomizes per range statement. The finder's b1-claims-gno-semantics_test.gno rerun verbatim: MAPORDER=\"zambqcyd\" (the insertion order z,a,m,b,q,c,y,d), --- PASS, same on runs 2 and 3. Read of gnolang/gno at 26c0a7b32: docs/resources/gno-data-structures.md:132 \"In Gno, map iteration order follows insertion order, unlike Go which uses randomized iteration order\". Base: AGENTS.md does not exist at 78866a30a, so the sentence is introduced by this diff; the VM behaviour is the toolchain's and identical either side. The PR body reports verification on gno master.184+393b6f92a, a different master sha than the bbd9b2ffe built here, but MapList has carried insertion order across both.",
+      "repro_path": "projects/getting-started/reviews/8-make-targets-render-test/1-dda245d/tests/judge-5-map-order-insertion_test.gno",
+      "base_behaves_the_same": false,
+      "verify_by": "tests/b1-claims-gno-semantics_test.gno, TestMapIterationOrderIsDeterministic: insert z,a,m,b,q,c,y,d and range twice; expect a varying or non-insertion order per AGENTS.md, observe \"zambqcyd\" both times. Cross-check docs/resources/gno-data-structures.md:132 in gnolang/gno."
+    },
+    {
+      "index": 6,
+      "angle": "claims",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "hello.gno",
+      "line": 20,
+      "tldr": "AGENTS.md sends the reader to `Set` in `hello.gno` for the `cur realm` parameter; `Set` declares `_ realm`",
+      "details": "AGENTS.md:43-44 says crossing functions \"take a first parameter `cur realm`, and callers use `cross(cur)`. See `Set` in `hello.gno` and its call in `hello_test.gno`\", and hello.gno:20 is `func Set(_ realm, newMsg string) {`, so the first pointer lands on a declaration with no `cur` in it. The README half of the candidate does not hold: README.md:53-56 describes `hello_test.gno`, not `hello.gno`, and hello_test.gno:8 is `func TestSetAndGet(cur realm, t *testing.T)` with `Set(cross(cur), \"Hello, Test!\")` at line 15, so \"note the `cur realm` parameter\" points at the `cur` it promises. `_ realm` is valid Gno, the crossing marker being the type and not the name, and lint is silent on it. Band drops to Nit: nothing behaves differently, and the same AGENTS.md sentence's second pointer shows the reader the `cur` the first one misses. Fix: rename the parameter at hello.gno:20 to `cur`, or cut \"See `Set` in `hello.gno`\" and point only at `hello_test.gno`.",
+      "evidence": "head read: hello.gno:20 `func Set(_ realm, newMsg string) {`; AGENTS.md:43 `first parameter \\`cur realm\\`, and callers use \\`cross(cur)\\`. See \\`Set\\` in`; README.md:54 `state-changing function (note the \\`cur realm\\` parameter and the \\`cross(cur)\\``, whose subject two lines up is `hello_test.gno`; hello_test.gno:8 `func TestSetAndGet(cur realm, t *testing.T) {`. The finder's tests/b1-claims-cur-realm.sh rerun with the prebuilt gno: after the rename `gno test .` -> `ok . 0.79s`, `gno lint .` -> no output, then reverted and the tree left clean, so the rename is free. Base at 78866a30a has no AGENTS.md and no `cur realm` line in README.md, and hello.gno is untouched by the diff, so the mismatched cross-reference starts at head.",
+      "repro_path": "projects/getting-started/reviews/8-make-targets-render-test/1-dda245d/tests/b1-claims-cur-realm.sh",
+      "base_behaves_the_same": false,
+      "verify_by": "grep -n '^func Set' hello.gno against AGENTS.md:43-44 and README.md:54; then tests/b1-claims-cur-realm.sh, which renames `_` to `cur` and runs `make test lint`."
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+{
+  "candidates": [
+    {
+      "file": "AGENTS.md",
+      "line": 49,
+      "angle": "claims",
+      "summary": "\"Map iteration order is unspecified\" is a Go fact; GnoVM ranges maps in insertion order and docs.gno.land says so",
+      "failure_scenario": "A newcomer or agent reads AGENTS.md:49-50 as the authoritative Gno-vs-Go list and carries away that gno map iteration is unordered. GnoVM's MapValue is a doubly-linked MapList plus an index map (gnovm/pkg/gnolang/values.go:935-1016), so `range` walks insertion order, stable within a run and across the amino round-trip; docs/resources/gno-data-structures.md:132 states it outright: map iteration order follows insertion order, unlike Go. The rule the line draws (don't build Render output from a map) survives for the reason that doc gives next (do not rely on it for correctness or public Render output), but the reason printed here is the opposite of what the VM does, in the one file the repo offers as its Gno-vs-Go reference.",
+      "verify_by": "tests/b1-claims-gno-semantics_test.gno, TestMapIterationOrderIsDeterministic: insert z,a,m,b,q,c,y,d and range twice; expect a varying or non-insertion order per AGENTS.md, observe \"zambqcyd\" both times. Cross-check docs/resources/gno-data-structures.md:132 in gnolang/gno.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "gno test -v . -> MAPORDER=\"zambqcyd\" (insertion order, not unspecified); --- PASS: TestMapIterationOrderIsDeterministic. gnolang/gno docs/resources/gno-data-structures.md:132: \"In Gno, map iteration order follows insertion order, unlike Go which uses randomized iteration order\".",
+      "repro_path": "projects/getting-started/reviews/8-make-targets-render-test/1-dda245d/tests/b1-claims-gno-semantics_test.gno"
+    },
+    {
+      "file": "hello.gno",
+      "line": 20,
+      "angle": "claims",
+      "summary": "the one example AGENTS.md and README point at for `cur realm` declares `_ realm`",
+      "failure_scenario": "AGENTS.md:43-44 says crossing functions \"take a first parameter `cur realm`\" and sends the reader to \"`Set` in `hello.gno`\"; README.md:54 repeats \"note the `cur realm` parameter\". hello.gno:20 is `func Set(_ realm, newMsg string)`. The reader follows both pointers into the repo's single realm file and finds no `cur` to note, in a repo whose stated job is to be understandable in five minutes. The PR adds both cross-references, so the divergence starts here.",
+      "verify_by": "grep -n '^func Set' hello.gno against AGENTS.md:43-44 and README.md:54; then tests/b1-claims-cur-realm.sh, which renames `_` to `cur` and runs `make test lint`.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "before: 20:func Set(_ realm, newMsg string) { ; after rename: gno test . -> ok . 0.58s, gno lint . -> no output. The rename costs nothing and both targets stay green.",
+      "repro_path": "projects/getting-started/reviews/8-make-targets-render-test/1-dda245d/tests/b1-claims-cur-realm.sh"
+    },
+    {
+      "file": "AGENTS.md",
+      "line": 53,
+      "angle": "claims",
+      "summary": "`%-5s` returns \"(unhandled verb: %-)5s\", not \"(unhandled verb: %-)\"",
+      "failure_scenario": "ufmt's doPrintf reads the width digits first, so '-' lands in the verb switch and hits the default that writes the marker; the loop then resumes at '5' and copies \"5s\" out as literal text (examples/gno.land/p/nt/ufmt/v0/ufmt.gno:225). A reader who takes the documented value as the whole output writes an assertion or a Render golden that never matches, and misses the part that actually surprises: the rest of the verb leaks into the rendered page.",
+      "verify_by": "tests/b1-claims-gno-semantics_test.gno, TestUfmtDashFlagResidue: assert ufmt.Sprintf(\"%-5s\", \"ab\") == \"(unhandled verb: %-)\".",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestUfmtDashFlagResidue: AGENTS.md says \"(unhandled verb: %-)\", got \"(unhandled verb: %-)5s\"; DASH5S_IN_CONTEXT=\"[(unhandled verb: %-)5s]\".",
+      "repro_path": "projects/getting-started/reviews/8-make-targets-render-test/1-dda245d/tests/b1-claims-gno-semantics_test.gno"
+    },
+    {
+      "file": "AGENTS.md",
+      "line": 45,
+      "angle": "claims",
+      "summary": "\"Render is the realm's whole public surface\" while Set and Get are exported and Render links to func=Set",
+      "failure_scenario": "hello.gno exports three functions (Render:7, Set:20, Get:25), and Render's own body ships a link to /r/example/hello$help&func=Set, the gnoweb help page that calls the state-changing function. A reader taking AGENTS.md:45 and README.md:56 literally concludes the realm's callable surface is Render alone and stops testing or auditing the two exported functions that can actually be driven from a wallet.",
+      "verify_by": "grep -n '^func [A-Z]' hello.gno, and read the $help&func=Set link on hello.gno:16.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n '^func [A-Z]' hello.gno -> 7:func Render, 20:func Set, 25:func Get; hello.gno:16 links [And click here](/r/example/hello$help&func=Set&newMsg=...).",
+      "repro_path": ""
+    },
+    {
+      "file": "AGENTS.md",
+      "line": 24,
+      "angle": "claims",
+      "summary": "\"a green local run means a green CI\" ignores the toolchain both sides rebuild independently",
+      "failure_scenario": "CI installs gno from gnolang/gno master at job time (.github/workflows/ci.yml:29-34) under `go-version: stable`, while the Makefile's GNO defaults to whatever `gno` the contributor installed, possibly months of master ago. Targets cannot drift; toolchains do, on two unpinned axes, and the review round itself shows the gap: the PR body reports verification on gno master.184+393b6f92a, this round built master bbd9b2ffe. A contributor whose local run is green then sees CI red on a VM or lint change nobody in this repo made, and the line tells them that cannot happen.",
+      "verify_by": "read .github/workflows/ci.yml:29-34 (unpinned master, go-version: stable) against Makefile:3 `GNO ?= gno`; confirm no pin exists on either side.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "ci.yml installs via install.sh from refs master with --from-source, no sha or tag; Makefile:3 is `GNO ?= gno`. No version is pinned anywhere in the repo.",
+      "repro_path": ""
+    },
+    {
+      "file": "Makefile",
+      "line": 19,
+      "angle": "claims",
+      "summary": "`dev` hardcodes gnodev while test, lint and fmt honour $(GNO)",
+      "failure_scenario": "The PR adds `GNO ?= gno` so a contributor can point the repo at a toolchain that is not on PATH, and test, lint and fmt use it. dev still runs bare `gnodev`, so that same contributor runs three of the four documented commands and `make dev` fails with command not found, which is the one command README step 3 and AGENTS.md's Commands block put in front of a newcomer first.",
+      "verify_by": "grep -n 'GNO\\|gnodev' Makefile; then `make dev GNO=/path/to/gno` with gnodev off PATH.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "Makefile:3 GNO ?= gno; :19 `gnodev .`; :22 :25 :28 all `$(GNO) ...`. gnodev is a separate binary (contribs/gnodev), so GNO cannot cover it; a GNODEV ?= gnodev is the symmetric fix.",
+      "repro_path": ""
+    },
+    {
+      "file": "Makefile",
+      "line": 9,
+      "angle": "claims",
+      "summary": "the help awk uses `.*?`, which is not POSIX ERE, on the target AGENTS.md makes the entry point",
+      "failure_scenario": "AGENTS.md:15 and the README both tell the reader `make` lists every target, and .DEFAULT_GOAL makes it the first thing anyone runs. The recipe's FS and match pattern both use the PCRE lazy quantifier `.*?`, which POSIX ERE does not define; on a machine whose /usr/bin/awk is not gawk (mawk on Debian and Ubuntu, busybox awk in a container) the behaviour is the implementation's, and a first-run `make` that errors or prints nothing is the worst possible first impression for this repo. Verified green under gawk 5.4.1 only; mawk is not installed on this machine.",
+      "verify_by": "run `mawk 'BEGIN{FS=\":.*?## \"} /^[a-zA-Z_-]+:.*?## /{printf \"  %-8s %s\\n\",$1,$2}' Makefile` and `busybox awk` with the same script; compare against the gawk output.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "make -C <worktree> under gawk 5.4.1 prints all six targets correctly. mawk and busybox are absent here (`which mawk busybox` -> not found), so the non-gawk half is unrun.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "AGENTS.md",
+      "line": 51,
+      "angle": "claims",
+      "summary": "sort.Slice does not exist in the gno stdlib",
+      "settled_by": "grep -n '^func [A-Z]' gnovm/stdlibs/sort/sort.gno search.gno -> Search, SearchInts, SearchFloat64s, SearchStrings, Sort, Reverse, IsSorted, Ints, Float64s, Strings, *AreSorted, Stable. No Slice. Claim holds."
+    },
+    {
+      "file": "AGENTS.md",
+      "line": 52,
+      "angle": "claims",
+      "summary": "ufmt.Sprintf(\"%03d\", 7) returns \"7\"",
+      "settled_by": "gno test -v . -> TestUfmtZeroPadIgnored PASS; the width is parsed into `length` and never passed to writeInt (ufmt.gno doPrintf, case 'd'). Claim holds."
+    },
+    {
+      "file": "AGENTS.md",
+      "line": 47,
+      "angle": "claims",
+      "summary": "Example* without an // Output: block is skipped silently",
+      "settled_by": "gno test -v . on a package with ExampleNoOutput and ExampleWithOutput -> only `=== RUN ExampleWithOutput` appears and SENTINEL_EXAMPLE_WITHOUT_OUTPUT_RAN never prints. Claim holds."
+    },
+    {
+      "file": "README.md",
+      "line": 63,
+      "angle": "claims",
+      "summary": "the Deploy to a shared network link and its anchor resolve",
+      "settled_by": "curl -L -> 200 at https://docs.gno.land/builders/getting-started/ and grep of the page finds id=\"deploy-to-a-shared-network\"; https://docs.gno.land/builders/editor-setup -> 200. Both hold."
+    },
+    {
+      "file": "README.md",
+      "line": 62,
+      "angle": "claims",
+      "summary": "gno.land/r/<your-address>/hello always works and needs no registration",
+      "settled_by": "examples/gno.land/r/sys/names/verifier.gno package doc: \"PA (personal-address) namespaces - gno.land/{r,p}/<addr>/* ... Anyone can deploy under their own address.\" Claim holds; the only exception is the realm-wide emergency SetPaused, which rejects every check including PA."
+    },
+    {
+      "file": "AGENTS.md",
+      "line": 17,
+      "angle": "claims",
+      "summary": "make dev gives a local chain plus web UI on http://localhost:8888",
+      "settled_by": "contribs/gnodev/main.go: with no subcommand gnodev runs local; contribs/gnodev/command_local.go:33 webListenerAddr: \"127.0.0.1:8888\". Claim holds, and `gnodev .` still parses."
+    },
+    {
+      "file": "AGENTS.md",
+      "line": 15,
+      "angle": "claims",
+      "summary": "make lists every target",
+      "settled_by": "make -C <worktree> -> six lines, help/install/dev/test/lint/fmt, matching the block in the PR body. Holds under gawk; see the Makefile:9 candidate for the non-gawk half."
+    },
+    {
+      "file": "README.md",
+      "line": 82,
+      "angle": "claims",
+      "summary": "moul/gno-contracts holds 50+ versioned self-contained contracts",
+      "settled_by": "gh api repos/moul/gno-contracts/git/trees/HEAD?recursive=1 -> 191 gnomod.toml paths outside vendor/, e.g. p/moul/addrset/v0, p/moul/authz/v1. Claim holds as a floor."
+    },
+    {
+      "file": "AGENTS.md",
+      "line": 20,
+      "angle": "claims",
+      "summary": "make fmt runs gno fmt -w .",
+      "settled_by": "gno fmt --help lists -w=false \"write result to (source) file instead of stdout\". Flag exists; claim holds."
+    },
+    {
+      "file": "README.md",
+      "line": 74,
+      "angle": "claims",
+      "summary": "PR body: repo-template's three Make targets all fail on the current toolchain",
+      "settled_by": "gh api repos/gnolang/repo-template/contents/Makefile -> six targets: all, dev, test, lint, fmt, install_deps. The count is wrong but it lives only in the PR body, which ships nothing."
+    }
+  ]
+}
