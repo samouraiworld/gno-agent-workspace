@@ -1,0 +1,71 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2005,
+      "angle": "refactor",
+      "summary": "the five added user-view tests are one table: 161 lines become 119 (-42), and the table additionally pins the exact chain queries each case may make",
+      "failure_scenario": "handler_http_test.go:2004-2164 adds resolveNamePayload, getUserPage and four test functions that differ only in the stub's answers and the assertions: three of them re-declare the same stubClient literal, and each invents its own ad-hoc boolean (realmCalled, evalCalled, queried) for the query it forbids. A sixth case, or a change to the gate's query order, is edited in four places. Collapsing them into one map-keyed table of ten cases whose stubs append to a shared calls []string gives every case the same three-way assertion for free, including the ResolveName argument check that today only TestHTTPHandler_GetUserView_RegisteredWithoutPackages makes.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb/ -run 'TestHTTPHandler_GetUserView' -count=1 -v in a scratch worktree at 876762bdf, with lines 2004-2164 replaced by the artifact's replacement block; gofmt -l gno.land/pkg/gnoweb/ clean",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "gofmt -l clean; 'ok github.com/gnolang/gno/gno.land/pkg/gnoweb 0.030s' with '--- PASS: TestHTTPHandler_GetUserView_Gate' and its ten subtests (trailing_separator, renamed_alias, registered_without_packages, address, over_the_length_cap, extra_path_segment, double_separator, unknown_name, no_registry, lookup_failure) plus the two pre-existing TestHTTPHandler_GetUserView tests. Line counts: original block 2004-2164 = 161 lines, replacement = 119. Equivalence probe: with buildContributions' `if raw == \"\"` guard deleted, the PR's five tests and the table are both still green, so the table detects what the originals detected.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-refactor-r2-user-view-gate-table.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 119,
+      "angle": "refactor",
+      "summary": "Eval widens the exported 11-method ClientAdapter for one call site, where the package's own precedent is to narrow: realm_directory.go:11 declares pathLister as \"the subset of ClientAdapter the directory depends on\"",
+      "failure_scenario": "userExists (handler_http.go:555) is the only caller of Eval in the tree. Adding it to ClientAdapter costs three implementations at once \u2014 the interface method and its five-line doc, MockClient.Eval (client_mock.go:224, a hard-coded ErrClientPackageNotFound that no MockClient test exercises), and stubClient.Eval (handler_http_test.go:46) \u2014 and every future implementer of an exported interface must now supply a raw Gno-expression evaluator whether or not it wants to expose one. The package already has both narrowing shapes to copy: pathLister (realm_directory.go:11-14) and clientFileFetcher (handler_http.go:164-168), each a one-method interface over the subset a single consumer needs.",
+      "verify_by": "grep -rn 'ClientAdapter' --include=*.go over the worktree: every mention is inside gno.land/pkg/gnoweb, and grep -rn 'Eval(' shows userExists as the only caller; read realm_directory.go:11-14 for the precedent, then declare `type nameResolver interface { Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) }` beside it and drop the ClientAdapter method plus MockClient.Eval, running go test ./gno.land/pkg/gnoweb/...",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn ClientAdapter over the head worktree returns hits only under gno.land/pkg/gnoweb (render.go, client.go, realm_directory.go, handler_http.go, client_mock.go, app.go), so no out-of-package implementer exists today; realm_directory.go:11 reads '// pathLister is the subset of ClientAdapter the directory depends on.'",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2013,
+      "angle": "refactor",
+      "summary": "getUserPage is added for the new tests while the two sibling user-view tests 1200 lines above keep the 11-line handler boilerplate it exists to remove; applying it is -20 lines",
+      "failure_scenario": "TestHTTPHandler_GetUserView (handler_http_test.go:799) and TestHTTPHandler_GetUserView_QueryPathsError (:841) each carry lines 817-827 verbatim \u2014 newTestHandlerConfig, NewHTTPHandler with the testingLogger, require.NoError, NewRequest, NewRecorder, ServeHTTP \u2014 which is exactly getUserPage's body. The file now ships two shapes for the same thing, and the next user-view test copies whichever one it lands next to.",
+      "verify_by": "replace lines 817-827 and the matching block at 857-867 with `rr := getUserPage(t, client, \"/u/testuser\")` and run go test ./gno.land/pkg/gnoweb/ -run TestHTTPHandler_GetUserView -count=1",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "read handler_http_test.go:799-872: lines 817-827 are 11 lines identical in body to getUserPage's 9-line helper, and lines 857-867 repeat them; 11 lines become 1 in each, -20 total",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 118,
+      "angle": "refactor",
+      "summary": "the Eval doc pushes expression safety onto every caller forever (\"expr is the caller's to keep safe\") while the only guard is the reUsername gate three functions away in GetUserView",
+      "failure_scenario": "handler_http.go:555 builds the expression with fmt.Sprintf(\"ResolveName(%q)\", username), so the adapter takes an already-concatenated Gno expression and the interface doc names that the caller's problem. Nothing reachable today is unsafe \u2014 GetUserView:608 rejects anything outside gno.Re_name before userExists runs, and the address branch never reaches it \u2014 but the contract is the one a second caller inherits: the next Eval user gets a raw-string API and a doc telling it to be careful. The deeper form is for the adapter to quote, `Eval(ctx, pkgPath, fn string, args ...any)` formatting each argument with %q, so an unquoted expression cannot be built at a call site at all.",
+      "verify_by": "read handler_http.go:604-627 to confirm the regex gate precedes every userExists call, then grep -rn 'Eval(' gno.land/pkg/gnoweb for a second caller; the fix is mechanical and the package tests are the check: go test ./gno.land/pkg/gnoweb/...",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "handler_http.go:608 returns 404 unless reUsername.Matches(username) and len <= maxUsernameLen, and gno.Re_name (gnovm/pkg/gnolang/mempackage.go:70) admits only [a-z][a-z0-9]*([_-][a-z0-9]+)*, so no quote or paren reaches fmt.Sprintf today; userExists is the sole Eval caller",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 555,
+      "angle": "refactor",
+      "summary": "querying r/sys/users.IsNameTaken instead of ResolveName would return a single value, deleting the whole one-line-per-return convention, its comment, the last-line parse and the resolveNamePayload fixture (~30 lines)",
+      "settled_by": "grep -A 12 'func IsNameTaken' examples/gno.land/r/sys/users/api.gno returns `return nameStore.Has(name)`, while ResolveName (users.gno:6-17) answers `name == data.username` and false for a deleted user: IsNameTaken is true for a renamed-away alias and for a deleted account, so the diff's own \"renamed alias\" case would serve a page it is written to 404"
+    }
+  ],
+  "blocks_rewritten": [
+    "userExists' last-line parse (handler_http.go:564-576): tried bytes.HasSuffix(bytes.TrimSpace(res), []byte(\"(true bool)\")), 13 lines to 3; rejected, it folds the unrecognised-payload case into \"not a user\", which is the exact silent 404 the default branch was added to prevent",
+    "rpcClient.Eval (client.go:113-121) folded into Realm through a shared query-builder: the two differ only in the separator (':' vs '.') and the qpath, so the helper takes both as parameters, saves 2 lines and hides which ABCI path each method hits",
+    "the two `return http.StatusNotFound, components.StatusErrorComponent(\"user not found\")` returns (handler_http.go:609, 625) folded into a notFound closure: -1 line net, and it moves the status code away from the return that sends it",
+    "the GetUserView gate (handler_http.go:604-627) extracted into a single h.userPageAllowed(ctx, username) (bool, int, *components.View): same line count, and it would have to return contribs as well since buildContributions runs inside it"
+  ]
+}

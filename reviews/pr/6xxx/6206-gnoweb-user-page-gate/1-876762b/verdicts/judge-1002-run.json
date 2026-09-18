@@ -1,0 +1,19 @@
+{
+ "verdicts": [
+  {
+   "index": 25,
+   "angle": "refactor",
+   "verify_by": "read handler_http.go:604-627 to confirm the regex gate precedes every userExists call, then grep -rn 'Eval(' gno.land/pkg/gnoweb for a second caller; the fix is mechanical and the package tests are the check: go test ./gno.land/pkg/gnoweb/...",
+   "state": "REFUTED",
+   "band": "Suggestion",
+   "file": "gno.land/pkg/gnoweb/client.go",
+   "line": 118,
+   "tldr": "the expression is already quoted at the call site, and the name gate rejects every break-out shape",
+   "details": "The claim that the reUsername gate is the only guard is wrong: handler_http.go:555 builds the expression with fmt.Sprintf(\"ResolveName(%q)\", username), so the quoting the finder proposes moving into the adapter is already applied at the one place an expression is built. gnolang.Re_name compiles to [a-z][a-z0-9]*([_-][a-z0-9]+)* (mempackage.go:70), which admits no quote, backslash, dot or parenthesis, and GetUserView:608 returns 404 before userExists runs for anything outside it. grep over gno.land/pkg/gnoweb finds exactly one production caller of Eval; the other three are the mock, the test stub and an unrelated markdown m.Eval. The residual is the wording of a doc comment about a caller that does not exist, which costs the reader nothing today. Fix: none; at most drop the \"expr is the caller's to keep safe\" clause from client.go:115-118, since the adapter's only caller quotes.",
+   "evidence": "head, go test -run 'TestJudge25EvalExpressionQuoting' -v ./gno.land/pkg/gnoweb/ (rc 0): name=\"a\\\") || Unsafe(\\\"\" reUsername.Matches=false expr=ResolveName(\"a\\\") || Unsafe(\\\"\"); name=\"a\\\\\" reUsername.Matches=false; name=\"a\\nb\" reUsername.Matches=false; name=\"moul001\" reUsername.Matches=true. head, go test -run 'TestHTTPHandler_GetUserView' -v ./gno.land/pkg/gnoweb/: --- PASS: TestHTTPHandler_GetUserView_RejectsInvalidNames, whose subtests /u/foo/bar, /u/a--b, /u/a-, /u/a*65 each assert queried==false, so no invalid name reaches Eval. grep -rn 'Eval(' gno.land/pkg/gnoweb: client.go:119 (interface), client.go:159 (adapter), handler_http.go:555 (sole caller), client_mock.go:224, handler_http_test.go:46. Base: grep finds no Eval in gno.land/pkg/gnoweb at 7916d1dd6, so the surface is new in the diff and there is nothing to compare. Line counts: the shape on the branch is 1 call-site line plus a 5-line doc and an 8-line adapter method; the proposed Eval(ctx, pkgPath, fn string, args ...any) keeps the call site at 1 line, adds the arg loop to the adapter, and rewrites the signature in client_mock.go, handler_http_test.go and two evalFunc assertions, so it trades roughly +3 adapter lines and 4 touched stubs for no change in behaviour.",
+   "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/judge-25-eval-expression-quoting.go",
+   "base_behaves_the_same": false,
+   "refuted_by": "handler_http.go:555 res, err := h.Client.Eval(ctx, \"/r/sys/users\", fmt.Sprintf(\"ResolveName(%q)\", username))"
+  }
+ ]
+}

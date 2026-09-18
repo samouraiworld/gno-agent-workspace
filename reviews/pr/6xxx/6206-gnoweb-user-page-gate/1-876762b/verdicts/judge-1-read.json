@@ -1,0 +1,48 @@
+{
+  "verdicts": [
+    {
+      "index": 4,
+      "angle": "removed",
+      "verify_by": "read client.go:204-217 beside 221-237, then handler_http.go:783-790 and 900-905; contrast with the guard GetPathsListView already carries at 864",
+      "state": "REFUTED",
+      "band": "Nit",
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 215,
+      "tldr": "vm/qfile never answers an empty body: an absent package errors and a stored one always holds a file",
+      "details": "ListFiles does carry the same strings.Split shape as ListPaths, but the two queries differ in what an empty result looks like. vm/qpaths returns a body with no error for a prefix that matches nothing, which is why the diff and GetPathsListView both guard paths[0] == \"\"; vm/qfile's listing branch returns an error for an absent path (keeper.go:1943-1944, wrapped as \"is not available\" and mapped to ErrClientPackageNotFound at client.go:225-226), so the only way to reach an empty body is a live mem package with zero files. AddPackage refuses exactly that (keeper.go:788-794, \"package has no production .gno files\"), so files is never []string{\"\"} at GetSourceView or GetDirectoryView and neither the blank directory entry nor the \"empty filename given\" follow-on can occur. The ListPaths guard the diff adds is therefore not a missed sibling. Fix: none — the unguarded len(files) == 0 checks are sound against the query that feeds them.",
+      "evidence": "gno.land/pkg/sdk/vm/keeper.go:1942-1944 `memPkg := store.GetMemPackageAll(dirpath)` / `if memPkg == nil { return \"\", errors.Wrapf(&InvalidPackageError{}, \"package %q is not available\", dirpath) }`; keeper.go:788-794 `// Reject packages with no production .gno files` / `return ErrInvalidPackage(\"package has no production .gno files\")`; keeper.go:1946-1951 joins memPkg.Files with \"\\n\", so res is empty only for a zero-file package.",
+      "repro_path": "",
+      "base_behaves_the_same": true,
+      "refuted_by": "gno.land/pkg/sdk/vm/keeper.go:1944 return \"\", errors.Wrapf(&InvalidPackageError{}, \"package %q is not available\", dirpath)"
+    },
+    {
+      "index": 17,
+      "angle": "reach",
+      "verify_by": "GET /u/moul001:bob against the shared in-memory node and compare the status and body to /u/moul001.",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 603,
+      "tldr": "/u/<name>:anything serves the profile page unchanged, so every user page has unbounded duplicate URLs",
+      "details": "weburl.Username() is `return gnoURL.Path[3:]` (url.go:290-296) and never consults the parsed Args, and the post-diff GetUserView body reads Username(), buildContributions, and Realm(ctx, \"/r/\"+username+\"/home\", \"\") — the literal empty args — with no reference to gnourl.Args anywhere between handler_http.go:603 and the UserView return. The gate the diff adds therefore validates the name shape, the length and the registry answer, and then serves the identical 200 for /u/alice:whatever as for /u/alice. A reader who follows such a link sees a real profile at a URL the page itself never produces, and a crawler sees the same page at arbitrarily many addresses. It is pre-existing — the base built the username with strings.TrimPrefix(gnourl.Path, \"/u/\") and ignored Args the same way — but the diff is the pass that turned /u/ into a validated surface and the args are the one part of the URL it still lets through. Fix: reject a non-empty gnourl.Args in GetUserView with the same 404 as an invalid name, or redirect to the bare /u/<name>.",
+      "evidence": "gno.land/pkg/gnoweb/weburl/url.go:290-296 `func (gnoURL GnoURL) Username() string { if !gnoURL.IsUser() { return \"\" }; return gnoURL.Path[3:] }`; handler_http.go:604 `username := gnourl.Username()` and :617 `h.Client.Realm(ctx, \"/r/\"+username+\"/home\", \"\")` — no Args read on any path through the function. Finder's probe against the shared in-memory node agrees: `PROBE /u/moul001:bob -> 200`, `PROBE /u/moul001 -> 200`, both rendering `Gnome moul001`.",
+      "repro_path": "",
+      "base_behaves_the_same": true
+    },
+    {
+      "index": 21,
+      "angle": "lines",
+      "verify_by": "read client_mock.go:205-210 against the fixture-driven Realm/ListPaths implementations above it in the same file",
+      "state": "REFUTED",
+      "band": "Nit",
+      "file": "gno.land/pkg/gnoweb/client_mock.go",
+      "line": 207,
+      "tldr": "the registered-user half is already covered, by the stub every /u/ test in the package uses",
+      "details": "Eval does ignore both arguments and always returns ErrClientPackageNotFound, and its doc comment states that as the intent: \"Eval answers like a chain that does not deploy the realm.\" The claimed loss is coverage, and that loss does not exist: no /u/ test in the package uses MockClient at all — every one of them (handler_http_test.go:825, :865, :1134, :1735, :2060, :2086, :2108, :2161) drives stubClient, whose evalFunc stages both halves, including a registered user with no packages that asserts a 200. MockClient has no other consumer in the tree: grep for NewMockClient across gno.land, contribs and misc hits only client_mock.go and handler_http_test.go, where it serves the /r/ fixtures. Fix: none — a fixture-driven Eval would add a field nothing calls.",
+      "evidence": "client_mock.go:205-212 `// Eval answers like a chain that does not deploy the realm.` … `return nil, ErrClientPackageNotFound`; handler_http_test.go:2072-2087 `TestHTTPHandler_GetUserView_RegisteredWithoutPackages` — stubClient with `evalFunc` returning `resolveNamePayload(true)`, asserting `http.StatusOK` and `\"Gnome alice\"`; `grep -rln NewMockClient gno.land contribs misc` returns only `gno.land/pkg/gnoweb/handler_http_test.go` and `gno.land/pkg/gnoweb/client_mock.go`.",
+      "repro_path": "",
+      "base_behaves_the_same": false,
+      "refuted_by": "gno.land/pkg/gnoweb/handler_http_test.go:2085 assert.Equal(t, http.StatusOK, rr.Code)"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 449,
+      "angle": "reach",
+      "summary": "the new /u/ gate is never reached for `/u/<name>/`, so a registered user's profile 404s on a trailing slash",
+      "failure_scenario": "ServeHTTP's dispatch tests `gnourl.IsDir()` (handler_http.go:443) before `gnourl.IsUser()` (line 448), and IsDir is true for any path ending in `/`. Measured against the in-memory node at the head sha: `GET /u/moul001` returns 200 with the profile (\"Gnome moul001\"), `GET /u/moul001/` returns 404 with a generic body that does not even carry the branch's own \"user not found\" text. Same for an address: `/u/g1manfred47kzduec920z88wfr64ylksmdcedlf5` 200, `/u/g1manfred47kzduec920z88wfr64ylksmdcedlf5/` 404. A browser or a pasted link that carries the trailing slash loses the profile. The dispatch is not in the diff, so this predates the branch; it is in scope because this PR is the change that defines which /u/ URLs serve a profile, and its own rejection matrix (TestHTTPHandler_GetUserView_RejectsInvalidNames) enumerates /u/foo/bar, /u/a--b, /u/a- and a 65-char name but never the trailing-slash shape.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb/ -run TestReachB1UserGateShapes -v with tests/b1-reach-r2-user-url-shapes.go copied into gno.land/pkg/gnoweb/; compare the `/u/moul001` and `/u/moul001/` rows",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "REACH /u/moul001  status=200 body=USER PAGE SERVED / REACH /u/moul001/ status=404 body=- / REACH /u/g1manfred47kzduec920z88wfr64ylksmdcedlf5 status=200 body=USER PAGE SERVED / REACH /u/g1manfred47kzduec920z88wfr64ylksmdcedlf5/ status=404 body=-",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-reach-r2-user-url-shapes.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_mentions.go",
+      "line": 27,
+      "angle": "reach",
+      "summary": "gnoweb's own @mention rule and the /u/ gate this diff installs disagree in both directions, so gnoweb emits /u/ links its handler 404s and never links names the gate accepts",
+      "failure_scenario": "mentionNamePattern is `^@([A-Za-z0-9_]{3,90})(?:[^A-Za-z0-9_-]|$)`; the new gate is `gno.Re_name` plus maxUsernameLen 64 (handler_http.go:546-548, 608). Producer-side: the mention parser links consecutive underscores, a leading digit or underscore, and names 65-90 chars, all of which Re_name or the length cap rejects, so the link renders and the page now answers 404 \"user not found\" where it used to render a blank profile; the repository's own golden output pins one, markdown/golden/ext_mentions/user_mentions.md.txtar:13 emits `<a href=\"/u/user_with_many_________underscores_and_numbers_12345\">`. Consumer-side: Re_name accepts `-` between alphanumerics and the node's own namespace rule (reUserNamespace, gno.land/pkg/sdk/vm/keeper.go:1665, `^[~_a-zA-Z0-9/-]+$`) accepts it too, but the mention pattern's trailing `[^A-Za-z0-9_-]` guard makes `@foo-bar` unmatchable, so a registered user whose name carries a hyphen has a working profile that no mention in any realm ever links to.",
+      "verify_by": "grep the golden file for the underscore link, then GET that path against the head handler and observe 404 \"user not found\"; and check `@foo-bar` against mentionNamePattern in markdown/ext_mentions_test.go",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "user_mentions.md.txtar carries 2 lines with the `_________` run; gno.land/pkg/sdk/vm/keeper.go:1665 reUserNamespace = ^[~_a-zA-Z0-9/-]+$",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 612,
+      "angle": "reach",
+      "summary": "buildContributions runs before the isAddress short-circuit, so every /u/<address> page spends a vm/qpaths round trip on a prefix that can never match",
+      "failure_scenario": "GetUserView computes isAddress at line 607 and then calls buildContributions unconditionally at 612, with prefix `@` + the bech32 address. On the node, QueryPaths (gno.land/pkg/sdk/vm/keeper.go, the `@` branch) turns that into the prefixes `<domain>/r/g1.../` and `<domain>/p/g1.../`; a package path's second segment is a namespace granted by r/sys/names and can never be address-shaped, so the answer is structurally empty. Live confirmation on rpc.gno.land: `vm/qpaths @g1manfred47kzduec920z88wfr64ylksmdcedlf5` returns an empty data field. Every address profile therefore pays one RPC slot (rpcSlots is a bounded semaphore) and one node store scan for an answer the code already knows, and renders PackageCount/RealmCount/PureCount as a hard zero rather than as 'not applicable'. Moving the call under `if !isAddress` costs nothing the address branch uses.",
+      "verify_by": "gnokey query vm/qpaths --data '@g1manfred47kzduec920z88wfr64ylksmdcedlf5' -remote https://rpc.gno.land:443, then read the `@` branch of QueryPaths in gno.land/pkg/sdk/vm/keeper.go",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "gnokey query vm/qpaths --data '@g1manfred47kzduec920z88wfr64ylksmdcedlf5' -> `height: 0` / `data: ` (empty)",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 618,
+      "angle": "reach",
+      "summary": "the node's `@std`/`@stdlibs` special case in QueryPaths returns the whole standard library, so /u/std would clear `len(contribs) == 0` and bypass the existence gate",
+      "settled_by": "gnokey query vm/qpaths --data '@std' returns 49 bare names (`bufio`, `chain/banker`, ...) with no leading slash; weburl.ParseFromURL rejects them on reURLPath `^/[a-z0-9_/-]*$`, so every one is skipped and contribs stays empty. Run: REACH /u/std status=404 body=user-not-found, REACH /u/stdlibs status=404 body=user-not-found"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 443,
+      "angle": "reach",
+      "summary": "$source, $help and a trailing slash dispatch ahead of IsUser, so an unregistered name could still be served a page through one of them",
+      "settled_by": "Run against the in-memory node: REACH /u/zzznotauser$source status=404, REACH /u/zzznotauser$help status=404, REACH /u/zzznotauser/ status=404, REACH /u/ status=404. No shape serves a page; only the valid-user trailing-slash case loses anything, returned as a candidate above."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 137,
+      "angle": "reach",
+      "summary": "adding Eval to the exported ClientAdapter interface breaks out-of-tree implementers in the separate contribs/ modules",
+      "settled_by": "grep -rn 'ClientAdapter' over contribs/, misc/ and gno.land/cmd/ returns nothing; the only implementers are rpcClient, MockClient and the in-package test stubClient. contribs/gnodev/setup_web.go imports gnoweb but consumes NewRouter, it does not implement the interface."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 608,
+      "angle": "reach",
+      "summary": "the handler's name gate is looser than the node's own namespace rule, so a name passing it makes ListPaths return `invalid username format` and the page becomes an error view instead of a 404",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1665 reUserNamespace = `^[~_a-zA-Z0-9/-]+$`, which is strictly looser than gno.Re_name; no string Re_name accepts can fail it."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 567,
+      "angle": "reach",
+      "summary": "the `(true bool)` branch of userExists is only pinned by the hand-written resolveNamePayload fixture and never runs against a real node",
+      "settled_by": "moul001 and zoo_ma123 are registration txs in gno.land/genesis/genesis_txs.jsonl and own no packages, so TestRoutes' `{\"/u/moul001\", ok, \"moul001\"}` drives ListPaths empty then a real vm/qeval. Run: REACH /u/moul001 status=200 body=USER PAGE SERVED. Live shape matches the fixture exactly: `gnokey query vm/qeval --data 'gno.land/r/sys/users.ResolveName(\"moul\")'` -> `(&(struct{...} gno.land/r/sys/users.UserData) *...UserData)` then `(true bool)`."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 608,
+      "angle": "reach",
+      "summary": "maxUsernameLen 64 is an off-by-one: a 64-character name is rejected or a 65-character one admitted",
+      "settled_by": "Run: REACH /u/<64 a's> status=404 body=user-not-found and REACH /u/<65 a's> status=404 body=user-not-found. The 64-char name clears the gate and 404s from the registry lookup, the 65-char one 404s at the gate; the boundary is where the constant says."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 557,
+      "angle": "reach",
+      "summary": "vm/qeval never yields ErrClientPackageNotFound, so the `no user registry on this chain` fallback is dead and such a chain 500s every /u/ page",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go withQueryEvalMachine returns `ErrInvalidPkgPath(\"package not found: ...\")` when gnostore.GetPackage is nil, and client.go query maps `vm.InvalidPkgPathError{}` to ErrClientPackageNotFound. The branch is reachable."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 137,
+      "angle": "reach",
+      "summary": "Eval joins domain, pkgPath and expr with a dot, and parseQueryEvalData splits on a dot, so the dot inside `gno.land` mis-splits the pkgPath",
+      "settled_by": "gno.land/pkg/sdk/vm/handler.go parseQueryEvalData takes the first `/` first (`gno.land`), then the first `.` of the remainder, giving pkgPath `gno.land/r/sys/users` and expr `ResolveName(\"alice\")`. Confirmed live: the query returns data rather than the `expected <pkgpath>.<expression> syntax` panic."
+    }
+  ]
+}

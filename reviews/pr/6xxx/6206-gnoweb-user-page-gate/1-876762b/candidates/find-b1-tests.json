@@ -1,0 +1,100 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 580,
+      "angle": "tests",
+      "summary": "no test distinguishes crypto.AddressFromBech32 from the bech32.Decode it replaces, so reverting CreateUsernameFromBech32 leaves the whole gnoweb package green",
+      "failure_scenario": "Revert CreateUsernameFromBech32 to its pre-PR body (bech32.Decode, truncate on success) and `go test ./gno.land/pkg/gnoweb/ -count=1` still reports ok. TestHTTPHandler_GetUserView_Address, the only test that touches the function, feeds it g1manfred47kzduec920z88wfr64ylksmdcedlf5, which both spellings truncate identically to g1ma...dlf5. The behaviour the PR actually buys — a bech32 string with a foreign HRP (cosmos1...) or a payload that is not 20 bytes is a name, not an address — is pinned by nothing, so the next edit of this function restores the old reading silently and /u/<foreign bech32> goes back to rendering a truncated address the handler never validated.",
+      "verify_by": "in a scratch worktree at 876762bd, replace the crypto.AddressFromBech32 body with the bech32.Decode body (re-adding the tm2/pkg/bech32 import) and run `go test ./gno.land/pkg/gnoweb/ -count=1`: expect a failure from one of the PR's own tests, observe every one of them pass",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "baseline, unmutated head: `go test ./gno.land/pkg/gnoweb/ -count=1` -> `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 6.769s`. With CreateUsernameFromBech32 reverted to bech32.Decode, the same command prints exactly one failure, and it is the test written for this finding: `--- FAIL: TestB1CreateUsernameFromBech32_OnlyGnoAddressesAreTruncated (0.00s)` / `FAIL github.com/gnolang/gno/gno.land/pkg/gnoweb 7.926s`. Not one of TestHTTPHandler_GetUserView_Address, _NotAUser, _RegisteredWithoutPackages, _RejectsInvalidNames, _LookupFailureIsNotA404 or TestRoutes goes red.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-tests-bech32-username-unpinned.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 515,
+      "angle": "tests",
+      "summary": "the added `if raw == \"\"` guard changes no behaviour and no test goes red without it",
+      "failure_scenario": "Delete the three-line guard and `go test ./gno.land/pkg/gnoweb/ -count=1` is still ok, including the two tests that feed listPathsFunc a []string{\"\"} to exercise it. weburl.Parse(\"\") already fails — reURLPath is `^/[a-z0-9_/-]*$` (weburl/url.go:303) and does not match the empty string — so the loop already took the `continue` in the error branch. The guard's only effect is suppressing one `bad contribution URL` Warn per user page, and the case it patches is manufactured one level down: rpcClient.ListPaths does `strings.Split(strings.TrimSpace(string(res)), \"\\n\")` (client.go:231), which yields [\"\"] rather than nil for an empty answer.",
+      "verify_by": "remove the guard at handler_http.go:515-517 and run `go test ./gno.land/pkg/gnoweb/ -count=1`: expect a red test, observe ok",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "with the guard removed: `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 6.769s`, the full package including TestHTTPHandler_GetUserView_NotAUser and _LookupFailureIsNotA404, the two that pass []string{\"\"}.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1211,
+      "angle": "tests",
+      "summary": "the empty ListPaths element the diff starts guarding at :515 is still appended verbatim by the subpaths consumer",
+      "failure_scenario": "rpcClient.ListPaths returns [\"\"] for a package with no subpaths (client.go:231, strings.Split of an empty string). Three of its four consumers now drop that element — the new guard at :515, `paths[0] == \"\"` in GetPathsListView at :864, and `if p != \"\"` in realm_directory.go:104 — while the subpaths goroutine appends strings.TrimPrefix(\"\", domain) into the overview's subpath list, so a leaf realm carries one empty subpath entry into the view. Pre-existing, and in scope because this diff sweeps that class and misses this member.",
+      "verify_by": "point a handler at a stub whose ListPaths returns []string{\"\"} and request the overview of a leaf realm: expect no subpath entries, observe one empty one; or read the four call sites (`grep -n '\\.ListPaths(' gno.land/pkg/gnoweb/*.go`) and compare their guards",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "call sites read at head: handler_http.go:505 (guarded by the diff), :857 (guarded at :864), :1203 (unguarded, appends at :1211), realm_directory.go:99 (guarded at :104).",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 575,
+      "angle": "tests",
+      "summary": "the default branch of userExists, the one that rejects an unrecognised qeval payload, is executed by no test",
+      "failure_scenario": "Every evalFunc the PR adds returns one of three shapes: `(nil *...UserData)\\n(false bool)`, resolveNamePayload(true/false), or an error. None returns a payload whose last line is neither `(true bool)` nor `(false bool)`, so replacing the default branch with `return true, nil` leaves the suite green. That branch is the whole defence against a ResolveName signature change on r/sys/users: if it silently became `return true, nil`, every /u/<name> would resolve as an existing user and the gate the PR exists to add would be off, with no test saying so.",
+      "verify_by": "replace the default branch body with `return true, nil` and run `go test ./gno.land/pkg/gnoweb/ -count=1`: expect a red test, observe ok",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "read of the five evalFunc stubs in handler_http_test.go (lines 2007-2017, 2050, 2073, 2096, 2135) plus MockClient.Eval and the stubClient default: no payload reaches the default branch.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2121,
+      "angle": "tests",
+      "summary": "TestHTTPHandler_GetUserView_RejectsInvalidNames asserts 404 for /u/foo/bar, which the URL layer might already reject, making the assertion true by construction",
+      "settled_by": "grep -n 'reGnolandPath =\\|reURLPath =' gno.land/pkg/gnoweb/weburl/url.go -> `^/[rpu]/([a-z][a-z0-9_/-]*)*$` (:265) and `^/[a-z0-9_/-]*$` (:303); both match /u/foo/bar, so IsUser() is true and the 404 comes from the new reUsername guard, not from the parser"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 552,
+      "angle": "tests",
+      "summary": "gno.Re_name.Matches may be unanchored, so /u/a--b and /u/a- would reach the chain and the new test would be green for the wrong reason",
+      "settled_by": "go test ./gno.land/pkg/gnoweb/ -count=1 -> ok; TestHTTPHandler_GetUserView_RejectsInvalidNames asserts `queried == false` for /u/a--b and /u/a-, which only holds if Matches rejects them outright"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 551,
+      "angle": "tests",
+      "summary": "maxUsernameLen = 64 could be tighter than the registry's own limit, 404ing a legitimately registered long name that the 65-char test then credits",
+      "settled_by": "grep ErrInvalidUsername examples/gno.land/r/sys/users/errors.gno:19 -> \"username must match ^[a-z][a-z0-9]*([_-][a-z0-9]+)*$ (max 64 chars)\": the guard and the registry agree on both the shape and the 64"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/app_test.go",
+      "line": 105,
+      "angle": "tests",
+      "summary": "the new /u/moul001 route may never reach the registry lookup, because a namespace with packages short-circuits the gate",
+      "settled_by": "grep -c 'r/moul001\\|@moul001\\|p/moul001' gno.land/genesis/genesis_txs.jsonl -> 0; moul001 and zoo_ma123 are RegisterUser txs only (genesis_txs.jsonl lines 2-3), so both routes go through buildContributions empty and into userExists"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2006,
+      "angle": "tests",
+      "summary": "the three NotAUser subtests range over a map and call t.Parallel(), so they could share one captured eval closure and run a single case three times",
+      "settled_by": "go.mod pins go1.25 (go1.25.9 toolchain); loop variables have been per-iteration since go1.22, so each subtest closes over its own eval"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 1134,
+      "angle": "tests",
+      "summary": "the pre-existing ContextPropagation 'user view' case expects a realm fetch, which the new gate could now skip",
+      "settled_by": "read of handler_http_test.go:1104-1108: its listPathsFunc returns two real paths, so len(contribs) == 2 and the gate at handler_http.go:626 is not entered; the realm fetch still happens"
+    }
+  ]
+}

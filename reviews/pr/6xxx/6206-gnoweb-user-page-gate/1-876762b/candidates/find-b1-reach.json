@@ -1,0 +1,135 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 566,
+      "angle": "reach",
+      "summary": "userExists reads ResolveName's second return (isCurrent), not the *UserData, so every alias of a live account 404s",
+      "failure_scenario": "ResolveName returns (data *UserData, isCurrent bool) with isCurrent = `name == data.username` (examples/gno.land/r/sys/users/users.gno:17). userExists splits the qeval body on \"\\n\" and reads only lines[len(lines)-1], which is that bool; the first line, the *UserData pointer that actually answers \"is this name registered\", is discarded. r/sys/users never drops an old key: UpdateName (store.gno:192-214) validates the new name and calls nameStore.Set(newName, u), and nothing deletes the previous entry, so an old name stays a live, permanently-held registration resolving to the same account. A user who renames therefore loses every earlier profile URL: /u/<oldname> returns 404 with \"user not found\" for a name that is registered, that nobody else can take, and that gnokey still resolves - unless that user happens to own packages under @oldname, which is the only branch that skips the registry lookup. /u/ is also what gnoweb's markdown user links resolve to (grep hit gno.land/pkg/gnoweb/markdown/ext_links.go:222 `if target.IsUser()`), so historical mentions of the old name break with it. The existence question is answered by the first line, which the code throws away.",
+      "verify_by": "gno test on examples/gno.land/r/sys/users: register alice, UpdateName to alicerenamed, then ResolveName(\"alice\") - expect data != nil with isCurrent false, byte-identical in the second return to ResolveName(\"neverregistered\"). Then drive /u/alice through stubClient with evalFunc returning each of the two qeval bodies - expect 200 for the alias, observe 404 for both.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Chain half, `gno test . -run TestB1ReachAliasStaysRegistered -v` in examples/gno.land/r/sys/users at head: `--- PASS: TestZZAliasStaysRegistered (0.00s)` / `--- GAS:  3355729` - every assertion holds, including `uassert.Equal(t, \"alicerenamed\", old.Name())` for ResolveName(alice) and `uassert.False(t, oldIsCurrent)`. gnoweb half, `go test ./gno.land/pkg/gnoweb -run TestZZAliasIsRegisteredButGets404 -v`: `zz_alias_test.go:51: status=404` twice, `--- FAIL: .../never_registered` and `--- FAIL: .../live_alias_of_bob`, `Error: Not equal: expected: 200`. The author's own handler_http_test.go case named \"renamed alias\" pins the 404 as intended behaviour.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-reach-alias-404_test.go"
+    }
+  ],
+  "low_band": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 546,
+      "angle": "reach",
+      "summary": "the gate re-derives r/sys/users' own name rule from gno.Re_name plus a local 64 cap, with nothing pinning the two together",
+      "failure_scenario": "reUsername = gno.Re_name.Compile() (gnovm/pkg/gnolang/mempackage.go:70, the package-path segment rule) and maxUsernameLen = 64 happen to reproduce the registry's reName = `^[a-z][a-z0-9]*([_-][a-z0-9]+)*$` and maxNameLen = 64 (examples/gno.land/r/sys/users/store.gno:27,30) exactly today. They are two independent constants in two repositories' worth of code with no test asserting they agree; the day the registry loosens either one, gnoweb hard-404s a name the chain accepted, before any query goes out, and no gnoweb test fails.",
+      "verify_by": "diff the two rules: gno.Re_name at gnovm/pkg/gnolang/mempackage.go:70 against reName at examples/gno.land/r/sys/users/store.gno:27, and maxUsernameLen against maxNameLen; then grep gno.land/pkg/gnoweb for any test that reads the registry's constants - there is none.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "gno.Re_name expands to [a-z] [a-z0-9]* ([_-][a-z0-9]+)* ; reName is `^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`. maxUsernameLen = 64, maxNameLen = 64. Equal at this sha.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 575,
+      "angle": "reach",
+      "summary": "an unexpected ResolveName body turns every /u/<name> page into a 500, with no degraded path",
+      "failure_scenario": "The default arm wraps ErrClientResponse, and clientErrorMessage (handler_http.go:1051-1058) has no arm for it, so it falls to http.StatusInternalServerError with the body \"internal error\". Any chain whose r/sys/users answers in a shape this parser does not know - a different ResolveName signature, an empty qeval body, a fork of the registry - takes every name-shaped user page to 500 rather than degrading to the contributions-only view the handler is already able to render. The three-way switch on an exact string is the whole contract with a realm gnoweb does not own.",
+      "verify_by": "stubClient with evalFunc returning []byte(\"\") for /u/alice: expect a rendered page or a 404, observe 500 \"internal error\" via clientErrorMessage's default arm.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "handler_http.go:575 returns fmt.Errorf(\"%w: ...\", ErrClientResponse); clientErrorMessage:1045-1058 matches ErrClientPackageNotFound, ErrClientObjectNotFound, ErrClientTimeout, ErrClientBadRequest, then default -> 500 \"internal error\".",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 618,
+      "angle": "reach",
+      "summary": "a package at the namespace root is invisible to ListPaths(\"@name\"), so its owner now 404s",
+      "failure_scenario": "QueryPaths appends a trailing slash when the target carries no sub-prefix (gno.land/pkg/sdk/vm/keeper.go:1712-1715: rpath += \"/\"), so @alice lists gno.land/r/alice/... and never gno.land/r/alice itself. Re_pkgPath (gnovm/pkg/gnolang/mempackage.go:53-54) makes the repo segment optional, so gno.land/r/alice is a deployable path. A namespace owner whose only package sits at that root gets len(contribs) == 0, falls through to the registry, and 404s unless they separately registered a username - where before this diff /u/alice always rendered. Could not be run here: no example package sits at a namespace root, so the shape needs a deployment to exercise.",
+      "verify_by": "deploy a realm at gno.land/r/<ns> with no sub-path on an in-memory node, then GET /u/<ns>: expect 200 with that realm listed, observe 404.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "keeper.go:1713-1714 `if !hasSubPrefix { rpath += \"/\" }`; ls of examples/gno.land/r/*/gnomod.toml returns no match, so no fixture exercises the shape.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 515,
+      "angle": "reach",
+      "summary": "the added `if raw == \"\"` guard is redundant; weburl.Parse already rejects the empty string",
+      "failure_scenario": "ListPaths returns []string{\"\"} for an empty qpaths body (client.go:231, strings.Split of the trimmed empty string). The loop already handled it: weburl.Parse(\"\") reaches ParseFromURL's `!reURLPath.MatchString(upath)` check with upath == \"\", and reURLPath is `^/[a-z0-9_/-]*$`, which demands a leading slash, so Parse errors and the iteration continues. The guard changes nothing the gate depends on; its only effect is suppressing one Logger.Warn line, which is worth saying in the commit rather than implying the count was wrong without it.",
+      "verify_by": "delete the three added lines and run go test ./gno.land/pkg/gnoweb -run TestHTTPHandler_GetUserView_NotAUser, whose stub returns []string{\"\"}: still green means the guard is redundant.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "weburl/url.go reURLPath = `^/[a-z0-9_/-]*$`; ParseFromURL returns ErrURLInvalidPath when it does not match, and \"\" does not.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 603,
+      "angle": "reach",
+      "summary": "/u/<name>:args renders the same page with the args silently dropped",
+      "failure_scenario": "gnourl.Username() reads Path[3:] and GetUserView never looks at gnourl.Args, so /u/moul001:bob returns 200 with exactly the /u/moul001 page. Pre-existing, but the diff is the first code to treat /u/ as a validated surface, and the args are the one part of the URL it still ignores rather than rejecting.",
+      "verify_by": "GET /u/moul001:bob against the shared in-memory node and compare the status and body to /u/moul001.",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "probe run against the package's shared in-memory node: `PROBE /u/moul001:bob -> 200` and `PROBE /u/moul001 -> 200`, both rendering `Gnome moul001`.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 618,
+      "angle": "reach",
+      "summary": "@std and @stdlibs are namespaces QueryPaths special-cases to return the whole standard library, which would let /u/std pass the has-packages gate",
+      "settled_by": "probe against the shared in-memory node: `PROBE /u/std -> 404 contribHits=0` and `PROBE /u/stdlibs -> 404`. The stdlib paths QueryPaths returns for those targets carry no leading slash, so weburl.Parse rejects each one and contribs stays empty."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 557,
+      "angle": "reach",
+      "summary": "the ErrClientPackageNotFound arm of userExists is dead for the real client, so a chain without r/sys/users would 500 instead of 404",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1880-1884, withQueryEvalMachine returns ErrInvalidPkgPath(\"package not found: %s\") when GetPackage is nil, and client.go:371-377 maps vm.InvalidPkgPathError to ErrClientPackageNotFound. The arm is live."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 555,
+      "angle": "reach",
+      "summary": "the username is interpolated into a qeval expression, so a crafted name could inject an expression",
+      "settled_by": "the gate at handler_http.go:608 runs gno.Re_name first, which is [a-z] [a-z0-9]* ([_-][a-z0-9]+)* (gnovm/pkg/gnolang/mempackage.go:70) - no quote, backslash, dot or parenthesis survives it - and %q escapes on top. parseQueryEvalData (sdk/vm/handler.go:289-301) cuts at the first dot after the domain, which the name cannot contain."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 584,
+      "angle": "reach",
+      "summary": "CreateUsernameFromBech32 slices username[:4] and username[len-4:] with no length check, so a short input would panic",
+      "settled_by": "tm2/pkg/crypto/bech32.go:19-25, AddressFromBech32 goes through GetFromBech32 with the g prefix and AddressFromBytes, which requires the 20-byte payload; every string it accepts is the 40-character g1 form. The slice is only reached when it returned nil."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 608,
+      "angle": "reach",
+      "summary": "the gate sits only on GetUserView, so /u/<name> with $source, $help, a trailing slash or args reaches another view unchecked",
+      "settled_by": "probe against the shared in-memory node: `/u/zzznotauser$source -> 404`, `/u/zzznotauser/ -> 404`, `/u/zzznotauser$help -> 404`, `/u/zzznotauser:bob -> 404`. Each falls to a package query on gno.land/u/<name>, which is not a package."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 88,
+      "angle": "reach",
+      "summary": "Eval added to the exported ClientAdapter interface breaks any implementation the diff missed",
+      "settled_by": "grep -rn ClientAdapter over the head tree returns only rpcClient (client.go:129), MockClient (client_mock.go:35) and the test stubClient (handler_http_test.go), all three carrying Eval at this sha."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 548,
+      "angle": "reach",
+      "summary": "the 64-character cap rejects names the registry is willing to register",
+      "settled_by": "examples/gno.land/r/sys/users/store.gno:30, `const maxNameLen = 64`, and validateName at :305 rejects anything longer. The caps agree."
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 221,
+      "angle": "lines",
+      "summary": "(*rpcClient).ListPaths never uses its limit argument, so MaxUserContributions = 200 is not the bound on a user page; the node's default of 1000 is",
+      "failure_scenario": "GET /u/<name> for a namespace holding 1000 packages. handler_http.go:505 asks for MaxUserContributions = 200; client.go:221 builds the query from `const qpath = \"vm/qpaths\"` and `[]byte(prefix)` alone, so the wire request is byte-identical whatever the caller passes. The node parses its limit from the ABCI query path (pathsLimit, gno.land/pkg/sdk/vm/handler.go:199, `defaultLimit = 1_000`), sees no ?limit=, and returns up to 1000 paths. buildContributions then allocates and renders all of them (slices.Clip trims capacity, never length), so the page is 5x the size its own constant promises. realm_directory.go:99 loses searchPathLimit the same way.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb/ -run TestB1ListPathsDropsItsLimit -v with the artifact below: a fake JSON-RPC endpoint captures what ListPaths(ctx, \"@alice\", 1) and ListPaths(ctx, \"@alice\", MaxUserContributions) put on the wire; expect the two params to differ, observe them identical",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "both calls emit the same ABCI request: {\"data\":\"QGFsaWNl\",\"height\":\"0\",\"path\":\"vm/qpaths\",\"prove\":false} - no ?limit= on the path, no limit in the data. PASS confirms the caller's limit never reaches the node; pathsLimit's defaultLimit = 1_000 then applies.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-lines-listpaths-limit-ignored.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 554,
+      "angle": "lines",
+      "summary": "userExists decides whether a user exists by string-matching the VM value printer's output, while vm/qeval_json exists for machine reads",
+      "failure_scenario": "userExists takes the last line of vm/qeval's text and accepts only the exact strings \"(true bool)\" and \"(false bool)\"; anything else becomes ErrClientResponse, which clientErrorMessage maps to 500 \"internal error\" (handler_http.go:1056). A third return value appended to r/sys/users.ResolveName, or any change to TypedValue.String() for a bool, turns every registered user's page into a 500 rather than degrading. handler.go:98-99 exposes qeval_json beside qeval for exactly this kind of read.",
+      "verify_by": "read gno.land/pkg/sdk/vm/handler.go:98-99 for QueryEvalJSON, then app_test.go's /u/zoo_ma123 and /u/zzznotauser rows: both branches are pinned against a real node today, so this is drift risk, not a live bug",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 546,
+      "angle": "lines",
+      "summary": "the username rule is duplicated from the registry with nothing linking the two copies",
+      "failure_scenario": "reUsername is the GnoVM's package-name rule (gno.Re_name) and maxUsernameLen is a local 64. The authority is r/sys/users: store.gno:27 reName = ^[a-z][a-z0-9]*([_-][a-z0-9]+)*$ and store.gno:30 maxNameLen = 64. They agree exactly today, so nothing is broken; if the registry ever relaxes its rule (a longer name, a new separator), gnoweb 404s names the chain accepts, and the gate that produced the 404 never reaches the chain to find out.",
+      "verify_by": "diff the two rules: gnovm/pkg/gnolang/mempackage.go:70 against examples/gno.land/r/sys/users/store.gno:27 and :30 - identical character class and identical 64",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 628,
+      "angle": "lines",
+      "summary": "a user page now costs three serial RPC round trips where the third is independent of the first two",
+      "failure_scenario": "GetUserView runs ListPaths, then (when there are no contributions) Eval, then Realm, each waiting on the previous. Only Eval depends on ListPaths; the /r/<name>/home fetch depends on neither and could run alongside them. The sibling handler in this same file parallelises exactly this shape with errgroup (handler_http.go:1198-1213). On a loaded node three serial trips share one defaultRequestTimeout of 30s.",
+      "verify_by": "read GetUserView 609-637 for the call order and handler_http.go:1198-1213 for the errgroup the same file already uses",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 557,
+      "angle": "lines",
+      "summary": "the \"no user registry on this chain\" fallback cannot tell a chain without the registry from gnoweb querying the wrong domain, and logs at Debug",
+      "failure_scenario": "ErrClientPackageNotFound from the eval is turned into \"this chain has no registry\", so every registered user without packages 404s as \"user not found\". rpcClient.Eval builds the query as <domain>/r/sys/users.ResolveName(...), and cfg.Domain is the literal \"gno.land\" at app.go:93, operator-set and never derived from the node - unlike ChainID, which app.go:114 asks the node for. An operator pointed at a chain with a different ChainDomain gets not-found on every user page with only a Debug line saying why. Other pages break too on that misconfiguration, which is what keeps this low.",
+      "verify_by": "read app.go:93 (Domain default) beside app.go:113-119 (ChainID derived from the node), then client.go:141-147 for the domain-prefixed eval data",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client_mock.go",
+      "line": 207,
+      "angle": "lines",
+      "summary": "MockClient.Eval hard-codes \"no registry\", so the package's exported mock cannot express a registered user",
+      "failure_scenario": "MockClient is exported (NewMockClient) and models the other queries from its MockPackage fixtures; Eval ignores both arguments and always returns ErrClientPackageNotFound. Under it every /u/<name> whose namespace holds no package is a 404, and no fixture can say otherwise, so the mock-backed tests can only ever exercise the not-a-user half of the new gate.",
+      "verify_by": "read client_mock.go:205-210 against the fixture-driven Realm/ListPaths implementations above it in the same file",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1208,
+      "angle": "lines",
+      "summary": "the diff skips the empty path from ListPaths only in buildContributions; the subpaths loop in GetPackageView keeps it, so a leaf realm would show an empty entry",
+      "settled_by": "grep -n 'func buildSubpackages' -A 30 components/overview_build.go: line 149 `if rel == p || rel == \"\" || strings.Contains(rel, \"/\") { continue }` drops it. The other two callers also handle it: handler_http.go:864 tests `paths[0] == \"\"` and realm_directory.go:103 filters `p != \"\"`."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 557,
+      "angle": "lines",
+      "summary": "userExists swallowing ErrClientPackageNotFound could hide a package that exists but failed to load, reporting a live user as not found",
+      "settled_by": "grep -rn 'ErrInvalidPackage(' gno.land/pkg/sdk/vm/: every site is in the deploy path (keeper.go:606-701). The only not-found an eval can raise is ErrInvalidPkgPath at keeper.go:1881, `pv := gnostore.GetPackage(pkgPath, false); if pv == nil`, i.e. the package is genuinely absent."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 608,
+      "angle": "lines",
+      "summary": "a name gnoweb's gate accepts but the node's qpaths rejects would return 500 from buildContributions instead of the 404 the gate intends",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1665 reUserNamespace = ^[~_a-zA-Z0-9/-]+$, a strict superset of Re_name's [a-z][a-z0-9]*([_-][a-z0-9]+)* - no name can pass the gate and fail the node's check."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 548,
+      "angle": "lines",
+      "summary": "maxUsernameLen = 64 could reject a longer name the registry accepts",
+      "settled_by": "examples/gno.land/r/sys/users/store.gno:30 `const maxNameLen = 64` and :305 `if len(username) > maxNameLen`, the same comparison against the same number."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 584,
+      "angle": "lines",
+      "summary": "CreateUsernameFromBech32 slices username[:4] and username[len-4:] without a length check, so a short bech32 string would panic",
+      "settled_by": "tm2/pkg/crypto/bech32.go:19-25 AddressFromBech32 returns AddressFromBytes(bz), which rejects anything but 20 bytes, so the string it accepts is always the 40-char g1 form; the pre-diff bech32.Decode had the same floor of 8 chars."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 503,
+      "angle": "lines",
+      "summary": "/u/std and /u/stdlibs hit the keeper's stdlib special case, which could fill contribs with stdlib paths and serve a fake user page that skips the registry check",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1702 returns paths under `path.Join(\"_\", subPrefix)`, which carry no leading slash; weburl's reURLPath (weburl/url.go:282) is ^/[a-z0-9_/-]*$, so every such path fails weburl.Parse at handler_http.go:511 and is skipped, leaving contribs empty and the registry check in force."
+    }
+  ]
+}

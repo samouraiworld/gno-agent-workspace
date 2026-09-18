@@ -1,0 +1,120 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 649,
+      "angle": "removed",
+      "summary": "GetUserView bech32-decodes the same username twice: isAddress at line 606 already holds the answer CreateUsernameFromBech32 recomputes at 649",
+      "failure_scenario": "GET /u/g1manfred47kzduec920z88wfr64ylksmdcedlf5 runs crypto.AddressFromBech32 at handler_http.go:606 to set isAddress, then again inside CreateUsernameFromBech32 at 581 via line 649. Two full bech32 decode+checksum passes per address page render, and the second one re-derives a boolean the function already has in scope, so a later edit can move one test without the other.",
+      "verify_by": "read handler_http.go:604-650 and 580-585: the only caller of CreateUsernameFromBech32 in the package (grep CreateUsernameFromBech32 gno.land/pkg/gnoweb) is line 649, inside the function that already computed isAddress",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'crypto.AddressFromBech32' handler_http.go -> 581 (inside CreateUsernameFromBech32), 606 (isAddress in GetUserView). grep CreateUsernameFromBech32 over gno.land/ -> handler_http.go:580 def, handler_http.go:649 sole non-test caller, handler_http_test.go:903 test.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 231,
+      "angle": "removed",
+      "summary": "the diff adds a third consumer-side workaround for ListPaths returning [\"\"] on an empty result instead of fixing ListPaths",
+      "failure_scenario": "ListPaths does strings.Split(strings.TrimSpace(string(res)), \"\\n\"), which yields a one-element slice holding \"\" when the node answers with no paths. GetPathsListView already works around it at handler_http.go:864 with `len(paths) == 0 || paths[0] == \"\"`; this diff adds a second, differently spelled workaround at handler_http.go:515 (`if raw == \"\" { continue }`) inside buildContributions. The new /u/<name> gate keys off len(contribs) == 0, so it is now load-bearing on that workaround: a fourth caller that forgets it silently sees one phantom entry and the gate reads a non-existent namespace as populated.",
+      "verify_by": "read client.go:221-237, handler_http.go:857-872 and handler_http.go:509-520; the fix at the source is `if len(res) == 0 { return nil, nil }` before the Split, which lets all three call sites drop their guard",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "client.go:231 `paths := strings.Split(strings.TrimSpace(string(res)), \"\\n\")`; handler_http.go:864 `if len(paths) == 0 || paths[0] == \"\"`; handler_http.go:515 `if raw == \"\"` (added by this diff). The new tests encode the same shape: handler_http_test.go stubs return []string{\"\"} to mean \"no packages\".",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_mentions.go",
+      "line": 49,
+      "angle": "removed",
+      "summary": "the sibling address test isValidBech32Address still uses the loose bech32.Decode the diff replaced in CreateUsernameFromBech32",
+      "failure_scenario": "The diff swept the class \"decide whether a token is a gno address\" from bech32.Decode to crypto.AddressFromBech32 (20-byte payload, hrp g) in handler_http.go:581, and missed the member at markdown/ext_mentions.go:49, which decides whether a realm-rendered token becomes a link to /u/<token> (ext_mentions.go:114, and the address branch at :97). mentionAddressPattern allows g1 plus 37 to 90 chars, so a token whose bech32 checksum is valid but whose payload is not 20 bytes still passes the loose test and is linked. Before this PR the two sites agreed and /u/<that token> rendered a page with a truncated handle; after it, GetUserView refuses the token as an address, falls into the name branch, and the r/sys/users registry rejects g1-lookalikes by construction (store.gno:16 reAddressLookalike), so the rendered mention is a link that always 404s.",
+      "verify_by": "read ext_mentions.go:28-29, 49-51, 90-99, 114 against handler_http.go:581 and 606; the same crypto.AddressFromBech32 in isValidBech32Address makes the two sites agree again",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "grep 'bech32\\.' over gno.land/pkg/gnoweb after the diff returns exactly one hit: markdown/ext_mentions.go:49 `_, _, err := bech32.Decode(string(address))`. ext_mentions.go:29 `mentionAddressPattern = ^(?: |)(g1[0-9A-Za-z]{37,90})(?:[^@0-9A-Za-z]|$)`; a real address is g1 plus exactly 38. examples/gno.land/r/sys/users/store.gno:16 `reAddressLookalike = ^g1[a-z0-9]{20,38}$` with store.gno:313 rejecting such names at registration.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 215,
+      "angle": "removed",
+      "summary": "ListFiles carries the identical empty-result shape as ListPaths and neither of its two consumers guards files[0] == \"\"",
+      "failure_scenario": "client.go:215 is the same `strings.Split(strings.TrimSpace(string(res)), \"\\n\")` the diff worked around for ListPaths, so an empty vm/qfile body yields []string{\"\"} rather than an empty slice. GetSourceView (handler_http.go:786) and GetDirectoryView (handler_http.go:902) both test only `len(files) == 0`, which is 1 here, so instead of the \"no files available\" component the page renders a directory listing with one blank-named entry linking to the package path plus an empty filename, and GetSourceView then asks the node for filename \"\", which client.go:180 rejects with \"empty filename given\".",
+      "verify_by": "read client.go:204-217 beside 221-237, then handler_http.go:783-790 and 900-905; contrast with the guard GetPathsListView already carries at 864",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "client.go:215 and :231 are the same expression. grep 'if len(files) == 0' handler_http.go -> 786, 902; neither adds a `|| files[0] == \"\"` term, while handler_http.go:864 does for paths.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 566,
+      "angle": "removed",
+      "summary": "userExists keeps only the last line of the eval result and throws away the UserData that would let a renamed handle redirect instead of 404",
+      "failure_scenario": "ResolveName returns (data *UserData, isCurrent bool) and reports isCurrent as `name == data.username` (examples/gno.land/r/sys/users/users.gno:17), so a user who renamed alice to bob still resolves alice to a live UserData with isCurrent false. userExists reads only lines[len(lines)-1], sees \"(false bool)\", and GetUserView:615 turns that into 404 \"user not found\". Before this PR /u/alice rendered a profile page; a published profile link for a user who has since renamed now dead-ends, even though the payload the handler just discarded names the current handle. The first line of the same response (handler_http_test.go:2016 resolveNamePayload shows its exact shape) carries the struct.",
+      "verify_by": "read handler_http.go:554-577 and examples/gno.land/r/sys/users/users.gno:6-18; a 301 to the current handle needs the first line the switch discards, not another query",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "users.gno:17 `return data, name == data.username`. handler_http.go:566-568 splits on newline and switches on the last line only. The diff's own test names this case \"renamed alias\" and asserts 404 (handler_http_test.go:2037-2039). Consistency note: examples/gno.land/r/sys/names/verifier.gno:102-107 resolveCurrentName applies the same `data == nil || !isCurrent` test for namespace authority, so the 404 is defensible; the finding is that the redirect is free and the link breakage is not.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 557,
+      "angle": "removed",
+      "summary": "suspected rpcClient.Eval can never yield ErrClientPackageNotFound, making the 'no user registry on this chain' branch dead and every /u/<name> a 500 on a chain without r/sys/users",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1880-1884 withQueryEvalMachine returns ErrInvalidPkgPath(\"package not found: %s\") when gnostore.GetPackage(pkgPath,false) is nil, and gno.land/pkg/gnoweb/client.go:369-375 maps vm.InvalidPkgPathError to ErrClientPackageNotFound; the branch is live"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 608,
+      "angle": "removed",
+      "summary": "suspected reUsername.Matches is an unanchored substring match, so /u/foo/bar and /u/a-- would pass the new gate",
+      "settled_by": "tm2/pkg/regx/regx.go:13-22 Compile() prepends ^ and appends $ before regexp.MustCompile, so Matches is a full match"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 548,
+      "angle": "removed",
+      "summary": "suspected maxUsernameLen = 64 is an invented bound that would 404 a legitimately registered longer username",
+      "settled_by": "examples/gno.land/r/sys/users/store.gno:30 `const maxNameLen = 64` with store.gno:305 `if len(username) > maxNameLen`, and store.gno:27 `reName = ^[a-z][a-z0-9]*([_-][a-z0-9]+)*$` is character-for-character gnovm/pkg/gnolang/mempackage.go:70 Re_name; gate and registry agree exactly"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 610,
+      "angle": "removed",
+      "summary": "suspected a name the new gate accepts is rejected by the node's QueryPaths, turning a 404 into a 500 through ErrClientResponse",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1665 reUserNamespace = ^[~_a-zA-Z0-9/-]+$ is a strict superset of Re_name, so no name passing handler_http.go:608 reaches keeper.go:1696"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 584,
+      "angle": "removed",
+      "summary": "suspected the rewritten CreateUsernameFromBech32 can panic: username[:4] and username[len(username)-4:] now run outside the old err == nil guard shape",
+      "settled_by": "tm2/pkg/crypto/bech32.go:19-25 AddressFromBech32 returns an error unless GetFromBech32 matches the g prefix and AddressFromBytes accepts 20 bytes, which forces a 40-character g1 string; the slice indices cannot be out of range on the success path"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 567,
+      "angle": "removed",
+      "summary": "suspected reading only the last line of the eval output misreads ResolveName's two-value result",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1833-1838 appends rtv.String() in result order separated by \\n, so the bool is always last whatever the UserData rendering spans"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 604,
+      "angle": "removed",
+      "summary": "suspected replacing strings.TrimPrefix(gnourl.Path, \"/u/\") with gnourl.Username() lets an empty username through, since Username() returns \"\" when IsUser() is false",
+      "settled_by": "weburl/url.go:245-247 IsUser() is the same predicate handler_http.go:448 gates GetUserView on, so the \"\" return is unreachable from the router; and handler_http.go:608 rejects \"\" anyway because Re_name requires a leading [a-z]"
+    }
+  ]
+}

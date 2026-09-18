@@ -1,0 +1,73 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2076,
+      "angle": "tests",
+      "summary": "TestHTTPHandler_GetUserView_RegisteredWithoutPackages passes with the whole registry gate deleted; its two real assertions sit inside a stub nothing proves was called",
+      "failure_scenario": "The test is the only one covering the admit half of the new gate: a name with no packages that r/sys/users reports as taken must still be served. Its assertions on what reaches vm/qeval (pkgPath \"/r/sys/users\", expr `ResolveName(\"alice\")`) live inside evalFunc, and no flag records that evalFunc ran. Delete handler_http.go:618-627 and GetUserView renders the same 200 page carrying \"Gnome alice\", so the test stays green and neither inner assertion is reached. The integration routes do not cover it either: /u/moul001 and /u/zoo_ma123 are registered in gno.land/genesis/genesis_txs.jsonl and own no package, and both still PASS under the same mutation; only /u/zzznotauser, the reject half, goes red. A later refactor can drop the registry lookup and every test in the repo stays green.",
+      "verify_by": "sed -i '618,627d' gno.land/pkg/gnoweb/handler_http.go && go test ./gno.land/pkg/gnoweb/ -run 'RegisteredWithoutPackages|TestRoutes' -count=1 -v",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "With handler_http.go:618-627 deleted: `--- PASS: TestHTTPHandler_GetUserView_RegisteredWithoutPackages (0.00s)`, and in the same run the probe added beside it `--- FAIL: TestHTTPHandler_GetUserView_RegisteredWithoutPackages_QueriesRegistry (0.00s)`. TestRoutes under the same mutation: `--- PASS: TestRoutes/test_route_/u/moul001`, `--- PASS: TestRoutes/test_route_/u/zoo_ma123`, `--- FAIL: TestRoutes/test_route_/u/zzznotauser`. On the unmutated head both the author's test and the probe pass.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-tests-r2-registered-admit_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 608,
+      "angle": "tests",
+      "summary": "the `!isAddress` term in the shape gate can never be false-y in a way that matters: every bech32 address already satisfies reUsername and maxUsernameLen, and no test separates the two",
+      "failure_scenario": "A gno address is `g1` plus 38 characters of the bech32 data charset `qpzry9x8gf2tvdw0s3jn54khce6mua7l`, all lowercase alphanumeric, 40 characters total. gno.Re_name is `[a-z][a-z0-9]*([_-][a-z0-9]+)*`, so an address matches it, and 40 <= maxUsernameLen 64. Dropping `!isAddress &&` from line 608 changes the handler's behaviour for no input, and the guard reads as if addresses needed an exemption from a rule they already pass. TestHTTPHandler_GetUserView_Address pins only the second use of isAddress, at line 618.",
+      "verify_by": "sed -i '608s/.*/\\tif len(username) > maxUsernameLen || !reUsername.Matches(username) {/' gno.land/pkg/gnoweb/handler_http.go && go test ./gno.land/pkg/gnoweb/ -run 'UserView|GetUserView|ContextPropagation|CreateUsernameFromBech32' -count=1",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "`ok  github.com/gnolang/gno/gno.land/pkg/gnoweb 0.030s` with the `!isAddress &&` term removed from line 608; TestHTTPHandler_GetUserView_Address still serves /u/g1manfred47kzduec920z88wfr64ylksmdcedlf5 as 200 with `g1ma...dlf5`.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2037,
+      "angle": "tests",
+      "summary": "the \"renamed alias\" subtest of TestHTTPHandler_GetUserView_NotAUser exercises the same bytes as \"unknown name\": userExists reads only the last line, so the UserData resolveNamePayload builds is discarded",
+      "failure_scenario": "userExists (handler_http.go:585) splits the eval result and keeps `lines[len(lines)-1]`. resolveNamePayload(false) differs from the \"unknown name\" literal only in that discarded first line, so the two subtests drive identical code and identical assertions. Replace the whole first line of resolveNamePayload with garbage and the subtest stays green, which means nothing in the suite pins that a renamed alias is distinguishable from a name that was never registered.",
+      "verify_by": "read handler_http.go:585-586 for `lines[len(lines)-1]`, then swap resolveNamePayload's first line for `garbage` and rerun `go test ./gno.land/pkg/gnoweb/ -run TestHTTPHandler_GetUserView_NotAUser -count=1`",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 618,
+      "angle": "tests",
+      "summary": "suspected that no test pins the `len(contribs) == 0` term, the branch that serves a namespace with packages without asking the registry",
+      "settled_by": "sed -i '618s/.*/\\tif !isAddress {/' then `go test ./gno.land/pkg/gnoweb/ -run 'UserView|GetUserView|ContextPropagation|CreateUsernameFromBech32' -count=1` fails: `TestHTTPHandler_GetUserView` at handler_http_test.go:829 `expected: 200 / actual: 500`, because the pre-existing success test stubs two contribution paths and no evalFunc. The term is pinned."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 1720,
+      "angle": "tests",
+      "summary": "suspected that TestHTTPHandler_UserView_ListPathsLimitBounded was silently weakened: /u/alice now 500s there because its stub has no evalFunc",
+      "settled_by": "read of the test body: its only assertion is `assert.Equal(t, gnoweb.MaxUserContributions, observedLimit)`, and ListPaths is still called with that limit before the gate runs, so the test measures exactly what it always measured."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2008,
+      "angle": "tests",
+      "summary": "suspected resolveNamePayload is a hand-written fixture whose shape does not match what vm/qeval really returns for ResolveName",
+      "settled_by": "`gnokey query vm/qeval -remote https://rpc.gno.land:443 -data 'gno.land/r/sys/users.ResolveName(\"moul\")'` returns `(&(struct{(\"g1manfred47kzduec920z88wfr64ylksmdcedlf5\" .uverse.address),(\"moul\" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)` then `(true bool)`, the same two-line shape the fixture builds."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2124,
+      "angle": "tests",
+      "summary": "suspected the 65-character case of TestHTTPHandler_GetUserView_RejectsInvalidNames never reaches maxUsernameLen because weburl rejects the path first",
+      "settled_by": "weburl/url.go:17 `maxPathLength = 4096` and reGnolandPath `^/[rpu]/([a-z][a-z0-9_/-]*)*$` both accept `/u/` + 65 a's, so the case does reach line 608 and gno.Re_name carries no length bound of its own (mempackage.go:70)."
+    }
+  ]
+}

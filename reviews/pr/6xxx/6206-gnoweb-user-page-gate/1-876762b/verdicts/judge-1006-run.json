@@ -1,0 +1,16 @@
+{"verdicts": [
+  {
+    "index": 14,
+    "angle": "claims",
+    "verify_by": "go test ./gno.land/pkg/gnoweb/ -run TestB2Claims_DocsAliasIs404 (artifact below) against head; live: gnokey query vm/qpaths --data '@docs' and vm/qeval --data 'gno.land/r/sys/users.ResolveName(\"docs\")' on https://rpc.gno.land:443, plus curl -o /dev/null -w '%{http_code}' https://gno.land/docs",
+    "state": "CONFIRMED",
+    "band": "Warning",
+    "file": "gno.land/pkg/gnoweb/handler_http.go",
+    "line": 625,
+    "tldr": "gno.land/docs, a shipped alias serving a 200 page today, becomes a 404 error page once this gate ships",
+    "details": "DefaultAliases maps \"/docs\" to \"/u/docs\" (app.go:30), and GetUserView now 404s a name that is neither an address, nor a namespace holding packages, nor resolved by r/sys/users. On gnoland-1 \"docs\" is none of the three: vm/qpaths '@docs' comes back empty and ResolveName(\"docs\") is (false bool), so /docs and /u/docs answer 404 with the shared \"Something went wrong\" body for every visitor and crawler until #5760 serves the embedded docs there. The merge base serves the same URL as a 200 profile page, so the flip is this branch's. Fix: hold the gate for names DefaultAliases points at, or land it together with the replacement /docs page.",
+    "evidence": "Head 876762bdf, finder artifact rerun from the file in a scratch worktree: go test ./gno.land/pkg/gnoweb/ -run TestB2Claims_DocsAliasIs404 -count=1 -v -> \"--- PASS: TestB2Claims_DocsAliasIs404 (0.00s)\", i.e. /u/docs is 404 for the stubbed live answers. Merge base 7916d1dd6, my own check: go test ./gno.land/pkg/gnoweb/ -run TestJudge14_DocsIsAPageAtBase -count=1 -v -> PASS, both \"/u/docs -> 200\" and \"/docs -> 200\" with body \"Gnome docs\" for the same empty-namespace, no-home-realm answers. Live 2026-09-19: curl https://gno.land/docs -> status=200, <title>gno.land - /u/docs</title>, body \"Gnome docs\"; gnokey query vm/qpaths --data '@docs' -> \"data: \" (empty); gnokey query vm/qeval --data 'gno.land/r/sys/users.ResolveName(\"docs\")' -> \"(nil *gno.land/r/sys/users.UserData)\\n(false bool)\". Case space: 200 at base only, 404 at head only.",
+    "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/judge-14-docs-alias-base-200.go",
+    "base_behaves_the_same": false
+  }
+]}

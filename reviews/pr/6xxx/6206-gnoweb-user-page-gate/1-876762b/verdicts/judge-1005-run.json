@@ -1,0 +1,18 @@
+{
+  "verdicts": [
+    {
+      "index": 7,
+      "angle": "refactor",
+      "verify_by": "grep -rn 'maxNameLen|max 64' examples/gno.land/r/sys/users/ and compare with maxUsernameLen at handler_http.go:548; the finding dies if gnoweb reads the cap from a shared symbol rather than a literal",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 548,
+      "tldr": "gnoweb's 64-char cap is a bare literal while its character rule names an upstream source, so only the length half can drift out of the registry unnoticed",
+      "details": "The asymmetry is real and reads exactly as described. handler_http.go:546 is `var reUsername = gno.Re_name.Compile()`, and the registry's own comment at examples/gno.land/r/sys/users/store.gno:18-25 says `reName mirrors gno's package-name shape (gnovm/pkg/gnolang/mempackage.go Re_name)` and that the `Length cap of 64` is `enforced separately in validateName` — so the two sides genuinely share one named upstream for the character rule, and the cap has no upstream at all. store.gno:30 declares `const maxNameLen = 64`, used at store.gno:305 `if len(username) > maxNameLen`; handler_http.go:548 declares `const maxUsernameLen = 64`, used once at :608, with no symbol, import or test linking them. Nothing is wrong today: both caps read 64. What a reader loses is later — if r/sys/users raises maxNameLen, a registered user whose name exceeds 64 gets a 404 profile page from gnoweb, and store_test.gno:101-105 (which pins the registry's own 64 boundary) stays green because it never touches gnoweb. The Go package cannot import a .gno constant, so no compile-time link exists; the cheap fix is a comment on the const naming examples/gno.land/r/sys/users/store.gno maxNameLen as its source, 1 line today against 3 rewritten, net +2. Letting the registry answer instead — dropping the cap and relying on ResolveName — is a behaviour change, since the literal also bounds what gnoweb forwards into a chain query. Fix: name the source in the const's own comment, the way line 544 already does for reUsername.",
+      "evidence": "Read at head worktree: handler_http.go:548 `const maxUsernameLen = 64`, its only use at :608 `if !isAddress && (len(username) > maxUsernameLen || !reUsername.Matches(username))`; examples/gno.land/r/sys/users/store.gno:30 `const maxNameLen = 64`, used at :305; errors.gno:19 documents `(max 64 chars)`. `grep -rn maxUsernameLen gno.land/pkg/gnoweb/` returns those two lines only — no shared symbol. At the merge base worktree, `grep -rnE 'maxUsernameLen|reUsername|Re_name' gno.land/pkg/gnoweb/*.go` returns nothing and GetUserView opens on `username := strings.TrimPrefix(gnourl.Path, \"/u/\")` with no shape or length guard, so the diff introduces both halves; the registry's `maxNameLen = 64` is identical at base and head and is untouched by this PR.",
+      "repro_path": "",
+      "base_behaves_the_same": false
+    }
+  ]
+}

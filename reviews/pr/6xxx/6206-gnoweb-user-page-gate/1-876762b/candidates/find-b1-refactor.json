@@ -1,0 +1,80 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 515,
+      "angle": "refactor",
+      "summary": "the new `raw == \"\"` guard is the fourth call-site workaround for rpcClient.ListPaths yielding []string{\"\"} on an empty listing; moving the contract into the callee is +9/-7 over two files (4 added lines here and the `|| paths[0] == \"\"` clause at line 864 deleted) with the package green",
+      "failure_scenario": "rpcClient.ListPaths does strings.Split(strings.TrimSpace(res), \"\\n\"), so an empty result is []string{\"\"} rather than nil. Three call sites already work around it: realm_directory.list filters blanks and says so in its doc comment (\"dropping the empty entries the RPC layer yields for an empty result\"), GetPathsListView tests `len(paths) == 0 || paths[0] == \"\"`, and this PR adds a third filter in buildContributions. The fourth site, the Subpackages goroutine at handler_http.go:1203, has no filter and appends the blank into subpaths; it is harmless only because buildSubpackages happens to drop it. The next caller of ListPaths inherits the same trap with no compiler or test to name it.",
+      "verify_by": "git apply reviews/.../tests/b1-refactor-listpaths-empty.patch at head, then `go test ./gno.land/pkg/gnoweb/`: ListPaths returns nil for an empty body, the guard and the paths[0] clause are deleted, package must stay green (including this PR's TestHTTPHandler_GetUserView_NotAUser and app_test's /u/zzznotauser against the real node)",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "Patch applied at 876762bdf: `git diff --stat` = 2 files, +9/-7. `go test ./gno.land/pkg/gnoweb/` -> `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 8.984s`. The PR's own stub tests keep passing without the guard because weburl.Parse(\"\") already errors on a blank path, so the deleted lines changed no contribution count, only a Warn log line. A wider version that also deletes realm_directory.list's filter fails one test that feeds a fake client a blank BETWEEN two real paths: `--- FAIL: TestRPCRealmDirectory_Paths` / `expected: []string{\"/r/demo/boards\", \"/r/demo/users\"}` / `actual: []string{\"/r/demo/boards\", \"\", \"/r/demo/users\"}`, so that third copy is left to the author.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-refactor-listpaths-empty.patch"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 649,
+      "angle": "refactor",
+      "summary": "the bech32 decode is computed twice per address page: GetUserView sets isAddress at line 607 and drops it, and CreateUsernameFromBech32 re-decodes at line 580; inlining the shortening under the isAddress the caller already holds is +4/-45 (handler -4/-10, the now-redundant helper test -35) with the package green",
+      "failure_scenario": "GetUserView calls crypto.AddressFromBech32(username) to set isAddress, gates the name-shape check on it, and then calls CreateUsernameFromBech32(username), whose whole body is the same decode again. The exported helper exists only so a unit test could reach the shortening branch, and this PR's new TestHTTPHandler_GetUserView_Address already asserts \"g1ma...dlf5\" end to end, so the second decode and the helper's conditional are both paying for an answer the caller had.",
+      "verify_by": "git apply reviews/.../tests/b1-refactor-bech32-once.patch at head, then `gofmt -l gno.land/pkg/gnoweb/` (no output) and `go test ./gno.land/pkg/gnoweb/`: the address page must still render g1ma...dlf5 via TestHTTPHandler_GetUserView_Address",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Patch applied at 876762bdf: `git diff --stat` = 2 files, +4/-45. `go test ./gno.land/pkg/gnoweb/` -> `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 6.242s`, gofmt clean. `grep -rn CreateUsernameFromBech32 gno.land` at head returns only its own definition, the one call site, and its own test, so nothing outside the package loses a symbol.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-refactor-bech32-once.patch"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 566,
+      "angle": "refactor",
+      "summary": "the HTTP handler parses the GnoVM's debug-print form (`(true bool)`, one line per return value) to answer a yes/no question, while the node already exposes the machine-readable vm/qeval_json for exactly this; the depth fix moves the shape out of the handler and deletes the line convention, its comment and the hand-written resolveNamePayload fixture",
+      "failure_scenario": "userExists splits the payload on newlines and matches the last line against the literals \"(true bool)\" and \"(false bool)\", strings produced by gno.TypedValue.String(). Anything else takes the default branch and returns ErrClientResponse, which handler_http.go:1057 renders as an internal error. So a formatting change in the VM's value printer (a package gnovm/pkg/gnolang owns, and whose format is pinned only by its own values_string_stream_test.go) turns every registered user's /u/ page into an error page at once, and gnoweb's only warning is a fixture in its own test file that mirrors the old text. vm/qeval_json (sdk/vm/handler.go:99, exercised in sdk/vm/handler_test.go) returns a declared {\"results\":[...]} envelope instead.",
+      "verify_by": "add an Eval variant on ClientAdapter that queries vm/qeval_json, unmarshal the second entry of `results` as the bool, and run `go test ./gno.land/pkg/gnoweb/ -run TestHTTPHandler_GetUserView` plus app_test's `-run 'TestRoutes/test_route__u_'` cases against the real node; the falsification is that qeval_json's envelope for a (*UserData, bool) tuple is no cheaper to parse than the last line",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "Read-shaped half run: `grep -rn 'qeval' gno.land/pkg/sdk/vm/handler.go` -> `QueryEval = \"qeval\"`, `QueryEvalJSON = \"qeval_json\"`, and handler_test.go:423/479 query vm/qeval_json and json.Unmarshal a `{\"results\": [...]}` struct, so the machine-readable endpoint exists at this head. The rewrite itself was not run inside the budget.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 548,
+      "angle": "refactor",
+      "summary": "`const maxUsernameLen = 64` is a hand copy of the registry's own cap, in the same block whose comment says the name shape is read from a shared source precisely so it cannot drift; half the rule is shared and half is duplicated",
+      "failure_scenario": "reUsername is gno.Re_name, so the character rule tracks gnolang. The length rule is a literal 64 beside it, while examples/gno.land/r/sys/users/store.gno:30 declares `const maxNameLen = 64` and errors.gno documents \"(max 64 chars)\". If the registry ever raises its cap, gnoweb keeps 404ing the longer names it accepts, and nothing in either tree fails. The Go side has no import path to the realm constant, so the deeper form is to name the source in the const's own comment and cover the boundary in a test, or to let the registry answer for the shape it owns.",
+      "verify_by": "grep -rn 'maxNameLen\\|max 64' examples/gno.land/r/sys/users/ and compare with maxUsernameLen at handler_http.go:548; the finding dies if gnoweb reads the cap from a shared symbol rather than a literal",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "`grep -rn '64' examples/gno.land/r/sys/users/` -> store.gno:30 `const maxNameLen = 64`, errors.gno:19 \"(max 64 chars)\", store_test.gno:101 \"64 chars exactly (length cap is inclusive)\". store.gno:19 also shows reName is itself a hand-written mirror of Re_name, not an import of it, so the \"same source\" the comment claims is one hop away on the realm side too.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1203,
+      "angle": "refactor",
+      "summary": "the Subpackages goroutine is the one ListPaths caller with no blank-entry filter, so I expected an empty subpackage link on a leaf package's overview",
+      "settled_by": "read of components/overview_build.go:138-154 (buildSubpackages): for p == \"\", rel := strings.TrimPrefix(\"\", selfPrefix) is \"\" and the guard `if rel == p || rel == \"\" || strings.Contains(rel, \"/\")` continues, so the blank never becomes a SubpackageLink; the missing filter is redundancy, not a visible defect"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 580,
+      "angle": "refactor",
+      "summary": "inlining CreateUsernameFromBech32 would remove an exported symbol another package depends on",
+      "settled_by": "grep -rn 'CreateUsernameFromBech32' gno.land -> handler_http.go:580 (def), handler_http.go:649 (sole call), handler_http_test.go:874/903/904 (its own test); no other consumer in the tree"
+    }
+  ],
+  "blocks_rewritten": [
+    "userExists' last-line extraction (handler_http.go:566-567): res[bytes.LastIndexByte(trimmed,'\\n')+1:] instead of bytes.Split + lines[len(lines)-1] saves one allocation and no lines, and loses the named `lines`. Rejected.",
+    "realm_directory.list's blank filter, as part of the ListPaths centralization: rejected from the patch because TestRPCRealmDirectory_Paths feeds a fake client a blank BETWEEN two real paths, so that copy is pinned by a test and its removal is a separate call for the author.",
+    "rpcClient.Eval (client.go:159-164) folded into rpcClient.Realm's shape (trim, Sprintf, query): the two differ only in the separator and the query path, and a shared formatter saves two lines while hiding which ABCI path each caller hits. Rejected.",
+    "the getUserPage test helper (handler_http_test.go:2013) merged with the local `get` closure at line 1951: the file already repeats handler-build-and-serve inline 43 times, so the new helper reduces duplication rather than adding it. Rejected.",
+    "`_, err := crypto.AddressFromBech32(username); isAddress := err == nil` (handler_http.go:606-607) as a one-liner: no shorter true form without introducing a helper for a single use. Rejected.",
+    "the name-shape guard (handler_http.go:608-611) pushed down into weburl.Username(): weburl parses URLs and knows nothing of the registry's name rule, so this would move a registry constraint into the URL parser and make every /u/ path share it. Rejected; the depth remark that survives is candidate 4's constant."
+  ]
+}

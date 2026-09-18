@@ -1,0 +1,18 @@
+{
+ "verdicts": [
+  {
+   "index": 6,
+   "angle": "refactor + tests + reach",
+   "verify_by": "git apply tests/b1-refactor-listpaths-empty.patch at head, then `go test ./gno.land/pkg/gnoweb/`: ListPaths returns nil for an empty body, the guard and the paths[0] clause are deleted, package must stay green (including this PR's TestHTTPHandler_GetUserView_NotAUser and app_test's /u/zzznotauser against the real node) | remove the guard at handler_http.go:515-517 and run `go test ./gno.land/pkg/gnoweb/ -count=1`: expect a red test, observe ok | delete the three added lines and run go test ./gno.land/pkg/gnoweb -run TestHTTPHandler_GetUserView_NotAUser, whose stub returns []string{\"\"}: still green means the guard is redundant.",
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 515,
+   "tldr": "the new `raw == \"\"` guard is a fourth copy of a contract that belongs in ListPaths, and weburl.Parse already drops the blank",
+   "details": "rpcClient.ListPaths (client.go:231) does `strings.Split(strings.TrimSpace(string(res)), \"\\n\")`, so an empty body yields []string{\"\"} instead of nil. Four callers exist and three now carry their own blank filter: realm_directory.go:99 (`if p != \"\"`), handler_http.go:857 (`len(paths) == 0 || paths[0] == \"\"`), and this PR's new guard at handler_http.go:515. That guard is behaviourally dead: reURLPath is `^/[a-z0-9_/-]*$`, which the empty string fails, so weburl.Parse(\"\") already errors and the blank is skipped by the `err != nil` branch two lines below; deleting the guard alone leaves the whole package green, this PR's own TestHTTPHandler_GetUserView_NotAUser included, whose stub returns []string{\"\"}. The uncovered caller is the Subpackages goroutine at handler_http.go:1203, which appends the blank into subpaths with no filter and is saved only because buildSubpackages drops it at `rel == p` (components/overview_build.go:149); the next caller inherits the same trap with nothing to name it. Fix: return nil from ListPaths when the trimmed body is empty and delete the two copies, +9/-7 over two files against the PR's +4 at one site.",
+   "evidence": "Read at head 876762bdf: client.go:231 splits the trimmed body unconditionally; weburl/url.go:303 `var reURLPath = regexp.MustCompile(`^/[a-z0-9_/-]*$`)` rejects \"\" (no leading slash), so Parse(\"\") returns ErrURLInvalidPath. Guard-only deletion (the 5 lines at handler_http.go:515-519): `git diff --stat` = 1 file, 5 deletions; `go test ./gno.land/pkg/gnoweb/ -count=1` -> rc=0, `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 9.190s` -- no test goes red without it. Finder's patch reapplied from the file at a clean 876762bdf: `git diff --numstat` = `8 1 gno.land/pkg/gnoweb/client.go` + `1 6 gno.land/pkg/gnoweb/handler_http.go` (+9/-7, 2 files); `go test ./gno.land/pkg/gnoweb/ -count=1` -> rc=0, `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 8.557s`. Merge base not run: the guard is an added line in the diff (bundle-1.md shows `+ if raw == \"\" {`), the base has no copy at this site, and user-visible output is identical either way -- the guard changes only whether a `bad contribution URL` Warn is logged.",
+   "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-refactor-listpaths-empty.patch",
+   "base_behaves_the_same": true
+  }
+ ]
+}

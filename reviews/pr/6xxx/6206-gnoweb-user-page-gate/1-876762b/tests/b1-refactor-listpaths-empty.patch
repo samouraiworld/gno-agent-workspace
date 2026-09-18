@@ -1,0 +1,74 @@
+# b1-refactor-listpaths-empty.patch
+#
+# rpcClient.ListPaths turns an empty listing into []string{""}, so every caller
+# filters the phantom entry. PR 6206 adds the fourth filter (buildContributions);
+# realm_directory.list and GetPathsListView already carry their own. This patch
+# moves the contract into the callee and deletes two of the copies.
+#
+# Repro from a plain clone (go1.25.9):
+#
+#   git clone https://github.com/gnolang/gno
+#   cd gno
+#   git fetch origin 876762bdf2ea6635b27e2b0a42f26f9fdc54af24
+#   git checkout 876762bdf2ea6635b27e2b0a42f26f9fdc54af24
+#   go test ./gno.land/pkg/gnoweb/            # baseline: ok
+#   git apply /path/to/b1-refactor-listpaths-empty.patch
+#   go test ./gno.land/pkg/gnoweb/            # ok  github.com/gnolang/gno/gno.land/pkg/gnoweb  8.984s
+#
+# Measured at head 876762bdf: +9/-7 over two files, package green, including the
+# PR's own TestHTTPHandler_GetUserView_NotAUser (its stub returns []string{""}
+# directly, and weburl.Parse("") already errors, so the deleted guard changed no
+# contribution count) and app_test's /u/zzznotauser case against the real node.
+#
+# Not included: realm_directory.list's own filter. TestRPCRealmDirectory_Paths
+# feeds a fake client a list with a blank entry BETWEEN two real paths, so that
+# copy is pinned by a test and its removal is the author's call:
+#   --- FAIL: TestRPCRealmDirectory_Paths (0.00s)
+#       expected: []string{"/r/demo/boards", "/r/demo/users"}
+#       actual  : []string{"/r/demo/boards", "", "/r/demo/users"}
+diff --git a/gno.land/pkg/gnoweb/client.go b/gno.land/pkg/gnoweb/client.go
+index f63d57cc2..c9eaee7d7 100644
+--- a/gno.land/pkg/gnoweb/client.go
++++ b/gno.land/pkg/gnoweb/client.go
+@@ -227,8 +227,15 @@ func (c *rpcClient) ListPaths(ctx context.Context, prefix string, limit int) ([]
+ 		return nil, err
+ 	}
+ 
++	// An empty listing is an empty body: Split would yield one blank path and
++	// every caller would have to filter it out.
++	trimmed := strings.TrimSpace(string(res))
++	if trimmed == "" {
++		return nil, nil
++	}
++
+ 	// update the paths to be relative to the root instead of the domain
+-	paths := strings.Split(strings.TrimSpace(string(res)), "\n")
++	paths := strings.Split(trimmed, "\n")
+ 	for i, path := range paths {
+ 		paths[i] = strings.TrimPrefix(path, c.domain)
+ 	}
+diff --git a/gno.land/pkg/gnoweb/handler_http.go b/gno.land/pkg/gnoweb/handler_http.go
+index 4cd7a0540..bb3e40bb0 100644
+--- a/gno.land/pkg/gnoweb/handler_http.go
++++ b/gno.land/pkg/gnoweb/handler_http.go
+@@ -511,11 +511,6 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
+ 	contribs := make([]components.UserContribution, 0, len(paths))
+ 	realmCount := 0
+ 	for _, raw := range paths {
+-		// An empty listing is a single blank line, not a malformed path.
+-		if raw == "" {
+-			continue
+-		}
+-
+ 		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
+ 		u, err := weburl.Parse(trimmed)
+ 		if err != nil {
+@@ -861,7 +856,7 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
+ 		h.Logger.Debug("query paths", "prefix", prefix, "paths", len(paths))
+ 	}
+ 
+-	if len(paths) == 0 || paths[0] == "" {
++	if len(paths) == 0 {
+ 		// Both the realm view and the source view funnel here when nothing is
+ 		// live at the path, so this is the one place that has to distinguish
+ 		// "never submitted" from "submitted, not approved yet".

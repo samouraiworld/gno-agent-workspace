@@ -1,0 +1,107 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 618,
+      "angle": "lines",
+      "summary": "the gate serves every namespace that holds a package as a person, so gno.land renders reserved namespaces as user profiles: \"Gnome sys\", \"Gnome docs\", \"Gnome tests\", \"Gnome gov\"",
+      "failure_scenario": "GET /u/sys: buildContributions returns the r/sys/* realms, so len(contribs) != 0 and the userExists branch at 618 never runs. The page comes back 200 with Handlename \"Gnome sys\" (handler_http.go:652) and the system realms listed as that Gnome's contributions. Same for docs, tests, gov, archive, devrels, gnops. Of the 20 namespaces the examples tree deploys, 19 render \"Gnome <name>\" with no r/sys/users registration behind them; only std and stdlibs are excluded, and that is an accident of their paths failing weburl.Parse rather than a rule. A visitor reading /u/sys cannot tell a reserved namespace from a registered person, which is the distinction the PR title says the change draws.",
+      "verify_by": "run tests/b1-lines-r2-user-gate-sweep.go at 876762bdf and read the gnomes-without-registration line; cross-check against the six RegisterUser calls in gno.land/genesis/genesis_txs.jsonl",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "RESULT gnomes-without-registration: aeddi archive demo devrels docs gnoland gnops gov jaekwon jefft0 jeronimoalbi leon mason moul nt onbloc samcrew sunspirit sys tests -- and RESULT genesisusers=6 lost=0 over gfanton123 zoo_ma123 moul001 piupiu123 anarcher123 ideamour123, none of which is in that list",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-lines-r2-user-gate-sweep.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 608,
+      "angle": "lines",
+      "summary": "the accepting side of maxUsernameLen is pinned by nothing: the cap can be halved to 32 and the whole gnoweb package stays green",
+      "failure_scenario": "The added test only feeds a 65-character name, which any cap below 65 rejects, so the constant is free to drift from the registry's own 64 (examples/gno.land/r/sys/users/errors.gno:19). Set maxUsernameLen to 32 and every registered name of 33 to 64 characters 404s at line 608 before any query runs, with go test ./gno.land/pkg/gnoweb/ still reporting ok. The only thing holding the constant up at all is the incidental 9-character /u/zoo_ma123 route added to app_test.go, which pins it from below at 9.",
+      "verify_by": "sed -i 's/^const maxUsernameLen = 64$/const maxUsernameLen = 32/' gno.land/pkg/gnoweb/handler_http.go && go test ./gno.land/pkg/gnoweb/ -count=1",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "cap 32: 'ok  github.com/gnolang/gno/gno.land/pkg/gnoweb  7.200s'. cap 8: '--- FAIL: TestRoutes/test_route_/u/zoo_ma123', the only case that fires.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-lines-r2-user-gate-sweep.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2037,
+      "angle": "lines",
+      "summary": "the \"renamed alias\" subtest names a case userExists cannot distinguish: it and \"unknown name\" both end on (false bool) and take the identical branch",
+      "failure_scenario": "userExists reads only the last line of the qeval body (handler_http.go:566-567). \"unknown name\" feeds \"(nil *...UserData)\\n(false bool)\" and \"renamed alias\" feeds resolveNamePayload(false), whose last line is also \"(false bool)\". The struct line the alias fixture spends 2 lines building at 2008 is never looked at, so deleting resolveNamePayload and pointing \"renamed alias\" at the same literal as \"unknown name\" keeps both subtests green. A reader of the table believes the handler tells a renamed handle from a name nobody took; it does not, and no test would notice if that ever became true.",
+      "verify_by": "point the \"renamed alias\" entry at the \"unknown name\" literal and run go test ./gno.land/pkg/gnoweb/ -run TestHTTPHandler_GetUserView_NotAUser; expect green",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/app_test.go",
+      "line": 97,
+      "angle": "lines",
+      "summary": "the two new integration routes are pinned to RegisterUser txs for real accounts in gno.land/genesis/genesis_txs.jsonl, and neither file points at the other",
+      "failure_scenario": "TestRoutes gets its chain from integration.LoadDefaultGenesisTXsFile (app_test.go:47), which loads gno.land/genesis/genesis_txs.jsonl. That file carries exactly six RegisterUser calls; moul001 and zoo_ma123 are two of them, and each name appears in the whole tree exactly twice, once there and once here. Neither has a package, so both routes pass only through the new qeval branch. Edit or drop either registration in the genesis file and the gnoweb package goes red on a route table that says nothing about where the name comes from.",
+      "verify_by": "grep -o '\"func\":\"RegisterUser\",\"args\":\\[\"[^\"]*\"' gno.land/genesis/genesis_txs.jsonl; grep -rln 'moul001\\|zoo_ma123' examples/ gno.land/",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "six registrations: gfanton123 zoo_ma123 moul001 piupiu123 anarcher123 ideamour123. grep -rln 'moul001|zoo_ma123' returns only gno.land/pkg/gnoweb/app_test.go and gno.land/genesis/genesis_txs.jsonl.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-lines-r2-user-gate-sweep.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 618,
+      "angle": "lines",
+      "summary": "the reserved @std and @stdlibs namespaces bypass the gate: vm/qpaths maps them onto the stdlib key space, so buildContributions comes back non-empty for a name nobody registered",
+      "settled_by": "go test ./gno.land/pkg/gnoweb/ -run TestUserGateSweep -v at 876762bdf prints 'RESULT reserved   /u/std=404 /u/stdlibs=404'. The stdlib paths keeper.go:1699 returns are not domain-prefixed, so every one fails weburl.Parse at handler_http.go:520 and contribs ends empty; the name then falls to ResolveName, which says no."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 604,
+      "angle": "lines",
+      "summary": "gnourl.Username() keeps the trailing slash, so /u/moul001/ fails reUsername and a registered user's URL with a trailing slash 404s where it used to render",
+      "settled_by": "same sweep on head and on merge base 7916d1dd6: 'RESULT trailing /u/moul001=200 /u/moul001/=404 /u/g1manfred47kzduec920z88wfr64ylksmdcedlf5=200 /u/g1manfred47kzduec920z88wfr64ylksmdcedlf5/=404' on both. The 404 is router-level and predates the diff; the body carries no 'user not found', so GetUserView is never reached."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 608,
+      "angle": "lines",
+      "summary": "a namespace that holds packages, or a name registered in r/sys/users, loses its /u/ page to the new shape gate",
+      "settled_by": "same sweep: 'RESULT namespaces=20 lost=0' over every directory under examples/gno.land/r and examples/gno.land/p, and 'RESULT genesisusers=6 lost=0' over every RegisterUser call in gno.land/genesis/genesis_txs.jsonl. The only status the diff moves in the whole sweep is /u/zzznotauser, 200 at the base and 404 at the head."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 557,
+      "angle": "lines",
+      "summary": "vm/qeval never yields ErrClientPackageNotFound, so the 'no user registry on this chain' arm is dead and a chain without r/sys/users 500s on every /u/ page",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1880 in withQueryEvalMachine returns ErrInvalidPkgPath(\"package not found: %s\") when GetPackage is nil; errors.go:88 wraps InvalidPkgPathError{}, which gno.land/pkg/gnoweb/client.go:371-377 maps to ErrClientPackageNotFound. The arm is reachable."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 608,
+      "angle": "lines",
+      "summary": "gno.Re_name is stricter than the r/sys/users rule, so a legitimately registered name 404s at the shape gate",
+      "settled_by": "examples/gno.land/r/sys/users/store.gno:27 is reName = regexp.MustCompile(`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`), byte-identical to gnovm/pkg/gnolang/mempackage.go:70 Re_name once regx.Compile anchors it with ^ and $ (tm2/pkg/regx/regx.go:13-22). No name in the gap."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 612,
+      "angle": "lines",
+      "summary": "vm/qpaths rejects names its own reUserNamespace does not match, so a name passing gnoweb's gate can make buildContributions error into a 500 instead of a 404",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1665 reUserNamespace = `^[~_a-zA-Z0-9/-]+$`, a strict superset of Re_name; every name the gate admits passes it."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 585,
+      "angle": "lines",
+      "summary": "username[:4] and username[len-4:] slice without a length guard, so a short string accepted by crypto.AddressFromBech32 panics the handler",
+      "settled_by": "tm2/pkg/crypto/bech32.go:19 AddressFromBech32 routes through AddressFromBytes, which requires exactly 20 bytes; a bech32 encoding of 20 bytes with hrp \"g\" is always 40 characters, so the slice bounds cannot be reached."
+    }
+  ]
+}

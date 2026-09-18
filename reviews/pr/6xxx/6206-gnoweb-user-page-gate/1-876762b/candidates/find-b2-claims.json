@@ -1,0 +1,109 @@
+{
+ "candidates": [
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 625,
+   "angle": "claims",
+   "summary": "the gate 404s /u/docs, and /docs \u2014 a shipped alias serving 200 on gno.land today \u2014 points there",
+   "failure_scenario": "GET https://gno.land/docs answers 200 right now and renders the /u/docs page (body title \"gno.land - /u/docs\"); it is gnoweb's own DefaultAliases entry (app.go:30, \"/docs\" -> \"/u/docs\"). On gnoland-1 the namespace holds no packages and ResolveName(\"docs\") is (false bool), so with this branch the same URL returns 404 \"user not found\" for every visitor and crawler until #5760 serves the embedded docs there. The ADR names the consequence; the decision to ship the 404 before the replacement exists is the reviewer's.",
+   "verify_by": "go test ./gno.land/pkg/gnoweb/ -run TestB2Claims_DocsAliasIs404 (artifact below) against head; live: gnokey query vm/qpaths --data '@docs' and vm/qeval --data 'gno.land/r/sys/users.ResolveName(\"docs\")' on https://rpc.gno.land:443, plus curl -o /dev/null -w '%{http_code}' https://gno.land/docs",
+   "band": "Warning",
+   "checked": true,
+   "run": true,
+   "evidence": "test PASS at 876762bdf: \"--- PASS: TestB2Claims_DocsAliasIs404 (0.00s)\" \u2014 the handler answers 404 for /u/docs. Live 2026-09-19: qpaths @docs -> \"data: \" (empty); qeval ResolveName(\"docs\") -> \"(nil *gno.land/r/sys/users.UserData)\\n(false bool)\"; curl https://gno.land/docs -> status=200, \"<title>gno.land - /u/docs</title>\".",
+   "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b2-claims-docs-alias-404.go"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 608,
+   "angle": "claims",
+   "summary": "the shape gate compiles gnolang.Re_name, not the registry's own rule, and runs before both other rules",
+   "failure_scenario": "The ADR says taking the shared expression \"means gnoweb cannot start refusing names the chain has begun to accept\". The chain's rule is not gnolang.Re_name: r/sys/users validates with its own regexp literal, examples/gno.land/r/sys/users/store.gno:27 `^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`, in a realm that is upgraded without redeploying gnoweb (a .gno realm cannot import gnovm/pkg/gnolang, so the two can only ever be copies that agree today). The day the registry widens its rule, gnoweb answers 404 before it asks the chain anything: the shape check at 608 precedes both the ListPaths rule and ResolveName, so a user who is registered, and even one whose namespace holds packages, loses their page until gnoweb is redeployed.",
+   "verify_by": "grep -n 'reName = regexp.MustCompile' examples/gno.land/r/sys/users/store.gno and confirm no gnolang import is possible from a realm; then call GetUserView with a name the registry rule accepts but Re_name rejects and observe the 404 at handler_http.go:609 with no RPC issued",
+   "band": "Suggestion",
+   "checked": true,
+   "run": false,
+   "evidence": "store.gno:27 carries its own literal, and store.gno:19-25 documents it as mirroring gnolang's Re_name by hand; the gate at handler_http.go:606-609 runs before buildContributions and userExists.",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+   "line": 56,
+   "angle": "claims",
+   "summary": "\"A chain that does not deploy r/sys/users answers no\" \u2014 could have been a 500 instead",
+   "settled_by": "gnokey query vm/qeval --data 'gno.land/r/sys/nosuchrealm.ResolveName(\"moul\")' --remote https://rpc.gno.land:443 -> \"Data: vm.InvalidPkgPathError{...}\", which client.go:371 maps to ErrClientPackageNotFound, which userExists treats as false,nil"
+  },
+  {
+   "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+   "line": 41,
+   "angle": "claims",
+   "summary": "the six genesis namespaces hold packages while ResolveName answers false",
+   "settled_by": "live loop over gnops jeronimoalbi leon mason sunspirit tests: qpaths @<n> non-empty for all six, qeval ResolveName(<n>) -> (false bool) for all six"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 565,
+   "angle": "claims",
+   "summary": "\"one value per line, only the last line answers\" \u2014 a multi-line struct rendering would break the parse",
+   "settled_by": "keeper.go:1833-1838 joins rtvs with \"\\n\"; live qeval ResolveName(\"moul\") returns the UserData line then \"(true bool)\", matching resolveNamePayload in the new test"
+  },
+  {
+   "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+   "line": 108,
+   "angle": "claims",
+   "summary": "\"$help, $source and $state under /u/ already 404 on chain\"",
+   "settled_by": "live: /u/zzznotauser$source -> 404 and /u/zzznotauser$help -> 404 on gno.land, while /u/zzznotauser -> 200; handler_http.go:274 intercepts $state and 429-441 intercepts $help/$source before GetUserView"
+  },
+  {
+   "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+   "line": 64,
+   "angle": "claims",
+   "summary": "\"nothing reaching the qeval expression can leave a Gno string literal\" \u2014 an unanchored regex would leak",
+   "settled_by": "tm2/pkg/regx/regx.go:13-21: Compile() prepends ^ and appends $ before regexp.MustCompile, so reUsername.Matches is a full match over [a-z0-9_-] only"
+  },
+  {
+   "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+   "line": 112,
+   "angle": "claims",
+   "summary": "\"ListPaths returns [\\\"\\\"] for an empty result\"",
+   "settled_by": "live qpaths @docs and @moul001 both return an empty data field; client.go:231 splits strings.TrimSpace(\"\") on \"\\n\" -> [\"\"]"
+  },
+  {
+   "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+   "line": 50,
+   "angle": "claims",
+   "summary": "rule 3 \"is the rule r/sys/names itself applies before authorizing a deploy\"",
+   "settled_by": "examples/gno.land/r/sys/names/verifier.gno:103-107 resolveCurrentName: data, isCurrent := susers.ResolveName(name); returns false unless data != nil && isCurrent"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/client.go",
+   "line": 116,
+   "angle": "claims",
+   "summary": "Eval godoc says the node \"splits pkgPath from expr on the first dot\"; it splits on the first dot after the first slash",
+   "settled_by": "gno.land/pkg/sdk/vm/handler.go:289-301 parseQueryEvalData takes the first slash, then the first dot after it \u2014 which is why the domain 'gno.land' does not break the split. Comment wording only, the code is right, so it never becomes a candidate"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/app_test.go",
+   "line": 96,
+   "angle": "claims",
+   "summary": "\"moul001 is registered in the genesis txs and owns no packages, so the route runs the real vm/qeval\"",
+   "settled_by": "grep -rl moul001 gno.land/ -> gno.land/genesis/genesis_txs.jsonl; live qpaths @moul001 -> empty"
+  },
+  {
+   "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+   "line": 65,
+   "angle": "claims",
+   "summary": "\"This closes /u/foo/bar\"",
+   "settled_by": "weburl/url.go:290-296 Username() returns Path[3:], i.e. \"foo/bar\", and Re_name admits no '/', so the anchored match at handler_http.go:608 rejects it before any RPC"
+  },
+  {
+   "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+   "line": 57,
+   "angle": "claims",
+   "summary": "\"a chain that could not be asked surfaces that error through the handler's usual mapping\"",
+   "settled_by": "handler_http.go:1041-1059 clientErrorMessage: ErrClientTimeout -> 408, ErrClientResponse and unknown -> 500; only ErrClientPackageNotFound/ObjectNotFound map to 404"
+  }
+ ]
+}

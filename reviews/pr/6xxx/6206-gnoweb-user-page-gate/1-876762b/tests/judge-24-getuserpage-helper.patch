@@ -1,0 +1,52 @@
+# Asserts the two pre-existing user-view tests fold into the getUserPage helper
+# the diff adds: 2 insertions, 22 deletions, every GetUserView test still PASS.
+# Applies at the reviewed head 876762bdf2ea6635b27e2b0a42f26f9fdc54af24.
+#
+# from a local clone of gnolang/gno:
+#   gh pr checkout 6206 -R gnolang/gno && git checkout 876762bdf2ea6635b27e2b0a42f26f9fdc54af24
+#   git apply <this file>
+#   gofmt -l gno.land/pkg/gnoweb/handler_http_test.go
+#   go test ./gno.land/pkg/gnoweb/ -run TestHTTPHandler_GetUserView -count=1
+#   git checkout -- gno.land/pkg/gnoweb/handler_http_test.go
+diff --git a/gno.land/pkg/gnoweb/handler_http_test.go b/gno.land/pkg/gnoweb/handler_http_test.go
+index 91b9ec6e6..722064e88 100644
+--- a/gno.land/pkg/gnoweb/handler_http_test.go
++++ b/gno.land/pkg/gnoweb/handler_http_test.go
+@@ -814,17 +814,7 @@ func TestHTTPHandler_GetUserView(t *testing.T) {
+ 		},
+ 	}
+ 
+-	cfg := newTestHandlerConfig(t, client)
+-
+-	handler, err := gnoweb.NewHTTPHandler(
+-		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+-		cfg,
+-	)
+-	require.NoError(t, err)
+-
+-	req := httptest.NewRequest(http.MethodGet, "/u/testuser", nil)
+-	rr := httptest.NewRecorder()
+-	handler.ServeHTTP(rr, req)
++	rr := getUserPage(t, client, "/u/testuser")
+ 
+ 	assert.Equal(t, http.StatusOK, rr.Code)
+ 	body := rr.Body.String()
+@@ -854,17 +844,7 @@ func TestHTTPHandler_GetUserView_QueryPathsError(t *testing.T) {
+ 		},
+ 	}
+ 
+-	cfg := newTestHandlerConfig(t, client)
+-
+-	handler, err := gnoweb.NewHTTPHandler(
+-		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+-		cfg,
+-	)
+-	require.NoError(t, err)
+-
+-	req := httptest.NewRequest(http.MethodGet, "/u/testuser", nil)
+-	rr := httptest.NewRecorder()
+-	handler.ServeHTTP(rr, req)
++	rr := getUserPage(t, client, "/u/testuser")
+ 
+ 	// Should be 500 + internal error
+ 	assert.Equal(t, http.StatusInternalServerError, rr.Code)

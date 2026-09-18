@@ -1,0 +1,18 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 119,
+      "angle": "refactor",
+      "band": "Suggestion",
+      "summary": "Eval is added to the wide exported ClientAdapter interface for one call site, against this package's own convention of narrow consumer subsets",
+      "failure_scenario": "handler_http.go:555 is the only non-test consumer of Eval in the tree, yet the method lands on the exported ClientAdapter, so every implementer has to carry it. The cost is in this diff: MockClient gains a body that can only ever answer \"no registry\" (client_mock.go:207), so no fixture can drive the registered-user branch, and stubClient gains one that errors by default. The package already has the narrower shape twice and says so in its own words: realm_directory.go:12 declares `pathLister` as \"the subset of ClientAdapter the directory depends on\", and feature/state/feature.go:17 declares a six-method subset for the same reason. A `userResolver interface { Eval(ctx, pkgPath, expr string) ([]byte, error) }` beside userExists is the house form. ClientAdapter is exported from a library package, so an out-of-tree implementer breaks with no migration note.",
+      "verify_by": "grep -rn '\\.Eval(' gno.land/pkg/gnoweb --include='*.go' (expect one non-test hit, handler_http.go:555), then read realm_directory.go:9-14 and gno.land/pkg/gnoweb/feature/state/feature.go:15-22 for the precedent; the finding dies if a second consumer exists or if no narrow-subset interface is already in the package",
+      "checked": true,
+      "run": true,
+      "evidence": "grep run at head 876762bd: the only non-test `.Eval(` is `gno.land/pkg/gnoweb/handler_http.go:555: res, err := h.Client.Eval(ctx, \"/r/sys/users\", ...)`. realm_directory.go:12 `// pathLister is the subset of ClientAdapter the directory depends on.` and feature/state/feature.go:17 `type ClientAdapter interface {` with six methods confirm the convention.",
+      "repro_path": ""
+    }
+  ]
+}

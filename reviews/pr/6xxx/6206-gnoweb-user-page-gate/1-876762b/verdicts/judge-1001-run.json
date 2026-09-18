@@ -1,0 +1,14 @@
+{"verdicts": [
+  {"index": 23,
+   "angle": "refactor",
+   "verify_by": "go test ./gno.land/pkg/gnoweb/ -run 'TestHTTPHandler_GetUserView' -count=1 -v in a scratch worktree at 876762bdf, with lines 2004-2164 replaced by the artifact's replacement block; gofmt -l gno.land/pkg/gnoweb/ clean",
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+   "line": 2005,
+   "tldr": "the five user-view tests collapse to one 119-line table that also pins each case's chain queries",
+   "details": "handler_http_test.go:2004-2164 is 161 lines across five functions differing only in the stub's answers; the replacement is 119 (-42), gofmt clean, and all ten subtests pass. Three ad-hoc booleans (realmCalled, evalCalled, queried) become one calls []string every case asserts, which is strictly stronger: with buildContributions skipped for an address, the five originals stay green while the table fails with expected []string{\"list\",\"realm\"}, actual []string{\"realm\"}. Not weaker anywhere tested: four mutations of the gate fail identically under both. Fix: replace lines 2004-2164 with the table.",
+   "evidence": "scratch worktree at 876762bdf. Baseline `go test ./gno.land/pkg/gnoweb/ -run TestHTTPHandler_GetUserView -count=1` ok 0.029s. After the replacement: `gofmt -l gno.land/pkg/gnoweb/` empty; file 2164 -> 2122 lines; `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 0.038s` with --- PASS: TestHTTPHandler_GetUserView_Gate and its ten subtests plus the two pre-existing tests. Mutation parity (tests/judge-23-user-view-gate-mutations.sh): M1 drop !isAddress from the contribs gate, M2 neuter the !exists 404, M3 drop the length cap, M4 break the (false bool) case -- all four FAIL on both the originals and the table, same cases. M5 skip buildContributions for an address: orig `ok ... 0.031s`, table `--- FAIL: TestHTTPHandler_GetUserView_Gate/address` with `expected: []string{\"list\", \"realm\"} / actual: []string{\"realm\"}`.",
+   "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-refactor-r2-user-view-gate-table.go",
+   "base_behaves_the_same": false}
+]}

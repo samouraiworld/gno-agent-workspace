@@ -1,0 +1,136 @@
+{
+ "candidates": [
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 607,
+   "angle": "claims",
+   "summary": "rule 1 admits every checksum-valid g1 address, so the gate still serves 200 indexable profiles for addresses that have never existed",
+   "failure_scenario": "GET /u/g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe (the all-zero address, no account, no package, no registered name) returns 200 with \"Gnome g1qq...uuxe\" and <meta name=\"robots\" content=\"index, follow\">, because isAddress at 607 exempts the path from both later checks (618). The godoc at 600-602 calls anything outside its three rules \"a fabricated profile\", and the PR's Why cites indexability as the reason the old behaviour was a problem; the fabricated-profile surface is narrowed from every string to every address, not closed, and each one is a crawlable 200.",
+   "verify_by": "copy reviews/.../tests/b1-claims-r2-address-profile.go into gno.land/pkg/gnoweb/ as zz_claims_probe_test.go and run `go test ./gno.land/pkg/gnoweb -run TestClaimProbeAddr -v`: expect 404 for an address with nothing on chain, observe 200 with robots index,follow",
+   "band": "Suggestion",
+   "checked": true,
+   "run": true,
+   "evidence": "PROBE /u/g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe status=200 gnome=true robots-index=true; PROBE /u/g1qqrsu9guyv4rzwplgex4gkmzd9c8wl59pcdqg0 status=200 gnome=true robots-index=true (go test ./gno.land/pkg/gnoweb -run TestClaimProbeAddr, ok 6.494s, in-memory node)",
+   "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-claims-r2-address-profile.go"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/client.go",
+   "line": 117,
+   "angle": "claims",
+   "summary": "the new interface method documents expression safety as the caller's job and enforces none of it, on an exported extension point whose mock and stub ignore expr entirely",
+   "failure_scenario": "ClientAdapter.Eval's godoc says \"expr is the caller's to keep safe\"; rpcClient.Eval (159-165) interpolates expr into the qeval data string with no check, MockClient.Eval (client_mock.go:207) and stubClient.Eval (handler_http_test.go:32) never look at it. Today the only enforcement is reUsername plus %q, 450 lines away in handler_http.go. A second caller of Eval that formats a path segment, a query parameter or a header into an expression ships a Gno-source injection into a read-only query with no test in the package able to fail: every existing Eval test asserts on the return, and only one asserts the expr at all.",
+   "verify_by": "grep -n 'Eval(' gno.land/pkg/gnoweb/*.go: one production caller (handler_http.go:571), no validation inside rpcClient.Eval, and only handler_http_test.go:2079 asserts the expr string",
+   "band": "Suggestion",
+   "checked": true,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 618,
+   "angle": "claims",
+   "summary": "a renamed-away alias 404s or serves a full profile depending only on whether the old namespace kept packages, and the diff's own test pins just the 404 half",
+   "failure_scenario": "TestHTTPHandler_GetUserView_NotAUser's \"renamed alias\" case asserts that a name ResolveName reports as not current is not a user (404). The same alias with one package left under @oldname never reaches userExists (618 gates it on len(contribs) == 0), so it renders \"Gnome oldname\" at 200 with the packages listed. r/sys/names burns the old name on rename (verifier.gno:95-107), so the page is permanent and nobody can reclaim the name it shows. Whichever half is intended, only one of the two is tested.",
+   "verify_by": "add a stubClient case with listPathsFunc returning []string{\"gno.land/r/alice/foo\"} and evalFunc returning resolveNamePayload(false), GET /u/alice: the NotAUser table says 404, observe 200 and \"Gnome alice\"",
+   "band": "Suggestion",
+   "checked": true,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/app_test.go",
+   "line": 95,
+   "angle": "claims",
+   "summary": "the new route comment claims /u/moul001 and /u/zoo_ma123 run the real vm/qeval query",
+   "settled_by": "mutated rpcClient.Eval to return errors.New(\"SENTINEL-EVAL-CALLED\") in a scratch worktree at 876762bdf and ran `go test ./gno.land/pkg/gnoweb -run TestRoutes`: all three added routes went red (--- FAIL: TestRoutes/test_route_/u/moul001, /u/zoo_ma123, /u/zzznotauser), so every one of them reaches qeval; genesis_txs.jsonl:2-3 register both names via r/sys/users/init.RegisterUser"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 583,
+   "angle": "claims",
+   "summary": "the comment claims one line per return value and a (false bool) inside the UserData line, so only the last line answers",
+   "settled_by": "gnokey query vm/qeval --data 'gno.land/r/sys/users.ResolveName(\"moul\")' -remote https://rpc.gno.land:443 returned exactly `(&(struct{(\"g1manfred...\" .uverse.address),(\"moul\" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)` then `(true bool)`; keeper.go:1833-1838 joins rtv.String() with \\n"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+   "line": 1990,
+   "angle": "claims",
+   "summary": "resolveNamePayload claims to mirror the raw vm/qeval output of ResolveName",
+   "settled_by": "same live query: the fixture matches the wire bytes shape for shape, including the (false bool) third field and the trailing (true bool); ResolveName(\"zzznotauser\") returned `(nil *gno.land/r/sys/users.UserData)\\n(false bool)`, which is the table's \"unknown name\" stub verbatim"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 553,
+   "angle": "claims",
+   "summary": "userExists claims its rule is the one r/sys/names applies before authorizing a deploy",
+   "settled_by": "examples/gno.land/r/sys/names/verifier.gno:103 resolveCurrentName: `data, isCurrent := susers.ResolveName(name); if data == nil || !isCurrent { return \"\", false }`, and users.gno:6-18 returns (nil,false) for a deleted user and (data,false) for a renamed alias \u2014 the same accept set as the last-line (true bool) test"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/client_mock.go",
+   "line": 207,
+   "angle": "claims",
+   "summary": "MockClient.Eval claims to answer like a chain that does not deploy the realm, returning ErrClientPackageNotFound",
+   "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1880-1884 returns ErrInvalidPkgPath(\"package not found: \u2026\") when the package is absent, and client.go:371 maps vm.InvalidPkgPathError to ErrClientPackageNotFound \u2014 the mock's error is the one the real adapter produces"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 546,
+   "angle": "claims",
+   "summary": "the shape check claims to mirror the registry's own rule plus its 64-byte cap",
+   "settled_by": "gnovm/pkg/gnolang/mempackage.go:70 Re_name builds `([a-z][a-z0-9]*([_-][a-z0-9]+)*)` and regx.go:13-21 anchors it with ^$; examples/gno.land/r/sys/users/store.gno:27 is `^[a-z][a-z0-9]*([_-][a-z0-9]+)*$` and validateName caps with `len(username) > maxNameLen` (64), the same comparison as handler_http.go:608 \u2014 the two accept sets agree today (the duplication itself is already flagged at :544/:546/:548)"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/client.go",
+   "line": 116,
+   "angle": "claims",
+   "summary": "the Eval godoc says the node splits pkgPath from expr on the first dot",
+   "settled_by": "gno.land/pkg/sdk/vm/handler.go:285-302 parseQueryEvalData takes the first dot AFTER the first slash, which is why `gno.land/r/sys/users.ResolveName(...)` parses at all; the advice it draws (pkgPath carries no dot) still holds, so the only fix is the comment's wording \u2014 not returnable per Finders"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 495,
+   "angle": "claims",
+   "summary": "the MaxUserContributions godoc says each entry costs a bech32 decode",
+   "settled_by": "the loop at 509-530 does TrimPrefix, weburl.Parse, IsRealm and displayPackageName and no bech32 call; the only decode is CreateUsernameFromBech32, once per page on the username \u2014 comment-only, and the cap's real defect is already flagged at client.go:221"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 606,
+   "angle": "claims",
+   "summary": "the PR body claims an address check that a foreign bech32 HRP could satisfy",
+   "settled_by": "tm2/pkg/crypto/crypto.go:133-138 rejects any prefix but Bech32AddrPrefix() and any length but AddressSize, so cosmos1\u2026/other-HRP strings do not reach the address branch"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 600,
+   "angle": "claims",
+   "summary": "the PR body claims $help, $source and $state under /u/ already 404 on chain for a name that owns nothing",
+   "settled_by": "probe against the in-memory node at head: /u/zzznotauser$source, $help, $state and /u/moul001$source all status=404, /u/moul001 status=200 (tests/b1-claims-r2-address-profile.go header records the run)"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/client.go",
+   "line": 119,
+   "angle": "claims",
+   "summary": "the PR body claims ClientAdapter is an exported extension point nothing outside the package implements",
+   "settled_by": "grep -rln ClientAdapter over the tree: only gno.land/pkg/gnoweb/* and gno.land/pkg/gnoweb/feature/state/*, and feature.go:11-17 declares its own narrower ClientAdapter rather than implementing gnoweb's \u2014 adding Eval breaks no out-of-package implementer"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 571,
+   "angle": "claims",
+   "summary": "the PR body claims nothing reaching the qeval expression can leave a Gno string literal, and the live ResolveName answers it cites",
+   "settled_by": "reUsername restricts the name to [a-z0-9_-] before Eval and the expr is built with %q; live on rpc.gno.land ResolveName(\"moul\") is (true bool), ResolveName(\"zzznotauser\") is (false bool) and r/sys/names.IsEnabled() is (true bool)"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+   "line": 2117,
+   "angle": "claims",
+   "summary": "the rejection table claims /u/foo/bar is refused before any chain query",
+   "settled_by": "weburl/url.go:290-296 Username() returns Path[3:], so \"/u/foo/bar\" yields \"foo/bar\", and regx.go:13-21 anchors the compiled Re_name with ^$ \u2014 the slash cannot match"
+  }
+ ]
+}

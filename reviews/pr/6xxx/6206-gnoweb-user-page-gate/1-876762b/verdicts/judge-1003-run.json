@@ -1,0 +1,14 @@
+{"verdicts": [
+  {"index": 24,
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "angle": "refactor",
+   "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+   "line": 2013,
+   "verify_by": "replace lines 817-827 and the matching block at 857-867 with `rr := getUserPage(t, client, \"/u/testuser\")` and run go test ./gno.land/pkg/gnoweb/ -run TestHTTPHandler_GetUserView -count=1",
+   "tldr": "the new getUserPage helper skips the two user-view tests already in the file, leaving two shapes for one setup",
+   "details": "getUserPage (handler_http_test.go:2013) is added by this diff and used by the five tests it adds, while TestHTTPHandler_GetUserView (:799) and TestHTTPHandler_GetUserView_QueryPathsError (:841) keep the identical 11-line block it replaces: newTestHandlerConfig, NewHTTPHandler with the testingLogger, require.NoError, NewRequest, NewRecorder, ServeHTTP. Folding both into the helper is 2 insertions for 22 deletions, net -20 lines, gofmt-clean, and every GetUserView test still passes. The cost is to the next reader of the file, who finds two setups for one thing and copies whichever sits nearer. This is pre-existing code the diff's own sweep missed, not a defect it introduced. Fix: replace the two blocks with rr := getUserPage(t, client, \"/u/testuser\").",
+   "evidence": "head worktree, both blocks replaced: `git diff --stat` reads `1 file changed, 2 insertions(+), 22 deletions(-)`; `gofmt -l` prints nothing; `go test ./gno.land/pkg/gnoweb/ -run TestHTTPHandler_GetUserView -count=1 -v` ends `--- PASS: TestHTTPHandler_GetUserView (0.00s)`, `--- PASS: TestHTTPHandler_GetUserView_QueryPathsError (0.00s)`, and PASS for _Address, _RegisteredWithoutPackages, _RejectsInvalidNames, _NotAUser, _LookupFailureIsNotA404, then `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 0.034s`. At the merge base 7916d1dd65f326efe46b5ad105412ce028768c4d, `grep -n getUserPage gno.land/pkg/gnoweb/handler_http_test.go` returns nothing and the two tests sit at :791 and :833 with the same boilerplate, so the second shape is the diff's.",
+   "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/judge-24-getuserpage-helper.patch",
+   "base_behaves_the_same": false}
+]}

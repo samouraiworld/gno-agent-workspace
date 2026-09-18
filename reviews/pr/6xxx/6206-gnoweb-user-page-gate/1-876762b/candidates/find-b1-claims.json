@@ -1,0 +1,56 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 618,
+      "angle": "claims",
+      "summary": "the /docs default alias 404s on gno.land once this merges, and no in-repo test can catch it",
+      "failure_scenario": "DefaultAliases maps \"/docs\" -> \"/u/docs\" (gno.land/pkg/gnoweb/app.go:30), and the diff leaves that entry alone. On gnoland-1 none of the gate's three rules holds for \"docs\": `gnokey query vm/qpaths --data \"@docs\" --remote https://rpc.gno.land:443` returns empty data, and `gnokey query vm/qeval --data 'gno.land/r/sys/users.ResolveName(\"docs\")'` returns \"(nil *gno.land/r/sys/users.UserData)\\n(false bool)\" (both run 2026-09-19). So every visitor and every crawler following https://gno.land/docs gets 404 \"user not found\" the moment this ships. The in-repo node loads examples/, which ship gno.land/r/docs/*, so rule 2 keeps /docs at 200 under TestRoutes: the one regression the PR body names is structurally invisible to CI, and nothing in app_test.go pins /docs either way.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb -run TestClaimsDocsAliasBecomes404 with the artifact dropped into gno.land/pkg/gnoweb/ (expect PASS = 404), plus the two gnokey queries above against rpc.gno.land",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/b1-claims-docs-alias-404.go",
+      "evidence": "live: `vm/qpaths @docs` -> \"height: 0\\ndata: \" (empty); `vm/qeval ResolveName(\"docs\")` -> \"(nil *gno.land/r/sys/users.UserData)\\n(false bool)\". head test node: probe of /docs -> status=200 (examples ship r/docs). repro at head: \"--- PASS: TestClaimsDocsAliasBecomes404 (0.00s)\" with rr.Code == 404 and body containing \"user not found\"."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 544,
+      "angle": "claims",
+      "summary": "the shape check reads gnolang's Re_name, not the registry's own regex, so \"not a copy that could drift\" does not hold",
+      "failure_scenario": "examples/gno.land/r/sys/users/store.gno:27 carries its own literal `^[a-z][a-z0-9]*([_-][a-z0-9]+)*$` and its own `maxNameLen = 64` at line 30; it does not import gnolang. gnoweb reads gnovm/pkg/gnolang.Re_name plus a hardcoded `maxUsernameLen = 64`. The two agree today, character for character. The day the registry relaxes its literal (a third separator, a longer cap) gnoweb 404s a name the chain has begun to accept, and the 404 is silent because the shape check runs before any query -- the exact drift the comment says this arrangement prevents. The copy lives on the chain side, which the comment does not say.",
+      "verify_by": "grep -n 'reName\\|maxNameLen' examples/gno.land/r/sys/users/store.gno and grep -n 'Re_name' gnovm/pkg/gnolang/mempackage.go: confirm the registry holds a literal regexp.MustCompile and never references Re_name",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "repro_path": "",
+      "evidence": "store.gno:27 `reName = regexp.MustCompile(\"^[a-z][a-z0-9]*([_-][a-z0-9]+)*$\")`, store.gno:30 `const maxNameLen = 64`; mempackage.go:70 `Re_name = r.G(r.C(\"a-z\"), r.S(r.C(\"a-z0-9\")), r.S(r.C(\"_-\"), r.P(r.C(\"a-z0-9\"))))`. Two sources, identical output today."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 554,
+      "angle": "claims",
+      "summary": "every unknown /u/<name> now builds a GnoVM machine where it used to miss on qrender",
+      "failure_scenario": "vm/qeval runs through withQueryEvalMachine (gno.land/pkg/sdk/vm/keeper.go:1871), which loads the package, builds a gno.Machine and evaluates ResolveName for every shape-valid name with no packages. The qrender the PR removes from that path returned InvalidPkgPathError before building anything. /u/ is unauthenticated and crawler-reachable, so a walk over /u/aaa../u/zzz turns each 404 into a metered eval on r/sys/users. maxGasQuery and the rpcSlots semaphore bound it, which is why this is a tradeoff and not a defect; the PR body names the per-request cost (\"the qeval is the heavier of the two shapes\") but not the fan-out a 404 path invites.",
+      "verify_by": "time `gnokey query vm/qeval --data 'gno.land/r/sys/users.ResolveName(\"zzznotauser\")'` against `gnokey query vm/qrender --data 'gno.land/r/zzznotauser/home:'` on the same remote, 20 runs each, and compare medians",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "repro_path": "",
+      "evidence": "keeper.go:1879 `pv := gnostore.GetPackage(pkgPath, false)` then NewMachineWithOptions at 1905; the gate calls userExists only when len(contribs) == 0, which is every unknown name."
+    }
+  ],
+  "dropped": [
+    {"file": "gno.land/pkg/gnoweb/client.go", "line": 115, "angle": "claims", "summary": "Eval godoc says the node splits pkgPath from expr on the first dot; parseQueryEvalData takes the first slash, then the first dot after it", "settled_by": "gno.land/pkg/sdk/vm/handler.go:289-301 -- `slash := strings.IndexByte(data, '/')` then `dot := strings.IndexByte(data, '.')` on the remainder. The stated rule is wrong (gno.land carries a dot) but the caller constraint it derives, pkgPath carries no dot, is right and conservative, and the assembled query works: live `vm/qeval gno.land/r/sys/users.ResolveName(\"moul\")` answers. Comment wording only -- SKIP per Calibration."},
+    {"file": "gno.land/pkg/gnoweb/handler_http_test.go", "line": 1982, "angle": "claims", "summary": "resolveNamePayload claims to mirror the raw vm/qeval output of ResolveName", "settled_by": "live `gnokey query vm/qeval --data 'gno.land/r/sys/users.ResolveName(\"moul\")'` -> \"(&(struct{(\\\"g1manfred47kzduec920z88wfr64ylksmdcedlf5\\\" .uverse.address),(\\\"moul\\\" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)\\n(true bool)\" -- identical shape, same address, same three fields."},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 556, "angle": "claims", "summary": "a chain without the registry is claimed to answer false via ErrClientPackageNotFound", "settled_by": "keeper.go:1881 returns ErrInvalidPkgPath when GetPackage is nil; client.go:371 maps vm.InvalidPkgPathError to ErrClientPackageNotFound. The branch reaches the intended sentinel."},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 333, "angle": "claims", "summary": "ListPaths is claimed to return [\"\"] for an empty result", "settled_by": "client.go:231 `strings.Split(strings.TrimSpace(string(res)), \"\\n\")` -- Split of \"\" yields [\"\"]. The guard is load-bearing for rule 2."},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 621, "angle": "claims", "summary": "rule 2 could accept a name whose prefix bleeds into a longer namespace (@mou matching moul001's packages)", "settled_by": "gno.land/pkg/sdk/vm/keeper.go:1713 appends \"/\" to rpath and ppath when the target has no sub-prefix, so @mou searches gno.land/r/mou/ and never gno.land/r/moul001/."},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 603, "angle": "claims", "summary": "the PR's note enumerates $help, $source and $state as ungated under /u/ but omits the trailing-slash directory view", "settled_by": "probe against the head test node: /u/zzznotauser/ status=404, /u/zzznotauser$source status=404, /u/zzznotauser$help status=404, none containing \"Gnome\". No fabricated profile escapes through any of them."},
+    {"file": "gno.land/pkg/gnoweb/app_test.go", "line": 96, "angle": "claims", "summary": "the two new routes are claimed to be registered in the genesis txs and to exercise the real vm/qeval", "settled_by": "grep of gno.land/genesis/genesis_txs.jsonl finds moul001 and zoo_ma123; grep of examples/ finds no package under either namespace, so ListPaths is empty and rule 3 runs. Both routes pass at head."},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 608, "angle": "claims", "summary": "reUsername.Matches could be unanchored, letting a--b pass on a prefix match", "settled_by": "tm2/pkg/regx/regx.go:43 -- \"Matches a string by default, adding ^$ if not already present.\""},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 548, "angle": "claims", "summary": "maxUsernameLen could be off by one against the registry's cap", "settled_by": "store.gno:30 `const maxNameLen = 64` with an inclusive cap (store_test.gno:101-105 registers a 64-char name); gnoweb rejects on `len(username) > maxUsernameLen`, the same boundary."},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 554, "angle": "claims", "summary": "userExists is claimed to match the rule r/sys/names applies before a deploy", "settled_by": "examples/gno.land/r/sys/names/verifier.gno:103-107 `data, isCurrent := susers.ResolveName(name); if data == nil || !isCurrent { return \"\", false }`; users.gno:6-18 filters deleted records. Same rule."},
+    {"file": "gno.land/pkg/gnoweb/handler_http_test.go", "line": 2117, "angle": "claims", "summary": "the PR body's count of four pre-existing /u/ tests", "settled_by": "grep -n '\"/u/' handler_http_test.go lists 825, 865, 1134, 1735 outside the new block -- exactly four."}
+  ]
+}

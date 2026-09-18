@@ -1,0 +1,18 @@
+{
+  "verdicts": [
+    {
+      "index": 26,
+      "angle": "tests",
+      "verify_by": "sed -i '618,627d' gno.land/pkg/gnoweb/handler_http.go && go test ./gno.land/pkg/gnoweb/ -run 'RegisteredWithoutPackages|TestRoutes' -count=1 -v",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 2076,
+      "tldr": "the admit-half test asserts the qeval call inside a stub with no flag saying the stub ran",
+      "details": "Reproduced. With handler_http.go:618-627 (the whole `if !isAddress && len(contribs) == 0 { userExists ... }` block) deleted, TestHTTPHandler_GetUserView_RegisteredWithoutPackages still passes: its two load-bearing assertions, pkgPath == \"/r/sys/users\" and expr == `ResolveName(\"alice\")`, live inside evalFunc and are simply never reached, while the outer 200 and \"Gnome alice\" hold because an unresolved name falls through to the same render. The finder's wider claim does not hold, though: the same mutation turns five sibling cases red in the same file, TestHTTPHandler_GetUserView_NotAUser (all three subtests), TestHTTPHandler_GetUserView_LookupFailureIsNotA404, and TestRoutes/test_route_/u/zzznotauser, so a refactor dropping the registry lookup does not leave the repo green. What is unpinned is narrower and one line wide: nothing in the admit case proves the 200 came from the registry rather than by default. Fix: add `evalCalled := true` as the first statement of evalFunc and `assert.True(t, evalCalled)` after the request, as the probe file does.",
+      "evidence": "In a scratch worktree at 876762bdf, unmutated, with the finder's probe copied in as zz_gate_probe_test.go: `go test ./gno.land/pkg/gnoweb/ -run 'RegisteredWithoutPackages' -count=1 -v` gives `--- PASS: TestHTTPHandler_GetUserView_RegisteredWithoutPackages (0.00s)` and `--- PASS: TestHTTPHandler_GetUserView_RegisteredWithoutPackages_QueriesRegistry (0.00s)`, `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 0.043s`. After `sed -i '618,627d' gno.land/pkg/gnoweb/handler_http.go`, `go test ./gno.land/pkg/gnoweb/ -run 'GetUserView' -count=1 -v` gives `--- PASS: TestHTTPHandler_GetUserView_RegisteredWithoutPackages (0.00s)` beside `--- FAIL: TestHTTPHandler_GetUserView_RegisteredWithoutPackages_QueriesRegistry (0.00s)`, `--- FAIL: TestHTTPHandler_GetUserView_NotAUser` (unknown_name, renamed_alias, no_registry all FAIL) and `--- FAIL: TestHTTPHandler_GetUserView_LookupFailureIsNotA404 (0.00s)`. Same mutation, `-run 'TestRoutes'`: `--- PASS: TestRoutes/test_route_/u/moul001 (0.01s)`, `--- PASS: TestRoutes/test_route_/u/zoo_ma123 (0.01s)`, `--- FAIL: TestRoutes/test_route_/u/zzznotauser (0.01s)`, `FAIL github.com/gnolang/gno/gno.land/pkg/gnoweb 6.929s`. Merge base 7916d1dd6 has neither side of the claim: `grep -c 'userExists\\|RegisteredWithoutPackages'` answers 0 in both handler_http.go and handler_http_test.go, and base GetUserView at handler_http.go:564-565 goes straight from `username := strings.TrimPrefix(gnourl.Path, \"/u/\")` to the render with no gate at all.",
+      "repro_path": "reviews/pr/6xxx/6206-gnoweb-user-page-gate/1-876762b/tests/judge-26-gate-mutation-sweep.sh",
+      "base_behaves_the_same": false
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_mentions.go",
+      "line": 28,
+      "angle": "removed",
+      "summary": "the diff installs the registry's name rule in the handler and leaves gnoweb's only producer of /u/ links on a wider, incompatible pattern",
+      "failure_scenario": "mentionNamePattern is `^@([A-Za-z0-9_]{3,90})(?:[^A-Za-z0-9_-]|$)` and is the only code in the tree that emits /u/<name> hrefs (ext_mentions.go:84 and :114). The gate the diff adds at handler_http.go:610 accepts gno.Re_name plus a 64 cap, i.e. `^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`. They disagree in both directions and neither was swept. Wider: a realm rendering `@user_with_many_________underscores_and_numbers_12345` still gets `<a href=\"/u/user_with_many_________underscores_and_numbers_12345\">` -- that exact href is already a golden fixture in this package, markdown/golden/ext_mentions/user_mentions.md.txtar:13 -- and that page now returns 404 with no chain query, where before the diff it returned 200. Narrower: mentionNamePattern excludes `-`, so a registered user named `foo-bar`, which Re_name and r/sys/users both accept, gets no mention link at all; `@foo-bar` renders `@foo` linked to /u/foo plus the literal text `-bar`. The address half is a third shape again: mentionAddressPattern at :29 is `g1[0-9A-Za-z]{37,90}`, uppercase-tolerant and 39-92 chars, while the page gate now uses crypto.AddressFromBech32, which is exactly 40 lowercase chars with a checksum.",
+      "verify_by": "grep -n 'mentionNamePattern\\|mentionAddressPattern' gno.land/pkg/gnoweb/markdown/ext_mentions.go; grep -n 'user_with_many' gno.land/pkg/gnoweb/markdown/golden/ext_mentions/user_mentions.md.txtar; grep -n 'ErrInvalidUsername' examples/gno.land/r/sys/users/errors.gno; then add `/u/user_with_many_________underscores_and_numbers_12345` to the reject table at handler_http_test.go:2120 and run `go test ./gno.land/pkg/gnoweb -run TestHTTPHandler_GetUserView_RejectsInvalidNames`: it passes, which is the 404 on gnoweb's own rendered link",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "ext_mentions.go:28 `mentionNamePattern = regexp.MustCompile(`^@([A-Za-z0-9_]{3,90})(?:[^A-Za-z0-9_-]|$)`)`; ext_mentions.go:84 `link.Destination = append([]byte(\"/u/\"), line[start:end]...)`; golden/ext_mentions/user_mentions.md.txtar:13 `<a href=\"/u/user_with_many_________underscores_and_numbers_12345\">`; examples/gno.land/r/sys/users/errors.gno:19 `username must match ^[a-z][a-z0-9]*([_-][a-z0-9]+)*$ (max 64 chars)`; gnovm/pkg/gnolang/mempackage.go:70 Re_name `separators (`_` or `-`) only between alphanumerics, never consecutive, never trailing`",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/template.go",
+      "line": 56,
+      "angle": "removed",
+      "summary": "CreateUsernameFromBech32 was rewritten to validate the address before shortening it; the sibling shortener truncMiddle validates nothing and abbreviates to a different width",
+      "failure_scenario": "The class the diff rewrote is `abbreviate a bech32 address for display`. Its other member is the template func truncMiddle (template.go:56), used at components/views/overview.html:45 as `<a href=\"/u/{{ . }}\">{{ truncMiddle . 6 }}</a>` over .Info.Creator. It keeps 6+6 runes joined by a Unicode ellipsis, while the rewritten CreateUsernameFromBech32 keeps 4+4 joined by three ASCII dots, so one address renders as `g1edq4…gleuc8p` on a package overview and `g1ed...uc8p` on that same account's user page. truncMiddle also applies no bech32 check at all -- the loose validation the diff just replaced in the handler -- so any Creator string the node returns is silently chopped, including one that is not an address.",
+      "verify_by": "sed -n '56,62p' gno.land/pkg/gnoweb/components/template.go and sed -n '45p' .../components/views/overview.html, beside CreateUsernameFromBech32 at handler_http.go:580: two widths, two separators, one validated and one not",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "template.go:56-61 `return string(r[:keep]) + \"…\" + string(r[len(r)-keep:])`; overview.html:45 `{{ truncMiddle . 6 }}`; handler_http.go:583 `return username[:4] + \"...\" + username[len(username)-4:]`",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 610,
+      "angle": "removed",
+      "summary": "the shape gate runs before buildContributions, so the `namespace with packages` arm the PR promises is unreachable for any namespace the user-name rule rejects",
+      "failure_scenario": "The rewrite replaced `serve every /u/<name>` with three arms: address, namespace with packages, registered user. The shape check is applied first and returns 404 before ListPaths is ever called, so the second arm is really `shape AND packages`. maxUsernameLen = 64 is the r/sys/users cap (store.gno:30), not a VM rule: Re_gnoUserPkgPath (mempackage.go:49-54) bounds the USER component by Re_name with no length limit, so a namespace of 65+ lowercase characters can legally hold packages. On any chain where r/sys/names is not enabled -- gnodev, a local test node, a chain before names were turned on -- such a namespace is deployable, and /u/<it> now 404s with packages sitting under it, where the old code rendered them.",
+      "verify_by": "on the head worktree, gnodev or a local node with names disabled: addpkg gno.land/r/<65 lowercase chars>/home, then GET /u/<that name>; observe 404 with no vm/qpaths query in the node log. Static half: grep -n 'maxUsernameLen' handler_http.go against grep -n 'maxNameLen' examples/gno.land/r/sys/users/store.gno and the absence of any length bound in Re_gnoUserPkgPath, gnovm/pkg/gnolang/mempackage.go:49-54",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "handler_http.go:608-611 gate returns 404 before the buildContributions call at :613; store.gno:30 `const maxNameLen = 64` is the registry's own cap; mempackage.go:53 `r.N(\"USER\", Re_name)` carries no length bound",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 604,
+      "angle": "removed",
+      "summary": "gnourl.Username() returns \"\" whenever IsUser() is false, where the removed strings.TrimPrefix(gnourl.Path, \"/u/\") returned the path itself",
+      "settled_by": "sed -n '448,450p' handler_http.go -> `if gnourl.IsUser() { return h.GetUserView(ctx, gnourl) }`; GetUserView has exactly one in-tree call site (grep -rn 'GetUserView' gno.land --include=*.go), so Username() is only ever reached with IsUser() true and Path[3:] equals the old TrimPrefix result"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 548,
+      "angle": "removed",
+      "summary": "the gate's reUsername + maxUsernameLen may reject a name r/sys/users accepts, 404ing a registered user",
+      "settled_by": "grep -n 'ErrInvalidUsername' examples/gno.land/r/sys/users/errors.gno -> `username must match ^[a-z][a-z0-9]*([_-][a-z0-9]+)*$ (max 64 chars)`, and store.gno:30 `const maxNameLen = 64`: the registry's rule is character-for-character gno.Re_name plus 64, so no registrable name is rejected by the gate"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 557,
+      "angle": "removed",
+      "summary": "the errors.Is(err, ErrClientPackageNotFound) arm of userExists is dead because rpcClient.query never maps a missing package from vm/qeval",
+      "settled_by": "awk over (*rpcClient).query in client.go -> `case errors.Is(qerr, vm.InvalidPkgPathError{}), errors.Is(qerr, vm.InvalidPackageError{}): return nil, ErrClientPackageNotFound`, applied to every qpath including vm/qeval, so the arm fires on a chain without /r/sys/users"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 116,
+      "angle": "removed",
+      "summary": "adding Eval to the exported ClientAdapter interface breaks an implementer the diff did not update",
+      "settled_by": "grep -rn 'ClientAdapter' head --include=*.go with /gno.land/pkg/gnoweb/ excluded returns no hit; the three implementers (rpcClient, MockClient, stubClient) are all in the diff, and contribs/gnodev, contribs/gnobro and gno.land/cmd/gnoweb import the package without implementing the interface"
+    }
+  ]
+}

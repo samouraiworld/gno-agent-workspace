@@ -1,0 +1,129 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 575,
+      "angle": "claims",
+      "summary": "the branch the ADR calls the protection for every registered user has no test",
+      "failure_scenario": "The ADR's last consequence states: \"A last line that is neither `(true bool)` nor `(false bool)` is an error, not a 'no': if ResolveName ever changes shape, that must surface instead of quietly 404ing every registered user.\" The five evalFunc stubs in handler_http_test.go (lines 2055, 2076, 2099, 2135, 2158) return only parseable payloads or errors, so userExists' default branch never runs under test. Let ResolveName gain a return value, or UserData render across two lines, and the last qeval line stops matching; an edit that softens that default to `return false, nil` -- the exact outcome the ADR names -- leaves `go test ./gno.land/pkg/gnoweb/...` green, and every registered user who owns no packages 404s in silence.",
+      "verify_by": "grep -n 'evalFunc:' gno.land/pkg/gnoweb/handler_http_test.go returns 5 stubs, none producing an unparseable payload; then mutate handler_http.go:575 to `return false, nil` and run `go test ./gno.land/pkg/gnoweb -run TestHTTPHandler_GetUserView` -- green proves the branch is uncovered. The missing case: an evalFunc returning []byte(\"(nil *gno.land/r/sys/users.UserData)\") (no trailing bool line) with an assertion of 500, not 404.",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'evalFunc:' -> 2055 (unknown/renamed/no-registry table), 2076 (registered, resolveNamePayload(true)), 2099 (address, asserts never called), 2135 (invalid names, asserts never called), 2158 (ErrClientTimeout). grep for 'unexpected ResolveName' in the test file: no hit.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 557,
+      "angle": "claims",
+      "summary": "a node answering \"package not found\" for r/sys/users is read as \"not a user\", and the gnodev case it cites does not need it",
+      "failure_scenario": "userExists maps ErrClientPackageNotFound to (false, nil) with a Debug log, so any node-side condition that makes gno.land/r/sys/users unresolvable -- a node restored below the registry's deploy height, a chain-domain mismatch in rpcClient.Eval's assembled data, the registry moved -- 404s every registered user who owns no packages, for as long as a crawler remembers it. That is the harm the sibling timeout branch was written to prevent (\"a 404 published on a blip deletes a real user's page\"). The ADR justifies the branch as \"the gnodev case\", but gnodev deploys the registry by default: contribs/gnodev/app_config.go:127 documents `-no-examples` as \"skip loading $GNOROOT/examples entirely\" (opt-out), and contribs/gnodev/pkg/dev/node.go:449-452 injects the gno.land/r/sys/users/init.Bootstrap tx when that realm is loaded. So on a default gnodev ResolveName answers, and the silent branch is live only for a fault.",
+      "verify_by": "read contribs/gnodev/app_config.go:127-129 and contribs/gnodev/pkg/dev/node.go:449-452 -- examples, and with them r/sys/users, load unless -no-examples is passed. Then decide whether ErrClientPackageNotFound from vm/qeval should stay a 404 or surface like every other node fault (the `case err != nil` line below it).",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "contribs/gnodev/app_config.go:129 \"skip loading $GNOROOT/examples entirely\"; contribs/gnodev/pkg/dev/node.go:449 `const usersInitPkgPath = \"gno.land/r/sys/users/init\"`, :452 \"the r/sys/users/init.Bootstrap call is injected only when the [realm is loaded]\".",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 555,
+      "angle": "claims",
+      "summary": "the cost table counts RPCs, not work: every unknown /u/<name> now builds a VM machine and evaluates Gno",
+      "failure_scenario": "The description's table reads \"unknown name: 2 before, 2 after\", and the ADR adds that the qeval is \"the heavier of the two shapes\". What it costs is a machine: withQueryEvalMachine (gno.land/pkg/sdk/vm/keeper.go) returns ErrInvalidPkgPath at `pv == nil` for the absent package the replaced vm/qrender was asked about, but for r/sys/users -- which exists -- it allocates the gas meter and allocator, builds gno.NewMachineWithOptions, parses the expression and evaluates ResolveName. /u/<name> is unauthenticated, uncached and crawler-reachable, so a scan over random names turns each 404 into a VM eval on a system realm where it previously turned into an early return.",
+      "verify_by": "measure node-side rather than over the wire: benchmark a GET /u/zzznotauser against gnoweb's in-memory node (gno.land/pkg/gnoweb app_test's shared node) at head vs merge base 7916d1dd6, or compare vm/qeval ResolveName(unknown) with vm/qrender on an absent path under a local node's gas meter.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "Live over rpc.gno.land the difference is inside network noise, so it does not settle the node-side cost: vm/qeval ResolveName(\"zzznotauser\") 0.953/0.842/1.002/0.743/0.962 s; vm/qrender gno.land/r/zzznotauser/home: 0.919/0.897/0.758/0.918/0.958 s.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+      "line": 56,
+      "angle": "claims",
+      "summary": "\"A chain that does not deploy r/sys/users answers no\" -- suspected the rpcClient never produces ErrClientPackageNotFound for vm/qeval, since rpcClient.Eval adds no error mapping of its own",
+      "settled_by": "sed -n '/func (vm \\*VMKeeper) withQueryEvalMachine/,/^}/p' gno.land/pkg/sdk/vm/keeper.go -> `pv := gnostore.GetPackage(pkgPath, false); if pv == nil { return ErrInvalidPkgPath(...) }`, and rpcClient.query maps `errors.Is(qerr, vm.InvalidPkgPathError{})` to ErrClientPackageNotFound (client.go, \"package not found\" case). The mapping holds without Eval-specific code."
+    },
+    {
+      "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+      "line": 42,
+      "angle": "claims",
+      "summary": "\"gnops, jeronimoalbi, leon, mason, sunspirit and tests hold packages on gnoland-1 while ResolveName answers false\" -- the whole justification for rule 2",
+      "settled_by": "abci_query vm/qeval ResolveName(<name>) and vm/qpaths @<name> on rpc.gno.land: gnops resolve=(false bool) paths=2, jeronimoalbi (false) 2, leon (false) 3, mason (false) 1, sunspirit (false) 2, tests (false) 2. Exactly as written."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 566,
+      "angle": "claims",
+      "summary": "\"only the last line answers\" -- suspected the real vm/qeval payload for a registered user differs from the hand-written resolveNamePayload stub, which would 404 every registered user without packages",
+      "settled_by": "abci_query vm/qeval `gno.land/r/sys/users.ResolveName(\"moul\")` on rpc.gno.land decodes to `(&(struct{(\"g1manfred47kzduec920z88wfr64ylksmdcedlf5\" .uverse.address),(\"moul\" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)\\n(true bool)` -- two lines, last `(true bool)`, the stub's shape."
+    },
+    {
+      "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+      "line": 107,
+      "angle": "claims",
+      "summary": "\"$help, $source and $state under /u/ already 404 on chain for a name that owns nothing\" -- suspected the gate is bypassable by appending a view suffix",
+      "settled_by": "curl -o /dev/null -w '%{http_code}' on the deployed gno.land: /u/zzznotauser 200, /u/zzznotauser$source 404, $help 404, $state 404."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/app_test.go",
+      "line": 41,
+      "angle": "claims",
+      "summary": "\"moul001 owns no packages, so it exercises the assembled vm/qeval query for real\" -- suspected the route passes through rule 2 instead",
+      "settled_by": "grep -c moul001 gno.land/genesis/genesis_txs.jsonl -> 1, and that occurrence is `RegisterUser\",\"args\":[\"moul001`; no r/moul001 or p/moul001 path in the file. The route reaches rule 3."
+    },
+    {
+      "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+      "line": 74,
+      "angle": "claims",
+      "summary": "\"the qrender it replaces returned before building a machine when the package was absent\"",
+      "settled_by": "gno.land/pkg/sdk/vm/handler.go:172 routes QueryRender through vm.QueryEvalString, which calls withQueryEvalMachine; that function's `GetPackage` nil check precedes gno.NewMachineWithOptions (keeper.go). The claim holds."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 158,
+      "angle": "claims",
+      "summary": "\"ClientAdapter gains a method ... nothing outside the package implements it today\" -- an exported interface gaining a method breaks implementers, contribs/* being separate modules the main build does not compile",
+      "settled_by": "grep -rn ClientAdapter over the whole worktree, contribs/ included: every hit is inside gno.land/pkg/gnoweb (render.go, handler_http.go, app.go, client_mock.go) or its external test file. No implementer outside."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 631,
+      "angle": "claims",
+      "summary": "\"the namespace already holds at least one package\" -- suspected vm/qpaths matches a prefix, so /u/mou would list moul's packages and render a lookalike page",
+      "settled_by": "QueryPaths (keeper.go): for an `@name` target with no sub-prefix it appends a trailing slash, FindPathsByPrefix(\"gno.land/r/<name>/\") and \"gno.land/p/<name>/\", so a shorter name never matches a longer namespace."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 633,
+      "angle": "claims",
+      "summary": "\"ListPaths returns [\"\"] for an empty result, so rule 2 counts parsed contributions\"",
+      "settled_by": "rpcClient.ListPaths (client.go): `strings.Split(strings.TrimSpace(string(res)), \"\\n\")` yields [\"\"] for an empty body, and buildContributions now skips `raw == \"\"` before weburl.Parse."
+    },
+    {
+      "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+      "line": 64,
+      "angle": "claims",
+      "summary": "\"nothing reaching the qeval expression can leave a Gno string literal\" -- checked the shape gate and the node-side split of pkgPath from expr",
+      "settled_by": "gnolang.Re_name is `[a-z][a-z0-9]*([_-][a-z0-9]+)*` (mempackage.go:70): no quote, backslash or dot can pass, and parseQueryEvalData (sdk/vm/handler.go:289) cuts at the first dot after the first slash, so `gno.land/r/sys/users.ResolveName(\"x\")` splits as intended. The address branch never reaches Eval (`if !isAddress && len(contribs) == 0`)."
+    },
+    {
+      "file": "gno.land/adr/pr6206_gnoweb_user_page_gate.md",
+      "line": 51,
+      "angle": "claims",
+      "summary": "\"ResolveName returns (nil, false) for an unknown or deleted name and (data, false) for a name left behind by a rename\"",
+      "settled_by": "examples/gno.land/r/sys/users/users.gno:6-18: nil on a missing entry, nil on `data.deleted`, else `return data, name == data.username`. r/sys/names/verifier.gno:103 reads the same pair for the deploy rule."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 367,
+      "angle": "claims",
+      "summary": "\"plus that file's 64-byte cap\" -- suspected maxUsernameLen drifts from the registry's own cap",
+      "settled_by": "examples/gno.land/r/sys/users/store.gno:30 `const maxNameLen = 64` and validateName's `if len(username) > maxNameLen`; handler_http.go uses `const maxUsernameLen = 64` with `len(username) > maxUsernameLen`. Same unit, same bound."
+    }
+  ]
+}
