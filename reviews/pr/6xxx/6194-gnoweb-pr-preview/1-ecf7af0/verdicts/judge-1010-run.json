@@ -1,0 +1,44 @@
+{"verdicts": [
+{
+  "index": 74,
+  "angle": "refactor",
+  "verify_by": "apply the rewrite's shotEnv helper and run gofmt -l . ; go vet ./... ; go test ./... in misc/gnopreview, then count non-comment lines before and after with grep -v '^[[:space:]]*//' shots.go | grep -c '[^[:space:]]'",
+  "state": "CONFIRMED",
+  "band": "Suggestion",
+  "file": "misc/gnopreview/shots.go",
+  "line": 51,
+  "tldr": "the two screenshot passes carry the same 15-line browser-and-server prologue, so a step added to one silently skips the other",
+  "details": "diff of shots.go:51-65 against shots.go:117-131 at head returns two hunks only: the message word (\"before/after\" vs \"screenshots\") and the serve() result name (origin vs base). Everything else — findChrome, the empty-bin bail, serve, defer Close, MkdirAll(outDir/_shots, 0o755) — is byte-identical. A Chrome flag or a temp-profile dir added for one pass therefore lands in one function and not the other, and the before/after pair and the gnoweb sample then disagree on the same runner. Fix: hoist the prologue into one shotEnv(outDir, chrome, lost) helper returning (bin, origin, io.Closer), as the finder's diff does.",
+  "evidence": "diff of head lines 51-65 vs 117-131: exit 1, two hunks, '3c3' message word and '6c6' origin/base. git apply of the finder's b4-refactor-shots-dedupe.diff at ecf7af0 then, in misc/gnopreview with go1.25.9: gofmt -l . no output, go vet ./... no output, 'ok  github.com/gnolang/gno/misc/gnopreview  0.005s'. Non-comment lines 169 -> 170, file lines 213 -> 223. Merge base bbd9b2f: misc/gnopreview does not exist ('ls: cannot access ... No such file or directory'), so both copies arrive with this diff.",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-shots-dedupe.diff",
+  "base_behaves_the_same": false
+},
+{
+  "index": 71,
+  "angle": "refactor",
+  "verify_by": "git apply the rewrite and run, from misc/gnopreview: gofmt -l . && go vet ./... && go test ./... ; the shotFile helper returns the single relative path and hands filepath.Join(outDir, rel) to chromeShot",
+  "state": "CONFIRMED",
+  "band": "Suggestion",
+  "file": "misc/gnopreview/shots.go",
+  "line": 83,
+  "tldr": "each screenshot's path is spelled twice, so a naming change touching one spelling publishes a comment whose image link points at a file Chrome never wrote",
+  "details": "Three sites spell one path twice: 79/83 (name+\"-after.png\"), 91/92 (name+\"-before.png\") and 138/143 (s.name+\".png\"), the first spelling filepath.Join(outDir, shotsDir, ...) for Chrome and the second path.Join(shotsDir, ...) for the comment. Nothing reconciles them: chromeShot's only check is os.Stat on the path it was handed (shots.go:187), so a comment path that drifted from the written path is never noticed and the PR comment renders a broken image. Fix: build the relative path once and pass filepath.Join(outDir, rel) to chromeShot, as the finder's shotFile helper does.",
+  "evidence": "Read of shots.go at head: 79 filepath.Join(outDir, shotsDir, name+\"-after.png\") vs 83 path.Join(shotsDir, name+\"-after.png\"); 91 vs 92 for -before.png; 138 vs 143 for s.name+\".png\". shots.go:187 'if fi, err := os.Stat(out); err != nil || fi.Size() == 0' is the only post-write check and reads chromeShot's own argument. Rewrite applied at ecf7af0: gofmt -l . no output, go vet clean, 'ok  github.com/gnolang/gno/misc/gnopreview  0.005s'; non-comment lines 169 -> 170, file lines 213 -> 223. Merge base bbd9b2f has no misc/gnopreview at all.",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-shots-dedupe.diff",
+  "base_behaves_the_same": false
+},
+{
+  "index": 72,
+  "angle": "refactor + catalog + reach",
+  "verify_by": "sed -n '337,345p' crawl.go shows FileOf is exactly that lookup; swap the three lines for src, ok := c.FileOf(s.url) and run go test ./... in misc/gnopreview | grep -n 'c.pages\\[' misc/gnopreview/*.go | grep -n 'c.pages\\[' misc/gnopreview/*.go",
+  "state": "CONFIRMED",
+  "band": "Suggestion",
+  "file": "misc/gnopreview/shots.go",
+  "line": 134,
+  "tldr": "Screenshot hand-inlines FileOf's body instead of calling it, so a later change to how a URL maps to a file reaches the pair pass and silently not the gnoweb sample",
+  "details": "shots.go:134-137 is 'p, ok := c.pages[canonicalURL(s.url)]' then p.File, which is FileOf's body verbatim (crawl.go:338-344), and grep shows shots.go:134 is the only read of c.pages outside crawl.go that spells the canonicalURL lookup rather than calling the accessor — the sibling ScreenshotPairs already calls FileOf at line 72. The finder's second half, that Screenshot's keying disagrees with Crawler.Run's raw insert at crawl.go:143, does not hold as a defect of this line: FileOf carries the identical canonicalURL(), so the swap changes nothing, and canonicalURL is the identity on all four shotPlan URLs today. Fix: replace the three lines with src, ok := c.FileOf(s.url).",
+  "evidence": "crawl.go:338-344 'func (c *Crawler) FileOf(u string) (string, bool)' with body 'p, ok := c.pages[canonicalURL(u)]' ... 'return p.File, true'. grep -n 'c.pages[' misc/gnopreview/*.go: crawl.go:143 inserts under raw u, crawl.go:328, crawl.go:339 and crawl.go:402 plus shots.go:134 read canonicalURL(u), comment.go:170 reads raw u. My own probe judge-72-canon-on-shotplan_test.go at ecf7af0: canonicalURL identity on all four shotPlan URLs, PASS, while canonicalURL(\"/r/x$b=2&a=1\") = \"/r/x$a=1&b=2\". Rewrite using FileOf: gofmt clean, vet clean, 'ok  github.com/gnolang/gno/misc/gnopreview  0.005s'; 169 -> 170 non-comment lines. Merge base bbd9b2f has no misc/gnopreview.",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-72-canon-on-shotplan_test.go",
+  "base_behaves_the_same": false
+}
+]}

@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 143,
+      "angle": "claims",
+      "summary": "the 400-page cap aborts the whole preview instead of truncating it, unlike the realm cap beside it in the same claim",
+      "failure_scenario": "A PR whose changed realms carry more than 400 renderable pages: per-file $source pages are rendered for every changed file of a changed realm (wantFile, crawl.go:227, returns slices.Contains(changed, name) with no budget), so an examples-wide reformat or gno-version bump over 25 realms reaches it. Crawler.Run then returns `page cap 400 reached (queue still had N)` (crawl.go:126), render() returns that error at main.go:143, `gnopreview render` exits 1. pr-preview.yml's render step has no continue-on-error and the upload step's `if: steps.plan.outputs.skip != 'true'` still carries the implicit success(), so nothing is uploaded: the PR gets a red `preview / render` check and no preview at all. The realm cap in the same sentence of the body degrades instead - BuildPlan truncates and reports plan.Dropped (plan.go:256).",
+      "verify_by": "go test -run TestB3PageCapIsFatalNotATruncation -v . in misc/gnopreview with the artifact copied in: Run() over 6 realms with MaxPages=3 returns an error, MaxPages=0 returns nil over 19 pages",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "zz_b3claims_test.go:51: Run() with MaxPages=3 -> error \"page cap 3 reached (queue still had 31)\", 3 pages captured and discarded by the caller; zz_b3claims_test.go:58: Run() with MaxPages=0 -> nil, 19 pages",
+      "repro_path": "tests/b3-claims-page-cap_test.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 140,
+      "angle": "claims",
+      "summary": "plan.Empty() lets a gnoweb plan with zero realms through, and render indexes plan.Realms[0] unconditionally",
+      "failure_scenario": "Plan.Empty() is `!Gnoweb && len(Realms) == 0` (plan.go:91), and the gnoweb seed realms are appended only when `pkgs[r] != nil` (plan.go:265). A gnoweb-only change in a tree where the four seed realms have been renamed, moved out of examples/gno.land, or stripped of their non-test .gno files produces Gnoweb=true with Realms=[], Empty()=false, so render() proceeds and `urlOf(plan.Realms[0])` panics with index out of range instead of reporting \"nothing to preview\".",
+      "verify_by": "go test -run TestB3GnowebPlanWithNoSeedRealmsIsNotEmpty -v . : BuildPlan over a temp root holding one non-seed realm, changed file gno.land/pkg/gnoweb/app.go",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "zz_b3claims_test.go:84: Gnoweb=true Realms=[] Empty()=false Mode()=\"gnoweb\"; zz_b3claims_test.go:94: plan.Realms[0] panics: runtime error: index out of range [0] with length 0",
+      "repro_path": "tests/b3-claims-page-cap_test.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 156,
+      "angle": "claims",
+      "summary": "the comment claims a gnoweb change always gets the fixed four-view sample, but the else-if drops it whenever any realm also changed",
+      "failure_scenario": "main.go:153 says \"When gnoweb itself changed, a fixed sample of pages shows what the chrome now looks like\", and the PR body says a gnoweb change embeds screenshots of the four views. The code is `if len(plan.ChangedRealms) > 0 { pairs } else if plan.Gnoweb { shots }`: a PR touching gnoweb and one realm (Plan.Mode() == \"both\") takes the first branch, so plan.Shots stays empty and the comment carries no chrome sample - exactly the change where the chrome is what moved.",
+      "verify_by": "read main.go:156-161 against Plan.Mode() (plan.go:98) and comment.go's use of plan.Shots; then run render on a changed-file list carrying both gno.land/pkg/gnoweb/app.go and an examples realm file and read preview.json for an empty shots array",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 100,
+      "angle": "claims",
+      "summary": "the plan is built before the subcommand is validated, so an unknown command pays for the whole examples walk",
+      "failure_scenario": "The package doc names two modes, plan and render. run() calls readLines and BuildPlan (a WalkDir over examples/gno.land plus a go/parser pass over every non-test .gno file) before the switch, so `gnopreview typo -changed changed.txt` walks and parses the whole examples tree and only then reports `unknown command \"typo\"`; a mistyped command in CI also fails with whatever BuildPlan errors on first rather than with the usage line.",
+      "verify_by": "time `gnopreview bogus -changed /dev/null` against a full checkout and read the error it prints",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 295,
+      "angle": "claims",
+      "summary": "findRoot's doc says it walks up from dir, but an explicit -root is returned unvalidated",
+      "failure_scenario": "The comment says findRoot \"walks up from dir (or the working directory) until it finds the monorepo root, identified by examples/gnowork.toml\". With -root set, the function returns filepath.Abs(dir) without checking for examples/gnowork.toml, so a -root one directory off fails later inside LoadPkgs' WalkDir with a bare ENOENT on examples/gno.land instead of the flag's own message.",
+      "verify_by": "run `gnopreview plan -root /tmp -changed /dev/null` and read the error: expect the findRoot message, observe a WalkDir ENOENT",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 263,
+      "angle": "claims",
+      "summary": "the gnoweb seeds are appended after the realm cap, so \"at most 25 realms\" can be 29",
+      "failure_scenario": "The body's Scope and bounds says \"At most 25 realms and 400 pages\". BuildPlan truncates to maxRealms at plan.go:256 and then appends up to four gnowebSeedRealms at plan.go:263-270, so a PR that changes gnoweb and 25+ realms boots gnodev on 29 packages while plan.Dropped reports only the realms the cap removed. The seed append also skips the `Ignore` check that the dependents loop applies (plan.go:241), against the same section's \"ignore = true packages\" exclusion.",
+      "verify_by": "BuildPlan with a changed list of 30 realm files plus gno.land/pkg/gnoweb/app.go and maxRealms 25: count len(plan.Realms)",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 250,
+      "angle": "claims",
+      "summary": "renderBase indexes plan.Dirs[i] by the plan.Realms index, suspected misalignment",
+      "settled_by": "sed -n '271,276p' misc/gnopreview/plan.go: `for _, r := range plan.Realms { plan.Dirs = append(plan.Dirs, pkgs[r].Dir)` - Dirs is built in Realms order, one entry per realm, so the two are aligned by construction"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 284,
+      "angle": "claims",
+      "summary": "the base pass calls Write with an empty assets dir, so the before screenshots were suspected of rendering unstyled, against the claim that both passes use the head's assets",
+      "settled_by": "crawl.go:304 `if assets == \"\" { // a prefixed crawl reuses the assets already written; return c.writePages(dir) }` with rewrite's depth taken from p.File, which carries the _before prefix (crawl.go:142,350) - the extra ../ lands on <out>/public, the head's copy"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 185,
+      "angle": "claims",
+      "summary": "the comment names only the RPC listener and the keybase as fixed, so a third fixed listener was suspected of colliding between the two concurrent gnodev passes",
+      "settled_by": "contribs/gnodev/command_local.go:46-47: nodeP2PListenerAddr and nodeProxyAppListenerAddr both default to tcp://127.0.0.1:0, and setup_node.go:126-127 uses those defaults - only RPC and home are fixed"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 186,
+      "angle": "claims",
+      "summary": "gnodev's -home is placed inside the published output dir, so the keybase and node data were suspected of shipping into the public previews repo",
+      "settled_by": ".github/workflows/pr-preview.yml:103 `rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*` runs before du and before the artifact upload"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 82,
+      "angle": "claims",
+      "summary": "the -max-realms and -max-pages flags claim 0 means no cap",
+      "settled_by": "plan.go:256 `if maxRealms > 0 && len(realms) > maxRealms` and crawl.go:126 `if c.MaxPages > 0 && len(c.pages) >= c.MaxPages`; the run confirms MaxPages=0 completes 19 pages"
+    }
+  ]
+}

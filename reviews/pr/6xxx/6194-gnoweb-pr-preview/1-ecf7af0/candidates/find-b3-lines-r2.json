@@ -1,0 +1,80 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 199,
+      "angle": "lines",
+      "summary": "gnodev is put in its own process group and main installs no signal handler, so Ctrl-C kills gnopreview alone and leaves gnodev holding the ports",
+      "failure_scenario": "A developer runs `gnopreview render` (README's local recipe) and hits Ctrl-C while it waits for gnoweb. The terminal signals the foreground process group; SysProcAttr{Setpgid: true} (main.go:199) has already moved gnodev into its own group, so gnodev never sees SIGINT, gnopreview dies without running `defer stop()` (main.go:130), and gnodev keeps running with -port 8899 and RPC 18899 bound. The next run's gnodev cannot bind, exits, and the tool reports \"gnodev exited before serving\" until the user finds and kills the orphan by hand.",
+      "verify_by": "tests/b3-lines-r2-gnodev-orphan.sh: start the built gnopreview under setsid with a stub gnodev, send SIGINT to its process group, count survivors",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "gnopreview pid=1460365 pgid=1460365 / gnodev pgid=1460375 / gnopreview alive after SIGINT: 0 / gnodev alive after SIGINT: 1",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-lines-r2-gnodev-orphan.sh"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 186,
+      "angle": "lines",
+      "summary": "-home is a path relative to gnopreview's cwd, but gnodev chdirs into -C examples before reading it, so the per-port home is never the one under -out",
+      "failure_scenario": "render passes `-home _preview/.gnodev-8899` together with `-C <root>/examples`. contribs/gnodev/command_local.go:87 runs os.Chdir(cfg.chdir) first, so gnodev resolves the home against <root>/examples, not the output directory. setup_address_book.go:18 finds no such directory, warns, and imports no keybase, so the path the code names is never created: the workflow's `rm -rf _preview/.gnodev-*` cleans nothing and the isolation the comment describes holds only because the path is wrong.",
+      "verify_by": "read contribs/gnodev/command_local.go:85-90 (os.Chdir before anything) and setup_address_book.go:16-22 (DirExists -> warn, never MkdirAll); then run render and look for _preview/.gnodev-*",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 142,
+      "angle": "lines",
+      "summary": "Pkg.Draft is parsed out of every gnomod.toml and never read, so the flag it costs a file read for decides nothing",
+      "failure_scenario": "modFlags parses `draft = true` for every package under examples/gno.land and LoadPkgs stores it in Pkg.Draft; nothing in the package ever reads the field (Ignore is read at plan.go:220 and 241, Draft nowhere). A draft realm therefore enters plan.Realms exactly like a deployed one, and a reader of the struct is told a distinction the plan does not make.",
+      "verify_by": "grep -rn 'Draft' misc/gnopreview --include='*.go' returns only plan.go:58 (the field) and plan.go:142 (the assignment)",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 216,
+      "angle": "lines",
+      "summary": "stop() signals -cmd.Process.Pid without checking whether the reaper goroutine already reaped it, so the SIGTERM can land on a recycled pid's group",
+      "failure_scenario": "waitReady returns because gnodev died (main.go:140 reads from `died`, which the goroutine at main.go:210 fills after cmd.Wait() has reaped the child). The deferred stop() then calls syscall.Kill(-cmd.Process.Pid, SIGTERM) on a pid the kernel is free to reuse; on a busy machine that group belongs to someone else by then. The `waited` channel is already closed at that point, so `select { case <-waited: default: kill }` costs one line and removes the window.",
+      "verify_by": "read main.go:208-219 against main.go:140: `died` is only sent after cmd.Wait() returns, and stop() kills before testing `waited`",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 197,
+      "angle": "lines",
+      "summary": "suspected the base pass renders against the head root because cmd.Env appends a second GNOROOT after the workflow's own",
+      "settled_by": "ran a parent/child probe with go1.25.9: parent sets GNOROOT=/head in its environment, cmd.Env = append(os.Environ(), \"GNOROOT=/base\"); child prints `child sees GNOROOT=/base` — os/exec dedupEnv keeps the last occurrence"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 271,
+      "angle": "lines",
+      "summary": "suspected MaxPages: len(realms) aborts the base crawl one page short",
+      "settled_by": "read crawl.go:119-128: the cap is tested before the fetch (`len(c.pages) >= c.MaxPages`), so the Nth seed is fetched with N-1 pages stored; crawl.go:88 makes Seeds() yield exactly one URL per realm under RenderOnly"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 260,
+      "angle": "lines",
+      "summary": "suspected the two concurrent gnodevs collide on the p2p or proxy-app listener, which no flag derives from the port",
+      "settled_by": "contribs/gnodev/command_local.go:46-47 sets nodeP2PListenerAddr and nodeProxyAppListenerAddr to tcp://127.0.0.1:0, an ephemeral port per process"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 250,
+      "angle": "lines",
+      "summary": "suspected plan.Dirs[i] can index past plan.Realms when the realm cap or the gnoweb seeds change one list and not the other",
+      "settled_by": "read plan.go:271-276: Dirs is appended exactly once per plan.Realms entry, after both the cap and the seed append"
+    }
+  ]
+}

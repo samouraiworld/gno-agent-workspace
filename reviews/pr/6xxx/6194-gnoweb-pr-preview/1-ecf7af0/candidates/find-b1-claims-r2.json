@@ -1,0 +1,96 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 117,
+      "angle": "claims",
+      "summary": "the _before/ tree ships in every realm preview and is linked from nothing, against the README's \"click through to the before page\"",
+      "failure_scenario": "A pull request that changes a realm: renderBase writes the merge-base render of each changed realm into _preview/_before/ (main.go:275, Prefix beforeDir) and that tree is copied into pr-<N>/ by pr-preview-publish.yml and served. pairGrid wraps only the after image in an <a href> (comment.go:120-121); the before cell is a bare <img> (117-119), Index emits no _before link, and nothing else generated does either. A reviewer who wants the before page — what misc/gnopreview/README.md:84-85 says _before/ exists for, 'so a reviewer can click through to the before page and not just its screenshot' — has to hand-type the URL, and the bytes count against the 40 MiB per-preview cap and the previews site's budget for a page nobody can reach.",
+      "verify_by": "grep -rn '_before' misc/gnopreview/*.go returns three hits, all declarations (main.go:224 doc, crawl.go:54 doc, shots.go:27 const); grep -n 'Before' misc/gnopreview/comment.go returns 106 and 119, both the PNG path, never a page link; ShotPair (shots.go:34-44) has no field for the before page, while ScreenshotPairs computes beforeFile and discards it after the screenshot",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 127,
+      "angle": "claims",
+      "summary": "the 400-page cap the README calls a backstop returns an error from Run, so the whole preview is lost instead of truncated",
+      "settled_by": "reproduced (Run() returned: page cap 3 reached (queue still had 31), 3 pages captured and discarded; uncapped: 14 pages, no error) but already reported by at least eight round-1 finders on other bundles: grep -l 'page cap' candidates/*.json returns find-b1-claims, b2-lines, b2-reach, b2-refactor, b2-catalog, b2-claims, b3-claims, b3-lines, b10-claims, with tests/b1-claims-page-cap-aborts-render.go, b2-claims-page-cap-aborts.go, b3-claims-page-cap_test.go already in the round"
+    },
+    {
+      "file": "misc/gnopreview/README.md",
+      "line": 96,
+      "angle": "claims",
+      "summary": "README calls a .nojekyll marker mandatory wherever the snapshot is published, and nothing in the diff writes one",
+      "settled_by": "gh api repos/gnolang/gno-previews/contents/.nojekyll --jq .name prints '.nojekyll' — the publish target already carries it at its root, which is where GitHub Pages reads it; also already reported in round 1 (find-*.json summary 'README calls a .nojekyll marker mandatory and nothing in the diff writes one')"
+    },
+    {
+      "file": ".github/workflows/pr-preview.yml",
+      "line": 116,
+      "angle": "claims",
+      "summary": "the body's setup command sets GNOWEB_PREVIEW_BASE_URL to https://gnolang.github.io/gno while the body's own Setup section gives https://gnolang.github.io/gno-previews",
+      "settled_by": "read of body.md:60 against body.md:92 — the two spellings disagree and nothing in the three workflows validates the value, but the fix is the description's wording and the variable is already set correctly on gnolang/gno, so it ships SKIP per the doc-wording rule rather than costing a verifier"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 314,
+      "angle": "claims",
+      "summary": "the warning the body calls the canary for the hardcoded /public/js/controller- prefix fires on n == 0 over every /public/ in every js and css asset",
+      "settled_by": "grep -c '/public/' over gno.land/pkg/gnoweb/public/**/*.{js,css}: exactly one occurrence tree-wide, js/index.js's own prefix, so the counter is exact today; already reported in round 1 ('the n == 0 asset warning counts /public/ over the whole asset tree while the invariant it names is one prefix in one file')"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 262,
+      "angle": "claims",
+      "summary": "the four gnoweb seed realms are appended after the -max-realms truncation, so a gnoweb+realms pull request renders up to 29 against the documented 25",
+      "settled_by": "read of plan.go:255-268; already reported in round 1 several times ('the gnoweb seed realms are appended after the cap, so -max-realms N renders up to N+4 realms', 'Dropped is computed before the gnoweb seed realms are appended')"
+    },
+    {
+      "file": "misc/gnopreview/README.md",
+      "line": 88,
+      "angle": "claims",
+      "summary": "the documented output layout and the <realm>-before.png/-after.png names predate the digest slug() now appends to any non-trivial segment",
+      "settled_by": "slug() at crawl.go:520-534 returns out+'-'+hex(sha256[:4]) whenever out != s, so $source&file=home.gno lands under _t/file-home.gno-source-<8 hex>/ and r/gnoland/home photographs as r-gnoland-home-<8 hex>-after.png; the fix is the README's wording alone, and round 1 already carries 'the documented output layout predates the collision digest'"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 176,
+      "angle": "claims",
+      "summary": "the comment names only the RPC listener and the keybase as fixed, so a third fixed gnodev listener could collide between the head and base passes",
+      "settled_by": "contribs/gnodev/command_local.go:46-47 — nodeP2PListenerAddr and nodeProxyAppListenerAddr both default to tcp://127.0.0.1:0, so the RPC listener (127.0.0.1:26657, line 34) and GNOHOME are the only fixed ones and both are overridden"
+    },
+    {
+      "file": "misc/gnopreview/README.md",
+      "line": 47,
+      "angle": "claims",
+      "summary": "README says each dependent realm keeps two per-file source pages when gnoweb changed, which would be two in total if the budget were global",
+      "settled_by": "Crawler.fileBudget is map[string]int keyed by realm and chargeFile compares c.fileBudget[r] >= c.FileBudget per realm (crawl.go:233-245), so GnowebFileBudget = 2 is per realm as documented"
+    },
+    {
+      "file": "misc/gnopreview/README.md",
+      "line": 105,
+      "angle": "claims",
+      "summary": "README and the ADR claim no output path ever contains $, : or &",
+      "settled_by": "unsafeSeg = [^A-Za-z0-9._-]+ (crawl.go:478) replaces all three in the slugged args and query, and the unslugged base can only be an exact urlOf(realm) because inScope requires base == urlOf(r) (crawl.go:288-295) — the traversal risk on that base is already round-1 material"
+    },
+    {
+      "file": ".github/workflows/ci-dir-misc.yml",
+      "line": 30,
+      "angle": "claims",
+      "summary": "the body claims misc/gnopreview is registered in ci-dir-misc.yml's matrix, whose own comment warns an unlisted program is never built",
+      "settled_by": "the matrix entry is present at ci-dir-misc.yml:30 and that workflow triggers on paths misc/** (lines 10-15), so a change under misc/gnopreview/ reaches it; CI is green at this head"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 371,
+      "angle": "claims",
+      "summary": "the body and the README claim gnoweb's own robots meta is replaced rather than supplemented",
+      "settled_by": "robotsRe = (?i)<meta\\s+name=\"robots\"[^>]*> matches head.html:38's self-closing <meta name=\"robots\" content=\"index, follow\" /> through its />, and crawl_test.go:178-188 asserts exactly one robots meta after the rewrite; the fragility of pinning that shape is already round-1 material"
+    }
+  ]
+}

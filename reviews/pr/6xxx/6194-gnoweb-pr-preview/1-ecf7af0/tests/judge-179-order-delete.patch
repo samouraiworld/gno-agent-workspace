@@ -1,0 +1,31 @@
+# Equivalence rewrite for candidate #179 — misc/gnopreview/crawl.go.
+# Deletes Crawler.order (the field, the append, the range). 2 insertions,
+# 3 deletions. Verified at ecf7af0f2: go test ./... in misc/gnopreview is
+# 22/22 PASS before and after, go vet silent, and the written tree is
+# byte-identical (r/x/index.html d0799a7d, r/x/y/_a/p-about-e71ffeb2 38acdcd1,
+# r/x/y/_t/help 74584614, r/x/y/_t/source ed963051, r/x/y/index.html 9208ff45).
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && go vet ./... && go test ./...
+--- a/misc/gnopreview/crawl.go
++++ b/misc/gnopreview/crawl.go
+@@ imports
+ 	"io"
++	"maps"
+ 	"net/http"
+@@ type Crawler
+ 	pages map[string]*page // url -> page
+-	order []string
+ }
+@@ func (c *Crawler) Run
+ 		c.pages[u] = p
+-		c.order = append(c.order, u)
+ 		fmt.Printf("  ✓ %s\n", u)
+@@ func (c *Crawler) writePages
+-	for _, u := range c.order {
++	for _, u := range slices.Sorted(maps.Keys(c.pages)) {
+ 		p := c.pages[u]

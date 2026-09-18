@@ -1,0 +1,49 @@
+# Candidate #21 alone: fileBudget() inlined at its single call site in
+# misc/gnopreview/main.go. Extracted from the finder's three-refactor
+# b3-refactor-main-shorter.patch so the fileBudget change is measured on its own.
+#
+# From a plain clone:
+#
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   wc -l misc/gnopreview/main.go        # 339
+#   git apply <this file>
+#   wc -l misc/gnopreview/main.go        # 334
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+#
+# Observed at ecf7af0f2 with go1.25.9: gofmt silent, vet silent, tests ok.
+
+diff --git a/misc/gnopreview/main.go b/misc/gnopreview/main.go
+--- a/misc/gnopreview/main.go
++++ b/misc/gnopreview/main.go
+@@ -126,7 +126,12 @@ func render(cfg config, plan *Plan) error {
+ 		MaxPages:     cfg.maxPages,
+ 		Live:         strings.TrimSuffix(cfg.live, "/"),
+ 		ChangedFiles: plan.ChangedFiles,
+-		FileBudget:   fileBudget(plan),
++	}
++	// A couple of per-file source pages for realms nothing changed in, but only
++	// when the pull request changed gnoweb: that is the case where the rendering
++	// of a source file is itself what needs reviewing.
++	if plan.Gnoweb {
++		c.FileBudget = GnowebFileBudget
+ 	}
+ 	if err := waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout, died); err != nil {
+ 		return err
+@@ -210,16 +215,6 @@ func startGnodev(cfg config, root string, dirs []string, port int, logName strin
+ 	}, died, nil
+ }
+ 
+-// fileBudget allows a couple of per-file source pages for realms nothing
+-// changed in, but only when the pull request changed gnoweb: that is the case
+-// where the rendering of a source file is itself what needs reviewing.
+-func fileBudget(plan *Plan) int {
+-	if plan.Gnoweb {
+-		return GnowebFileBudget
+-	}
+-	return 0
+-}
+-
+ // renderBase renders the changed realms a second time from the merge-base
+ // checkout, into <out>/_before/. It reuses the head's gnodev binary and the
+ // head's assets on purpose: the pair must differ by the realm change alone, not

@@ -1,0 +1,30 @@
+{"verdicts": [
+ {"index": 233, "angle": "refactor", "state": "REFUTED", "band": "Nit",
+  "file": "misc/gnopreview/plan.go", "line": 213,
+  "verify_by": "replace sortedKeys' body with `return slices.Sorted(maps.Keys(m))` and run cd misc/gnopreview && go test ./...: four subtests fail on nil vs empty",
+  "tldr": "the named fix is dead code: plan.Realms is assigned outright after the literal, so `Realms: []string{}` never survives",
+  "details": "The observation holds -- sortedKeys' make([]string, 0, len(m)) is the only reason an empty plan serialises as \"realms\": [] -- but the rewrite the candidate names cannot carry that guarantee. BuildPlan assigns plan.Realms = realms at plan.go:261, discarding whatever the Plan literal at plan.go:204 set. Applied whole (Realms/Dirs in the literal plus the one-line helper, plan.go 345 -> 341) the same four TestBuildPlan subtests go red, and a sentinel placed in the literal reaches no assertion at all. The only consumer of plan.json, jq at .github/workflows/pr-preview.yml:79, answers the same for null and for [], so no reader is relying on the shape either. Fix: none; if the empty-slice shape is wanted as a declared guarantee it takes a change at plan.go:261, not at the literal.",
+  "evidence": "In a scratch worktree at ecf7af0: literal init + one-line sortedKeys -> `--- FAIL: TestBuildPlan/nothing_relevant  plan_test.go:144: Realms = []; want []` and the same for gnoweb_alone, quarantined_packages_never_appear, tests_and_filetests_do_not_trigger_a_preview; `FAIL github.com/gnolang/gno/misc/gnopreview 0.004s`. `Realms: []string{\"SENTINEL\"}` in the literal alone -> `ok github.com/gnolang/gno/misc/gnopreview 0.003s`. jq on {\"realms\":null} and {\"realms\":[]} both print `no`. Baseline at head: `ok`.",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-233-realms-literal-is-overwritten.sh",
+  "base_behaves_the_same": false,
+  "refuted_by": "plan.go:261 `plan.Realms = realms`"},
+
+ {"index": 250, "angle": "refactor", "state": "CONFIRMED", "band": "Suggestion",
+  "file": "misc/gnopreview/plan_test.go", "line": 23,
+  "verify_by": "extract the body of BuildPlan after LoadPkgs into `func planFrom(pkgs map[string]*Pkg, changed []string, maxRealms int) *Plan`, have BuildPlan call it, and run cd misc/gnopreview && go test ./...",
+  "tldr": "the seam is mechanical and holds: planFrom lets a graph case be a Pkg literal instead of a directory tree, at +5 lines in plan.go",
+  "details": "The finder ran nothing; the extraction does hold. BuildPlan splits into LoadPkgs plus planFrom with no other edit, go vet is silent and the package stays green. A rewritten case proves the payoff: the transitive-dependents case and a cap case both express as a four-entry map[string]*Pkg literal with no files on disk. The cost claim is weaker than stated -- fakeRepo is built once per TestBuildPlan, not per subtest, and all ten subtests together run in 0.005s -- so the argument is expressiveness (a draft package, a cycle, a realm count above the cap become literals), not time. Fix: extract planFrom and move the graph cases of the table onto it, keeping one fakeRepo case for LoadPkgs.",
+  "evidence": "Scratch worktree at ecf7af0: plan.go 345 -> 350 lines, `go vet ./...` silent, `ok github.com/gnolang/gno/misc/gnopreview 0.004s`, and the literal-driven case `--- PASS: TestZZPlanFromLiteral (0.00s)`. plan_test.go's fakeRepo is lines 14-51 (38 lines) and TestBuildPlan holds 10 subtests, each calling BuildPlan and so LoadPkgs once.",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-250-planfrom-seam.sh",
+  "base_behaves_the_same": false},
+
+ {"index": 248, "angle": "refactor", "state": "REFUTED", "band": "Nit",
+  "file": "misc/gnopreview/plan_test.go", "line": 152,
+  "verify_by": "cd misc/gnopreview && go test ./... after (a) deleting plan_test.go:152-154 and (b) replacing Empty's body with `return p.Mode() == \"none\"`; both green",
+  "tldr": "those three lines are Empty()'s only test, and main.go and comment.go both branch on it",
+  "details": "Empty() and Mode() agree for every input today, so the assertion cannot fail while Empty() is correct -- that is what the finder measured, and it is what any passing assertion does. It is not dead weight: it is the package's only coverage of Plan.Empty(), which main.go:111 and comment.go:24 both gate on. Mutating Empty() to `return !p.Gnoweb` turns five TestBuildPlan subtests red at plan_test.go:153 with the three lines in place, and the whole package green once they are deleted -- a plan with realms would then emit no PR comment at all, undetected. Fix: keep the three lines.",
+  "evidence": "Scratch worktree at ecf7af0, mutant `func (p *Plan) Empty() bool { return !p.Gnoweb }`: lines kept (plan_test.go 278) -> `plan_test.go:153: Empty = true; want false` on one_realm, transitive_dependency_pulls_both_dependents, a_changed_test_realm_is_still_previewed, cap_keeps_the_changed_realm_and_reports_the_rest; lines deleted (plan_test.go 275) -> `ok github.com/gnolang/gno/misc/gnopreview 0.014s` with the mutant still in. The judge fixture reproduces it in-process: PASS at head, `zz_j248_test.go:41: Empty() = true for a plan with 1 realms` under the mutant.",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-248-empty-assertion-kills-mutant_test.go",
+  "base_behaves_the_same": false,
+  "refuted_by": "main.go:111 `if plan.Empty() {` and comment.go:24 `if p.Empty() {` — the deleted assertion is their only guard"}
+]}

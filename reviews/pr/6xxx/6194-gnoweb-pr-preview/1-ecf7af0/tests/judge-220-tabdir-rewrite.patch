@@ -1,0 +1,30 @@
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -151,7 +151,14 @@
+ 		return ""
+ 	}
+ 	u := urlOf(pkgPath)
+-	return fmt.Sprintf(" · [source](%s%s/_t/source/) · [help](%s%s/_t/help/)", base, u, base, u)
++	return fmt.Sprintf(" · [source](%s/%s) · [help](%s/%s)",
++		base, tabDir(u, "source"), base, tabDir(u, "help"))
++}
++
++// tabDir is the snapshot directory holding one tab of a realm's page, asked of
++// urlToFile so the comment's links cannot drift from what the crawler wrote.
++func tabDir(u, query string) string {
++	return path.Dir(urlToFile(u+"$"+query)) + "/"
+ }
+ 
+ func isSeed(pkgPath string, p *Plan) bool {
+@@ -171,9 +178,8 @@
+ 			continue
+ 		}
+ 		rows.WriteString(fmt.Sprintf(
+-			`    <li><a href="%s/"><code>gno.land%s</code></a> <a href="%s/_t/source/">source</a> <a href="%s/_t/help/">help</a></li>`+"\n",
+-			strings.TrimPrefix(path.Dir(urlToFile(u)), "/"), u,
+-			strings.TrimPrefix(path.Dir(urlToFile(u)), "/"), strings.TrimPrefix(path.Dir(urlToFile(u)), "/")))
++			`    <li><a href="%s/"><code>gno.land%s</code></a> <a href="%s">source</a> <a href="%s">help</a></li>`+"\n",
++			path.Dir(urlToFile(u)), u, tabDir(u, "source"), tabDir(u, "help")))
+ 	}
+ 	return fmt.Sprintf(`<!doctype html>
+ <meta charset="utf-8">

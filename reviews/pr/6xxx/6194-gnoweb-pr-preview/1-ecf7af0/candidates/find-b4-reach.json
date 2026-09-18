@@ -1,0 +1,114 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 166,
+      "angle": "reach",
+      "summary": "chromeShot runs Chrome with no deadline, and --virtual-time-budget does not bound the process",
+      "failure_scenario": "A pull request adds or edits a realm whose markdown embeds an external image, `![](http://slow.example/x.png)`. gnoweb's image policy (AllowSvgDataImage) rejects only non-svg data: URIs and Crawler.mapURL leaves external URLs alone, so the snapshot page keeps that <img>. ScreenshotPairs calls chromeShot on that page; the host accepts the connection and never answers, virtual time stops advancing, and Chrome never exits. exec.Command carries no context, so chromeShot blocks forever. pr-preview.yml sets no timeout-minutes, so the job holds a runner until GitHub's 360-minute default kills it, on every push, from any fork.",
+      "verify_by": "cp reviews/.../tests/b4-reach-chromeshot-hang_test.go misc/gnopreview/ && cd misc/gnopreview && go test -run TestChromeShot -v -timeout 5m .  — control returns in <1s, the stalled-subresource case is still running at 60s",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "TestChromeShotPlainPage: \"control returned in 810.479116ms\" PASS. TestChromeShotStalledSubresource: \"chromeShot still running after 1m0s\" FAIL (60.00s). Raw chromium probe with the exact flag set: plain rc=0, stalled page rc=124 under `timeout 90` and no PNG written. grep for timeout-minutes in .github/workflows/pr-preview.yml: no hit.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-reach-chromeshot-hang_test.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 150,
+      "angle": "reach",
+      "summary": "Screenshot is unreachable for a PR touching gnoweb and a realm, so the comment prints the gnoweb lead-in over an empty grid",
+      "failure_scenario": "A PR that edits gnoweb and a realm has plan.Gnoweb true and len(plan.ChangedRealms) > 0. main.go's `if len(plan.ChangedRealms) > 0 { Pairs } else if plan.Gnoweb { Shots }` takes the first arm, so plan.Shots stays nil even though the four shotPlan pages were crawled (plan.go:37-40 seeds them). comment.go:47-53 then writes \"This PR changes **gnoweb** and realm sources.\" followed by shotGrid(nil) — an empty string — so the reviewer is told gnoweb changed and shown no sample rendering.",
+      "verify_by": "go test ./misc/gnopreview -run TestComment with a Plan{Gnoweb: true, ChangedRealms: [\"gno.land/r/x/leaf\"], Shots: nil}: expect the gnoweb sample images, observe the sentence with nothing under it",
+      "band": "Suggestion",
+      "checked": true
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 87,
+      "angle": "reach",
+      "summary": "a failed before-shot is published as a lone after image, indistinguishable from a realm that is new",
+      "failure_scenario": "renderBase returns nil on any base-render failure, or chromeShot fails on the before page alone (shots.go:90-95). pair.Before stays \"\" while pair.New is false, and comment.go:106-113 attaches the explaining note only when New is true. The PR comment then shows one image with no caption, and the reader reads a realm that exists at the merge base as having no before state.",
+      "verify_by": "go test ./misc/gnopreview -run TestCommentPairs with ShotPair{Realm: \"gno.land/r/x/leaf\", After: \"_shots/a.png\", Before: \"\", New: false}: expect a note saying the before shot failed, observe a bare <img>",
+      "band": "Suggestion",
+      "checked": true
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 195,
+      "angle": "reach",
+      "summary": "findChrome silently ignores an explicit -chrome path that does not resolve",
+      "failure_scenario": "`gnopreview render -chrome /opt/chrom/chrome` (a typo, or a path absent from the runner image) falls through LookPath and Stat and the loop continues to google-chrome, chromium and the macOS bundle. The run screenshots with a browser the operator did not name and says nothing; the pinned-browser intent of the flag is lost, and a version-specific rendering difference is invisible.",
+      "verify_by": "read shots.go:195-213: the explicit candidate is one entry of the same slice as the fallbacks, with no error path when it fails both LookPath and Stat",
+      "band": "Nit",
+      "checked": true
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 177,
+      "angle": "reach",
+      "summary": "the viewport-only 1280x860 shot can make before and after identical while the diff sits below the fold",
+      "failure_scenario": "Chrome's --screenshot with --window-size=1280,860 captures the viewport, not the full page. A realm whose Render output changes below 860px produces two byte-similar images, and pairGrid presents them as \"before — merge base\" and \"after — this PR\": the comment asserts a comparison that shows none of the change.",
+      "verify_by": "run chromeShot over a fixture page whose only difference is at y=1200 and compare the two PNGs; expect a visible delta, observe none",
+      "band": "Suggestion",
+      "checked": true
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 153,
+      "angle": "reach",
+      "summary": "serve returns the listener as the Closer, so the http.Server is never shut down",
+      "failure_scenario": "Screenshot and ScreenshotPairs defer srv.Close() on the net.Listener. Serve returns, but the http.Server keeps its connections: Chrome's keep-alive connection to the snapshot server is neither drained nor closed, and the handler goroutine lives until the process exits. The //nolint comment on line 162 covers Serve's return and not the server's connections.",
+      "verify_by": "read shots.go:153-163: srv is an *http.Server, the returned io.Closer is ln, and nothing calls srv.Close or srv.Shutdown",
+      "band": "Nit",
+      "checked": true
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 134,
+      "angle": "reach",
+      "summary": "Screenshot reaches into c.pages while ScreenshotPairs uses the FileOf accessor",
+      "failure_scenario": "Two canonicalization paths for the same lookup: Screenshot does c.pages[canonicalURL(s.url)] directly, ScreenshotPairs calls head.FileOf. A later change to FileOf's key handling — a trailing-slash rule, a case fold — fixes one caller and leaves the other silently missing its pages, and a missing page here is a `continue` with no message.",
+      "verify_by": "grep -n 'c.pages\\[' misc/gnopreview/*.go: Screenshot is the only caller outside crawl.go that indexes the map instead of calling FileOf",
+      "band": "Nit",
+      "checked": true
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 76,
+      "angle": "reach",
+      "summary": "slug of a realm path could escape _shots or collide between two realms",
+      "settled_by": "read crawl.go:520-534: unsafeSeg replaces every [^A-Za-z0-9._-]+ with '-', strings.Trim cuts leading and trailing '-' and '.', and any input changed by that rewrite gets a sha256[:4] suffix, so a realm URL (always containing '/') is always hashed and can carry neither '..' nor '/'"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 89,
+      "angle": "reach",
+      "summary": "base.FileOf may return an unprefixed path, so the before shot would screenshot the head page",
+      "settled_by": "crawl.go:142 `p := &page{URL: u, File: path.Join(c.Prefix, urlToFile(u)), ...}` with main.go:265 `Prefix: beforeDir` — the base crawler's File already carries _before/, and rewrite's depth count uses the same p.File"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 173,
+      "angle": "reach",
+      "summary": "--no-sandbox renders untrusted fork HTML with the Chrome sandbox off",
+      "settled_by": ".github/workflows/pr-preview.yml:77 `cd misc/gnopreview && go build ... && cd -` plus the gnodev build and run: the same job already compiles and executes the fork's own Go and gno sources, so the renderer sandbox guards nothing the job does not already grant"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 187,
+      "angle": "reach",
+      "summary": "chromeShot's os.Stat check passes on a stale PNG left by an earlier run",
+      "settled_by": "shots.go:76 names each file slug(realm)+'-after.png' / '-before.png' and shots.go:138 uses the four fixed shotPlan names, each written at most once per run into a _preview directory the workflow creates fresh (pr-preview.yml:97-110); no path is written twice"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 107,
+      "angle": "reach",
+      "summary": "shotPlan's $source and $help URLs are never in c.pages, so two of the four gnoweb shots always skip",
+      "settled_by": "plan.go:37-40 seeds gno.land/r/gnoland/home, r/docs/security_patterns and r/gnoland/boards2/v0 for a gnoweb plan, and crawl.go:80-90 Seeds() adds u, u+\"$source\" and u+\"$help\" for each when RenderOnly is false; canonicalURL leaves a single-argument query unchanged, so all four shotPlan keys match"
+    }
+  ]
+}

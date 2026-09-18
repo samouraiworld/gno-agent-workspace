@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 194,
+      "angle": "tests",
+      "summary": "every Comment test passes a non-empty base URL, so the empty-base rendering mode -- the flag's own default -- is unpinned",
+      "failure_scenario": "main.go:71 declares -base-url with default \"\", so `gnopreview` run without it calls Comment(plan, \"\", pr). comment.go then takes four base==\"\" branches nobody tests: link() falls back to a bare backticked path, tabs() returns \"\", and pairGrid/shotGrid return \"\" so a realm PR gets a comment with no screenshots and no links at all. Replacing every `base == \"\"` in comment.go with a literal that never matches leaves `go test ./misc/gnopreview/...` green, so any regression in that mode -- an emitted `[`x`](/r/x/y/)` relative link, a nil-base panic -- ships unseen.",
+      "verify_by": "in a scratch worktree at ecf7af0: sed -i 's|base == \"\"|base == \"\\\\x00\"|g' comment.go && go test ./... ; expect a failure, observe ok",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "M3 every base==\"\" guard: GREEN (mutation survives) -- `go test ./...` prints `ok github.com/gnolang/gno/misc/gnopreview`. Control mutation C1 (renderRelevant test-file skip) goes RED, so the harness works.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-tests-r2-mutation-green.sh"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 220,
+      "angle": "tests",
+      "summary": "the only Shots fixture holds one element, so shotGrid's two-per-row wrap is never executed, while production always produces up to four",
+      "failure_scenario": "shots.go's shotPlan has four entries (home, source, help, docs), so a gnoweb-mode run hands shotGrid four Shots and comment.go:137 emits `</tr><tr>` after the second. TestCommentGnowebHasShots passes exactly one Shot, so the wrap branch never runs. Changing `i%2 == 0` to `i%2 == 99` -- which makes every gnoweb comment a single four-cell row, each image at width=\"50%\" inside a one-row table -- keeps the suite green, so the layout the PR's own screenshots depend on is asserted by nothing.",
+      "verify_by": "sed -i 's|if i > 0 && i%2 == 0 {|if i > 0 \\&\\& i%2 == 99 {|' comment.go && go test ./... ; expect a failure, observe ok",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "M1 shotGrid row-wrap i%2: GREEN (mutation survives). shots.go:107-112 shotPlan carries 4 entries, so the untested branch is the production path.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-tests-r2-mutation-green.sh"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 30,
+      "angle": "tests",
+      "summary": "every fixture .gno file parses, so gnoImports' documented best-effort recovery from a broken PR is mutation-green",
+      "failure_scenario": "plan.go:179 carries the claim `a PR that does not compile still gets a best-effort plan` and implements it as `continue` past a parse error. fakeRepo only ever writes well-formed sources, so replacing that `continue` with `return nil` -- which drops every import of every package as soon as one file in it fails to parse, collapsing the dependents graph and silently previewing zero affected realms on exactly the PRs the claim is about -- leaves the suite green.",
+      "verify_by": "sed -i 's|continue // a PR that does not compile.*|return nil|' plan.go && go test ./... ; expect a failure, observe ok. Then add a fixture package whose lib.gno is `package x\\nimport (` and assert its dependents still resolve.",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "M5 gnoImports parse-error continue: GREEN (mutation survives).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-tests-r2-mutation-green.sh"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 28,
+      "angle": "tests",
+      "summary": "every fixture package has both a gnomod.toml and a non-test .gno file, so LoadPkgs' package-detection guard can be deleted and the suite stays green",
+      "failure_scenario": "plan.go:133 `if !hasMod || len(files) == 0 { return nil }` is what stops LoadPkgs registering `examples/gno.land`, `examples/gno.land/r/x` and any test-only directory as packages. fakeRepo's `pkg` helper always writes the pair, so no case distinguishes the two halves. Turning the guard into `if !hasMod && false` -- which registers every walked directory, including `examples/gno.land/r/x` whose path contains `/r/` and is therefore flagged Realm:true and becomes a renderable preview target -- leaves the suite green.",
+      "verify_by": "sed -i 's#if !hasMod || len(files) == 0 {#if !hasMod \\&\\& false {#' plan.go && go test ./... ; expect a failure, observe ok. A case needs a directory with gnomod.toml and only `lib_test.gno`, and one with `lib.gno` and no gnomod.toml.",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "M4 LoadPkgs guard: GREEN. `grep -n \"hasMod && false\" plan.go` -> `133:\\t\\tif !hasMod && false {`, then `go test ./...` -> ok.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-tests-r2-mutation-green.sh"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 80,
+      "angle": "tests",
+      "summary": "no case has a changed realm sorting after an unchanged affected one without a cap, so the re-sort that restores alphabetical order is unpinned",
+      "failure_scenario": "BuildPlan reorders realms changed-first (plan.go:253) for the cap, then restores alphabetical order at plan.go:260 before Realms, Dirs and the index page are built from it. The only case where the reorder bites is `cap keeps the changed realm and reports the rest`, which truncates to one element, so the restore is a no-op in every case. Replacing `sort.Strings(realms)` with `_ = realms` -- after which a PR changing `r/x/other` plus `p/x/base` reports Realms as [other, leaf] and renders the index and the Dirs list in that order -- leaves the suite green.",
+      "verify_by": "sed -i '260s|^\\tsort.Strings(realms)$|\\t_ = realms|' plan.go && go test ./... ; expect a failure, observe ok. A case changing `examples/gno.land/r/x/other/lib.gno` plus `examples/gno.land/p/x/base/v0/lib.gno` with no cap must want [leaf, other].",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "M2 plan.go final sort.Strings(realms): GREEN (mutation survives).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-tests-r2-mutation-green.sh"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 133,
+      "angle": "tests",
+      "summary": "the helper's zero-sentinel makes the documented `0 for no cap` mode unreachable from the table, so it is never exercised",
+      "failure_scenario": "main.go:73 documents -max-realms as `cap on rendered realms; 0 for no cap`, and plan.go:256 implements it as `maxRealms > 0`. The subtest maps a zero tc.maxRealms to defaultMaxRealms, so no case can ever pass 0 to BuildPlan: the table's own defaulting hides the mode. Changing the guard to `maxRealms >= 0` -- after which -max-realms=0 truncates Realms to empty and every PR run without a cap previews nothing -- leaves the suite green.",
+      "verify_by": "sed -i 's#if maxRealms > 0 && len(realms) > maxRealms {#if maxRealms >= 0 \\&\\& len(realms) > maxRealms {#' plan.go && go test ./... ; expect a failure, observe ok. The fix is a `*int` or a -1 sentinel in the table so 0 reaches BuildPlan.",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "M8 maxRealms>0 no-cap sentinel: GREEN (mutation survives).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-tests-r2-mutation-green.sh"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 199,
+      "angle": "tests",
+      "summary": "TestCommentRealms asserts the source tab and not the help tab, so half of tabs() can be deleted and the test stays green",
+      "failure_scenario": "tabs() emits both ` · [source](.../_t/source/)` and ` · [help](.../_t/help/)` on every changed and indirectly affected realm. The want list asserts only the source URL. Deleting the help half of the format string and its two arguments leaves the suite green, so the help link -- the one that shows a realm's exported functions, the stated reason the boards2 seed is in the sample -- can vanish from every comment without a test noticing.",
+      "verify_by": "sed -i 's| · \\[help\\](%s%s/_t/help/)||; s|, base, u, base, u)|, base, u)|' comment.go && go test ./... ; expect a failure, observe ok",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "M6 tabs() help link: GREEN (mutation survives).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-tests-r2-mutation-green.sh"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 47,
+      "angle": "tests",
+      "summary": "suspected the indirect-dependency Ignore filter (plan.go:241) was unpinned like its direct-change twin",
+      "settled_by": "sed -i 's#if !pkgs[p].Realm || pkgs[p].Ignore {#if !pkgs[p].Realm {#' plan.go && go test ./... -> RED: `plan_test.go:150: Dropped = 2; want 1` in TestBuildPlan/cap_keeps_the_changed_realm_and_reports_the_rest. The ignored realm imports p/x/base, so it enters the affected set and the cap case counts it."
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 181,
+      "angle": "tests",
+      "summary": "suspected TestCommentEmptyIsSilent passed for a reason other than the Empty() guard, since Comment writes the marker and heading into the builder before checking it",
+      "settled_by": "read of comment.go:17-26 and 85-93: with the `if p.Empty() { return \"\" }` guard removed, an empty Plan takes the default branch and still reaches the `<sub>Static snapshot ...</sub>` footer at comment.go:88, so the returned string is non-empty and the test goes red. The guard is pinned."
+    }
+  ]
+}

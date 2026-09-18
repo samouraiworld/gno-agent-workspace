@@ -1,0 +1,50 @@
+# b7-refactor-mustrel.patch — PR 6194 (gnolang/gno), head ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#
+# mustRel is a 7-line panicking helper with one call site, inside a WalkDir callback that already returns error. Inlining filepath.Rel: 10 lines -> 5, and plan.go stops importing fmt.
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno.git && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+#
+# Measured at ecf7af0 with go1.25.9: gofmt silent, vet silent,
+#   "ok  github.com/gnolang/gno/misc/gnopreview  0.005s"
+# Baseline (unpatched) at the same head: same "ok" line.
+diff --git a/misc/gnopreview/plan.go b/misc/gnopreview/plan.go
+index 4828aac3e..224a70a9d 100644
+--- a/misc/gnopreview/plan.go
++++ b/misc/gnopreview/plan.go
+@@ -1,7 +1,6 @@
+ package main
+ 
+ import (
+-	"fmt"
+ 	"go/parser"
+ 	"go/token"
+ 	"io/fs"
+@@ -133,7 +132,11 @@ func LoadPkgs(root string) (map[string]*Pkg, error) {
+ 		if !hasMod || len(files) == 0 {
+ 			return nil
+ 		}
+-		rel := filepath.ToSlash(mustRel(root, p))
++		rel, err := filepath.Rel(root, p)
++		if err != nil {
++			return err
++		}
++		rel = filepath.ToSlash(rel)
+ 		pkg := &Pkg{
+ 			Path:  strings.TrimPrefix(rel, examplesRel+"/"),
+ 			Dir:   rel,
+@@ -335,11 +338,3 @@ func hasPrefixAny(s string, prefixes []string) bool {
+ func contains(s []string, v string) bool {
+ 	return slices.Contains(s, v)
+ }
+-
+-func mustRel(base, p string) string {
+-	r, err := filepath.Rel(base, p)
+-	if err != nil {
+-		panic(fmt.Sprintf("rel %q %q: %v", base, p, err))
+-	}
+-	return r
+-}

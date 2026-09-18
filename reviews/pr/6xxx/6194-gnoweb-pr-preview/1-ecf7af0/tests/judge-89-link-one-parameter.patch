@@ -1,0 +1,60 @@
+# judge-89-link-one-parameter.patch — candidate #89 in isolation, misc/gnopreview/
+# comment.go, gnolang/gno PR 6194, head ecf7af0f29abe4737a52803d672bc5a33c17cc60.
+# Asserts: link's two arguments are never independent; one parameter renders the
+# same bytes. 196 -> 196 lines (closure 6 -> 6); the saving is the signature, not
+# length. The golden digest is non-vacuous here: replacing urlOf(pkgPath) with
+# pkgPath fails TestRefactorGolden.
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin ecf7af0f29abe4737a52803d672bc5a33c17cc60 && git checkout FETCH_HEAD
+#   cp <round>/tests/b5-refactor-comment-golden_test.go misc/gnopreview/
+#   (cd misc/gnopreview && go test -run TestRefactorGolden ./...)   # PASS at head
+#   git apply <this file>
+#   (cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...)  # still PASS
+diff --git a/misc/gnopreview/comment.go b/misc/gnopreview/comment.go
+index 7d2229734..605df6a6a 100644
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -26,11 +26,11 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 	}
+ 
+ 	base := strings.TrimSuffix(baseURL, "/")
+-	link := func(urlPath, label string) string {
++	link := func(pkgPath string) string {
+ 		if base == "" {
+-			return "`" + label + "`"
++			return "`" + pkgPath + "`"
+ 		}
+-		return fmt.Sprintf("[`%s`](%s%s/)", label, base, urlPath)
++		return fmt.Sprintf("[`%s`](%s%s/)", pkgPath, base, urlOf(pkgPath))
+ 	}
+ 
+ 	switch p.Mode() {
+@@ -41,7 +41,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 		}
+ 		b.WriteString(shotGrid(p.Shots, base))
+ 		for _, r := range p.Realms {
+-			b.WriteString("- " + link(urlOf(r), r) + "\n")
++			b.WriteString("- " + link(r) + "\n")
+ 		}
+ 	default:
+ 		if p.Gnoweb {
+@@ -60,7 +60,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 		if len(p.ChangedRealms) > 0 {
+ 			b.WriteString(fmt.Sprintf("**Changed realms (%d)**\n\n", len(p.ChangedRealms)))
+ 			for _, r := range p.ChangedRealms {
+-				b.WriteString("- " + link(urlOf(r), r) + tabs(base, r) + "\n")
++				b.WriteString("- " + link(r) + tabs(base, r) + "\n")
+ 			}
+ 			b.WriteString("\n")
+ 		}
+@@ -77,7 +77,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 				b.WriteString("_changed: " + "`" + strings.Join(p.ChangedPkgs, "`, `") + "`_\n\n")
+ 			}
+ 			for _, r := range indirect {
+-				b.WriteString("- " + link(urlOf(r), r) + tabs(base, r) + "\n")
++				b.WriteString("- " + link(r) + tabs(base, r) + "\n")
+ 			}
+ 		}
+ 	}

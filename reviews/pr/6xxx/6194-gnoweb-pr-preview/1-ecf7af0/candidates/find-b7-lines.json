@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 258,
+      "angle": "lines",
+      "summary": "the -max-realms cap truncates Realms but not ChangedRealms, so the posted comment links preview pages that were never rendered",
+      "failure_scenario": "A PR that touches more realm packages than -max-realms (default 25): 09a7530a6 (#6162, merged) changed 35 distinct realm package dirs. BuildPlan sorts changed realms first, then cuts `realms` to 25; ChangedRealms is built at line 231 before the cut and is never filtered. plan.Dirs follows the cut list, so gnodev is never started with the other 10 realms and the crawler writes no page for them. Comment() (comment.go:62) still emits a `[`gno.land/r/...`](baseURL/r/.../)` link for every ChangedRealms entry, so 10 of the 35 links 404 on the preview site, and comment.go:86 prints \"the changed realms are always kept\" under them.",
+      "verify_by": "cp the repro into misc/gnopreview and run `go test ./... -run Cap -v`: BuildPlan with 30 changed realms and defaultMaxRealms=25 returns 30 ChangedRealms and 25 Realms, 5 of the changed realms absent from Realms/Dirs",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "go test ./... -run Cap -v in a detached worktree at ecf7af0f2: `changed=30 rendered=25 dropped=5` then `5 changed realm(s) are listed by Comment() but never rendered: [gno.land/r/x/raz gno.land/r/x/rba gno.land/r/x/rbb gno.land/r/x/rbc gno.land/r/x/rbd]`, --- FAIL: TestChangedRealmsSurviveTheCap. Scale check: `git show --name-only 09a7530a6 -- examples/gno.land/r | grep .gno | xargs -n1 dirname | sort -u | wc -l` = 35 distinct realm dirs.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-lines-changed-realms-dropped-by-cap.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 266,
+      "angle": "lines",
+      "summary": "the four gnoweb seed realms are appended after the cap, so Realms can exceed -max-realms and Dropped does not count them",
+      "failure_scenario": "Any PR that touches gno.land/pkg/gnoweb/, gno.land/cmd/gnoweb/ or contribs/gnodev/ sets Gnoweb, and the seed loop appends up to four realms to plan.Realms with no cap check, after realms[:maxRealms] has already run. With -max-realms=1 the plan renders 5 realms and reports Dropped=0, so the knob the workflow uses to bound gnodev boot and crawl time is exceeded by up to four realms with nothing said in the comment.",
+      "verify_by": "go test ./... -run Cap -v: BuildPlan with a gnoweb change, one changed realm and maxRealms=1 returns len(Realms)=5",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "`max-realms=1 rendered=5 dropped=0 realms=[gno.land/r/docs/security_patterns gno.land/r/gnoland/blog gno.land/r/gnoland/boards2/v0 gno.land/r/gnoland/home gno.land/r/x/leaf]`, --- FAIL: TestGnowebSeedsRespectTheCap",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-lines-changed-realms-dropped-by-cap.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 58,
+      "angle": "lines",
+      "summary": "Pkg.Draft is parsed from every gnomod.toml and never read",
+      "failure_scenario": "modFlags parses `draft = true` for every package in examples/gno.land (line 142) and nothing ever consults pkg.Draft: BuildPlan filters on Ignore alone (lines 220, 251). A draft realm such as gno.land/r/demo/draftrealm is therefore planned, started and linked like a deployed one, and a reader of the field believes drafts are handled. Either the field decides something or it goes, with modFlags reduced to the ignore flag.",
+      "verify_by": "grep -rn 'Draft' misc/gnopreview -- only plan.go:58 (the declaration) and plan.go:142 (the write) match, no read",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn \"Draft\\|Dropped\\|ChangedPkgs\" misc/gnopreview: the only Draft hits are plan.go:58 `Draft bool // gnomod.toml: draft = true` and plan.go:142 `pkg.Draft, pkg.Ignore = modFlags(...)`. `grep -rl 'draft = true' examples/gno.land` = examples/gno.land/r/demo/draftrealm/gnomod.toml.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 265,
+      "angle": "lines",
+      "summary": "a seed realm that no longer resolves is silently skipped, and the seed list is already pinned to a versioned path",
+      "failure_scenario": "`if pkgs[r] != nil` drops a seed whose path moved, with no log and no field in the plan. gno.land/r/gnoland/boards2/v0 is version-suffixed and 23270e5f0 (#6172) renumbered boards2 to /v0 in the first place, so the next bump silently removes the $help-forms page the seed comment says the gnoweb preview covers, and the reviewer of a gnoweb PR sees a smaller sample with nothing saying so. In the degenerate case where no seed resolves, Gnoweb is true with zero realms, Empty() is false (plan.go:91) and render indexes plan.Realms[0].",
+      "verify_by": "ls examples/gno.land/r/gnoland/boards2 -- the seed is pinned at v0; git log --oneline --diff-filter=R on the realm shows the version-renumbering commit 23270e5f0",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "All four seeds resolve at this head (ls of each dir shows gnomod.toml plus non-test .gno files), so the skip is latent today; 23270e5f0 `chore(examples)!: renumber boards2 and namereg to /v0 (#6172)` is the precedent for the path moving.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 131,
+      "angle": "lines",
+      "summary": "render indexes plan.Realms[0] on a state Empty() declares non-empty and plan_test.go asserts",
+      "failure_scenario": "Empty() is `!Gnoweb && len(Realms) == 0`, so a plan with Gnoweb true and no realms passes the guard at main.go:111 and `waitReady(c.Base, urlOf(plan.Realms[0]), ...)` panics with index out of range. plan_test.go:112 builds exactly that plan -- case \"gnoweb alone\", `wantRealms: []string{} // the seed realms do not exist in the fake repo`, and asserts Empty() is false -- so the unit test pins the state the binary cannot survive. A `len(plan.Realms) == 0` branch that renders the gnoweb-only plan without a realm, or an Empty() that also checks Realms, closes it.",
+      "verify_by": "read plan_test.go:108-118 against main.go:111-131: the fixture asserts Empty()==false with zero Realms, and the next use of plan.Realms is an unguarded [0]",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan_test.go case \"gnoweb alone\": wantRealms empty, wantMode \"gnoweb\", and the table asserts `got.Empty() != (tc.wantMode == \"none\")`. main.go:131 `if err := waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout, died); err != nil {`.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 161,
+      "angle": "lines",
+      "summary": "modFlags matches whole lines after stripping spaces only, so an ignore flag with a trailing comment or a tab is missed",
+      "failure_scenario": "`strings.ReplaceAll(strings.TrimSpace(line), \" \", \"\")` compared against \"ignore=true\" misses `ignore = true # not deployable`, a tab-separated `ignore\\t=\\ttrue`, and `ignore = true` under a non-root table; it also matches a `draft = true` line inside a multi-line string. A missed ignore flag puts a package the author opted out of into plan.Dirs, so gnodev is asked to load it and the comment links it. No gnomod.toml in examples/gno.land uses ignore today, so nothing catches a regression here.",
+      "verify_by": "grep -rn 'ignore' examples/gno.land --include=gnomod.toml returns nothing, so the branch has no live input; a unit test on modFlags with `ignore = true # reason` returns false",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "`grep -rl \"ignore = true\" examples/gno.land | wc -l` = 0; the only draft flag is examples/gno.land/r/demo/draftrealm/gnomod.toml.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 179,
+      "angle": "lines",
+      "summary": "a realm whose source does not parse silently loses every import edge, so it drops out of the affected set",
+      "failure_scenario": "gnoImports skips a file parser.ParseFile rejects, so a realm mid-edit with a syntax error contributes no entries to `rev` in dependents(). A PR that changes a p/ package and leaves one importing realm briefly unparseable gets a preview that quietly omits that realm, and the comment's \"Realms affected through a changed package (N)\" count is short by one with nothing saying why. A count of skipped files on the plan would let the comment say so.",
+      "verify_by": "add a file with a syntax error to a realm in the plan_test fake repo, change the package it imports, and observe the realm absent from plan.Realms",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:179 `continue // a PR that does not compile still gets a best-effort plan`; nothing on Plan records the skip and no caller logs it.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 140,
+      "angle": "lines",
+      "summary": "Realm is decided by strings.Contains(rel, \"/r/\") rather than a prefix, so a package under examples/gno.land/p/.../r/ would be treated as a realm",
+      "settled_by": "find examples/gno.land/p -type d -name r returns nothing, so no pure package sits under an r directory at this head"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 295,
+      "angle": "lines",
+      "summary": "dependents() BFS could enqueue a path absent from pkgs, making pkgs[p].Realm a nil dereference at plan.go:250",
+      "settled_by": "rev is built from p.Path of entries in pkgs (plan.go:297-300) and the seeds are byDir hits (plan.go:220), so every queued key is a pkgs key; go test ./... in misc/gnopreview passes with the full fake repo"
+    }
+  ]
+}

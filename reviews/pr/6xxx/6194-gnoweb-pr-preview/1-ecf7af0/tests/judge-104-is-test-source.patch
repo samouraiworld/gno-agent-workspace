@@ -1,0 +1,54 @@
+# judge-104-is-test-source.patch — PR 6194 (gnolang/gno), head ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#
+# The "_test.gno" / "_filetest.gno" predicate is spelled twice in plan.go: in
+# LoadPkgs's file-list switch and in renderRelevant. One isTestSource() used by
+# both makes them impossible to split. Not a line saving: 9 lines added, 2
+# removed (3 of the 9 are the doc comment).
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno.git && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && \
+#     go test -count=1 -run 'TestRenderRelevant|TestBuildPlan' -v .
+#
+# Measured at ecf7af0 with go1.25.9: gofmt silent, vet silent,
+#   "--- PASS: TestRenderRelevant", "--- PASS: TestBuildPlan" (10 subtests,
+#   including "tests_and_filetests_do_not_trigger_a_preview"), "ok ... 0.004s".
+# Baseline (unpatched) at the same head: same "ok" line.
+diff --git a/misc/gnopreview/plan.go b/misc/gnopreview/plan.go
+index 4828aac3e..9f907745d 100644
+--- a/misc/gnopreview/plan.go
++++ b/misc/gnopreview/plan.go
+@@ -125,7 +125,7 @@ func LoadPkgs(root string) (map[string]*Pkg, error) {
+ 			case e.Name() == "gnomod.toml":
+ 				hasMod = true
+ 			case e.IsDir() || !strings.HasSuffix(e.Name(), ".gno"):
+-			case strings.HasSuffix(e.Name(), "_test.gno"), strings.HasSuffix(e.Name(), "_filetest.gno"):
++			case isTestSource(e.Name()):
+ 			default:
+ 				files = append(files, filepath.Join(p, e.Name()))
+ 			}
+@@ -281,7 +281,7 @@ func BuildPlan(root string, changed []string, maxRealms int) (*Plan, error) {
+ func renderRelevant(f string) bool {
+ 	base := path.Base(f)
+ 	switch {
+-	case strings.HasSuffix(base, "_test.gno"), strings.HasSuffix(base, "_filetest.gno"):
++	case isTestSource(base):
+ 		return false
+ 	case strings.Contains(f, "/filetests/"):
+ 		return false
+@@ -336,6 +336,13 @@ func contains(s []string, v string) bool {
+ 	return slices.Contains(s, v)
+ }
+ 
++// isTestSource reports whether a .gno file name is a test or filetest source.
++// A test source neither belongs to a package's deployable file list nor can
++// change what a realm renders, so LoadPkgs and renderRelevant must agree on it.
++func isTestSource(name string) bool {
++	return strings.HasSuffix(name, "_test.gno") || strings.HasSuffix(name, "_filetest.gno")
++}
++
+ func mustRel(base, p string) string {
+ 	r, err := filepath.Rel(base, p)
+ 	if err != nil {

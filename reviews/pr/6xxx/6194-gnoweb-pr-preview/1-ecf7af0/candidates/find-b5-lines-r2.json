@@ -1,0 +1,99 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 106,
+      "angle": "lines",
+      "summary": "a merge-base render that failed is indistinguishable, in the posted comment, from a realm that had nothing to compare against",
+      "failure_scenario": "renderBase (main.go:231-280) returns a nil *Crawler on five paths - empty -base-root, startGnodev error, waitReady timeout, base.Run error, base.Write error - each reporting to stderr only. ScreenshotPairs (shots.go:96) then leaves Before empty while New stays false, since newRealms only marks realms absent from baseRoot. pairGrid's `if p.Before == \"\"` branch renders the after shot alone with note == \"\", so the comment a reviewer reads carries the realm name, one image, and no word about the baseline. A reviewer approving a realm change on that comment believes the screenshot was compared against the merge base when nothing was rendered there.",
+      "verify_by": "go test ./... -run 'B5Baseline|B5NewRealm' -v in misc/gnopreview at ecf7af0f2 with the artifact test: expect the comment to name the missing baseline, observe a body byte-identical to the New-realm body minus its <sub> note",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Both tests PASS at ecf7af0f2. Body emitted for the failed-baseline plan: \"### 🖼️ gnoweb preview\\n\\n**`gno.land/r/x/leaf`**\\n\\n<a href=\\\"https://example.test/pr-1/r/x/leaf/\\\"><img src=\\\"https://example.test/pr-1/_shots/a.png\\\" width=\\\"600\\\" alt=\\\"gno.land/r/x/leaf\\\"></a>\\n\\n**Changed realms (1)**\" - no occurrence of before, merge base, baseline, compare or unavailable. TestB5NewRealmAndFailedBaselineAreTheSameMarkup passes, so strings.ReplaceAll(newRealm, \"\\n\\n<sub>New in this PR — nothing to compare against.</sub>\", \"\") == failedBase exactly.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-lines-r2-baseline-unannounced.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 75,
+      "angle": "lines",
+      "summary": "the indirect heading tells the reader a package changed when the only changed package is a realm",
+      "failure_scenario": "indirect is every entry of p.Realms that is not a changed realm, but dependents() walks reverse imports of every changed pkg, realms included. A PR touching only gno.land/r/x/lib, imported by gno.land/r/x/app, leaves ChangedPkgs empty and p.Realms == [r/x/app, r/x/lib]; the comment then prints '**Realms affected through a changed package (1)**' and skips the `_changed:` line that would list the package, so the heading names a cause the PR does not have and the reader has nothing to reconcile it against.",
+      "verify_by": "Comment(&Plan{ChangedRealms: []string{\"gno.land/r/x/lib\"}, Realms: []string{\"gno.land/r/x/app\", \"gno.land/r/x/lib\"}}, \"https://e.test/pr-4\", \"4\") in misc/gnopreview: expect no package claim, observe the heading with ChangedPkgs empty",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "TestB5IndirectHeadingWithNoChangedPkg PASS: output carries '**Realms affected through a changed package (1)**' followed directly by the r/x/app bullet, with no `_changed:` line, because len(p.ChangedPkgs) == 0 skips comment.go:77.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-lines-r2-baseline-unannounced.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 52,
+      "angle": "lines",
+      "summary": "with no -base-url the gnoweb-and-realms intro is followed by one newline, so the next block joins its paragraph",
+      "failure_scenario": "The blank line after the intro comes from the homepage link's own trailing \\n plus line 52's \\n; when base == \"\" the link is skipped, line 52 writes the only newline, and markdown folds 'This PR changes **gnoweb** and realm sources.' and '**Changed realms (1)**' into one paragraph. base == \"\" is a supported mode - link() and tabs() both branch on it - so a local run without -base-url prints a comment.md nobody can read as intended.",
+      "verify_by": "Comment(&Plan{Gnoweb: true, ChangedRealms: []string{\"gno.land/r/x/leaf\"}, ChangedPkgs: []string{\"gno.land/p/x/b\"}, Realms: []string{\"gno.land/r/x/leaf\"}}, \"\", \"3\"): expect a blank line before the next block, observe a single \\n",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "TestB5NoBaseURLGluesParagraph PASS, output quoted: \"...This PR changes **gnoweb** and realm sources. \\n**Changed realms (1)**\\n\\n- `gno.land/r/x/leaf`...\" - one \\n, and a trailing space before it.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-lines-r2-baseline-unannounced.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 170,
+      "angle": "lines",
+      "summary": "the index row guards only the realm link; the source and help links beside it are emitted whether or not those pages were captured",
+      "failure_scenario": "Seeds() queues u, u+\"$source\" and u+\"$help\" per realm, and Run() skips any of the three on a transport error or a non-200 with a stderr line and a continue. So c.pages can hold /r/x/leaf while /r/x/leaf$help is absent, and Index still writes <a href=\"r/x/leaf/_t/help/\">help</a>. The reader of the published index clicks a 404 on a page whose sibling link was checked one expression earlier.",
+      "verify_by": "read comment.go:169-176 against crawl.go:75-105 and 130-146: the guard reads c.pages[u] only, while the row emits three hrefs derived from u, u+$source and u+$help",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 55,
+      "angle": "lines",
+      "summary": "the before/after cap is invisible in the comment, unlike the realm cap the same comment announces",
+      "failure_scenario": "ScreenshotPairs stops at maxPairs (shots.go:28, 2) and prints 'the rest are listed as links' to stderr; it also drops any realm whose after shot failed. pairGrid renders what survives and says nothing, so a PR changing five realms shows two image pairs under '**Changed realms (5)**' and the reader cannot tell a capped realm from one whose screenshot failed. The Dropped note at line 86 shows the code does announce its other cap.",
+      "verify_by": "read comment.go:99-107 and shots.go:66-72: no branch of pairGrid reads a cap or a failure count, and Plan carries none",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 74,
+      "angle": "lines",
+      "summary": "sort.Strings(indirect) can never reorder anything; indirect is appended in the order of the already-sorted p.Realms",
+      "failure_scenario": "plan.go sorts realms at line 259 and sorts plan.Realms again after the gnoweb seeds are appended, so every construction of p.Realms is sorted. indirect is built by a single forward range over it, and the sort is a no-op on every input the program can produce - a line that reads as a guarantee the caller already owns.",
+      "verify_by": "grep -n 'sort.Strings(realms)\\|sort.Strings(plan.Realms)\\|plan.Realms = ' misc/gnopreview/plan.go: every assignment to Realms is followed by a sort, so the input to line 74 is ordered",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 146,
+      "angle": "lines",
+      "summary": "shotGrid's i%2 == 0 row break suspected off by one, leaving a stray row for an odd shot count",
+      "settled_by": "read comment.go:145-152: i > 0 && i%2 == 0 opens a row at i=2,4,... so cells pair as (0,1),(2,3); an odd last shot sits alone in a half-width cell, which is cosmetic and not a broken table"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 162,
+      "angle": "lines",
+      "summary": "tabs() builds _t/source/ and _t/help/ by hand and may not match the crawler's own file layout",
+      "settled_by": "urlToFile (crawl.go:486-503) puts the $-query under _t/slug(query)/index.html, so /r/x/leaf$source maps to r/x/leaf/_t/source/index.html and the hand-built link resolves; plan_test.go:197 pins the same string"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 116,
+      "angle": "lines",
+      "summary": "pairGrid may emit an empty img src when the after screenshot failed",
+      "settled_by": "shots.go:80-84: a failed chromeShot for the after image runs `continue` before the pair is appended, so every ShotPair in p.Pairs has a non-empty After"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+# b5-refactor-r2: comment.go:149 link+tabs compute urlOf(r) twice for every realm bullet.
+#
+# Each bullet is built as `link(urlOf(r), r) + tabs(base, r)`, and tabs calls urlOf(pkgPath)
+# again on the same argument; the three bullet sites (44, 63, 80) spell the concatenation
+# out by hand, and the one at 44 silently omits tabs. One realmItem(base, pkgPath) computes
+# urlOf once and carries all three: the link closure (6 lines) and tabs (8) become one
+# 8-line function, 196 -> 191 lines. The gnoweb branch gains the source/help shortcuts the
+# other two branches already have, which is the only output change.
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <path to this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+# Measured at ecf7af0f2 with go1.25.9: gofmt silent, vet silent,
+#   "ok  github.com/gnolang/gno/misc/gnopreview  0.004s"
+diff --git a/misc/gnopreview/comment.go b/misc/gnopreview/comment.go
+index 7d2229734..b7f2e34d4 100644
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -26,12 +26,6 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 	}
+ 
+ 	base := strings.TrimSuffix(baseURL, "/")
+-	link := func(urlPath, label string) string {
+-		if base == "" {
+-			return "`" + label + "`"
+-		}
+-		return fmt.Sprintf("[`%s`](%s%s/)", label, base, urlPath)
+-	}
+ 
+ 	switch p.Mode() {
+ 	case "gnoweb":
+@@ -41,7 +35,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 		}
+ 		b.WriteString(shotGrid(p.Shots, base))
+ 		for _, r := range p.Realms {
+-			b.WriteString("- " + link(urlOf(r), r) + "\n")
++			b.WriteString(realmItem(base, r))
+ 		}
+ 	default:
+ 		if p.Gnoweb {
+@@ -60,7 +54,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 		if len(p.ChangedRealms) > 0 {
+ 			b.WriteString(fmt.Sprintf("**Changed realms (%d)**\n\n", len(p.ChangedRealms)))
+ 			for _, r := range p.ChangedRealms {
+-				b.WriteString("- " + link(urlOf(r), r) + tabs(base, r) + "\n")
++				b.WriteString(realmItem(base, r))
+ 			}
+ 			b.WriteString("\n")
+ 		}
+@@ -77,7 +71,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 				b.WriteString("_changed: " + "`" + strings.Join(p.ChangedPkgs, "`, `") + "`_\n\n")
+ 			}
+ 			for _, r := range indirect {
+-				b.WriteString("- " + link(urlOf(r), r) + tabs(base, r) + "\n")
++				b.WriteString(realmItem(base, r))
+ 			}
+ 		}
+ 	}
+@@ -145,13 +139,14 @@ func shotGrid(shots []Shot, base string) string {
+ 	return b.String()
+ }
+ 
+-// tabs adds the source/help shortcuts next to a realm link.
+-func tabs(base, pkgPath string) string {
++// realmItem renders one realm bullet: the render link and its source and help
++// shortcuts, or the bare package path when there is nowhere to link to.
++func realmItem(base, pkgPath string) string {
+ 	if base == "" {
+-		return ""
++		return "- `" + pkgPath + "`\n"
+ 	}
+ 	u := urlOf(pkgPath)
+-	return fmt.Sprintf(" · [source](%s%s/_t/source/) · [help](%s%s/_t/help/)", base, u, base, u)
++	return fmt.Sprintf("- [`%s`](%s%s/) · [source](%s%s/_t/source/) · [help](%s%s/_t/help/)\n", pkgPath, base, u, base, u, base, u)
+ }
+ 
+ func isSeed(pkgPath string, p *Plan) bool {

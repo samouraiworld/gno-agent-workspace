@@ -1,0 +1,38 @@
+# judge-88-empty-guard-first.patch — candidate #88 isolated from b5-refactor-comment-shorter.patch,
+# which bundles five rewrites. gnolang/gno PR 6194, head ecf7af0f29abe4737a52803d672bc5a33c17cc60.
+# the marker and heading are written into b before the p.Empty() guard discards them; the guard moves to the top.
+# 196 -> 196 lines (the guard moves, nothing is removed); Comment and Index render byte-identically (golden digest unchanged).
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin ecf7af0f29abe4737a52803d672bc5a33c17cc60 && git checkout FETCH_HEAD
+#   cp <round>/tests/b5-refactor-comment-golden_test.go misc/gnopreview/
+#   (cd misc/gnopreview && go test -run TestRefactorGolden ./...)   # PASS at head
+#   git apply <this file>
+#   (cd misc/gnopreview && gofmt -l . && go vet ./... && go test -run TestRefactorGolden ./...)  # PASS
+#   git checkout -- misc/gnopreview/comment.go && rm misc/gnopreview/b5-refactor-comment-golden_test.go
+diff --git a/misc/gnopreview/comment.go b/misc/gnopreview/comment.go
+index 7d2229734..7b2ac22b3 100644
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -15,16 +15,16 @@ const CommentMarker = "<!-- gnoweb-pr-preview -->"
+ // served from (with or without a trailing slash); when it is empty the comment
+ // still lists what was rendered, just without links.
+ func Comment(p *Plan, baseURL, pr string) string {
+-	var b strings.Builder
+-	b.WriteString(CommentMarker + "\n")
+-	b.WriteString("### 🖼️ gnoweb preview\n\n")
+-
+ 	// Nothing to preview means no comment: Comment is not called in that case,
+ 	// and an empty string here keeps a stray call from posting a useless one.
+ 	if p.Empty() {
+ 		return ""
+ 	}
+ 
++	var b strings.Builder
++	b.WriteString(CommentMarker + "\n")
++	b.WriteString("### 🖼️ gnoweb preview\n\n")
++
+ 	base := strings.TrimSuffix(baseURL, "/")
+ 	link := func(urlPath, label string) string {
+ 		if base == "" {

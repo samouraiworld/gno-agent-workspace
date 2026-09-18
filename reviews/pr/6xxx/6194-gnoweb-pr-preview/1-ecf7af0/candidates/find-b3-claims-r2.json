@@ -1,0 +1,101 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 199,
+      "angle": "claims",
+      "summary": "the gnodev watch covers the boot only: died is drained by waitReady, so a node that dies during the crawl is swallowed and a partial preview publishes green",
+      "failure_scenario": "render() reaches waitReady, which consumes the single buffered value from died and returns nil; from then on nothing reads the channel. gnodev then dies mid-crawl (a panic rendering a realm, the runner's OOM killer, the 5 GB gnodev process on a 25-realm plan). Every later Crawler.get dials a closed port, crawl.go:129-131 prints `! <url>: connection refused` to stderr and continues, and Run() returns nil. render() goes on to Write, Index and Comment and exits 0, so the job is green and gno-previews receives a snapshot holding whatever was captured before the death, with the sticky comment linking every realm in the plan including the ones that have no page. Measured: 1 of 3 realm pages captured, Run() == nil.",
+      "verify_by": "go test -run ClaimsR2 -v ./misc/gnopreview with tests/b3-claims-r2-node-death-mid-crawl.go copied to misc/gnopreview/: the server answers the first seed then closes its listener; expect Run() to report the dead node, observe err=<nil>",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "  ✓ /r/demo/a\n  ! /r/demo/b: Get \"http://127.0.0.1:41013/r/demo/b\": dial tcp 127.0.0.1:41013: connect: connection refused\n  ! /r/demo/c: ... connection refused\n    seeds=3 captured=1 err=<nil>\n    DEFECT: Run() == nil after the node died; 1 of 3 realm pages captured, so the published snapshot is partial and the job is green\n--- PASS: TestClaimsR2NodeDeathMidCrawlIsSilent (0.00s)",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-claims-r2-node-death-mid-crawl.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 177,
+      "angle": "claims",
+      "summary": "gnodev local chdirs on -C, so the -home path built from cfg.out lands under examples/ instead of the output dir and the workflow's cleanup of it deletes nothing",
+      "failure_scenario": "startGnodev passes `-C <root>/examples` and `-home filepath.Join(cfg.out, \".gnodev-<port>\")`. contribs/gnodev/command_local.go:87-89 runs os.Chdir(cfg.chdir) before anything resolves home, and app_config.go:63-65 stores -home verbatim, so with the CI's relative `-out _preview` the keybase is created at <root>/examples/_preview/.gnodev-8899/ rather than inside the output directory. pr-preview.yml:103's `rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*` then matches nothing for the keybase, and a developer running `gnopreview render -out _preview` locally is left with an untracked _preview/ tree of generated keys inside examples/, which git status reports on every later branch. The port-derived isolation the comment above the flag argues for still holds; only the location does not.",
+      "verify_by": "grep -n 'os.Chdir' contribs/gnodev/command_local.go and the -home registration in contribs/gnodev/app_config.go:63; then run `gnopreview render -out _preview` from the repo root and `ls examples/_preview/`",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "command_local.go:87-89 `if cfg.chdir != \"\" { if err := os.Chdir(cfg.chdir); err != nil {` ; app_config.go:63-67 registers \"home\" as a plain StringVar, \"user's local directory for keys\"",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 106,
+      "angle": "claims",
+      "summary": "render only MkdirAlls -out and never clears it, so a second run over an existing directory publishes pages from the previous plan that Index never lists",
+      "failure_scenario": "The package doc calls render the step that \"boot gnodev, crawl, write the tree\". A rerun after a plan shrinks (a realm removed from the PR, -max-realms lowered) writes the new pages over the old ones and leaves every page the earlier plan captured on disk. Crawler.Write writes only what it captured, and Index(plan, c) lists only c.pages, so the stale files are published and served but linked from nothing; on the CI path they would also count toward the 40 MiB cap pr-preview-publish.yml enforces. CI always starts from a fresh checkout, so this is a local-run and rerun hazard only.",
+      "verify_by": "run render twice into the same -out with a smaller -max-realms the second time, then diff `find _preview -name '*.html'` against the realms in _preview/preview.json",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "main.go:106 `os.MkdirAll(cfg.out, 0o755)` is the only thing touching the directory; crawl.go:303 Write walks c.pages only",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 165,
+      "angle": "claims",
+      "summary": "suspected that `-C examples` makes gnodev load every package in examples/, not just the previewed realms",
+      "settled_by": "sed -n '96,105p' contribs/gnodev/command_local.go: `dirs = append(dirs, args...); dirs = append(dirs, cwd)` with the comment \"quietly skips the CWD when it holds no gno package\" — examples/ carries gnowork.toml and no gnomod.toml, so only the explicit dirs load"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 173,
+      "angle": "claims",
+      "summary": "suspected a third fixed gnodev listener the two passes still collide on, beside the RPC listener and the keybase the comment names",
+      "settled_by": "grep of contribs/gnodev for p2p/proxy defaults: command_local.go:46-47 `nodeP2PListenerAddr: \"tcp://127.0.0.1:0\"`, `nodeProxyAppListenerAddr: \"tcp://127.0.0.1:0\"`, and webRemoteHelperAddr is unset in defaultLocalAppConfig"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 73,
+      "angle": "claims",
+      "summary": "the -max-realms and -max-pages flag docs both claim \"0 for no cap\"",
+      "settled_by": "plan.go:256 `if maxRealms > 0 && len(realms) > maxRealms` and crawl.go:126 `if c.MaxPages > 0 && len(c.pages) >= c.MaxPages` — both hold"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 214,
+      "angle": "claims",
+      "summary": "fileBudget's doc claims \"a couple of per-file source pages\" only when gnoweb changed",
+      "settled_by": "crawl.go:218 `const GnowebFileBudget = 2`, and crawl.go:231/256 gate on c.FileBudget which fileBudget() returns 0 for a non-gnoweb plan; crawl_test.go:230 TestFileBudgetZeroDropsAllUnchanged pins it"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 224,
+      "angle": "claims",
+      "summary": "renderBase's doc claims it reuses the head's gnodev binary and the head's assets",
+      "settled_by": "main.go:252 startGnodev(cfg, cfg.baseRoot, ...) uses cfg.gnodev, and main.go:275 base.Write(cfg.out, \"\") hits crawl.go:304 `if assets == \"\" { // a prefixed crawl reuses the assets already written`"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 206,
+      "angle": "claims",
+      "summary": "\"gnodev spawns a node; kill the whole process group\" — suspected the pgid was never set",
+      "settled_by": "main.go:190 `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` precedes cmd.Start, so -cmd.Process.Pid is the group"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 109,
+      "angle": "claims",
+      "summary": "\"An empty plan produces no comment.md at all\" and the body's \"anything else -> no artifact, no comment, no job\"",
+      "settled_by": "main.go:111-114 returns after writeJSON of preview.json alone, and pr-preview.yml gates the render step on the plan step (lines 72-84), so no artifact is uploaded either"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 177,
+      "angle": "claims",
+      "summary": "suspected the gnodev keybase and logs reach the published snapshot",
+      "settled_by": "pr-preview.yml:103 `rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*` runs before the upload step at line 121"
+    }
+  ]
+}

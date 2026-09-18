@@ -1,0 +1,68 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "reach",
+      "summary": "the new nested module joins the ci-dir-misc matrix, which runs the `go fix` check on it, but not the root Makefile's `fix` loop, so the command that check tells contributors to run cannot reach it",
+      "failure_scenario": "misc/gnopreview/go.mod makes the directory its own module, and ci-dir-misc.yml:44 adds `gnopreview` to the matrix that calls _ci-go.yml, whose lint job runs `GOTOOLCHAIN=go1.26.1 CGO_ENABLED=1 go fix -omitzero=false -diff ./...` inside misc/gnopreview and, on any output, prints \"::error::'go fix' would modify files. Run 'make fix' from the repo root and commit the result.\" The root Makefile's `fix` recipe covers the root module (`go fix ./...`, which skips nested modules) plus the hardcoded list `$(wildcard contribs/*/) misc/audit-pattern-harness/ misc/autocounterd/ misc/gnoe2e/ misc/loop/`; misc/gnopreview/ is absent from it. The next GO_FIX_TOOLCHAIN bump that makes a modernizer fire on crawl.go, plan.go, main.go, shots.go or comment.go turns the gnopreview lint job red, and `make fix` from the repo root leaves those files untouched, so the contributor follows the error's own instruction, sees no diff, and has to discover the module-local incantation. The Makefile comment two lines above the list states the invariant and records the same incident already happening once: \"The misc/ entries must track the ci-dir-misc.yml matrix\" and \"audit-pattern-harness was linted by CI and missing here, so its CI failure told the reader to run a target that could not fix it.\" The PR body (line 150) checks the matrix registration and stops there, and its \"`go fix` ... clean\" claim is what keeps the gap invisible today. Fix: add `misc/gnopreview/` to the loop at Makefile:101.",
+      "verify_by": "tests/b6-lines-reach-catalog-make-fix-skips-gnopreview.sh from the repo root at ecf7af0: it plants a modernizable sentinel in misc/gnopreview, runs the root pass (`go fix -omitzero=false -diff ./misc/...`) and the module pass CI runs, and exits 1 while only the module pass reports the diff",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Script exit 1 at ecf7af0 in a scratch worktree. \"misc/gnopreview/ is NOT listed\" against `@for d in $(wildcard contribs/*/) misc/audit-pattern-harness/ misc/autocounterd/ misc/gnoe2e/ misc/loop/`; `go list ./misc/...` packages under gnopreview: 0; sentinel lines in the root pass: 0; sentinel lines in the CI pass: 5, the diff quoting `-func sentinelAny(v interface{}) interface{}` / `+func sentinelAny(v any) any`. Toolchain go1.26.1 resolved locally; the tree was left clean (`git status --porcelain` 0 lines).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b6-lines-reach-catalog-make-fix-skips-gnopreview.sh"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "lines",
+      "summary": "go.mod not tidy, or a missing go.sum for a module that shells out to a browser",
+      "settled_by": "`cd misc/gnopreview && go mod tidy -diff` exits 0 and `go build ./... && go vet ./... && go test ./...` are clean under the pinned go1.25.9; the module has no require block and `grep -rn 'github.com/gnolang/gno' misc/gnopreview/*.go` returns nothing, so it is stdlib-only and needs no go.sum"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 3,
+      "angle": "lines",
+      "summary": "`go 1.25.9` pins a patch version and could outrun the toolchain CI sets up",
+      "settled_by": "every one of the repo's 25 go.mod files carries `go 1.25.9` with no toolchain directive, root included, and both _ci-go.yml and pr-preview.yml resolve the toolchain with `go-version-file: go.mod` at the root, so the new module adds no skew"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "reach",
+      "summary": "the new go.mod escapes the repo's `make tidy` verification",
+      "settled_by": "misc/mod_tidy.sh enumerates modules with `gomods=$(find . -type f -name go.mod)`, not a fixed list, so `make tidy VERIFY_MOD_SUMS=true` (ci-codegen-verify.yml:39) covers misc/gnopreview"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "reach",
+      "summary": "the module is never built by CI, the silence ci-dir-misc.yml's own comment warns about",
+      "settled_by": "ci-dir-misc.yml:44 lists `- gnopreview` in the matrix that calls _ci-go.yml (lint, build, test), and pr-preview.yml:77 builds it again with `cd misc/gnopreview && go build`"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "reach",
+      "summary": "the module path github.com/gnolang/gno/misc/gnopreview shadows a root-module import path, so a root package importing it would resolve through the proxy instead of the tree",
+      "settled_by": "`grep -rn 'gno/misc/gnopreview' --include='*.go'` outside misc/gnopreview/ returns nothing: no root-module file imports the nested path"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "reach",
+      "summary": "CodeQL's `build-mode: autobuild` (meta-codeql.yml:38) builds the root module, so the 2.3k new Go lines may go unscanned",
+      "settled_by": "out of scope and unswept: 24 nested go.mod files predate this one under the same autobuild config, so the diff neither creates the class nor sweeps it; settling it needs a CodeQL run this round cannot make"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "catalog",
+      "summary": "invariant-catalog classes against this bundle",
+      "settled_by": "the catalog's classes are Realm audit patterns, Caller identity predicates and the current-guard rule (`grep -n '^## \\|^### ' skills/invariant-catalog.md`); this bundle adds a CI tool's module file and no .gno, GnoVM or stdlib code, so no class is touched"
+    }
+  ]
+}

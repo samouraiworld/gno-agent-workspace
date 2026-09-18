@@ -1,0 +1,92 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 62,
+      "angle": "catalog",
+      "summary": "the realm cap drops changed realms from the render, yet the comment links every one of them and states they are always kept",
+      "failure_scenario": "A pull request touching more than -max-realms (default 25) realm packages has its changed realms truncated out of plan.Realms, while plan.ChangedRealms keeps all of them. With 30 changed realms BuildPlan renders 25; Comment then emits a link to https://<base>/r/x/r25/, a page gnodev never rendered and the previews repo never received (404 for the reviewer), and prints \"5 more affected realm(s) were **not** rendered (cap reached) — the changed realms are always kept\". 15 of the last 400 gnolang/gno commits touching examples/gno.land/r/ touch more than 25 realm packages, so the case is ordinary. The same unchecked link path also fires for any realm whose page the crawler could not fetch: crawl.go logs \"! <url>: HTTP <code>\" and continues, and Index skips such a realm via c.pages while Comment links it regardless.",
+      "verify_by": "cd misc/gnopreview && go test -run TestCatalogChangedRealmsSurviveTheCap -v .",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "b5-catalog-changed-realm-cap_test.go:56: changed realms 30, rendered realms 25, dropped 5 / :66: 5 changed realm(s) never rendered: [gno.land/r/x/r25 ... r29] / :72: comment links gno.land/r/x/r25, which was never rendered (404) / :77: comment claims the changed realms are always kept; 5 were dropped — FAIL at ecf7af0. Frequency measured with: git log -400 --name-only -- examples/gno.land/r/** | awk (distinct package dirs per commit) -> commits touching realms: 400, over the 25 cap: 15.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-catalog-changed-realm-cap_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 24,
+      "angle": "catalog",
+      "summary": "an empty plan returns an empty body, so a push that removes the last realm change leaves the previous push comment standing",
+      "failure_scenario": "An author pushes a realm change (sticky comment posted), then pushes a commit reverting that file. BuildPlan is now empty: pr-preview.yml gates the render and actions/upload-artifact on steps.plan.outputs.skip != true, so no artifact exists; pr-preview-publish.yml downloads it with continue-on-error: true and gates every later step on steps.download.outcome == success, so the publish job is green and silent; and Comment returns \"\" in any case, which the upsert step reports as \"no comment body — nothing to post\". The stale comment stays on the pull request, linking screenshots and realm pages of an older head, under its own sentence \"Rebuilt on every push to this PR\". Nothing on the pull request says the preview is stale.",
+      "verify_by": "cd misc/gnopreview && go test -run TestCatalogEmptyPlanCanClearTheComment -v . ; grep -n \"skip != \" .github/workflows/pr-preview.yml ; grep -n \"continue-on-error\\|outcome == \\|no comment body\" .github/workflows/pr-preview-publish.yml",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "b5-catalog-stale-sticky-comment_test.go:32: Comment(empty plan) = \"\"; a body carrying \"<!-- gnoweb-pr-preview -->\" is the only way to replace the previous push comment — FAIL at ecf7af0. pr-preview.yml lines 85/92/118 all carry `if: steps.plan.outputs.skip != 'true'`; pr-preview-publish.yml line 36 `continue-on-error: true`, line 48 onward every step `if: steps.download.outcome == 'success'`, line 166 `[ -s _preview/comment.md ] || { echo \"no comment body — nothing to post\"; exit 0; }`.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-catalog-stale-sticky-comment_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 69,
+      "angle": "catalog",
+      "summary": "isSeed hides the gnoweb seed realms whenever Gnoweb is set, but Shots is only ever populated when no realm changed",
+      "failure_scenario": "main.go renders before/after Pairs when len(plan.ChangedRealms) > 0 and Shots only in the else branch, so a pull request changing gnoweb and one realm has Shots empty. Comment then writes \"This PR changes **gnoweb** and realm sources.\", an empty shotGrid, and drops every seed realm from the affected list through isSeed, which gates on p.Gnoweb alone. The four seed realms are loaded into gnodev, crawled and published, and appear nowhere in the comment: the gnoweb half of the change gets no sample page. Gate isSeed on len(p.Shots) > 0 instead.",
+      "verify_by": "Comment(&Plan{Gnoweb: true, ChangedRealms: []string{\"gno.land/r/x/leaf\"}, Realms: []string{\"gno.land/r/gnoland/home\", \"gno.land/r/x/leaf\"}, Pairs: []ShotPair{{Realm: \"gno.land/r/x/leaf\", After: \"_shots/a.png\", URL: \"r/x/leaf/\"}}}, base, pr) and grep the output for r/gnoland/home",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "probe at ecf7af0: mode=both seed listed=false shotgrid=false; the emitted body carries only the leaf pair and the Changed realms list.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 195,
+      "angle": "catalog",
+      "summary": "the index page counts len(p.Realms) while its rows are filtered by c.pages, so it overstates what it renders",
+      "failure_scenario": "A realm whose gnoweb page answered non-200 is logged by the crawler and skipped, staying in plan.Realms but absent from c.pages. index.html then prints \"25 realm(s) rendered with gnodev on a fresh chain\" above 24 rows, and nothing on the page says one is missing. Count the rows instead.",
+      "verify_by": "read Index: the row loop skips `if _, ok := c.pages[u]; !ok` while the header interpolates len(p.Realms)",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "comment.go:181 skips realms absent from c.pages; comment.go:195 formats len(p.Realms).",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 118,
+      "angle": "catalog",
+      "summary": "realm paths taken from pull-request-controlled directory names are interpolated into HTML attributes with no escaping",
+      "failure_scenario": "Pkg.Path is derived from the directory name (plan.go LoadPkgs), never from the gnomod.toml module line, so it carries whatever a fork pull request names a directory under examples/gno.land/r/. comment.go writes it raw into alt=\"%s\" in pairGrid and shotGrid, and into <code>gno.land%s</code> in Index; a quote closes the attribute and GitHub keeps <img> and <a> in comment HTML, so an injected tag renders inside a comment posted by github-actions[bot]. Reachability is not proven: an alt attribute needs a ShotPair, which needs head.FileOf(urlOf(r)) to hit, so the crafted directory name must also be the path gnodev serves. Escape both sites regardless.",
+      "verify_by": "add a realm directory named with a quote and an <img> tag to a fake repo, run BuildPlan, and check whether gnodev serves urlOf(dirPath) so ScreenshotPairs produces a pair for it",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:136-144 sets Pkg.Path from mustRel(root, dir); comment.go:118/121/141 interpolate p.Realm and s.Label into alt=\"...\"; comment.go:188 interpolates the url into <code>.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 66,
+      "angle": "catalog",
+      "summary": "determinism: the comment body could vary between reruns of the same head",
+      "settled_by": "read of every listing path: `direct` is a lookup-only map, p.ChangedRealms and p.Realms come from sortedKeys/sort.Strings in plan.go:229-269, indirect is sorted before printing, Shots comes from the fixed shotPlan slice (shots.go:107) and Pairs from a range over the sorted ChangedRealms. No map is ranged over on an output path."
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 152,
+      "angle": "catalog",
+      "summary": "the source and help tab links may point at paths the crawler never writes",
+      "settled_by": "crawl.go Seeds() adds u+\"$source\" and u+\"$help\" for every realm, and urlToFile(\"/r/x/y$source\") -> \"r/x/y/_t/source/index.html\", which is exactly the `%s%s/_t/source/` the tabs() helper emits."
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 86,
+      "angle": "catalog",
+      "summary": "the page cap could leave a partially crawled snapshot linked by a full comment",
+      "settled_by": "crawl.go:126 returns `fmt.Errorf(\"page cap %d reached (queue still had %d)\")`, so render() aborts before Comment is ever called; the page cap fails the job rather than posting a partial body."
+    }
+  ]
+}

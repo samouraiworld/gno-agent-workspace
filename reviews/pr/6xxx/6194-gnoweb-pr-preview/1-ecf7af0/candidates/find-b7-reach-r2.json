@@ -1,0 +1,73 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 264,
+      "angle": "reach",
+      "summary": "the gnoweb seed realms are merged into Plan.Realms with no marker, so a realm that is genuinely affected by the changed package is misread as a sample and vanishes from the comment",
+      "failure_scenario": "A pull request touching gnoweb (or contribs/gnodev) and examples/gno.land/p/nt/ownable/v0: `gnopreview plan` on the tree at this head returns 7 affected realms without the gnoweb file, gno.land/r/gnoland/home among them, and 10 with it. Because Plan.Realms carries no seed flag, comment.go:157 isSeed() tests membership in gnowebSeedRealms, which now matches home; comment.go:69 drops it from the \"Realms affected through a changed package (N)\" list and out of N. The reviewer of a PR that changes gnoweb and a widely imported package is told the site's landing page is unaffected, while the preview renders it.",
+      "verify_by": "go test -run TestSeedRealmAffectedIsHiddenFromComment -v ./misc/gnopreview with the artifact copied in: a plan whose Realms are [gno.land/r/gnoland/home gno.land/r/x/other], both affected by the same changed package, and a Comment() that names only other. Cross-checked on the real tree with `gnopreview plan -root . -changed` on ownable.gno with and without gno.land/pkg/gnoweb/app.go.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "plan -changed 'examples/gno.land/p/nt/ownable/v0/ownable.gno' -> {\"gnoweb\":false,\"n\":7,\"realms\":[... \"gno.land/r/gnoland/home\" ...]}; adding gno.land/pkg/gnoweb/app.go -> {\"gnoweb\":true,\"n\":10}. Unit repro: \"**Realms affected through a changed package (1)**\" listing only gno.land/r/x/other, with \"BUG: the comment never names gno.land/r/gnoland/home, which the plan renders as affected by [gno.land/p/x/base/v0]\" and \"BUG: the comment counts 1 affected realm; the plan rendered 2\" -> FAIL: TestSeedRealmAffectedIsHiddenFromComment",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-reach-r2-seed-realm-hidden.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 272,
+      "angle": "reach",
+      "summary": "Dirs and ChangedFiles, the two BuildPlan outputs gnodev and the crawler actually consume, are asserted by no test, and the Dirs[i]/Realms[i] pairing renderBase indexes by is pinned by nothing",
+      "failure_scenario": "plan_test.go asserts Gnoweb, Realms, Mode, Dropped and Empty and never reads Dirs or ChangedFiles (grep -c 'Dirs\\|ChangedFiles' misc/gnopreview/plan_test.go = 0). main.go:241 pairs them positionally, os.Stat(baseRoot + plan.Dirs[i]) for plan.Realms[i]; any later edit that appends to or reorders Realms after the Dirs loop (the seed append already sits one block above it) makes renderBase stat and boot the wrong directory, so a before/after pair shows another realm's page and the mislabel ships in the PR comment. ChangedFiles is the crawler's per-file gate (crawl.go:209 wantFile), so an empty or wrongly keyed map silently drops every source page of a changed realm, again with no test red.",
+      "verify_by": "grep -n 'Dirs\\|ChangedFiles' misc/gnopreview/plan_test.go returns nothing; then swap the seed-append block below the Dirs loop in BuildPlan and run go test ./misc/gnopreview — it stays green while renderBase pairs a realm with another realm's directory.",
+      "band": "Missing test",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 138,
+      "angle": "reach",
+      "summary": "Pkg.Path is derived from the directory while the import graph is keyed by module path, so a package whose gnomod.toml module differs from its directory drops out of the dependency graph silently",
+      "failure_scenario": "dependents() keys rev by the import strings found in source, and seeds it with Pkg.Path, which LoadPkgs computes as the directory under examples/. A package declaring `module = \"gno.land/p/x/y\"` in examples/gno.land/p/x/y/v2 is stored as gno.land/p/x/y/v2, so nothing that imports gno.land/p/x/y is reachable from it: a change to that package previews zero realms and the PR comment reports none affected. Latent at this head — measured 0 of 145 gnomod.toml files under examples/gno.land where module differs from the directory — and fakeRepo() in plan_test.go always writes the two equal, so no test would catch the day it stops holding.",
+      "verify_by": "for each examples/gno.land/**/gnomod.toml compare the module line against the directory: 145 files, 0 mismatches today. Make one mismatch in fakeRepo and BuildPlan drops the dependent.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 114,
+      "angle": "reach",
+      "summary": "the hidden-directory guard in LoadPkgs returns nil rather than fs.SkipDir, so it skips the dotted directory entry and still walks everything under it",
+      "failure_scenario": "WalkDir reads `if !d.IsDir() || strings.HasPrefix(d.Name(), \".\") { return nil }` as continue, not prune, so a package under examples/gno.land/.something is loaded exactly as if the guard were absent; the only thing the branch achieves is skipping the dotted directory's own gnomod.toml. find examples/gno.land -type d -name '.*' returns 0 today, so the guard protects nothing either way and the intent it states is untested.",
+      "verify_by": "find examples/gno.land -type d -name '.*' | wc -l -> 0; mkdir examples/gno.land/.hidden/r/x/z with a gnomod.toml and a lib.gno and LoadPkgs returns it.",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 272,
+      "angle": "reach",
+      "summary": "suspected plan.Dirs[i] / plan.Realms[i] misalignment at main.go:241, which would render another realm as a changed realm's before shot",
+      "settled_by": "read of plan.go:271-276: Dirs is appended in a single pass over the final plan.Realms, after both the cap and the seed append, so the two slices are aligned as produced at this head. The gap is that nothing pins it, returned above as a Missing test."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 272,
+      "angle": "reach",
+      "summary": "suspected nil dereference at pkgs[r].Dir for a realm that is not a loaded package",
+      "settled_by": "read of plan.go:249-268: affected keys come from dependents(), whose out set is seeded from changedPkgs (built from byDir hits) and grown from p.Path values, all of them keys of pkgs; the seed append is guarded by `pkgs[r] != nil`. No path reaches 272 with an unknown key."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 91,
+      "angle": "reach",
+      "summary": "suspected divergence between Plan.Empty() and the workflow's own skip gate, which would render a plan CI called empty or skip one it called non-empty",
+      "settled_by": ".github/workflows/pr-preview.yml:79 gates on jq 'if .gnoweb or (.realms | length > 0)', the same predicate as Empty() at plan.go:91; sortedKeys always returns a non-nil slice so .realms is never JSON null. The two agree."
+    }
+  ]
+}

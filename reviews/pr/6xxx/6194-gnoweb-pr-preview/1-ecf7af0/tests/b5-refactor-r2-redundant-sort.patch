@@ -1,0 +1,35 @@
+# b5-refactor-r2: comment.go:74 sort.Strings(indirect) re-sorts an already-sorted slice.
+#
+# BuildPlan sorts plan.Realms before returning it (plan.go:260 `sort.Strings(realms)`,
+# and again at plan.go:269 for the gnoweb-seed branch), and main.go:91 is the only
+# production caller of Comment. `indirect` is a filtered subsequence of p.Realms, so it
+# is already in order when Comment sorts it. Dropping the call also drops the "sort"
+# import, comment.go's only use of it: 196 -> 194 lines, identical output.
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <path to this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+# Measured at ecf7af0f2 with go1.25.9: gofmt silent, vet silent,
+#   "ok  github.com/gnolang/gno/misc/gnopreview  0.004s"
+diff --git a/misc/gnopreview/comment.go b/misc/gnopreview/comment.go
+index 7d2229734..fc2b63f54 100644
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -3,7 +3,6 @@ package main
+ import (
+ 	"fmt"
+ 	"path"
+-	"sort"
+ 	"strings"
+ )
+ 
+@@ -71,7 +70,6 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 			}
+ 		}
+ 		if len(indirect) > 0 {
+-			sort.Strings(indirect)
+ 			b.WriteString(fmt.Sprintf("**Realms affected through a changed package (%d)**\n\n", len(indirect)))
+ 			if len(p.ChangedPkgs) > 0 {
+ 				b.WriteString("_changed: " + "`" + strings.Join(p.ChangedPkgs, "`, `") + "`_\n\n")

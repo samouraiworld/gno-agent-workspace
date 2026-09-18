@@ -1,0 +1,107 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 187,
+      "angle": "lines",
+      "summary": "chromeShot's only health check is a non-zero file size, so a page that never rendered and a URL the server 404s both pass as successful screenshots",
+      "failure_scenario": "chromeShot returns nil whenever Chrome exits 0 and the PNG is larger than zero bytes. Measured at this head with Google Chrome 152.0.7977.75: a page whose body paints after the 4 s --virtual-time-budget (shots.go:180) screenshots byte-identical to a page that never paints at all (slow=2bff94039a8c blank=2bff94039a8c, rendered=dd6a7608aad4), and a URL the local file server answers 404 for screenshots the '404 page not found' body in 6743 bytes. Both come back with err == nil, so ScreenshotPairs sets pair.After (line 83) or pair.Before (line 92) and comment.go's pairGrid publishes the image under 'after - this PR'. A slow before-half plus a fast after-half prints a blank 'before' beside a rendered 'after', which reads to the reviewer as content this PR added.",
+      "verify_by": "tests/b4-lines-r2-chromeshot-silent-truncation_test.go: copy into misc/gnopreview and run go test -run TestB4ChromeShotSilentTruncation -v ./...; it fails only if the budget waits for the slow page or the 404 URL writes no image",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "b4_test.go:78: rendered=dd6a7608aad4 blank=2bff94039a8c slow=2bff94039a8c missing=68041ec77c34 / b4_test.go:83: slow page: chromeShot returned nil and the PNG is the unrendered page / b4_test.go:89: 404 URL: chromeShot returned nil and wrote 6743 bytes",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-lines-r2-chromeshot-silent-truncation_test.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 73,
+      "angle": "lines",
+      "summary": "a changed realm the head crawl never captured is dropped from the before/after with no diagnostic, unlike every sibling failure path in the same loop",
+      "failure_scenario": "head.FileOf returns !ok for any realm Crawler.Run skipped: crawl.go:132 continues on a non-200, crawl.go:138 continues when the per-file budget is spent, and both leave the URL out of c.pages. shots.go:74 then continues with no message, while the two neighbouring failures (line 80, line 94) each print a stderr line naming the realm. The maintainer reading the job log sees 'done: N page(s), 0 before/after pair(s)' with nothing saying which realm went missing or why, and comment.go still lists that realm under 'Changed realms' with a link into the snapshot, where Index (comment.go:170) guarded the same case and skipped it.",
+      "verify_by": "grep -n 'Fprintf(os.Stderr' misc/gnopreview/shots.go: lines 80 and 94 print inside the loop, line 74 does not; crawl.go:129-140 shows the two continue paths that leave a realm out of c.pages",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:130 '! %s: HTTP %d' then continue, crawl.go:137 '- %s (per-file budget spent)' then continue; neither inserts into c.pages, and FileOf (crawl.go:338) reads c.pages",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 79,
+      "angle": "lines",
+      "summary": "a failed chromeShot leaves the partial or zero-byte PNG in _shots/, which ships inside the published snapshot",
+      "failure_scenario": "chromeShot returns an error at shots.go:185 or 188 without removing out; the 188 branch is reached precisely because the file exists with zero bytes. ScreenshotPairs then continues without setting pair.After, so nothing in preview.json references it, but _shots/ sits under outDir and the whole directory is uploaded as the snapshot artifact and served from the preview site. Every failed render adds a dead 0-byte <realm>-after.png to the published tree.",
+      "verify_by": "read shots.go:184-190: neither error return calls os.Remove(out), and the size==0 branch proves the file was created",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "shots.go:187 'if fi, err := os.Stat(out); err != nil || fi.Size() == 0 { return fmt.Errorf(\"chrome wrote no image\") }' - the stat succeeded, so the file is there and stays",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 77,
+      "angle": "lines",
+      "summary": "the realm's snapshot link is spelled here as path.Dir(afterFile)+\"/\" and again in comment.go as TrimPrefix(path.Dir(urlToFile(u)),\"/\"), two spellings of one mapping in one binary",
+      "failure_scenario": "ShotPair.URL is built from the crawled file path, while comment.go:175 and comment.go:149's tabs() rebuild the same URL-to-snapshot-path mapping from the URL. The two already disagree in shape: this one appends a slash and keeps a leading path component, the other trims a leading slash. A change to urlToFile's layout (a new _a/_t segment, a different listing suffix) has to be mirrored in both, and a miss shows up as a 404 behind a published image rather than as a build failure.",
+      "verify_by": "grep -n 'path.Dir' misc/gnopreview/shots.go misc/gnopreview/comment.go: shots.go:77 against comment.go:175-176, same mapping, two spellings",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "shots.go:77 'URL: path.Dir(afterFile) + \"/\"' vs comment.go:175 'strings.TrimPrefix(path.Dir(urlToFile(u)), \"/\")'",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 180,
+      "angle": "lines",
+      "summary": "--virtual-time-budget is ignored under --headless=new, so the shot is taken before client-side rendering",
+      "settled_by": "go test -run TestVirtualTimeBudget in a scratch worktree at ecf7af0: a page painting at t=2s screenshots identical to one painting immediately (late=dd6a7608aad4 now=dd6a7608aad4), so the budget does wait; only past 4s is the render cut"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 171,
+      "angle": "lines",
+      "summary": "no --user-data-dir, so a maintainer with Chrome already running loses every screenshot to the profile singleton",
+      "settled_by": "second google-chrome-stable --headless=new --screenshot run while another Chrome held the same HOME profile: 'exit=0 size=5331', the PNG written normally (Chrome 152.0.7977.75)"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 110,
+      "angle": "lines",
+      "summary": "shotPlan names realms the repo or the gnoweb seed list does not carry, so the gnoweb sample silently ships fewer images than its labels claim",
+      "settled_by": "examples/gno.land/r/gnoland/home, r/gnoland/boards2/v0 and r/docs/security_patterns all exist at this head, and plan.go:37-41 gnowebSeedRealms lists exactly those three, whose Seeds() adds $source and $help (crawl.go:88-89)"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 27,
+      "angle": "lines",
+      "summary": "beforeDir is declared in shots.go and never used",
+      "settled_by": "grep -rn beforeDir misc/gnopreview: main.go:265 'Prefix: beforeDir' in renderBase"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 90,
+      "angle": "lines",
+      "summary": "the before screenshot URL omits the _before/ prefix, so before and after photograph the same page",
+      "settled_by": "crawl.go:142 'p := &page{URL: u, File: path.Join(c.Prefix, urlToFile(u)), ...}' - FileOf returns p.File with the prefix already in it, and main.go:265 sets Prefix on the base crawler"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 72,
+      "angle": "lines",
+      "summary": "FileOf keys by canonicalURL while Crawler.Run inserts under the raw URL, so the realm lookup misses",
+      "settled_by": "crawl.go:84-87 Seeds adds urlOf(r) verbatim and crawl.go:143 inserts under that key; canonicalURL is the identity for a path with no args and no query (crawl.go:287-299)"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 76,
+      "angle": "lines",
+      "summary": "the screenshot filename slug allows traversal or collides between two realms",
+      "settled_by": "crawl.go:520-532 slug: unsafeSeg replaces every non [A-Za-z0-9._-] run with '-', Trim(out, \"-.\") kills a bare '..', and any rewritten or truncated value gets a sha256[:4] suffix, so two distinct realm paths cannot share a name"
+    }
+  ]
+}

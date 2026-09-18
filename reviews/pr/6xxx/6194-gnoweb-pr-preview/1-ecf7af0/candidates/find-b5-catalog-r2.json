@@ -1,0 +1,93 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 166,
+      "angle": "catalog",
+      "summary": "Index() ships with no test at all: plan_test.go exercises Comment five times and never calls Index",
+      "failure_scenario": "Index's heading prints len(p.Realms) while its rows are filtered by `if _, ok := c.pages[u]; !ok { continue }`, so a plan whose realms were not all crawled (page cap, per-file budget, a non-200 realm) renders '5 realm(s) rendered' over 3 links; no test builds a Crawler with a missing page, so neither that mismatch nor the raw-key lookup at line 170 is pinned, and the published index.html is the artifact a reviewer lands on first.",
+      "verify_by": "grep -n 'Index(' misc/gnopreview/*_test.go -> no hits (only Comment( at plan_test.go:181,194,222,244,271); add TestIndexCountsRenderedRows building Plan{Realms:{a,b}} against a Crawler whose pages hold only urlOf(a) and assert the heading count equals the number of <li> rows",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'Index(\\|Comment(' misc/gnopreview/crawl_test.go misc/gnopreview/plan_test.go returns five Comment( call sites in plan_test.go and zero Index( call sites in either file",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 47,
+      "angle": "catalog",
+      "summary": "the mixed branch's sentence and homepage link promise a gnoweb sample that this branch can never carry when a realm changed",
+      "failure_scenario": "A PR touching gnoweb and a realm takes the default branch with p.Gnoweb true; main.go fills plan.Shots only in the `else if plan.Gnoweb` arm (main.go:147-151), so with len(ChangedRealms) > 0 Shots is nil, shotGrid at line 53 emits nothing, and the reader gets 'This PR changes **gnoweb** and realm sources.' plus a bare homepage link with no gnoweb page rendered anywhere in the comment. plan_test.go:257 asserts that absence, so the sentence, not the render, is what is wrong.",
+      "verify_by": "sed -n '146,152p' misc/gnopreview/main.go shows Screenshot() under `else if plan.Gnoweb`; TestCommentBeforeAfter (plan_test.go:234-258) asserts the comment carries no 'Home — rendered markdown'",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "main.go:147-151 `if len(plan.ChangedRealms) > 0 { ... plan.Pairs = ScreenshotPairs(...) } else if plan.Gnoweb { plan.Shots = Screenshot(...) }`",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 75,
+      "angle": "catalog",
+      "summary": "realms pulled in by a changed realm are filed under 'affected through a changed package', and that is exactly the case where the `_changed:` provenance line is dropped",
+      "failure_scenario": "BuildPlan seeds dependents() with changedPkgs, which holds changed realms as well as changed p/ packages (plan.go:229-237, 239-246), so a realm importing a changed realm lands in `indirect`. With only realms changed, ChangedPkgs is empty: the header still reads 'Realms affected through a changed package (N)' and the `if len(p.ChangedPkgs) > 0` guard at line 76 drops the one line that would have named what pulled them in, leaving the reviewer no way to tell which change reaches those realms.",
+      "verify_by": "read plan.go:229-246 (changedPkgs carries realms; dependents() walks the reverse import graph from it) and comment.go:75-78; build Plan{ChangedRealms:{gno.land/r/x/a}, ChangedPkgs:{}, Realms:{gno.land/r/x/a, gno.land/r/x/b}} and read the emitted header",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:231 `plan.ChangedRealms = append(...)` and plan.go:240 `for _, p := range dependents(pkgs, changedPkgs)` share the same changedPkgs set; TestCommentRealms always passes a non-empty ChangedPkgs, so the case is unexercised",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 170,
+      "angle": "catalog",
+      "summary": "Index indexes c.pages with a raw key while every other read of that map goes through canonicalURL",
+      "failure_scenario": "crawl.go:339 (FileOf) and crawl.go:402 both look pages up as c.pages[canonicalURL(u)]; comment.go:170 uses c.pages[urlOf(r)] directly. It agrees today only because a realm root carries no `:args` and no `$query`; the one caller whose miss silently deletes a row from the published index is the one that skipped the accessor, so a later realm URL carrying either form drops out of index.html with no message while the heading keeps counting it.",
+      "verify_by": "grep -n 'c.pages\\[' misc/gnopreview/crawl.go misc/gnopreview/comment.go -> crawl.go:339,402 canonicalize, comment.go:170 does not; canonicalURL (crawl.go:287-298) re-joins :args and sorts $query parts",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:339 `p, ok := c.pages[canonicalURL(u)]` vs comment.go:170 `if _, ok := c.pages[u]; !ok`",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 62,
+      "angle": "catalog",
+      "summary": "determinism: realm lists in the comment could depend on Go map iteration order (catalog class 1, the render-map-iteration analog)",
+      "settled_by": "plan.go:225-237 builds ChangedRealms/ChangedPkgs from sortedKeys(changedPkgs), plan.go:255-269 sorts Realms on both the capped and the gnoweb-seed path, Pairs follow ChangedRealms and Shots follow the fixed shotPlan (shots.go:107-112); every list the comment prints is sorted or fixed"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 173,
+      "angle": "catalog",
+      "summary": "realm pkgPath written unescaped into the published index.html, which no GitHub sanitizer covers, unlike the comment sink",
+      "settled_by": "pr-preview-publish.yml:137 `cp -r ../_preview/. \"pr-$PR/\"` publishes the artifact verbatim and :174/:177 post `-F body=@_preview/comment.md` verbatim; the whole artifact is produced by the fork-controlled render job, so escaping inside gnopreview guards nothing an attacker cannot bypass by writing the bytes directly — the boundary is the workflow, not comment.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 29,
+      "angle": "catalog",
+      "summary": "silent fallback: with an empty base URL every link degrades to a bare code span and both grids vanish with no note",
+      "settled_by": "pr-preview.yml:31 gates the whole job on `if: vars.GNOWEB_PREVIEW_BASE_URL != ''` and :33 builds BASE_URL from it, so base is never empty on the path that posts a comment"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 106,
+      "angle": "catalog",
+      "summary": "a pair whose before-shot failed renders identically to a new realm minus the note, so a failed base render reads as an ordinary screenshot",
+      "settled_by": "plan_test.go:260-278 TestCommentNoBaseMakesNoClaim pins exactly that shape: Before empty and New false must emit the after image and no 'New in this PR' claim"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 112,
+      "angle": "catalog",
+      "summary": "pairGrid joins base with p.URL and p.After, which could double a slash or escape the pr-<N> subdirectory",
+      "settled_by": "shots.go:77 sets URL to `path.Dir(afterFile) + \"/\"` and shots.go:83 sets After to path.Join(shotsDir, ...), both repo-relative with no leading slash, so base+\"/\"+URL lands inside pr-<N>/"
+    }
+  ]
+}

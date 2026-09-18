@@ -1,0 +1,112 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 86,
+      "angle": "catalog",
+      "summary": "past the cap the preview comment drops directly changed realms while stating they are always kept, and still links them",
+      "failure_scenario": "A PR that edits 30 realms under examples/gno.land/r/ (a sweep over examples is the ordinary shape). pr-preview.yml never passes -max-realms, so BuildPlan runs at defaultMaxRealms=25: plan.go:253-259 stable-sorts changed-first, truncates to 25 and sets Dropped=5, so 5 directly changed realms are never rendered. comment.go:60-64 then still lists all 30 under **Changed realms (30)** with links into the snapshot, and comment.go:86 prints 'the changed realms are always kept'. The author reads a comment asserting every realm they touched was previewed and clicks 5 links that 404 in the published snapshot.",
+      "verify_by": "cd misc/gnopreview && go test -count=1 -v -run TestCapDropsChangedRealmsWhileCommentDeniesIt (fixture: 30 changed realms, defaultMaxRealms); assert every ChangedRealms entry appears in Realms and that no dropped realm's URL appears in Comment()",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "changed=30 rendered=25 dropped=5 changed-but-not-rendered=5 [gno.land/r/x/a25 gno.land/r/x/a26 gno.land/r/x/a27 gno.land/r/x/a28 gno.land/r/x/a29]; comment says \"the changed realms are always kept\": true; links to never-rendered realms: 5; --- FAIL: TestCapDropsChangedRealmsWhileCommentDeniesIt",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-catalog-r2-cap-drops-changed-realms.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 53,
+      "angle": "catalog",
+      "summary": "fakeRepo builds no draft = true package, so modFlags' draft half and Pkg.Draft are unexercised by every case",
+      "failure_scenario": "examples/gno.land/r/demo/draftrealm carries draft = true. modFlags parses it (plan.go:162) and LoadPkgs stores it (plan.go:142), but no test case has a draft package, so nothing pins what a preview does with one: deleting the draft branch of modFlags leaves the whole suite green.",
+      "verify_by": "grep -n draft misc/gnopreview/plan_test.go returns nothing; delete the \"draft=true\" case from modFlags and run go test ./... in misc/gnopreview",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn 'Draft|draft' over misc/gnopreview/*.go hits only plan.go:58, 142, 155, 162, 163, 168 - no test file mentions it",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 132,
+      "angle": "catalog",
+      "summary": "the table reads maxRealms 0 as \"use the default\", the same value the tool documents as \"no cap\", so the uncapped path cannot be tested from this table",
+      "failure_scenario": "main.go:63 documents -max-realms \"0 for no cap\" and plan.go:256 implements it as if maxRealms > 0. The table's zero value is consumed as the default at plan_test.go:133-135, so no case ever reaches BuildPlan with 0. Flipping plan.go:256 to if maxRealms >= 0 - which would truncate every realm away under -max-realms 0 - leaves the suite green.",
+      "verify_by": "change plan.go:256 to `if maxRealms >= 0 && len(realms) > maxRealms` and run go test ./... in misc/gnopreview; expect green",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "plan_test.go:132-135 `limit := tc.maxRealms; if limit == 0 { limit = defaultMaxRealms }`; main.go:63 `\"cap on rendered realms; 0 for no cap\"`",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 58,
+      "angle": "catalog",
+      "summary": "Pkg.Draft is computed on every package and never read",
+      "failure_scenario": "modFlags returns draft, LoadPkgs assigns it at plan.go:142, and no line in the module reads Pkg.Draft. examples/gno.land/r/demo/draftrealm is therefore previewed exactly like a live realm, and the field reads as a policy the tool does not have. Removal touches plan.go:58, plan.go:142, plan.go:155 and plan.go:162-163.",
+      "verify_by": "grep -rn '\\.Draft' misc/gnopreview | grep -v 'plan.go:58\\|plan.go:142'",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn 'Draft' misc/gnopreview/*.go -> plan.go:58 (field decl), plan.go:142 (assignment), plan.go:155/162/163/168 (modFlags); no read site",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 155,
+      "angle": "catalog",
+      "summary": "modFlags is a hand-rolled TOML scan that an inline comment defeats, while gnovm/pkg/gnomod parses the same file properly",
+      "failure_scenario": "modFlags matches the line only after stripping every space, so `ignore = true # quarantined until X` normalises to `ignore=true#quarantined...` and reports ignore=false. That realm then passes the !p.Ignore guards at plan.go:220 and plan.go:241 and is handed to gnodev as a dir to load. gnovm/pkg/gnomod/file.go:21 already declares `Ignore bool `toml:\"ignore,omitempty\"`` and parses it.",
+      "verify_by": "cd misc/gnopreview && go test -count=1 -v -run TestModFlagsInlineComment",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "\"module = ...\\nignore = true\\n\" -> ignore=true; \"module = ...\\nignore = true # quarantined\\n\" -> ignore=false; \"module = ...\\nignore=true\\n\" -> ignore=true",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-catalog-r2-cap-drops-changed-realms.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 241,
+      "angle": "catalog",
+      "summary": "neither !p.Ignore guard can fire against the current tree: every ignore = true gnomod.toml sits outside the walked root",
+      "failure_scenario": "LoadPkgs walks examples/gno.land only (pkgRoot, plan.go:22). The repo's two ignore = true files are examples/quarantined/gno.land/r/moul/outfmt/gnomod.toml and examples/quarantined/gno.land/r/jaekwon/dao/gnomod.toml, both outside that root, so 0 of the 145 packages LoadPkgs discovers carry Ignore. Both guards, plan.go:220 and plan.go:241, are unreachable today and no test case changes a file inside an ignored package either, so nothing at all pins them.",
+      "verify_by": "grep -rl ignore --include=gnomod.toml examples | grep -v '^examples/quarantined/' returns nothing",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "grep -rl 'ignore' --include=gnomod.toml examples -> examples/quarantined/gno.land/r/moul/outfmt/gnomod.toml, examples/quarantined/gno.land/r/jaekwon/dao/gnomod.toml; independent walk of examples/gno.land: packages discovered: 145 ignore: 0",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 250,
+      "angle": "catalog",
+      "summary": "determinism: BuildPlan ranges maps (plan.go:200, 298) and could leak iteration order into the plan and into the posted comment",
+      "settled_by": "built the tool at the head and ran `gnopreview plan -root <head> -changed <avl/v0/tree.gno>` 8 times over the truncation path (25 realms, 3 dropped): md5sum of all 8 plan.json identical, 1add4a45c7174e6d4872bcd4a8929e70"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 54,
+      "angle": "catalog",
+      "summary": "concurrency: the PR adds t.Parallel() at both levels and every subtest shares one fakeRepo root and the package-level slices, which CI never checks because _ci-go.yml runs go test without -race",
+      "settled_by": "cd misc/gnopreview && go test -race -count=1 ./... -> ok github.com/gnolang/gno/misc/gnopreview 1.014s"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 265,
+      "angle": "catalog",
+      "summary": "silent fallback: `if pkgs[r] != nil` drops a gnowebSeedRealms entry whose package is gone, with nothing told, and plan_test.go:111 encodes that skip as expected",
+      "settled_by": "all four seeds exist at head with a gnomod.toml and non-test .gno files: home nontestgno=1, docs/security_patterns 1, gnoland/boards2/v0 22, gnoland/blog 3, and none carries draft or ignore"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 257,
+      "angle": "catalog",
+      "summary": "unproven bound: plan.Dropped is the number the comment publishes as 'N more affected realm(s) were not rendered'; a dependents() walk that misses packages would understate it",
+      "settled_by": "independent Python reverse-import closure over examples/gno.land for gno.land/p/nt/avl/v0 gives 28 affected realms after the ignore and r/tests filters; the tool reports realms=25 dropped=3, i.e. the same 28"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 256,
+      "angle": "reach",
+      "summary": "the realm cap truncates directly changed realms, and the comment then links every changed realm, including the ones that were never rendered",
+      "failure_scenario": "A pull request that changes more than 25 realm directories (merged examples: #5669 changes 123, #4461 119, #4331 116, #5726 102, #5220 95, #4040 87). BuildPlan sorts changed realms first and then truncates realms to maxRealms, so 98 of #5669's changed realms never reach plan.Realms, plan.Dirs, gnodev or the crawler. Comment still walks the uncapped plan.ChangedRealms (comment.go:61-64) and emits a bullet with a preview link plus _t/source and _t/help links for each, so 98*3 links point at pages the snapshot does not contain and 404; the footnote at comment.go:86 tells the reviewer 'the changed realms are always kept'. No CI job reaches it: plan_test.go's only cap case uses maxRealms 1 with exactly one changed realm.",
+      "verify_by": "cd misc/gnopreview && go test -run TestCapDropsChangedRealms (the artifact below: 3 changed realms, cap 2) — expect the dropped realm absent from the comment, observe its link present and the always-kept claim printed",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "b10_reach_cap_test.go:57: ChangedRealms=[gno.land/r/x/a gno.land/r/x/b gno.land/r/x/c] Realms=[gno.land/r/x/a gno.land/r/x/b] Dropped=1 / b10_reach_cap_test.go:75: comment links gno.land/r/x/c, a changed realm the cap dropped: https://example.test/pr-1/r/x/c/ is never rendered and 404s / b10_reach_cap_test.go:79: comment claims the changed realms are always kept, but 1 of 3 were dropped / --- FAIL: TestCapDropsChangedRealms. Cap reachability: main.go:73 defaultMaxRealms = 25 and .github/workflows/pr-preview.yml passes no -max-realms (grep for 'max-realms' over .github/workflows returns nothing).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-reach-cap-drops-changed-realms_test.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 131,
+      "angle": "reach",
+      "summary": "render() indexes plan.Realms[0] on a plan Empty() calls non-empty, so a gnoweb-only plan with no resolvable seed realm panics",
+      "failure_scenario": "Plan.Empty() is !Gnoweb && len(Realms)==0 (plan.go:91), so a plan with Gnoweb true and Realms empty passes the guard at main.go:111 and reaches waitReady(c.Base, urlOf(plan.Realms[0]), ...) at main.go:131, which panics with index out of range; gnodev has already been started with an empty -dirs list. plan_test.go's 'gnoweb alone' case pins exactly that state as valid (wantGnoweb true, wantRealms empty, Empty() false). It needs all four gnowebSeedRealms missing from the checkout, and all four exist at head, so this is latent today and one seed rename or removal away from a panicking preview job instead of a reported one.",
+      "verify_by": "in a scratch copy, rename examples/gno.land/r/gnoland/home, r/docs/security_patterns, r/gnoland/boards2/v0 and r/gnoland/blog, then run gnopreview render -changed <file listing gno.land/pkg/gnoweb/app.go>: expect 'nothing to preview', observe a panic at main.go:131",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 263,
+      "angle": "reach",
+      "summary": "seed realms are appended after the cap and skip the ignore filter every other realm goes through",
+      "failure_scenario": "The gnoweb seed loop runs after the truncation at plan.go:256 and guards only on pkgs[r] != nil, so on a pull request that touches gnoweb plus many realms plan.Realms holds up to maxRealms+4 entries while plan.Dropped still reports the pre-seed count, and a seed realm whose gnomod.toml carries ignore = true (the flag BuildPlan honours at plan.go:220 and :241) is rendered anyway. plan_test.go never exercises the branch: its 'gnoweb alone' case notes the seed realms do not exist in the fake repo, so the append is dead in every test.",
+      "verify_by": "add gno.land/r/gnoland/home to the plan_test.go fixture with ignore = true, change gno.land/pkg/gnoweb/app.go plus 2 realms with maxRealms 2: expect 2 realms, observe 3 including the ignored seed",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 142,
+      "angle": "reach",
+      "summary": "Pkg.Draft is parsed on every package and never read",
+      "failure_scenario": "modFlags returns both flags and LoadPkgs stores Draft, but no line reads pkg.Draft: grep '\\.Draft\\b' over misc/gnopreview returns only the struct field and the assignment. examples/gno.land/r/demo/draftrealm carries draft = true, so a pull request touching it gets a preview like any other realm. That happens to work (gnodev deploys packages as genesis txs, contribs/gnodev/pkg/dev/node.go:495, and the height > 0 draft refusal at gno.land/pkg/sdk/vm/keeper.go:668 never fires), so the field buys nothing and reads as a filter that is not there.",
+      "verify_by": "grep -rn '\\.Draft\\b' misc/gnopreview: expect a use, observe only plan.go:58 and plan.go:142",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 140,
+      "angle": "reach",
+      "summary": "Realm is classified by strings.Contains(rel, \"/r/\") rather than a gno.land/r/ prefix, so a package under any directory segment named r would be treated as a realm",
+      "settled_by": "find examples/gno.land/p -type d -name r returns nothing: no package in the tree has an r segment outside gno.land/r/, so no instance exists to misclassify"
+    }
+  ]
+}

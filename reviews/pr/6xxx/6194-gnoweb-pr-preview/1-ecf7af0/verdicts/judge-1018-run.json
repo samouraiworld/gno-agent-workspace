@@ -1,0 +1,46 @@
+{
+  "verdicts": [
+    {
+      "index": 103,
+      "angle": "refactor",
+      "verify_by": "git apply reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-contains-wrapper.patch at ecf7af0, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "misc/gnopreview/plan.go",
+      "line": 335,
+      "tldr": "contains() is a one-line alias of slices.Contains that the same package already calls directly",
+      "details": "plan.go:335-337 is `func contains(s []string, v string) bool { return slices.Contains(s, v) }`, and plan.go already imports slices for it. crawl.go:229 calls `slices.Contains(changed, name)` straight, so the package spells one stdlib call two ways and a reader grepping for slices.Contains in this module finds one of the four sites. The three wrapper call sites are plan.go:265, main.go:238 and comment.go:161. Fix: delete contains() and call slices.Contains at those three sites, adding the slices import to main.go and comment.go.",
+      "evidence": "Read at ecf7af0 in my own worktree: grep over misc/gnopreview gives contains() defined at plan.go:335, called at plan.go:265, main.go:238, comment.go:161, against crawl.go:229 `return slices.Contains(changed, name)`. Applied the finder's patch there: `git diff --numstat` = `2 1 comment.go`, `2 1 main.go`, `1 5 plan.go`, so 5 lines added and 7 removed across three files. `gofmt -l .` printed nothing, `go vet ./...` printed nothing, `go test -count=1 ./...` = `ok github.com/gnolang/gno/misc/gnopreview 0.004s`; the unpatched baseline in the same tree gave the same ok line.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-contains-wrapper.patch",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 104,
+      "angle": "refactor",
+      "verify_by": "extract isTestSource and call it from both switches, then cd misc/gnopreview && go test ./... (TestRenderRelevant and TestBuildPlan/'tests and filetests do not trigger a preview' are the two that cover the pair)",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "misc/gnopreview/plan.go",
+      "line": 284,
+      "tldr": "the _test.gno / _filetest.gno predicate is spelled twice and only one of the two sites has a test",
+      "details": "plan.go:128 in LoadPkgs reads `case strings.HasSuffix(e.Name(), \"_test.gno\"), strings.HasSuffix(e.Name(), \"_filetest.gno\"):` and plan.go:284 in renderRelevant reads the same pair over `base`. The two decide different things off one rule: 128 keeps a file out of a package's deployable file list (and out of gnoImports, and out of the `len(files) == 0` drop), 284 keeps a changed file from triggering a preview at plan.go:217. A third test suffix added to one site alone leaves a file that triggers a realm preview but is absent from that realm's own file list, or the reverse, and both halves still return a plausible plan so nothing fails. renderRelevant is covered by TestRenderRelevant; LoadPkgs's switch has no test of its own. Fix: one `isTestSource(name string) bool` called from both switches.",
+      "evidence": "Verified in my own worktree at ecf7af0: the two suffix pairs are byte-identical apart from the variable. I wrote the extraction (isTestSource plus its doc comment, both call sites rewritten): `gofmt -l .` silent, `go vet ./...` silent, `go test -count=1 -run 'TestRenderRelevant|TestBuildPlan' -v .` gave `--- PASS: TestRenderRelevant` and `--- PASS: TestBuildPlan` over 10 subtests including `tests_and_filetests_do_not_trigger_a_preview`, `ok github.com/gnolang/gno/misc/gnopreview 0.004s`. Line counts: `git diff --numstat` = `9 2 misc/gnopreview/plan.go`, so this is not a line saving — 9 added, 2 removed, 3 of the 9 being the doc comment — the argument is the single source of truth, not size. grep confirms LoadPkgs is named only at plan.go:107 and its caller plan.go:194, never in plan_test.go.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-104-is-test-source.patch",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 144,
+      "angle": "reach",
+      "verify_by": "tests/b9-reach-crawl-caps_test.go, TestB9ReachMaxPagesDoesNotBoundFetches: httptest server counting requests, one $source page with 3000 file links, MaxPages=10, FileBudget=2; expect the cap to bound the requests, observe 3004",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "misc/gnopreview/crawl.go",
+      "line": 138,
+      "tldr": "per-file source pages are fetched before the budget drops them, so a wide realm renders about twenty pages that are thrown away",
+      "details": "Run() enqueues a link when inScope says yes (crawl.go:148), and inScope asks wantFile, whose budget branch is `c.fileBudget[realm] < c.FileBudget` (crawl.go:231) — a counter only chargeFile (crawl.go:236) ever increments, and chargeFile runs at crawl.go:138, after getRetry has already returned the body. Every per-file link on a $source page is therefore fetched and only then discarded. The finder's failure scenario overstates the reach twice over. fileBudget() at main.go:217-221 returns 0 unless plan.Gnoweb, so on any PR that does not touch gnoweb no per-file page is in scope at all (`0 < 0` is false); and a realm with changed files takes wantFile's exact ChangedFiles branch, which chargeFile short-circuits at crawl.go:250 — so it is not 'every realm', and it is not fork-controlled, because any file a fork adds is a changed file and lands in ChangedFiles. What a user actually loses is CI seconds on gnoweb PRs: the four seed realms are crawled with FileBudget 2, and gno.land/r/gnoland/boards2/v0 has 22 .gno files and gno.land/r/gnoland/blog 5, so about 23 chroma-highlighted source renders are fetched and dropped per crawl, and the tool crawls head and base. README.md:118's '-max-pages cap (400) backstops the rest' is about captured pages and is not falsified by this. Fix: charge the budget in inScope, at enqueue time, and let chargeFile only refund a link that 404s.",
+      "evidence": "Ran the finder's fixture from the file in my own detached worktree at ecf7af0 with go1.25.9: `go test -count=1 -v -run TestB9ReachMaxPagesDoesNotBoundFetches .` logged `B9REACH captured=6 served=3004 maxPages=10 fileBudget=2`, PASS, Run() returning nil — 3004 requests served to keep 6 pages, with MaxPages=10 never consulted because crawl.go:126 tests `len(c.pages)`. The narrowing is read and measured at the same head: main.go:217-221 `func fileBudget(plan *Plan) int { if plan.Gnoweb { return GnowebFileBudget }; return 0 }`; gnowebSeedRealms at plan.go:37-42 is home, docs/security_patterns, gnoland/boards2/v0, gnoland/blog; `ls examples/gno.land/r/gnoland/boards2/v0/*.gno | wc -l` = 22 and gnoland/blog = 5. crawl.go:210-214 documents the split deliberately ('Charging it is chargeFile's job ... a link that is discovered and then 404s must not spend a slot'), which is why this is polish and not a blocker. No merge-base run: misc/gnopreview does not exist at bbd9b2ffe.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-reach-crawl-caps_test.go",
+      "base_behaves_the_same": false
+    }
+  ]
+}

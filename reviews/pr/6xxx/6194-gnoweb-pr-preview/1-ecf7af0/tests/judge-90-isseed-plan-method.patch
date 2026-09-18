@@ -1,0 +1,41 @@
+# judge-90-isseed-plan-method.patch — candidate #90 in isolation, misc/gnopreview/
+# comment.go, gnolang/gno PR 6194, head ecf7af0f29abe4737a52803d672bc5a33c17cc60.
+# Asserts: isSeed's early return says in 6 lines what one && says in 3, and the
+# predicate belongs on *Plan beside Empty() and Mode(). 196 -> 193 lines, func
+# 6 -> 3. Non-vacuous: forcing the predicate to false fails TestRefactorGolden
+# on the Gnoweb+ChangedRealms fixture, where gno.land/r/gnoland/home is a seed.
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin ecf7af0f29abe4737a52803d672bc5a33c17cc60 && git checkout FETCH_HEAD
+#   cp <round>/tests/b5-refactor-comment-golden_test.go misc/gnopreview/
+#   (cd misc/gnopreview && go test -run TestRefactorGolden ./...)   # PASS at head
+#   git apply <this file>
+#   (cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...)  # still PASS
+diff --git a/misc/gnopreview/comment.go b/misc/gnopreview/comment.go
+index 7d2229734..a5f8a1263 100644
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -66,7 +66,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 		}
+ 		var indirect []string
+ 		for _, r := range p.Realms {
+-			if !direct[r] && !isSeed(r, p) {
++			if !direct[r] && !p.isSeed(r) {
+ 				indirect = append(indirect, r)
+ 			}
+ 		}
+@@ -154,11 +154,8 @@ func tabs(base, pkgPath string) string {
+ 	return fmt.Sprintf(" · [source](%s%s/_t/source/) · [help](%s%s/_t/help/)", base, u, base, u)
+ }
+ 
+-func isSeed(pkgPath string, p *Plan) bool {
+-	if !p.Gnoweb {
+-		return false
+-	}
+-	return contains(gnowebSeedRealms, pkgPath)
++func (p *Plan) isSeed(pkgPath string) bool {
++	return p.Gnoweb && contains(gnowebSeedRealms, pkgPath)
+ }
+ 
+ // Index is the landing page of the snapshot: every captured render page, so a

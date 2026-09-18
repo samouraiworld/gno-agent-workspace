@@ -1,0 +1,138 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 131,
+      "angle": "reach",
+      "summary": "readiness is decided by one realm page, so a realm that answers non-200 burns the whole -timeout and kills the preview",
+      "failure_scenario": "render() probes urlOf(plan.Realms[0]) and treats anything but 200 as \"gnodev is not up yet\". plan.Realms is sorted alphabetically, so the probe lands on an arbitrary realm. A realm whose Render panics answers HTTP 500 (gno.land/pkg/gnoweb/handler_http.go:1003-1006 maps every error that is not PackageNotFound/Timeout/BadRequest to 500), and a realm gnodev never published answers 404. waitReady then polls for the full -timeout (5m by default) and render() returns \"gnoweb not ready after 5m0s — see the gnodev log\": the job goes red after five idle minutes, no snapshot is written for the other realms, and the message points the author at gnodev when gnodev is healthy. Crawler.Run treats the very same 500 as a skipped page and finishes, so the readiness probe is strictly stricter than the crawl it gates.",
+      "verify_by": "go test -run TestWaitReadyProbeNon200 in misc/gnopreview with the repro file: an httptest server answering 500 on the probe path and 200 everywhere else; expect waitReady to return nil, observe \"gnoweb not ready after 3s\" after the full timeout",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestWaitReadyProbeNon200 (3.00s) — \"waitReady returned after 3s: gnoweb not ready after 3s\". The contrast test on the same server passes: \"! /r/a/broken: HTTP 500\" then \"✓ /r/a/broken$source ... ✓ /r/b/ok\", \"crawl finished with 7 page(s) despite the 500\".",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-reach-waitready_test.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 126,
+      "angle": "reach",
+      "summary": "overflowing -max-pages returns an error instead of truncating, so the cap deletes the whole preview",
+      "failure_scenario": "MaxPages is documented as \"cap on crawled pages\", but Crawler.Run returns fmt.Errorf(\"page cap %d reached\") the moment the cap is hit (crawl.go:126-128), and render() propagates it straight out of main. Everything after the crawl is skipped: no index.html, no preview.json, no comment.md, and the job fails red. A realm that links many render-argument paths (a blog or a board listing its posts, each an in-scope /r/x:p/N link) is what fills the queue, so the more content the changed realm has the likelier the author gets nothing at all rather than the first 400 pages. A cap that exists to bound cost should stop the crawl, not discard the work already done.",
+      "verify_by": "go test -run TestRunPageCapAbortsEverything in misc/gnopreview: 20 in-scope :p/N links behind one realm with MaxPages=5; expect a truncated crawl and nil error, observe an error and render()'s early return",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestRunPageCapAbortsEverything — \"Run with MaxPages=5 over 20 linked pages: err=page cap 5 reached (queue still had 19), pages kept=5\". The five pages were fetched and written to c.pages and are thrown away with the error.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-reach-waitready_test.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 111,
+      "angle": "reach",
+      "summary": "Plan.Empty() does not imply a non-empty Realms, so the line below indexes Realms[0] on a state the guard admits",
+      "failure_scenario": "Empty() is !Gnoweb && len(Realms)==0 (plan.go:91), so a plan with Gnoweb true and no realms passes the guard and main.go:131 panics with index out of range. BuildPlan reaches that state whenever a change under gno.land/pkg/gnoweb/, gno.land/cmd/gnoweb/ or contribs/gnodev/ touches no realm and none of the four hardcoded gnowebSeedRealms resolves in pkgs (plan.go:263-268 appends a seed only when pkgs[r] != nil). All four exist at this head, so today the panic is latent; it arms itself the day boards2/v0 is superseded or a seed realm moves, and the failure is a Go stack trace in a CI log rather than the \"nothing to preview\" the code already knows how to print.",
+      "verify_by": "delete or rename the four gnowebSeedRealms directories in a scratch tree, run `gnopreview render -changed <(echo gno.land/pkg/gnoweb/app.go)`, expect a clean message, observe panic: runtime error: index out of range [0] with length 0",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "ls of all four seed realms' gnomod.toml at this head succeeds, so the state is unreachable today; the guard still admits it.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 60,
+      "angle": "reach",
+      "summary": "the plan is built and stdin is read before the command is validated, so `gnopreview --help` prints no usage",
+      "failure_scenario": "run() takes args[0] as the command and only dispatches on it at line 96, after findRoot, readLines and BuildPlan have run. `gnopreview --help` is therefore parsed as a command named \"--help\": the flag package never sees it, no usage is printed, readLines blocks on /dev/stdin when stdin is a terminal, and the process finally exits 1 with `unknown command \"--help\"`. First contact with the tool is a hang or a wrong error; the README's own invocation is the only way to learn the flags.",
+      "verify_by": "build the tool at this head and run `gnopreview --help < /dev/null` from the repo root",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "gnopreview: unknown command \"--help\" / exit=1 — no usage line, no flag defaults.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 310,
+      "angle": "reach",
+      "summary": "readLines reopens /dev/stdin instead of reading os.Stdin",
+      "failure_scenario": "os.ReadFile(\"/dev/stdin\") re-opens the terminal or pipe by path rather than reading the descriptor the process already owns. It fails outright where /dev/stdin is absent (a minimal container image, a chroot without devtmpfs, Windows), and on a pipe it reopens the read end rather than continuing it. io.ReadAll(os.Stdin) has none of those conditions and is the same line count.",
+      "verify_by": "run the tool with -changed - inside a chroot or container without /dev, expect the piped list to be read, observe open /dev/stdin: no such file or directory",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 208,
+      "angle": "reach",
+      "summary": "stop() sends SIGTERM and then waits with no deadline and no SIGKILL",
+      "failure_scenario": "The returned closure kills the process group with SIGTERM and blocks on <-waited forever. A gnodev that does not exit on SIGTERM (a wedged node shutdown, a child that reparents) hangs gnopreview after every artifact has already been written, so CI reaches its job timeout and marks the run failed even though the preview is complete on disk. A select on time.After escalating to SIGKILL bounds it.",
+      "verify_by": "start gnodev under a wrapper that traps SIGTERM, run render, expect the process to exit once the snapshot is written, observe it hang",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 149,
+      "angle": "reach",
+      "summary": "with no -base-root every new realm loses its \"new in this PR\" label and reads as a failed screenshot",
+      "failure_scenario": "renderBase returns nil, nil when cfg.baseRoot is empty (line 232), so newRealms is a nil map and every ShotPair gets New=false. comment.go's pairGrid then emits the lone after-image with no note, which is exactly what it emits when the before screenshot crashed. A reader of the comment cannot tell \"this realm is new\" from \"the before shot failed\", and nothing in the run says which happened.",
+      "verify_by": "run render without -base-root on a plan with a changed realm and read comment.md: the pair block has no <sub>New in this PR</sub> line",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 251,
+      "angle": "reach",
+      "summary": "the base gnodev takes cfg.port+1 unchecked, so -port 0 or a busy neighbour costs a whole timeout",
+      "failure_scenario": "The head node binds cfg.port and cfg.port+10000, the base node cfg.port+1 and cfg.port+10001, none of them probed first. -port 0 makes gnodev pick a random port while the crawler dials http://127.0.0.1:0 and waits out the full -timeout; -port 60000 asks for RPC port 70000, outside the u16 range. Either way the only signal is \"gnoweb not ready after 5m0s\". Listening on :0 and reading back the port, or rejecting the out-of-range value at flag time, removes both.",
+      "verify_by": "gnopreview render -port 0 on any plan: expect a clear error, observe a 5 minute wait then \"gnoweb not ready\"",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 177,
+      "angle": "reach",
+      "summary": "-home is relative while gnodev chdirs to examples via -C, so the node home would land in the source tree and the workflow's `rm -rf _preview/.gnodev-*` would miss it",
+      "settled_by": "grep -rn '\\.home' contribs/gnodev/*.go: the only consumers are setup_address_book.go:16-22, which reads the directory to import an existing keybase and logs a warning when it does not exist. gnodev writes nothing under -home, so no .gnodev-<port> directory is ever created and the cleanup line is a harmless no-op."
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 141,
+      "angle": "reach",
+      "summary": "index.html is written before plan.Shots and plan.Pairs are set, so the snapshot's landing page would omit every screenshot",
+      "settled_by": "read comment.go:166-196: Index(p, c) reads only p.Realms and c.pages and never touches Shots or Pairs, so the ordering changes nothing."
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 135,
+      "angle": "reach",
+      "summary": "urlToFile does not slug the path segment, so a crawled URL containing .. would write outside -out",
+      "settled_by": "read crawl.go:177-214: inScope only queues a link whose base equals urlOf(r) for a realm in c.Realms, and Seeds() derives every seed from those same package paths, so no traversal URL can ever reach urlToFile."
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 246,
+      "angle": "reach",
+      "summary": "renderBase indexes plan.Dirs[i] by the plan.Realms loop variable, which would misalign if the two slices ever diverged",
+      "settled_by": "read plan.go:271-276: Dirs is appended inside the same `for _, r := range plan.Realms` loop that is the only writer, so len(Dirs) == len(Realms) by construction and no later code appends to either."
+    }
+  ]
+}

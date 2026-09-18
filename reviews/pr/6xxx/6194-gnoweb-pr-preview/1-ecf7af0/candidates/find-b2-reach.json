@@ -1,0 +1,113 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 402,
+      "angle": "reach",
+      "summary": "a directory link with a trailing slash maps to the live site even though that directory page is in the snapshot",
+      "failure_scenario": "Seeds() captures the directory page at \"/r/gnoland\" (no trailing slash) and writes it to r/gnoland/index.html. Every gnoweb link to a directory carries the slash - components/views/directory.html:28 emits `<a href=\"{{ .Link }}/\">Browse</a>`. mapURL keys c.pages on the exact string, so canonicalURL(\"/r/gnoland/\") misses the \"/r/gnoland\" key and the link falls through to c.Live: the rewritten page ships `href=\"https://gno.land/r/gnoland/\"`. A reviewer clicking Browse in the preview of a PR-added realm leaves the preview for gno.land, where that realm does not exist. inScope:191 refuses trailing-slash URLs too, so the page is never captured under that key either, which makes urlToFile's _dir branch (crawl.go:496-498) unreachable dead code despite TestURLToFileIsSafe and TestSplitURLKeepsTrailingSlash pinning the two forms apart.",
+      "verify_by": "go test -run TestReachCapturedDirectoryIsLinkedOffsite -v .  in misc/gnopreview with the artifact copied in; expect mapURL(\"/r/gnoland/\") to resolve inside the snapshot, observe \"https://gno.land/r/gnoland/\"",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "captured directory page file: r/gnoland/index.html | mapURL(\"/r/gnoland/\") = \"https://gno.land/r/gnoland/\" | rewritten realm page: <html><head><meta name=\"robots\" content=\"noindex, nofollow\"></head><body><a href=\"https://gno.land/r/gnoland/\">Browse</a></body></html> | TestReachDirListingBranchIsDead: no crawled URL can end in '/', so urlToFile's _dir branch (\"r/gnoland/_dir/index.html\") is unreachable",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-reach-crawl-extremes_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 126,
+      "angle": "reach",
+      "summary": "hitting MaxPages returns an error that throws away every page already captured, so the whole preview is lost instead of truncated",
+      "failure_scenario": "Run() checks `len(c.pages) >= c.MaxPages` before each fetch and returns `page cap %d reached`. main.go:134 does `if err := c.Run(); err != nil { return err }`, so Write is never called: the 400 pages already rendered by gnodev are discarded, no preview.json or comment.md is written, gnopreview exits 1 and the pr-preview job goes red with no preview comment. The cap is meant to bound work and instead voids it. Reachable because the \":args\" URL space is ungated (see the inScope candidate): 400 pages are consumed from one realm whose render emits nested :arg links.",
+      "verify_by": "go test -run TestReachColonArgsAreUngated -v . in misc/gnopreview; expect the cap to truncate the crawl and the captured pages to survive, observe an error and every page dropped",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Run() error: page cap 400 reached (queue still had 397) | gnodev requests served: 400, pages captured then discarded: 400. At MaxPages=2: \"page cap 2 reached (queue still had 2)\", pages captured before the abort: 2, order: [/r/gnoland/home /r/gnoland/home$source]",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-reach-crawl-extremes_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 186,
+      "angle": "reach",
+      "summary": "explosiveArgs gates the $query key space while the :args space has no gate at all",
+      "failure_scenario": "inScope rejects oid/tid/download/func/state only inside the `$` query. The `:args` half of a gnoweb URL is passed through untouched: every `/r/<realm>:<anything>` link on a captured page is enqueued. gno.land realms emit exactly those - boards2 renders `/r/gnoland/boards2/v0:test-board/1/reply`, `:test-board/1/edit`, `:test-board/1/flag`, `:test-board/1/repost`, `:TestBoard/create-thread` (examples/gno.land/r/gnoland/boards2/v0/filetests/z_ui_reply_00_filetest.gno:55), valopers renders `/r/gnops/valopers:<address>` per validator (valopers.gno:469), commondao renders `/r/nt/commondao/v0:<id>` per DAO. A realm with seeded state whose render links per-item pages is crawled until the page cap, and the cap then discards the run. The fresh gnodev chain limits this today for realms with no init data; a realm that seeds state in init(), or the PR's own realm, is not limited.",
+      "verify_by": "c.inScope(\"/r/gnoland/boards2/v0:test-board/1/reply\") returns true with no per-realm arg budget anywhere in crawl.go; grep crawl.go for a cap on args and find only GnowebFileBudget, which gates `file=` alone",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "TestReachColonArgsAreUngated: inScope accepted the nested :arg link and the crawl consumed the full 400-page cap from a single realm; gnodev requests served: 400",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-reach-crawl-extremes_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 110,
+      "angle": "reach",
+      "summary": "Run() resets c.pages but not c.order, so a reused Crawler nil-derefs in writePages",
+      "failure_scenario": "Run() starts with `c.pages = map[string]*page{}` and leaves c.order holding the previous run's keys. writePages:327-329 walks c.order and dereferences `c.pages[u].File`, so any key from the earlier run that the new run did not re-capture (a page that started answering 404) panics with a nil pointer dereference and takes the whole render down. Latent today - main.go builds a fresh Crawler for the head and for the base - but the reset is half-written and the next caller that reuses one pays for it.",
+      "verify_by": "go test -run TestReachSecondRunNilDerefs -v . in misc/gnopreview: two Run() calls where one URL 404s the second time, then writePages",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "order after one run: 4, after two: 7, pages: 3 | writePages panicked on the stale order entry: runtime error: invalid memory address or nil pointer dereference",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-reach-crawl-extremes_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 496,
+      "angle": "reach",
+      "summary": "urlToFile's _dir branch cannot run, and two tests pin a collision that cannot occur",
+      "failure_scenario": "listing is `strings.HasSuffix(base, \"/\") && base != \"/\"`, but no crawled URL can end in a slash: Seeds() builds every URL from urlOf and path.Dir, neither of which leaves one, and inScope:191 returns false for any trailing-slash link. So parts never gets \"_dir\" and no file is written through that branch. TestURLToFileIsSafe's \"/r/x/y\" vs \"/r/x/y/\" collision case and TestSplitURLKeepsTrailingSlash guard a shape the crawler never produces, which reads as coverage of the directory-listing path while the real directory link is the one going offsite.",
+      "verify_by": "go test -run TestReachDirListingBranchIsDead -v . : assert inScope(\"/r/gnoland/\") and that no Seeds() entry ends in \"/\"",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "no crawled URL can end in '/', so urlToFile's _dir branch (\"r/gnoland/_dir/index.html\") is unreachable",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-reach-crawl-extremes_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 575,
+      "angle": "reach",
+      "summary": "copyTree rewrites /public/ to a script-relative ../ path, which would resolve against the document URL for a classic script",
+      "settled_by": "grep -rn '<script' gno.land/pkg/gnoweb/components/ returns components/layouts/footer.html:52 `<script type=\"module\" src=\"{{ .Analytics.AssetsPath }}js/index.js?v=...\">`; a module's dynamic import() resolves against the module URL, so index.js's `let a=\"/public/js/controller-\"` rewritten to \"../js/controller-\" resolves to <out>/public/js/controller-x.js. main.css's url() are already relative (url(fonts/intervar/Intervar.woff2))."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 295,
+      "angle": "reach",
+      "summary": "canonicalURL sorts the $ query parts and the crawler then fetches the reordered URL, which gnoweb might not accept",
+      "settled_by": "grep -n 'WebQuery.Has|WebQuery.Get' gno.land/pkg/gnoweb/handler_http.go shows the view is selected by key lookup on url.Values (lines 430 `WebQuery.Has(\"help\")`, 435 `WebQuery.Has(\"source\")`, 436 `WebQuery.Get(\"file\")`), which is order-independent."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 495,
+      "angle": "reach",
+      "summary": "urlToFile does not slug the base segment, so a realm path carrying .. would escape the output directory through path.Join and writeFile",
+      "settled_by": "misc/gnopreview/plan.go:138 `Path: strings.TrimPrefix(rel, examplesRel+\"/\")` derives the package path from the on-disk directory walk, not from gnomod.toml's module line, and git cannot carry a `..` path component, so base is always clean."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 370,
+      "angle": "reach",
+      "summary": "the preview's root index.html is written outside rewrite() and so never gets the noindex meta",
+      "settled_by": "misc/gnopreview/comment.go:181 emits `<meta name=\"robots\" content=\"noindex, nofollow\">` inside Index()'s own template."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 227,
+      "angle": "reach",
+      "summary": "wantFile gates at discovery on a counter only chargeFile increments, so every file link is fetched before the first is charged",
+      "settled_by": "Measured 6 fetched / 2 kept at FileBudget=2, but misc/gnopreview/crawl_test.go:304 TestFileBudgetChargedOnCaptureNotDiscovery pins that asymmetry as intended: `for range 5 { if !c.inScope(...) { t.Fatal(\"discovery was refused before anything was captured\") } }`."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 228,
+      "angle": "reach",
+      "summary": "ChangedFiles holds repo paths while the file= query carries a base name, so slices.Contains would never match",
+      "settled_by": "plan.go:220 stores `changedFiles[p.Path][path.Base(f)] = true` and gno.land/pkg/gnoweb/components/view_source.go:84 builds `Link: data.PkgPath + \"$source&file=\" + file` from the same base name; both sides are base names."
+    }
+  ]
+}

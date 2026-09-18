@@ -1,0 +1,142 @@
+# Three one-call-site abstractions in misc/gnopreview/main.go, removed: envOr
+# (cmp.Or does it), fileBudget (inlined at its only call site), and startGnodev's
+# root/port parameters (already fields of the cfg it is handed).
+#
+# From a plain clone:
+#
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+#
+# Observed at ecf7af0f2 with go1.25.9: gofmt silent, vet silent,
+# 'ok  github.com/gnolang/gno/misc/gnopreview  0.024s', main.go 339 -> 328 lines.
+
+diff --git a/misc/gnopreview/main.go b/misc/gnopreview/main.go
+index 4d19bc42f..61bf10f9a 100644
+--- a/misc/gnopreview/main.go
++++ b/misc/gnopreview/main.go
+@@ -12,6 +12,7 @@
+ package main
+ 
+ import (
++	"cmp"
+ 	"encoding/json"
+ 	"errors"
+ 	"flag"
+@@ -65,7 +66,7 @@ func run(args []string) error {
+ 	fs.StringVar(&cfg.baseRoot, "base-root", "", "checkout of the merge base; enables before/after screenshots of changed realms")
+ 	fs.StringVar(&cfg.changed, "changed", "-", "file holding the changed paths, one per line (- for stdin)")
+ 	fs.StringVar(&cfg.out, "out", "_preview", "output directory")
+-	fs.StringVar(&cfg.gnodev, "gnodev", envOr("GNODEV", "gnodev"), "gnodev binary")
++	fs.StringVar(&cfg.gnodev, "gnodev", cmp.Or(os.Getenv("GNODEV"), "gnodev"), "gnodev binary")
+ 	fs.IntVar(&cfg.port, "port", 8899, "port gnodev serves gnoweb on")
+ 	fs.StringVar(&cfg.live, "live", defaultLive, "origin used for links the snapshot does not contain")
+ 	fs.StringVar(&cfg.baseURL, "base-url", "", "public URL the snapshot will be served from (for the comment)")
+@@ -114,7 +115,7 @@ func render(cfg config, plan *Plan) error {
+ 	}
+ 
+ 	fmt.Printf("rendering %d realm(s): %s\n", len(plan.Realms), strings.Join(plan.Realms, " "))
+-	stop, died, err := startGnodev(cfg, cfg.root, plan.Dirs, cfg.port, "gnodev.log")
++	stop, died, err := startGnodev(cfg, plan.Dirs, "gnodev.log")
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -126,7 +127,12 @@ func render(cfg config, plan *Plan) error {
+ 		MaxPages:     cfg.maxPages,
+ 		Live:         strings.TrimSuffix(cfg.live, "/"),
+ 		ChangedFiles: plan.ChangedFiles,
+-		FileBudget:   fileBudget(plan),
++	}
++	// A couple of per-file source pages for realms nothing changed in, but only
++	// when the pull request changed gnoweb: that is the case where the rendering
++	// of a source file is itself what needs reviewing.
++	if plan.Gnoweb {
++		c.FileBudget = GnowebFileBudget
+ 	}
+ 	if err := waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout, died); err != nil {
+ 		return err
+@@ -164,28 +170,28 @@ func render(cfg config, plan *Plan) error {
+ // startGnodev boots gnodev on the given package dirs of the given tree.
+ // Dependencies resolve lazily out of examples/, so only the realms being
+ // previewed are loaded.
+-func startGnodev(cfg config, root string, dirs []string, port int, logName string) (func(), <-chan error, error) {
+-	examples := filepath.Join(root, examplesRel)
++func startGnodev(cfg config, dirs []string, logName string) (func(), <-chan error, error) {
++	examples := filepath.Join(cfg.root, examplesRel)
+ 	args := []string{
+ 		"local", "-no-watch",
+-		"-web-listener", fmt.Sprintf("127.0.0.1:%d", port),
++		"-web-listener", fmt.Sprintf("127.0.0.1:%d", cfg.port),
+ 		// The RPC listener and the keybase both default to fixed locations
+ 		// (127.0.0.1:26657 and $GNOHOME), so the before/after passes — which
+ 		// run at the same time — would collide on them. Derive both from the
+ 		// web port instead.
+-		"-node-rpc-listener", fmt.Sprintf("tcp://127.0.0.1:%d", port+10000),
+-		"-home", filepath.Join(cfg.out, fmt.Sprintf(".gnodev-%d", port)),
++		"-node-rpc-listener", fmt.Sprintf("tcp://127.0.0.1:%d", cfg.port+10000),
++		"-home", filepath.Join(cfg.out, fmt.Sprintf(".gnodev-%d", cfg.port)),
+ 		"-C", examples,
+ 	}
+ 	for _, d := range dirs {
+-		args = append(args, filepath.Join(root, filepath.FromSlash(d)))
++		args = append(args, filepath.Join(cfg.root, filepath.FromSlash(d)))
+ 	}
+ 	log, err := os.Create(filepath.Join(cfg.out, logName))
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}
+ 	cmd := exec.Command(cfg.gnodev, args...)
+-	cmd.Env = append(os.Environ(), "GNOROOT="+root)
++	cmd.Env = append(os.Environ(), "GNOROOT="+cfg.root)
+ 	cmd.Stdout, cmd.Stderr = log, log
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+ 	if err := cmd.Start(); err != nil {
+@@ -210,16 +216,6 @@ func startGnodev(cfg config, root string, dirs []string, port int, logName strin
+ 	}, died, nil
+ }
+ 
+-// fileBudget allows a couple of per-file source pages for realms nothing
+-// changed in, but only when the pull request changed gnoweb: that is the case
+-// where the rendering of a source file is itself what needs reviewing.
+-func fileBudget(plan *Plan) int {
+-	if plan.Gnoweb {
+-		return GnowebFileBudget
+-	}
+-	return 0
+-}
+-
+ // renderBase renders the changed realms a second time from the merge-base
+ // checkout, into <out>/_before/. It reuses the head's gnodev binary and the
+ // head's assets on purpose: the pair must differ by the realm change alone, not
+@@ -248,8 +244,8 @@ func renderBase(cfg config, plan *Plan, head *Crawler) (*Crawler, map[string]boo
+ 	if len(realms) == 0 {
+ 		return nil, newRealms
+ 	}
+-	port := cfg.port + 1
+-	stop, died, err := startGnodev(cfg, cfg.baseRoot, dirs, port, "gnodev-base.log")
++	cfg.root, cfg.port = cfg.baseRoot, cfg.port+1
++	stop, died, err := startGnodev(cfg, dirs, "gnodev-base.log")
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+ 		return nil, newRealms
+@@ -257,7 +253,7 @@ func renderBase(cfg config, plan *Plan, head *Crawler) (*Crawler, map[string]boo
+ 	defer stop()
+ 
+ 	base := &Crawler{
+-		Base:       fmt.Sprintf("http://127.0.0.1:%d", port),
++		Base:       fmt.Sprintf("http://127.0.0.1:%d", cfg.port),
+ 		Realms:     realms,
+ 		MaxPages:   len(realms),
+ 		Live:       head.Live,
+@@ -330,10 +326,3 @@ func writeJSON(p string, v any) error {
+ 	}
+ 	return writeFile(p, string(b)+"\n")
+ }
+-
+-func envOr(k, def string) string {
+-	if v := os.Getenv(k); v != "" {
+-		return v
+-	}
+-	return def
+-}

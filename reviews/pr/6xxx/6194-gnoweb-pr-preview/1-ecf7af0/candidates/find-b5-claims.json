@@ -1,0 +1,106 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 86,
+      "angle": "claims",
+      "summary": "the cap note promises \"the changed realms are always kept\" while the cap drops them, and the comment still links the dropped ones",
+      "failure_scenario": "A pull request that edits more realm directories than -max-realms (default 25) — an examples/ wide migration or a gno fmt sweep — reaches BuildPlan, which stable-sorts the changed realms first and then truncates the whole list at the cap (plan.go:256-259) with no floor for them. Measured with 3 changed realms and maxRealms 2: Realms=[gno.land/r/a gno.land/r/b], ChangedRealms=[gno.land/r/a gno.land/r/b gno.land/r/c], Dropped=1. Comment then lists all three under **Changed realms (3)** with links into the snapshot for r/c that was never rendered (page, _t/source/, _t/help/ — all 404 on Pages), and closes with the line at 86 telling the reviewer the changed realms were kept. The realm the PR is about is the one the reviewer cannot see, and the comment says the opposite.",
+      "verify_by": "cp reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-claims-comment_test.go misc/gnopreview/zz_b5_claims_test.go && cd misc/gnopreview && go test ./... -run TestB5DroppedChangedRealmAgainstTheNote -v",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestB5DroppedChangedRealmAgainstTheNote; \"ChangedRealms=[gno.land/r/a gno.land/r/b gno.land/r/c] Realms=[gno.land/r/a gno.land/r/b] Dropped=1\"; \"changed realm \\\"gno.land/r/c\\\" was dropped by the cap, yet the comment links https://example.test/pr-1/r/c/\"; comment body carries \"- [`gno.land/r/c`](https://example.test/pr-1/r/c/) · [source](…) · [help](…)\" above \"⚠️ 1 more affected realm(s) were **not** rendered (cap reached) — the changed realms are always kept.\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-claims-comment_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 112,
+      "angle": "claims",
+      "summary": "realm package paths are written unescaped into the comment's HTML attributes and markdown links, and a privileged job posts that body verbatim",
+      "failure_scenario": "The PR body's assurance about the untrusted comment body covers shell interpolation only (\"passes it as a file and never interpolates it into a shell command. It cannot reach a secret\"); the body is still markup a fork controls. Every realm string in it is a directory name from the fork's tree — BuildPlan derives gno.land/r/<dir> straight from examples/gno.land/r/<dir> with no validation (plan.go:136-141), measured: a directory named `evil)](https://attacker.example/)[x` becomes ChangedRealms[0]. comment.go writes that string raw into alt=\"%s\" (112, 118, 121) and into [`%s`](…) (33). Measured output: `alt=\"x\"><img src=\"https://attacker.example/pixel.png\">\"` — the attribute is closed and an attacker-hosted image is embedded in a comment pr-preview-publish.yml posts under the repository's own token; GitHub's comment sanitizer keeps img/src and a/href, so the result is a third-party beacon and arbitrary links inside what reads as a bot message.",
+      "verify_by": "cp the artifact and run `go test ./... -run TestB5CommentEscapesRealmNames -v` in misc/gnopreview; then settle the remaining step end to end — boot gnodev on a package dir whose name carries `\"` or `)` and see whether it serves, since the render job writes no comment.md if gnodev refuses to boot on plan.Dirs.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestB5CommentEscapesRealmNames; ChangedRealms=[\"gno.land/r/evil)](https:/attacker.example/)[x\"]; emitted `<img src=\"https://example.test/pr-1/_shots/a.png\" width=\"600\" alt=\"x\"><img src=\"https://attacker.example/pixel.png\">\">` and `- [`gno.land/r/evil)](https:/attacker.example/)[x`](https://example.test/pr-1/r/evil)](https:/attacker.example/)[x/)`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-claims-comment_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 63,
+      "angle": "claims",
+      "summary": "Comment links every planned realm with no capture check, while Index at 170 skips the ones that were never captured",
+      "failure_scenario": "A realm whose page gnodev answered with a non-200 or an error is logged and skipped by the crawler (crawl.go:129-137) but stays in plan.Realms and plan.ChangedRealms. Index guards each row with c.pages[u] (170) and leaves it out; Comment has no Crawler at all and emits the realm, its page link, its _t/source/ and its _t/help/ regardless. Measured with one of two realms captured: the index lists only r/x/ok while the comment links https://example.test/pr-1/r/x/failed/ — the reviewer clicks a 404 for the realm that failed to render, with nothing saying it failed.",
+      "verify_by": "cp the artifact and run `go test ./... -run TestB5CommentLinksUncapturedRealm -v` in misc/gnopreview",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestB5CommentLinksUncapturedRealm: \"comment links a realm that was never captured (index does not)\", body carries \"- [`gno.land/r/x/failed`](https://example.test/pr-1/r/x/failed/) · [source](…) · [help](…)\" while Index(p, c) emitted no r/x/failed row",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-claims-comment_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 191,
+      "angle": "claims",
+      "summary": "the index page's \"N realm(s) rendered\" counts the plan while its list counts the captures, so it overstates whenever a realm failed",
+      "failure_scenario": "Index's godoc calls the page \"every captured render page\", and its paragraph prints len(p.Realms). The <li> rows come from the c.pages guard at 170, so with 2 planned realms and 1 captured the landing page of the snapshot reads \"2 realm(s) rendered with gnodev on a fresh chain\" above a single entry. Measured. The count is the only place the snapshot could tell a reviewer something went missing, and it is the number that is wrong.",
+      "verify_by": "cp the artifact and run `go test ./... -run TestB5IndexCountMatchesItsList -v` in misc/gnopreview",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestB5IndexCountMatchesItsList: \"index says 2 realm(s) rendered and lists 1\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-claims-comment_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 12,
+      "angle": "claims",
+      "summary": "the exported CommentMarker const is not what makes the comment sticky; pr-preview-publish.yml carries its own copy of the literal",
+      "failure_scenario": "The godoc says the const is what the publishing job matches on. The job matches on its own hardcoded string instead (.github/workflows/pr-preview-publish.yml:169, marker='<!-- gnoweb-pr-preview -->'), and no test or build step ties the two. Editing the Go const alone still compiles and still passes plan_test.go (which asserts the body contains CommentMarker, whatever its value), and the next push to every open PR posts a second comment instead of updating the first — the failure the const exists to prevent, and it is invisible until a PR carries two previews.",
+      "verify_by": "grep -rn 'gnoweb-pr-preview' misc/gnopreview .github/workflows — two independent literals; change the const and run `cd misc/gnopreview && go test ./...` to see it stay green",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep: comment.go:12 const CommentMarker = \"<!-- gnoweb-pr-preview -->\" and pr-preview-publish.yml:169 marker='<!-- gnoweb-pr-preview -->'; plan_test.go:196 asserts only strings.Contains(got, CommentMarker)",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 22,
+      "angle": "claims",
+      "summary": "\"Comment is not called in that case, and an empty string here keeps a stray call from posting a useless one\"",
+      "settled_by": "main.go:111-114 returns after writeJSON when plan.Empty(), so Comment is never reached; and pr-preview-publish.yml:166 `[ -s _preview/comment.md ] || { echo \"no comment body — nothing to post\"; exit 0; }` skips an empty body"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 130,
+      "angle": "claims",
+      "summary": "\"shotGrid embeds the screenshots two per row\" and \"served from the published snapshot itself, so nothing has to be uploaded\"",
+      "settled_by": "the `if i > 0 && i%2 == 0` break emits </tr><tr> before every even index, and shots.go:143 stores File as path.Join(\"_shots\", name+\".png\") inside outDir, embedded as base+\"/\"+File"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 19,
+      "angle": "claims",
+      "summary": "\"baseURL … with or without a trailing slash\" and \"when it is empty the comment still lists what was rendered\"",
+      "settled_by": "strings.TrimSuffix(baseURL, \"/\") at 28 plus plan_test.go:194 passing \"https://example.test/pr-7/\"; with base==\"\" link() returns a code span and both grids return \"\", so the realm list survives"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 99,
+      "angle": "claims",
+      "summary": "\"pairGrid shows each changed realm … before and after\" while shots.go caps the pairs at two",
+      "settled_by": "shots.go:31 const maxPairs = 2 and shots.go:68-71 breaks with \"before/after capped at %d realm(s); the rest are listed as links\" — the cap is deliberate and stated at its own site; the only fix here is the godoc's wording"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 148,
+      "angle": "claims",
+      "summary": "tabs() and Index link _t/source/ and _t/help/ paths that may not exist in the snapshot",
+      "settled_by": "urlToFile(\"/r/x/y$source\") builds parts [base, \"_t\", slug(\"source\")] -> r/x/y/_t/source/index.html (crawl.go:486-506), and Seeds() adds u+\"$source\" and u+\"$help\" for every realm (crawl.go:91-92), so the link shape matches what is written"
+    }
+  ]
+}

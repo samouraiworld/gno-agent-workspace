@@ -1,0 +1,45 @@
+# b7-refactor-sortedkeys-REFUTED.patch — PR 6194 (gnolang/gno), head ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#
+# REFUTED: sortedKeys() -> slices.Sorted(maps.Keys(m)) (8 lines -> 3) turns four TestBuildPlan cases red. slices.Sorted returns a nil slice for an empty map, the current make([]string, 0, len(m)) returns an empty non-nil one, and plan_test.go compares with reflect.DeepEqual against []string{} (and Plan.Realms has no omitempty, so the JSON would flip from [] to null). Kept as the record that the rewrite does not hold.
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno.git && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+#
+# Measured at ecf7af0 with go1.25.9: gofmt silent, vet silent,
+#   "ok  github.com/gnolang/gno/misc/gnopreview  0.005s"
+# Baseline (unpatched) at the same head: same "ok" line.
+#
+# Observed after applying:
+#   --- FAIL: TestBuildPlan/nothing_relevant (0.00s)
+#       plan_test.go:144: Realms = []; want []
+#   (same for gnoweb_alone, quarantined_packages_never_appear,
+#    tests_and_filetests_do_not_trigger_a_preview)
+diff --git a/misc/gnopreview/plan.go b/misc/gnopreview/plan.go
+index 4828aac3e..e4c10aa80 100644
+--- a/misc/gnopreview/plan.go
++++ b/misc/gnopreview/plan.go
+@@ -5,6 +5,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"io/fs"
++	"maps"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -315,12 +316,7 @@ func dependents(pkgs map[string]*Pkg, seeds map[string]bool) []string {
+ }
+ 
+ func sortedKeys(m map[string]bool) []string {
+-	out := make([]string, 0, len(m))
+-	for k := range m {
+-		out = append(out, k)
+-	}
+-	sort.Strings(out)
+-	return out
++	return slices.Sorted(maps.Keys(m))
+ }
+ 
+ func hasPrefixAny(s string, prefixes []string) bool {

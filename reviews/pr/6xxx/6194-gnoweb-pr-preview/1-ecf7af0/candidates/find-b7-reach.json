@@ -1,0 +1,72 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 258,
+      "angle": "reach",
+      "summary": "the -max-realms cap silently drops changed realms, and the comment still links each one and claims none was dropped",
+      "failure_scenario": "A PR that touches more than 25 realm directories (renderRelevant accepts gnomod.toml, and examples/gno.land/r holds 58 packages carrying one, so a tree-wide `gno = ...` bump or a `gno mod tidy` sweep does it) puts every one of them in plan.ChangedRealms at plan.go:229-243, before realms is truncated to maxRealms at plan.go:256-258. The truncated realms never reach plan.Dirs, gnodev or the crawler. Comment() then prints \"**Changed realms (58)**\" and, at comment.go:62-63, one bullet per changed realm with three links each (page, _t/source, _t/help) into the published preview; the 33 past the cap are 404s. comment.go:86 closes with \"the changed realms are always kept\", which is false in exactly this case. Measured with maxRealms=2 and 3 changed realms: Realms=[a b], ChangedRealms=[a b c], and the comment carries [`gno.land/r/x/c`](https://preview.example/pr-1/r/x/c/) plus the always-kept line.",
+      "verify_by": "cp reviews/.../tests/b7-reach-plan-caps.go misc/gnopreview/zz_b7_reach_test.go && cd misc/gnopreview && go test -run TestB7CapDropsChangedRealms -v ./...",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "TestB7CapDropsChangedRealms FAIL: \"ChangedRealms=[gno.land/r/x/a gno.land/r/x/b gno.land/r/x/c]\", \"Realms(rendered)=[gno.land/r/x/a gno.land/r/x/b] Dirs=[examples/gno.land/r/x/a examples/gno.land/r/x/b] Dropped=1\", \"comment links a realm that was never rendered: [`gno.land/r/x/c`](https://preview.example/pr-1/r/x/c/)\", \"comment claims every changed realm was kept, while [gno.land/r/x/c] were dropped\". find examples/gno.land/r -name gnomod.toml | wc -l = 58, against defaultMaxRealms = 25 (main.go:29).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-reach-plan-caps.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 100,
+      "angle": "reach",
+      "summary": "Empty() calls a gnoweb plan with zero realms non-empty, and render() then indexes plan.Realms[0]",
+      "failure_scenario": "gnowebSeedRealms (plan.go:46-51) is four hardcoded paths, and plan.go:273-274 adds one only when `pkgs[r] != nil`: a seed that is renamed or moved is dropped with no error, no log and no comment line, so a gnoweb preview quietly loses that sample page. At the extreme where no seed resolves, BuildPlan returns Gnoweb=true, Realms=[], and Empty() is false (plan.go:100 only checks Gnoweb and Realms), so render() passes the Empty() guard at main.go:111 and evaluates urlOf(plan.Realms[0]) at main.go:131: index out of range, a Go panic and a stack trace in place of the preview job, after gnodev has already been started with an empty dir list. The package's own plan_test.go case \"gnoweb alone\" pins this exact state (wantRealms: []string{}, wantMode: \"gnoweb\") and asserts Empty() is false. All four seeds exist at this head, so the panic needs seed drift; the silent drop needs one rename.",
+      "verify_by": "cp reviews/.../tests/b7-reach-plan-caps.go misc/gnopreview/zz_b7_reach_test.go && cd misc/gnopreview && go test -run TestB7NonEmptyPlanWithNoRealms -v ./...",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "TestB7NonEmptyPlanWithNoRealms FAIL: \"Gnoweb=true Realms=[] Empty=false Mode=\\\"gnoweb\\\"\" then \"render() panics on a non-empty plan with no realms: runtime error: index out of range [0] with length 0\".",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-reach-plan-caps.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 273,
+      "angle": "reach",
+      "summary": "seed realms are appended after the cap, so -max-realms is exceeded and the extra realms are crawled but never shown",
+      "failure_scenario": "plan.go:272-279 appends up to four gnowebSeedRealms after the truncation at plan.go:256-258, so `-max-realms N` renders up to N+4 realms and plan.Dropped still reports the pre-seed count. In \"both\" mode (gnoweb plus a changed realm) render() takes the ChangedRealms branch at main.go:147, so Screenshot() never runs and comment.go:69 filters seeds out of the indirect list: the four seeds are loaded into gnodev, crawled against the shared MaxPages=400 budget with GnowebFileBudget pages each, and appear nowhere in the comment. Measured: -max-realms 2 with a gnoweb change and two changed realms rendered 3 realms.",
+      "verify_by": "cp reviews/.../tests/b7-reach-plan-caps.go misc/gnopreview/zz_b7_reach_test.go && cd misc/gnopreview && go test -run TestB7SeedsOvershootCap -v ./...",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "TestB7SeedsOvershootCap FAIL: \"max-realms=2 Realms=[gno.land/r/gnoland/home gno.land/r/x/a gno.land/r/x/b] (3) Dirs=3\" and \"-max-realms 2 rendered 3 realms\".",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-reach-plan-caps.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 142,
+      "angle": "reach",
+      "summary": "Pkg.Draft is parsed and never read",
+      "failure_scenario": "modFlags returns both flags at plan.go:142 and only Ignore is consumed (plan.go:220, 241). Draft has no reader anywhere in the tree, so the field and half of modFlags are dead weight a later reader takes for a live filter. It is not a correctness bug: gnodev deploys the dirs through genesis, and the keeper rejects a draft package only above height 0 (gno.land/pkg/sdk/vm/keeper.go:668), so gno.land/r/demo/draftrealm previews fine.",
+      "verify_by": "grep -rn '\\.Draft\\b' --include='*.go' . | grep gnopreview — one hit, the assignment at plan.go:142",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep over the worktree for `\\.Draft\\b` in *.go returns gnopreview only at plan.go:142; the other hits are gnolang/gotypecheck.go, sdk/vm/keeper.go, gnoweb/components/overview_build.go and github-bot.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 142,
+      "angle": "reach",
+      "summary": "a draft realm in the plan makes gnodev refuse the package, so the readiness probe on Realms[0] times out for 5 minutes",
+      "settled_by": "grep -rn 'Draft|draft' contribs/gnodev --include='*.go' returns nothing, and gno.land/pkg/sdk/vm/keeper.go:668 reads `if gm.Draft && height > 0 { return ErrInvalidPackage(\"draft packages can only be deployed at genesis time\") }`: gnodev loads the dirs into genesis (height 0), so the one draft realm at head, gno.land/r/demo/draftrealm, deploys."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 46,
+      "angle": "reach",
+      "summary": "a gnowebSeedRealms entry does not exist at this head, so the gnoweb sample is already short",
+      "settled_by": "all four seed dirs exist under examples/gno.land with a gnomod.toml and at least one non-test .gno file: r/gnoland/home (1), r/docs/security_patterns (1), r/gnoland/boards2/v0 (22), r/gnoland/blog (3)."
+    }
+  ]
+}

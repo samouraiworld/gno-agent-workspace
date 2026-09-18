@@ -1,0 +1,113 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 187,
+      "angle": "claims",
+      "summary": "the noindex test pins gnoweb's robots tag as a hand-typed string, so a reshaped tag in head.html ships two contradicting robots metas with every test still green",
+      "failure_scenario": "TestRewriteAddsNoindex's fixture `<meta name=\"robots\" content=\"index, follow\" />` is a copy of gno.land/pkg/gnoweb/components/layouts/head.html:38, and robotsRe only matches that spelling. Reorder the two attributes there (or switch to single quotes) and setNoindex stops replacing: every preview page then carries gnoweb's `index, follow` AND the tool's `noindex, nofollow`, leaving the choice to each crawler's precedence rules — the exact outcome the comment says is not worth betting gno.land's search results on. Measured: 2 robots metas and `index, follow` surviving. No test fails, because the fixture is a copy rather than a read of head.html.",
+      "verify_by": "cp reviews/.../tests/b9-claims-noindex-coupling_test.go misc/gnopreview/zz_probe_claims_test.go && cd misc/gnopreview && go test -run TestProbeRobotsShapeCoupling -v .",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "head.html ships: <meta name=\"robots\" content=\"index, follow\" /> | as shipped today -> 1 robots meta(s), index,follow survives: false | attributes reordered -> 2 robots meta(s), index,follow survives: true | single quotes -> 2 robots meta(s), index,follow survives: true",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-claims-noindex-coupling_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 261,
+      "angle": "claims",
+      "summary": "TestURLToFileIsSafe claims no output escapes the realm directory, but it only exercises the slugged halves; a base carrying \"..\" walks out of the output tree",
+      "failure_scenario": "urlToFile slugs the render arguments and the tab query, and path.Join's the base unchanged: urlToFile(\"/r/x/y/../../../../etc/passwd\") = \"../etc/passwd/index.html\", which writePages hands to filepath.Join(dir, ...) and writes outside <out>. The four inputs the test walks all put the dots after \":\" or \"$\", so the assertion proves only the slug half. Nothing today reaches it — inScope demands base == urlOf(realm) — so the guarantee the test states lives in the caller, not in the function the test is about, and the next caller of urlToFile (a second seed source, a resume from a URL list) inherits no check.",
+      "verify_by": "cd misc/gnopreview && go test -run TestProbeURLToFileBaseNotCleaned -v . with the probe file from the repro path; then grep -n 'urlToFile(' crawl.go to confirm Run is the only caller and inScope is the only gate",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "urlToFile(\"/r/x/y/../../../../etc/passwd\") = \"../etc/passwd/index.html\"; urlToFile(\"/r/x/y/../z\") = \"r/x/z/index.html\"; urlToFile(\"/r/x/..\") = \"r/index.html\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-claims-noindex-coupling_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 244,
+      "angle": "claims",
+      "summary": "chargeFile calls an empty file= value \"not a per-file page\", so gnoweb's own directory link is captured free as a second copy of the $source overview",
+      "failure_scenario": "components/view_directory.go:24 emits `<pkgpath>$source&file=` with an empty value, and that link is on every directory page the crawler seeds. canonicalURL turns it into \"$file=&source\", inScope admits it (wantFile sees an empty name and only consults the budget), and chargeFile returns early on name == \"\" without spending a slot. gnoweb serves the source overview for an empty file, so the snapshot stores r/x/dep/_t/file-source-5e3ba8d6/index.html as a byte copy of r/x/dep/_t/source/index.html — one unbudgeted duplicate per dependency realm whenever gnoweb changed, in a preview whose whole point is to stay under the artifact size cap.",
+      "verify_by": "cd misc/gnopreview && go test -run TestProbeEmptyFileValue -v . with the probe file; grep -n 'source&file=\"' ../../gno.land/pkg/gnoweb/components/view_directory.go for the emitting site",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "\"/r/x/dep$file=&source\" inScope=true chargeFile=true -> \"r/x/dep/_t/file-source-5e3ba8d6/index.html\"; budget after: map[]; $source overview -> \"r/x/dep/_t/source/index.html\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-claims-noindex-coupling_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 490,
+      "angle": "claims",
+      "summary": "the trailing-slash machinery guards a collision the crawler cannot reach: no trailing-slash URL is ever captured",
+      "failure_scenario": "splitURL's godoc, canonicalURL's test comment, urlToFile's listing/_dir branch, TestURLToFile's \"/r/\" case and the whole of TestSplitURLKeepsTrailingSlash exist so the listing page cannot overwrite the render page. inScope returns false for any base ending in \"/\", and Seeds emits none, so no page with a trailing slash is ever queued, captured, or passed to urlToFile: _dir and _root are dead segments, and the test that pins them can never go red for the reason its comment gives. A reader budgets for a listing page in the snapshot that is not there.",
+      "verify_by": "cd misc/gnopreview && go test -run TestProbeListingBranchUnreachable -v . with the probe file: seeds carry no trailing slash and inScope is false for every trailing-slash form",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "seeds: [/r/gnoland/home /r/gnoland/home$source /r/gnoland/home$help /r/demo/counter /r/demo/counter$source /r/demo/counter$help /r/demo /r/gnoland]; inScope(\"/r/gnoland/home/\") = false; inScope(\"/r/\") = false; inScope(\"/\") = false",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-claims-noindex-coupling_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 405,
+      "angle": "claims",
+      "summary": "\"anything not captured goes to the live site\" 404s for the realm the pull request adds",
+      "failure_scenario": "TestMapURL pins {\"/r/other/realm\", \"https://gno.land/r/other/realm\"} and inScope's comment sends the listing, $state, $help&func= and every over-budget file page to c.Live. For a PR that adds a realm, that realm does not exist on gno.land, so each of those links in the preview is a 404 rather than a page — including the per-function Action links overview_symbols.go:54 puts on the realm's own overview. renderBase already computes which changed realms are absent at the merge base, so the tool knows which links cannot resolve and still emits them.",
+      "verify_by": "grep -n 'ActionURL = pkgPath' ../../gno.land/pkg/gnoweb/components/overview_symbols.go and read Crawler.mapURL's fallback; then boot the preview for a PR adding a realm and follow one Action link",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 59,
+      "angle": "claims",
+      "summary": "the ChangedFiles godoc budgets \"unchangedFileBudget\" of them, a symbol that does not exist",
+      "settled_by": "grep -rn unchangedFileBudget misc/gnopreview | wc -l -> 1, the comment itself; the constant is GnowebFileBudget and the field is FileBudget. Comment wording only, so it is a SKIP and not a candidate."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 158,
+      "angle": "claims",
+      "summary": "explosiveArgs' godoc says the top-level $state page is still captured; it is dropped",
+      "settled_by": "sed -n '156,171p' crawl.go shows \"state\": true in the same map, with its own comment giving the reason (~1.3 MB of object graph), and crawl_test.go:102 pins {\"/r/gnoland/home$state\", false}. The drop is deliberate and documented inline; only the paragraph above it is stale, so this is comment wording."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 24,
+      "angle": "claims",
+      "summary": "the page.File example shows the pre-digest slug format r/gnoland/home/_t/source--file-home.gno/index.html",
+      "settled_by": "crawl_test.go:67 pins the current shape, r/gnoland/home/_t/file-home.gno-source-2ca84ba4/index.html (sorted query, single dashes, digest). Comment wording only."
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 43,
+      "angle": "claims",
+      "summary": "canonicalURL sorts the web query, so every captured tab page is fetched in an order no gnoweb template emits",
+      "settled_by": "grep -n 'WebQuery.Has\\|WebQuery.Get' gno.land/pkg/gnoweb/handler_http.go -> lines 261/274/430/435/436 read url.Values, which is order-independent; ParseFromURL cuts on \"$\" and parses the rest as a query. $file=a.gno&source and $source&file=a.gno are the same page."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 314,
+      "angle": "claims",
+      "summary": "the n == 0 canary counts \"/public/\" in every asset, not the \"/public/js/controller-\" prefix it claims to watch",
+      "settled_by": "grep -rc \"/public/\" gno.land/pkg/gnoweb/public -> one file, js/index.js:1. No other asset carries the string, so the canary does fire the day the controller prefix goes."
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 209,
+      "angle": "claims",
+      "summary": "TestWantFile assumes ChangedFiles values are base names; a producer passing repo paths would silently drop every changed file's page",
+      "settled_by": "plan.go:225 changedFiles[p.Path][path.Base(f)] = true, and plan.go:77 documents base names. The only producer agrees with the test."
+    }
+  ]
+}

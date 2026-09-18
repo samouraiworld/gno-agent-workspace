@@ -1,0 +1,93 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 547,
+      "angle": "catalog",
+      "summary": "copyTree's /public/ relativization, the one transform every asset in the preview depends on, is pinned by no test; the shipped tree carries exactly one such literal, inside a minified bundle",
+      "failure_scenario": "The whole preview's CSS and its dynamic controller loading rest on strings.ReplaceAll(b, \"/public/\", up) finding a literal in gno.land/pkg/gnoweb/public. Measured over the tree at this head: exactly one literal exists, `let a=\"/public/js/controller-\"` in the minified public/js/index.js. A frontend build that emits that path any other way (a template string, a JSON-escaped \\/public\\/, a moved prefix) silently rewrites nothing; Write only prints a stderr line (crawl.go:314) and still returns nil, so the job is green and every published page loads its controllers from https://<owner>.github.io/js/controller-*.js, which 404s. No test in crawl_test.go calls copyTree or Write at all.",
+      "verify_by": "grep -n '^func Test' misc/gnopreview/crawl_test.go: no copyTree/Write test. Then run tests/b2-catalog-r2-copytree-public-rewrite.go as misc/gnopreview/zz_copytree_test.go: it reports the literal count in the shipped tree and asserts the rewritten specifier.",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "go test -run TestCopyTreePublicRewrite -v: \"assets carrying an absolute /public/ reference: [js/index.js] (total literals=1)\", \"copyTree reported 1 rewrite(s)\", \"controller loader literal after rewrite: \\\"a=\\\\\\\"../js/controller-\\\"\". The rewrite is correct today (import() resolves ../js/controller-X.js against the module URL <out>/public/js/index.js) and nothing in the package pins it.",
+      "repro_path": "tests/b2-catalog-r2-copytree-public-rewrite.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 444,
+      "angle": "catalog",
+      "summary": "no byte cap on a response and every captured body is retained until writePages, so the render job's peak memory is page count times page size and only the count is bounded",
+      "failure_scenario": "c.get reads with a bare io.ReadAll and Run keeps every body in c.pages until writePages runs at the end. The only bound the tool declares is -max-pages 400 (README \"Bounds\": \"A -max-pages cap (400) backstops the rest\"), a page count. gnoweb caps nothing on the read side either: the only MaxBytesReader in gno.land/pkg/gnoweb is on POST form bodies (handler_http.go:331). So the quantity that decides whether the render job survives is the size of what the previewed realms render, which is the pull request's own content. The author already reasons in bytes elsewhere ($state excluded at ~1.3 MB per realm), so the missing half of that reasoning is the per-response cap.",
+      "verify_by": "Run tests/b2-catalog-r2-crawl-body-size-cap.go as misc/gnopreview/zz_bodycap_test.go: serve 8 MiB per realm to a 4-realm crawl under MaxPages 400 and compare retained bytes and heap delta against realms*pageBytes.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "go test -run TestCrawlHasNoBodySizeCap -v: \"served responses=4 captured pages=4 retained body bytes=33554588 heap delta=33658616\" — 4 x 8 MiB read and retained whole, heap tracking the served bytes exactly, with -max-pages 400 in force. grep for LimitReader/MaxBytes in gno.land/pkg/gnoweb: only handler_http.go:331, POST forms.",
+      "repro_path": "tests/b2-catalog-r2-crawl-body-size-cap.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 314,
+      "angle": "catalog",
+      "summary": "the asset-relativization canary prints to stderr and Write still returns nil, so a preview whose interactive controls never load ships on a green job",
+      "failure_scenario": "copyTree returns the number of /public/ literals it replaced; Write prints \"! no absolute /public/ reference found in the assets\" when that is zero and returns nil anyway. The measured margin is one literal in the whole shipped asset tree, so the canary fires the first time the frontend build changes how it spells that path. When it fires, the published pages still reference /public/js/controller-*.js at the Pages origin root, every controller import 404s, and the only record is one stderr line in a job that exits 0 and whose artifact is published as usual. This is the state that needs a person deciding, returned as nothing.",
+      "verify_by": "Count the literals in the shipped tree (grep -rc '/public/' gno.land/pkg/gnoweb/public), then read crawl.go:314-316: the n==0 branch has no return and no error.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "TestCopyTreePublicRewrite: \"assets carrying an absolute /public/ reference: [js/index.js] (total literals=1)\". crawl.go:314-316 prints and falls through to c.writePages(dir), which returns nil on success.",
+      "repro_path": "tests/b2-catalog-r2-copytree-public-rewrite.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 138,
+      "angle": "catalog",
+      "summary": "the per-realm file budget is charged after the page is fetched, so every file= link past the budget costs a full gnoweb render that is then thrown away",
+      "failure_scenario": "inScope/wantFile admit a file= link whenever c.fileBudget[realm] is still under FileBudget, and the counter only moves in chargeFile, which Run calls at line 138 after getRetry has already paid for the render at line 129. So a seed realm's whole $source&file= link set is enqueued, every one of them is fetched from gnodev, and everything past the second is discarded with \"per-file budget spent\". On a gnoweb pull request (FileBudget 2) a seed realm with 30 source files costs 28 full gnoweb renders for pages that are never written. The package's own TestFileBudgetChargedOnCaptureNotDiscovery pins the charge point deliberately, but it asserts nothing about the fetches that happen in between.",
+      "verify_by": "Serve a realm page linking 10 distinct $source&file= URLs from an httptest server, run Crawler.Run with FileBudget 2, and count handler invocations: expect 2 captures and 10 fetches.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 353,
+      "angle": "catalog",
+      "summary": "fork-authored realm HTML is published verbatim (only a robots meta added) to the shared gnolang.github.io origin, so a fork PR's Render output could run script there",
+      "settled_by": "grep -rn 'UnsafeHTML' contribs/gnodev gno.land/pkg/gnoweb: gnoweb only enables goldmark's mdhtml.WithUnsafe() under cfg.UnsafeHTML (app.go:145), which gnodev sets from -web-html, defaulting false (defaultLocalAppConfig in contribs/gnodev/command_local.go:28 leaves webHTML unset). grep for 'gnodev' args in misc/gnopreview/main.go:164-187 shows gnopreview never passes -web-html, so raw HTML in realm markdown is stripped before the crawler ever sees it."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 589,
+      "angle": "catalog",
+      "summary": "waitReady drains the died channel with a non-blocking receive, so the goroutine sending cmd.Wait() could block forever and deadlock stop() on <-waited",
+      "settled_by": "grep -n 'make(chan error' misc/gnopreview/main.go: \"199: died := make(chan error, 1)\" — the channel is buffered, so the send completes whether or not anyone is receiving."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 327,
+      "angle": "catalog",
+      "summary": "determinism class: the published tree depends on Go map iteration order somewhere in the crawl",
+      "settled_by": "grep -n 'range ' misc/gnopreview/crawl.go: every range is over a slice or a sorted result — Seeds uses sortedKeys(dirs) (plan.go:317), links() ends on sort.Strings, canonicalURL sorts the query parts, writePages walks c.order, copyTree walks lexically. No map is ranged in crawl.go."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 570,
+      "angle": "catalog",
+      "summary": "copyTree's up computation is wrong for an asset in a subdirectory, so the rewritten controller path resolves outside the published tree",
+      "settled_by": "TestCopyTreePublicRewrite (tests/b2-catalog-r2-copytree-public-rewrite.go) run at this head: \"controller loader literal after rewrite: \\\"a=\\\\\\\"../js/controller-\\\"\" and the resolved target <out>/public/js/controller-copy.js exists. index.ts:38 loads it with import(path), which resolves a relative specifier against the module's own URL, <out>/public/js/index.js."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 357,
+      "angle": "catalog",
+      "summary": "html.UnescapeString expands legacy semicolon-less entities, so an href carrying &copy= or &not= becomes a different URL than the one gnoweb served",
+      "settled_by": "links() (crawl.go:453) and rewrite() (crawl.go:357) both call html.UnescapeString on the same raw attribute, so the queued URL and the rewritten href agree by construction; and gnoweb reaches the crawler only through goldmark and html/template, which emit &amp; rather than a bare & in an attribute. No divergence is reachable."
+    }
+  ]
+}

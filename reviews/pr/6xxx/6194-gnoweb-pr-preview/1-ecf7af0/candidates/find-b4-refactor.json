@@ -1,0 +1,105 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 83,
+      "angle": "refactor",
+      "summary": "each screenshot's path is spelled twice, once for Chrome and once for the comment (3 sites); building it once is line-neutral, 169 -> 170 non-comment lines with the other four rewrites folded in",
+      "failure_scenario": "chromeShot writes filepath.Join(outDir, shotsDir, name+\"-after.png\") while pair.After stores path.Join(shotsDir, name+\"-after.png\"); the same pair repeats at lines 91/92 and 138/143. An edit to the naming scheme that touches one spelling and not its twin publishes a comment whose <img> points at a file Chrome never wrote: the PR comment renders a broken image and nothing in the tool notices, since chromeShot only stats the path it was given.",
+      "verify_by": "git apply the rewrite and run, from misc/gnopreview: gofmt -l . && go vet ./... && go test ./... ; the shotFile helper returns the single relative path and hands filepath.Join(outDir, rel) to chromeShot",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "gofmt -l . no output; go vet clean; \"ok  github.com/gnolang/gno/misc/gnopreview  0.005s\"; non-comment lines 169 -> 170",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-shots-dedupe.diff"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 134,
+      "angle": "refactor",
+      "summary": "Screenshot reaches into the crawler's unexported pages map where the accessor exists; c.FileOf(s.url) is the same two lines and is what the sibling function on line 72 already calls",
+      "failure_scenario": "Screenshot does p, ok := c.pages[canonicalURL(s.url)] and then p.File, which is FileOf's body verbatim (crawl.go:338-344). Two spellings of one lookup in one file: a change to how a captured URL maps to a file, say another canonicalisation step inside FileOf, reaches ScreenshotPairs and silently not Screenshot, and the gnoweb-only sample quietly stops capturing pages the pair path still finds.",
+      "verify_by": "sed -n '337,345p' crawl.go shows FileOf is exactly that lookup; swap the three lines for src, ok := c.FileOf(s.url) and run go test ./... in misc/gnopreview",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "crawl.go:338 \"func (c *Crawler) FileOf(u string) (string, bool)\" with body \"p, ok := c.pages[canonicalURL(u)]\" ... \"return p.File, true\"; rewrite using FileOf: vet clean, \"ok  github.com/gnolang/gno/misc/gnopreview  0.005s\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-shots-dedupe.diff"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 72,
+      "angle": "refactor",
+      "summary": "urlOf(r) is evaluated three times per realm in one loop body (lines 72, 76, 89); one local u costs one line and removes two calls",
+      "failure_scenario": "The loop computes urlOf(r) for head.FileOf, again inside slug(strings.TrimPrefix(urlOf(r), \"/\")), and a third time for base.FileOf. The three are the same value by construction, so a future urlOf that is not pure, or a caller that wants to shift the mapping for one pass, has three sites to keep in step and the after shot, the slug and the before shot can disagree about which URL the pair is of.",
+      "verify_by": "hoist u := urlOf(r) above the FileOf call and use it at all three sites; go test ./... in misc/gnopreview",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "grep of the head file: lines 72 \"head.FileOf(urlOf(r))\", 76 \"slug(strings.TrimPrefix(urlOf(r), \\\"/\\\"))\", 89 \"base.FileOf(urlOf(r))\"; rewrite with one local: \"ok  github.com/gnolang/gno/misc/gnopreview  0.005s\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-shots-dedupe.diff"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 51,
+      "angle": "refactor",
+      "summary": "the 15-line findChrome/serve/MkdirAll prologue is duplicated verbatim in ScreenshotPairs and Screenshot, differing in one word of one message; one helper is line-neutral, measured 169 -> 170 non-comment lines, and is worth it for the single site, not for the count",
+      "failure_scenario": "Lines 51-65 and 117-131 are the same block twice. Adding a step both passes need, a Chrome sandbox flag check or a temp profile dir, lands in one and not the other: the before/after pass and the gnoweb sample then behave differently on the same runner, and the pass that missed the step fails per screenshot instead of skipping cleanly. The MkdirAll failure path already differs in effect between them only by accident of the defer placement.",
+      "verify_by": "apply the rewrite's shotEnv helper and run gofmt -l . ; go vet ./... ; go test ./... in misc/gnopreview, then count non-comment lines before and after with grep -v '^[[:space:]]*//' shots.go | grep -c '[^[:space:]]'",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "169 non-comment lines at head, 170 after the rewrite (213 -> 223 file lines): not shorter. gofmt clean, vet clean, \"ok  github.com/gnolang/gno/misc/gnopreview  0.005s\". A struct-based variant of the same dedupe measured 233 file lines and was rejected.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-shots-dedupe.diff"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 208,
+      "angle": "refactor",
+      "summary": "findChrome's os.Stat fallback sits at the wrong depth: LookPath already tries a slashed path directly, so the only candidate Stat adds is one that exists and cannot be executed, and returning it converts a clean skip into an exec failure per screenshot",
+      "failure_scenario": "exec.LookPath tries a file containing a slash directly, so /Applications/Google Chrome.app/... resolves through LookPath whenever it is runnable. The Stat branch therefore fires only when the path exists and LookPath rejected it, meaning no exec permission; findChrome then returns it, bin != \"\", and every chromeShot exec fails with permission denied, printing '! screenshot <url>: ...' per page instead of the one '! no Chrome/Chromium found' line the design intends. For a bare name like \"chromium\" it is worse: Stat resolves it against the working directory, and exec.Command with no separator looks it up on PATH again, so the value returned cannot be run at all.",
+      "verify_by": "go doc os/exec.LookPath for the slash rule, then in a scratch dir: touch chromium && chmod -x chromium, and call findChrome(\"\") with CHROME unset from the package's working directory; observe a non-empty return whose exec fails",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "go doc os/exec.LookPath: \"If file contains a slash, it is tried directly and the PATH is not consulted.\" Not run as a program: a Nit is read, not run, per the finder rules.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 122,
+      "angle": "refactor",
+      "summary": "serve's origin is named base in Screenshot and origin in ScreenshotPairs, where base is the merge-base *Crawler forty lines up: one name, two meanings, in one file",
+      "failure_scenario": "Screenshot binds srv, base, err := serve(outDir) and uses base+\"/\"+p.File, while ScreenshotPairs forty lines earlier takes base *Crawler and calls base.FileOf. A reader or a later edit that moves a line between the two passes, the obvious move once the prologue is shared, carries a base that compiles as the wrong thing in only some positions and reads as the right one everywhere.",
+      "verify_by": "rename to origin in Screenshot and run go build ./... && go test ./... in misc/gnopreview",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "head line 122 \"srv, base, err := serve(outDir)\" against line 50 \"func ScreenshotPairs(outDir string, head, base *Crawler, ...)\"; renamed in the rewrite: \"ok  github.com/gnolang/gno/misc/gnopreview  0.005s\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-shots-dedupe.diff"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 27,
+      "angle": "refactor",
+      "summary": "beforeDir is declared in shots.go and used by nothing in it, so it looked like a const in the wrong file",
+      "settled_by": "grep -rn 'beforeDir' misc/gnopreview: declared at shots.go:27, one use at main.go:265 'Prefix: beforeDir'. It sits immediately below shotsDir, and the two are the snapshot's reserved top-level directory names; keeping them together is a deliberate pairing, not a stray."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 162,
+      "angle": "refactor",
+      "summary": "serve returns the listener as its io.Closer, so the http.Server is never shut down and live connections outlive the pass",
+      "settled_by": "Closing the listener makes Serve return (the //nolint comment states it and it holds), and main.go runs the screenshot pass then writes preview.json and comment.md and returns, so the process exits seconds later. Swapping in srv.Close() would also change behaviour, dropping connections Chrome may still be reading. No user-visible cost: not returned."
+    }
+  ],
+  "blocks_rewritten": [
+    "shooter struct + newShooter + (*shooter).shot method carrying bin/origin/outDir: built and run at head, gofmt and vet clean, tests ok, but 213 -> 233 file lines. Rejected as longer than what it replaces; the flat shotEnv/shotFile pair does the same dedupe at 223.",
+    "Folding Screenshot into ScreenshotPairs as one pass over a plan: rejected. They return different types ([]Shot vs []ShotPair), are mutually exclusive at the single call site (main.go:149 vs 151), and a merged pass needs a variant result for no line win.",
+    "chromeShot's flag list: no shorter form. Every flag is load-bearing and the two that are not obvious (--virtual-time-budget, --window-size) already carry their reason.",
+    "serve returning *http.Server instead of the listener so callers close the server: not shorter and not behaviour-preserving, Server.Close drops live connections.",
+    "findChrome's LookPath/Stat pair folded into one resolution step: cannot fold without changing which candidates resolve; the altitude problem it hides is returned as a candidate instead."
+  ]
+}

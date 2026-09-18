@@ -1,0 +1,113 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 189,
+      "angle": "claims",
+      "summary": "chromeShot's comment claims --virtual-time-budget=4000 bounds the wait, but nothing bounds the browser's wall clock, so a wedged Chrome blocks the preview forever",
+      "failure_scenario": "The flag bounds the page's virtual clock, not the process. chromeShot builds exec.Command with no context and no deadline and blocks in CombinedOutput. The flag list carries --no-sandbox but not --disable-dev-shm-usage, and a GitHub runner's /dev/shm is 64 MB, which is the classic headless-Chrome wedge: the browser starts, never exits, and ScreenshotPairs never returns. Neither .github/workflows/pr-preview.yml nor pr-preview-publish.yml sets timeout-minutes, so the job holds a runner to GitHub's 6 h default and the PR gets no preview and no comment for that push.",
+      "verify_by": "cp tests/b4-claims-shots_test.go misc/gnopreview/ && cd misc/gnopreview && go test -count=1 -run TestChromeShotHasNoWallClockBound -v ./... — a fake browser that never exits; expect a return, observe the call still blocked at 6 s. Read half: grep -n 'timeout-minutes' .github/workflows/pr-preview*.yml returns nothing; grep -c disable-dev-shm-usage misc/gnopreview/shots.go returns 0.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestChromeShotHasNoWallClockBound (6.00s)\n    b4_claims_shots_test.go:58: chromeShot still blocked after 6s: exec.Command carries no context and no deadline, and the preview workflows set no timeout-minutes\nFAIL\tgithub.com/gnolang/gno/misc/gnopreview\t6.004s\n\ngrep -n 'timeout-minutes' .github/workflows/pr-preview*.yml -> (no output)\ngrep -c disable-dev-shm-usage misc/gnopreview/shots.go -> 0\ngo test -count=1 ./... without the file -> ok github.com/gnolang/gno/misc/gnopreview 0.006s",
+      "repro_path": "tests/b4-claims-shots_test.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 150,
+      "angle": "claims",
+      "summary": "shotPlan's godoc calls it the sample photographed when gnoweb changed, but a PR touching gnoweb and a realm never photographs it, leaving comment.go:53's shotGrid call unreachable",
+      "failure_scenario": "main.go:147-151 is an if/else-if: len(plan.ChangedRealms) > 0 takes the pairs arm, and Plan.Shots is assigned only in the else-if arm. A PR that edits gno.land/pkg/gnoweb/ and any examples realm in the same push (a CSS change plus its docs realm) lands in the mixed branch: Comment writes \"This PR changes **gnoweb** and realm sources\" and then shotGrid(p.Shots, base) with p.Shots always nil, so the reviewer gets a before/after of the realm and no picture of the chrome change the PR is actually about. comment.go:53 is the only other caller of shotGrid and can never fire.",
+      "verify_by": "grep -rn '\\.Shots' misc/gnopreview/ — assignment at main.go:151 only, inside the else-if; then cp tests/b4-claims-shots_test.go misc/gnopreview/ && cd misc/gnopreview && go test -count=1 -run TestMixedModeCommentHasNoGnowebSample -v ./... — the mixed branch emits no _shots/ image, and the same branch with Shots set does.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "--- PASS: TestMixedModeCommentHasNoGnowebSample (0.00s)\n\ngrep -rn '\\.Shots' misc/gnopreview/:\n  main.go:151:\t\tplan.Shots = Screenshot(cfg.out, c, cfg.chrome)\n  main.go:160:\t\tlen(c.pages), len(plan.Shots), len(plan.Pairs), cfg.out)\n  comment.go:42:\t\tb.WriteString(shotGrid(p.Shots, base))\n  comment.go:53:\t\t\tb.WriteString(shotGrid(p.Shots, base))\nmain.go:147-151 is `if len(plan.ChangedRealms) > 0 { ...Pairs... } else if plan.Gnoweb { plan.Shots = Screenshot(...) }`, so comment.go:53 (the p.Gnoweb arm of the default branch) is reached only with p.Shots nil. README.md:70 states the intent as \"The two are alternatives, never both\", which leaves the comment.go:53 call dead either way.",
+      "repro_path": "tests/b4-claims-shots_test.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 59,
+      "angle": "claims",
+      "summary": "shots.go ships 213 lines and no test, so every claim its comments make about the New flag, the maxPairs cap and the slug naming is unpinned",
+      "failure_scenario": "crawl_test.go and plan_test.go cover their files; there is no shots_test.go. Nothing pins the three-way New logic the line-86 comment calls sound (base nil / realm absent from the base tree / base capture failed), the maxPairs break, or that slug(strings.TrimPrefix(urlOf(r),\"/\")) cannot collide two realms onto one -after.png. A later edit that sets New from an empty Before — exactly what the comment says would be a lie in the reviewer's comment — turns no test red.",
+      "verify_by": "ls misc/gnopreview/*_test.go — crawl_test.go and plan_test.go only, no shots_test.go; then add a case pinning New=false when base==nil but the realm is absent from the base tree, and one pinning distinct -after.png names for two realms whose paths differ only past 64 characters.",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "ls misc/gnopreview/*_test.go -> crawl_test.go, plan_test.go",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 162,
+      "angle": "claims",
+      "summary": "serve returns the listener as its io.Closer, so the http.Server it built is never Closed and its connections are never drained",
+      "failure_scenario": "serve builds an *http.Server and hands back ln. Both callers do `defer srv.Close()` on that listener, which is enough to make Serve return — the //nolint comment's claim holds — but Server.Close is never called, so Chrome's keep-alive connection and any handler in flight are left to the process exit rather than shut down. Harmless in a one-shot binary; it reads as a bug to the next person who reuses serve.",
+      "verify_by": "read misc/gnopreview/shots.go:162-173 and the two `defer srv.Close()` sites at lines 70 and 136: the value deferred is the listener, and the *http.Server is unreachable after serve returns.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "serve returns `ln` (net.Listener) as io.Closer; `srv := &http.Server{...}` is local and never closed.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 217,
+      "angle": "claims",
+      "summary": "findChrome's godoc promises a browser binary, but the os.Stat fallback accepts any non-directory path, executable or not",
+      "failure_scenario": "CHROME=/etc/hosts (or a half-downloaded chrome) fails LookPath, then passes `os.Stat(c) == nil && !fi.IsDir()` and is returned as the browser. Every chromeShot then fails with a permission or exec-format error and the preview ships with no images, reported as a per-page screenshot failure rather than a bad browser path.",
+      "verify_by": "read misc/gnopreview/shots.go:210-221 — the second arm checks only IsDir; compare with the first arm's exec.LookPath, which checks the executable bit. Adding `fi.Mode()&0o111 != 0` is the whole fix.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "`if fi, err := os.Stat(c); err == nil && !fi.IsDir() { return c }` — no mode check.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 86,
+      "angle": "claims",
+      "summary": "suspected the comment's claim that \"New in this PR\" is asserted only from the merge-base tree fails when no base checkout was supplied",
+      "settled_by": "read misc/gnopreview/main.go:233-236 — `if cfg.baseRoot == \"\" { return nil, nil }`, so newRealms is a nil map and `newRealms[r]` is false for every realm; comment.go:106-110 gates the \"New in this PR\" note on p.New alone, never on Before being empty. Claim holds."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 47,
+      "angle": "claims",
+      "summary": "suspected \"the binary and the assets come from the head\" fails for the _before pages, which are written with no asset copy",
+      "settled_by": "read misc/gnopreview/main.go:257-278 and crawl.go:303-306, 348-351 — renderBase runs cfg.gnodev (the head binary) against baseRoot, and base.Write(cfg.out, \"\") skips the asset copy on purpose; rewrite derives up from path.Dir(p.File), which includes the _before prefix (depth 4 for _before/r/x/y), so ../../../../public/ resolves to the head assets at the snapshot root. Claim holds."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 113,
+      "angle": "claims",
+      "summary": "suspected shotPlan's four URLs are never in c.pages, since Run keys the map by the raw URL while Screenshot looks up canonicalURL(s.url)",
+      "settled_by": "read misc/gnopreview/crawl.go:78-95 and :287-298 — Seeds adds urlOf(r), urlOf(r)+\"$source\" and urlOf(r)+\"$help\" verbatim and Run stores c.pages[u]; canonicalURL is the identity on a single-term query, so all four shotPlan keys match. All four seed realms exist: examples/gno.land/{r/gnoland/home,r/docs/security_patterns,r/gnoland/boards2/v0,r/gnoland/blog}."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 76,
+      "angle": "claims",
+      "summary": "suspected slug() can map two realms onto one -after.png, or emit a traversal segment, contradicting its own godoc",
+      "settled_by": "read misc/gnopreview/crawl.go:505-533 — every realm path carries '/', so unsafeSeg rewrites it, out != s, and a sha256 prefix of the full input is appended after the 64-char truncation; Trim(out, \"-.\") removes any '.'/'..' form. No collision and no traversal reachable from urlOf(pkgPath)."
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 236,
+      "angle": "claims",
+      "summary": "suspected plan.Realms and plan.Dirs desync, so renderBase would os.Stat the wrong directory and mark a realm New that exists at the base",
+      "settled_by": "read misc/gnopreview/plan.go:261-277 — Dirs is appended once per plan.Realms entry, unconditionally, after the seed append and the final sort.Strings, so the two slices are the same length and aligned by index."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 29,
+      "angle": "claims",
+      "summary": "suspected maxPairs' claim that \"the full list of realms is right underneath\" the pair grid is false",
+      "settled_by": "read misc/gnopreview/comment.go:55-82 — pairGrid is immediately followed by the \"Changed realms (n)\" list and then \"Realms affected through a changed package (n)\". Claim holds."
+    }
+  ]
+}

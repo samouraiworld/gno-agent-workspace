@@ -1,0 +1,112 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 134,
+      "angle": "catalog",
+      "summary": "reaching -max-pages aborts the whole render, so a broad PR gets a red check and no preview instead of a truncated one",
+      "failure_scenario": "A sweep over examples/ crosses the 400-page default: a realm listed in ChangedFiles gets one $source page per touched file with no per-realm budget (crawl.go:230 returns slices.Contains(changed, name) before the budget path), and one realm with 20 changed files already renders 24 pages. Crawler.Run then returns `page cap 400 reached (queue still had N)` at crawl.go:127, render propagates it at main.go:134, the render step exits 1, actions/upload-artifact is skipped (its `if` carries no status function, so success() still applies), and the author sees a failed check and no preview comment on exactly the broad change a preview is worth most. The pages already crawled are a complete, writable snapshot that is thrown away. The sibling cap degrades instead: plan.Dropped renders what fits and the comment says how many were skipped, and misc/gnopreview/README.md:118 calls -max-pages a backstop. No test covers the cap path.",
+      "verify_by": "copy tests/b3-catalog-page-cap-aborts-render.go into misc/gnopreview and run `go test -run 'TestPageCapDiscardsAUsableSnapshot|TestChangedFilesBypassTheFileBudget' -v .`",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "seeds=10 captured=5 err=page cap 5 reached (queue still had 5); the discarded snapshot holds 5 rendered page(s); one realm, 20 changed files -> 24 pages captured",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-catalog-page-cap-aborts-render.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 131,
+      "angle": "catalog",
+      "summary": "Plan.Empty() admits a gnoweb plan with zero realms, and the next line indexes plan.Realms[0]",
+      "failure_scenario": "Plan.Empty() is `!p.Gnoweb && len(p.Realms) == 0` (plan.go:91), so a plan with Gnoweb true and no realms passes the guard at main.go:111, starts gnodev with an empty -dirs list, and panics with index out of range at main.go:131. The only thing keeping Realms non-empty in that mode is the four hardcoded seed realms in plan.go:37 all existing under examples/gno.land at the reviewed root; a rename or removal of the last of them turns a gnoweb-only PR into a panicking CI step whose message is a Go stack trace.",
+      "verify_by": "BuildPlan against a root whose examples/gno.land holds gnowork.toml but none of the four seed realms, with a changed path under gno.land/pkg/gnoweb/, then render: expect the index-out-of-range at main.go:131",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 208,
+      "angle": "catalog",
+      "summary": "stop() sends SIGTERM and then waits with no deadline and no SIGKILL escalation, and no preview workflow sets timeout-minutes",
+      "failure_scenario": "stop() kills the process group and blocks on <-waited forever; chromeShot (shots.go:184) likewise runs Chrome through cmd.CombinedOutput() with no context and no deadline, while the -timeout flag bounds only gnodev readiness. `grep -rn timeout .github/workflows/pr-preview*.yml` returns nothing, so a child that does not exit runs the job to GitHub's 360-minute default rather than failing fast. Today's gnodev installs no signal handler (no signal.Notify or SIGTERM anywhere under contribs/gnodev), so the default disposition kills it and this stays latent for gnodev; headless Chrome, which does trap signals and is the documented hang in CI, has no bound at all.",
+      "verify_by": "copy tests/b3-catalog-stop-wait-unbounded.go into misc/gnopreview and run `go test -run TestStopHangs -v .`; the fake gnodev traps TERM and stop() never returns",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "stop() still blocked 3s after SIGTERM: no escalation, no deadline; stop() returned only once the process was SIGKILLed from outside; grep for timeout in the three preview workflows returns no match",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-catalog-stop-wait-unbounded.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 149,
+      "angle": "catalog",
+      "summary": "every screenshot and base-render failure is swallowed to stderr, and the published comment cannot be told apart from a realm that is genuinely new",
+      "failure_scenario": "ScreenshotPairs returns nil on a missing Chrome, a failed local server or a failed MkdirAll, and renderBase returns (nil, newRealms) on any base failure; render ignores all of it. A realm whose base pass ran and failed then reaches pairGrid (comment.go:104) with Before empty and New false, which renders a lone after image with no caption, exactly the shape a realm added by the PR renders minus its `New in this PR` note. The reviewer reading the comment cannot tell a missing before from a new realm, and the only record is a stderr line in a job log that nobody opens.",
+      "verify_by": "run render with -base-root pointing at a checkout where the base gnodev cannot start (or chrome absent), and diff the produced comment.md against the same run with a working base: the before column vanishes with no note",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 191,
+      "angle": "catalog",
+      "summary": "the index page claims len(p.Realms) realms rendered while its list skips every realm missing from c.pages",
+      "failure_scenario": "Index() builds its rows from p.Realms but `continue`s on any realm absent from c.pages (comment.go:168-170), then prints the count as len(p.Realms). A realm that answered 500 or was dropped by the per-file budget is counted and not listed, so the preview homepage says `25 realm(s) rendered` over 23 links and nothing names the two that failed.",
+      "verify_by": "crawl with a stub gnodev returning 500 for one seed realm, then read the generated index.html: the count exceeds the number of <li> rows",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 25,
+      "angle": "catalog",
+      "summary": "an empty plan produces an empty comment body, so a push that removes the preview-relevant change leaves the previous preview comment standing",
+      "failure_scenario": "Comment() returns \"\" for an empty plan and render writes no comment.md at all on that path (main.go:111-114), while pr-preview.yml skips the render outright and pr-preview-publish.yml exits 0 on `[ -s _preview/comment.md ]`. A PR whose second push reverts its realm change therefore keeps the comment from the first push, advertising a preview of code the branch no longer carries, until the PR closes and the cleanup workflow runs.",
+      "verify_by": "push a realm change, let the preview comment land, push a revert of it, and confirm the comment still points at the stale pr-<N>/ snapshot",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 297,
+      "angle": "catalog",
+      "summary": "determinism: dependents() builds its reverse index by ranging a Go map, so the BFS queue order varies run to run",
+      "settled_by": "read of plan.go:303-314 and 250: the BFS fills a set and returns sortedKeys(out), and BuildPlan sorts again at plan.go:260/269, so every output slice is sorted; crawl.go keeps c.order as a slice and comment.go/shots.go range slices only. grep -n 'for .*range ' over crawl.go shots.go comment.go returns no bare map range."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 160,
+      "angle": "catalog",
+      "summary": "global mutable state and concurrency: package-level vars plus two goroutines (cmd.Wait, srv.Serve) in a program that now runs a crawler and a file server together",
+      "settled_by": "cd misc/gnopreview && go test -race -count=1 . -> ok github.com/gnolang/gno/misc/gnopreview 1.021s; explosiveArgs and the four regexps are init-only (grep -n explosiveArgs crawl.go shows one read at :206), and Crawler.fileBudget is per-instance, written only from Run's single goroutine."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 127,
+      "angle": "catalog",
+      "summary": "unproven bound: pages dropped by chargeFile or a non-200 are not counted toward MaxPages, so the crawl could run unbounded while the cap never trips",
+      "settled_by": "read of crawl.go:131-155: a page that fails getRetry, answers non-200 or loses chargeFile hits `continue` before links(body), so it contributes no new queue entries; the frontier only grows from counted pages, which bounds total requests at MaxPages x links plus the seeds."
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 207,
+      "angle": "catalog",
+      "summary": "stop() hanging on today's gnodev specifically, rather than on a hypothetical child that traps SIGTERM",
+      "settled_by": "grep -rn 'signal.Notify|SIGTERM|NotifyContext|os.Interrupt' contribs/gnodev --include='*.go' returns nothing, so gnodev takes the default disposition and dies on SIGTERM; the unbounded wait stays a latent risk and is filed as a Suggestion, not a Warning."
+    }
+  ]
+}

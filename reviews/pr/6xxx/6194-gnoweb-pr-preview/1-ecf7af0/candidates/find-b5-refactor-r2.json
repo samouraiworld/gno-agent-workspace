@@ -1,0 +1,77 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 74,
+      "angle": "refactor",
+      "summary": "sort.Strings(indirect) re-sorts a slice BuildPlan already sorted; dropping it drops comment.go's only use of the sort import, 196 lines to 194",
+      "failure_scenario": "No wrong output: the call is a guard the caller already applied. indirect is built by filtering p.Realms in order, and BuildPlan returns p.Realms sorted (plan.go:260 sort.Strings(realms) on the capped list, plan.go:269 sort.Strings(plan.Realms) again on the gnoweb-seed branch); main.go:91 is the only production construction of the Plan that reaches Comment. The cost is a reader who has to ask what makes p.Realms unordered here and an import that exists for one dead line.",
+      "verify_by": "git apply reviews/.../tests/b5-refactor-r2-redundant-sort.patch at ecf7af0f2, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./... — expect silence, silence, ok",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Applied in a detached worktree at ecf7af0f2: gofmt -l . silent, go vet ./... silent, \"ok  github.com/gnolang/gno/misc/gnopreview  0.004s\"; wc -l comment.go 196 -> 194. Order proof read from the source: plan.go:260 `sort.Strings(realms)` then `plan.Realms = realms`, plan.go:269 `sort.Strings(plan.Realms)`, and grep shows Comment( called only at main.go:156 and in plan_test.go.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-refactor-r2-redundant-sort.patch"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 149,
+      "angle": "refactor",
+      "summary": "every realm bullet computes urlOf(r) twice, once for link and again inside tabs, and the bullet is spelled out at three call sites; one realmItem(base, pkgPath) carries all three, 196 lines to 191",
+      "failure_scenario": "No wrong output today: `link(urlOf(r), r) + tabs(base, r)` at lines 63 and 80 calls urlOf on the same argument twice per realm, and line 44 hand-builds a third variant of the same bullet that silently omits the shortcuts. The cost is that the three spellings drift independently — line 44 already has — and the link text and the tab targets are derived from the same package path through two separate expressions, so a change to urlOf has to be traced through both.",
+      "verify_by": "git apply reviews/.../tests/b5-refactor-r2-realm-item.patch at ecf7af0f2, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./... — expect silence, silence, ok; the only output change is the gnoweb branch gaining the source/help shortcuts",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Applied in a detached worktree at ecf7af0f2: gofmt -l . silent, go vet ./... silent, \"ok  github.com/gnolang/gno/misc/gnopreview  0.004s\"; wc -l comment.go 196 -> 191, grep -c 'realmItem(base, r)' comment.go = 3. The 6-line link closure and the 8-line tabs function collapse into one 8-line realmItem.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-refactor-r2-realm-item.patch"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 154,
+      "angle": "refactor",
+      "summary": "altitude: the snapshot's `_t/<tab>/` file layout is hand-spelled four times in comment.go while crawl.go's urlToFile is the function that owns that scheme",
+      "failure_scenario": "urlToFile (crawl.go:486, documented at crawl.go:482-485) is where a gnoweb path becomes a static file, and it is what puts the tab query under `_t/` with a slug. comment.go never calls it for the tabs: tabs (line 154) concatenates `%s/_t/source/` and `%s/_t/help/` onto the base URL, and Index (line 174) concatenates the same two suffixes onto a file path. Change the `_t` prefix or the slug rule in urlToFile and the crawler writes the pages somewhere else while all four links keep pointing at the old layout; nothing in crawl_test.go or plan_test.go ties the two constructions together, so the PR comment 404s on every source and help link with a green test run.",
+      "verify_by": "grep -n '_t/' misc/gnopreview/comment.go (two lines, four occurrences) against grep -n '\"_t\"' misc/gnopreview/crawl.go (one line, 503, inside urlToFile); then confirm no test asserts the two agree: grep -n '_t/' misc/gnopreview/*_test.go",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n '_t/' comment.go returns lines 154 and 174, four occurrences; crawl.go:503 `parts = append(parts, \"_t\", slug(query))` is the single place the layout is built.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 30,
+      "angle": "refactor",
+      "summary": "altitude: whether the comment has anywhere to link is decided four separate times, in link, pairGrid, shotGrid and tabs, instead of once at the top of Comment",
+      "failure_scenario": "`base == \"\"` is tested at lines 30, 100, 131 and 150, each helper handling the no-base case its own way: link falls back to a code span, tabs to an empty string, pairGrid and shotGrid to nothing at all, so with -base-url unset the gnoweb branch still writes \"the preview is a sample of pages rendered with it:\" and then emits no sample. The next helper added to this file has to remember the guard, and one that forgets emits a root-relative <img src=\"/_shots/x.png\"> that GitHub resolves against github.com — in a body a privileged job posts. Deciding once at the top of Comment (no base, no links, no images) puts the fact in one place.",
+      "verify_by": "grep -n 'base == \"\"' misc/gnopreview/comment.go — expect four hits in four functions; then read main.go:71, where -base-url defaults to the empty string, so the branch is reachable",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'base == \"\"' comment.go returns 30, 100, 131, 150. main.go:71 `fs.StringVar(&cfg.baseURL, \"base-url\", \"\", ...)` — the empty default makes the path reachable.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 154,
+      "angle": "refactor",
+      "summary": "suspected the source/help links in tabs could point at pages the crawl never captured, the way Index guards its rows with c.pages",
+      "settled_by": "crawl.go:91-92 `add(u + \"$source\")` / `add(u + \"$help\")` queues both tabs for every seeded realm, and crawl.go:126-127 returns an error when the page cap is hit rather than writing a partial snapshot, so a comment is only built from a crawl that captured every queued tab."
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 53,
+      "angle": "refactor",
+      "summary": "suspected shotGrid(p.Shots, base) in the default branch was dead, since main only populates Shots when no realm changed",
+      "settled_by": "main.go:145-150 `if len(plan.ChangedRealms) > 0 { ... } else if plan.Gnoweb { plan.Shots = Screenshot(...) }` — Mode() returns \"both\" when Gnoweb is set and only ChangedPkgs is non-empty, and that case takes the else branch, so the call is reachable."
+    }
+  ],
+  "blocks_rewritten": [
+    "pairGrid + shotGrid share one `<td width=\"50%\"><a><img width=\"100%\"></a><br><sub>` cell shape across three sites; extracting cell(base, href, img, alt, caption) turns nine lines into three but costs an eight-line helper. Measured at ecf7af0f2: 196 -> 200 lines, gofmt and go test green. Longer, so rejected.",
+    "The 'Changed realms' and 'Realms affected through a changed package' blocks are the same heading-plus-bullet-list shape; folding them into one section(title, realms, note) closure counts out at one line saved, because the `_changed: ...` note sits between the heading and the list and has to be threaded through as a third parameter. Rejected on that count, written out but not run.",
+    "Comment's `if pr != \"\"` footer sentence and the `p.Dropped > 0` cap note as one formatted tail: both are single-condition three-line blocks already, so the merge only moves the conditions. Rejected on the read, not run."
+  ]
+}

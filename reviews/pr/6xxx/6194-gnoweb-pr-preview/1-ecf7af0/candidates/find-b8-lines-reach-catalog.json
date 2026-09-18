@@ -1,0 +1,67 @@
+{
+  "candidates": [
+    {
+      "file": ".gitignore",
+      "line": 14,
+      "angle": "reach",
+      "summary": "`_preview/` ignores the render output but not `_preview.changed`, the sibling leftover the tool's own Makefile writes beside it",
+      "failure_scenario": "A contributor runs `make run` in `misc/gnopreview`; the `run` target's first line is `git -C $(GNOROOT) diff --name-only $(BASE)... > $(OUT).changed`, so `misc/gnopreview/_preview.changed` appears, holding that developer's own changed-file list. `git check-ignore -v --no-index misc/gnopreview/_preview.changed` returns NOT IGNORED, so it shows in `git status` for the rest of the session and a `git add -A` commits it. `make clean` removes it, which is the author's own statement that it is a build leftover; the diff ignored the other two leftovers that target produces and missed this one.",
+      "verify_by": "cd <head worktree> && git check-ignore -v --no-index misc/gnopreview/_preview.changed misc/gnopreview/_preview/x — the second matches `.gitignore:14:_preview/`, the first matches nothing; `sed -n '6,20p' misc/gnopreview/Makefile` shows `OUT ?= _preview`, `> $(OUT).changed` in `run` and `rm -rf $(OUT) $(OUT).changed` in `clean`",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "git check-ignore -v --no-index: `misc/gnopreview/_preview/x` -> `.gitignore:14:_preview/`; `misc/gnopreview/_preview.changed` -> NOT IGNORED. Makefile: `OUT ?= _preview`, run writes `$(OUT).changed`, clean does `rm -rf $(OUT) $(OUT).changed`.",
+      "repro_path": ""
+    },
+    {
+      "file": ".gitignore",
+      "line": 13,
+      "angle": "lines",
+      "summary": "both entries belong in a per-tool `misc/gnopreview/.gitignore`, the shape six other `misc/` tools already use",
+      "failure_scenario": "The root `.gitignore` gains its first path-anchored line for one `misc/` tool's binary (the merge base's `Build leftovers` block is `build` and `dist` alone), and an unanchored `_preview/` that matches at every depth of the repo for an artifact only this tool writes. `misc/gnoe2e/.gitignore` is the precedent: `/build` and `/gnoe2e`, anchored inside the tool's own directory; `gendocs`, `stdlib_diff`, `genproto`, `loop` and `val-scenarios` each carry their own file too. A `misc/gnopreview/.gitignore` of `/gnopreview`, `/_preview/` and `/_preview.changed` covers all three leftovers, keeps the pattern scoped to the directory that produces them, and leaves the root file unchanged.",
+      "verify_by": "find <head worktree>/misc -maxdepth 2 -name .gitignore && cat misc/gnoe2e/.gitignore — six per-tool files, gnoe2e's being `/build` and `/gnoe2e`; git show <merge base>:.gitignore | grep -n 'misc' returns nothing",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "find misc -maxdepth 2 -name .gitignore: gendocs, stdlib_diff, gnoe2e, genproto, loop, val-scenarios. misc/gnoe2e/.gitignore is `/build` + `/gnoe2e`. Merge-base .gitignore Build-leftovers block: `build`, `dist`, no misc path.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": ".gitignore",
+      "line": 14,
+      "angle": "lines",
+      "summary": "`_preview/` is unanchored where the same file's last block states the root-anchoring convention (`/config/`, with the comment `Root-anchored so nested config/ package directories are never hidden`)",
+      "settled_by": "`sed -n '1,20p' misc/gnopreview/Makefile` shows `OUT ?= _preview` with `go run .` from the module directory, so the documented local flow writes `misc/gnopreview/_preview/`; `git check-ignore -v --no-index misc/gnopreview/_preview/x` -> `.gitignore:14:_preview/`. Root-anchoring the line would stop ignoring the one output path a developer actually produces, so the unanchored form is required."
+    },
+    {
+      "file": ".gitignore",
+      "line": 14,
+      "angle": "reach",
+      "summary": "the unanchored `_preview/` hides an already-tracked nested path",
+      "settled_by": "`git ls-files | grep -c '/_preview/'` -> 0; the only tracked path matching `_preview` at all is `gno.land/adr/pr6194_gnoweb_pr_previews.md`"
+    },
+    {
+      "file": ".gitignore",
+      "line": 13,
+      "angle": "reach",
+      "summary": "`misc/gnopreview/gnopreview` ignores a binary nothing produces, since CI builds with `-o \"$RUNNER_TEMP/gnopreview\"` and `make install` writes to GOBIN",
+      "settled_by": "`grep -rn gnopreview .github/workflows/pr-preview.yml` -> line 77 `go build -o \"$RUNNER_TEMP/gnopreview\" .`, and `misc/gnopreview/Makefile` `install: go install .`; but a plain `go build .` in that directory writes the module-named binary there, which is the developer path the entry covers. Not a defect."
+    },
+    {
+      "file": ".gitignore",
+      "line": 14,
+      "angle": "reach",
+      "summary": "the ignore hides preview output from the publish step's `git add`",
+      "settled_by": "`grep -n '_preview' .github/workflows/pr-preview-publish.yml` -> the artifact is extracted to `_preview` outside the previews-repo checkout and copied in with `cp -r ../_preview/. \"pr-$PR/\"` (line 140); gno's root `.gitignore` is branch content of gno and never applies in the `gnolang/gno-previews` working tree. `actions/upload-artifact` (pr-preview.yml:121 `path: _preview`) does not consult `.gitignore` either."
+    },
+    {
+      "file": ".gitignore",
+      "line": 13,
+      "angle": "catalog",
+      "summary": "invariant-catalog classes against this bundle",
+      "settled_by": "`grep -n '^#\\{1,3\\} ' skills/invariant-catalog.md` -> the catalog's classes are `Realm audit patterns` and `Caller identity predicates` / `On the current-guard rule`; a `.gitignore` diff touches no GnoVM, stdlib or realm surface, so the catalog angle yields nothing here."
+    }
+  ]
+}

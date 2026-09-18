@@ -1,0 +1,69 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 156,
+      "angle": "catalog",
+      "summary": "a realm path taken from a fork-controlled directory name is written into comment.md unescaped, and the privileged publish job posts that file verbatim as the bot's comment",
+      "failure_scenario": "A fork pull request adds examples/gno.land/r/x/ev`il<img src=x>/ with a valid gnomod.toml module line (plan.go:137 derives Path from the directory, not from the module line, so gnodev still loads the package). BuildPlan puts gno.land/r/x/ev`il<img src=x> in plan.Realms; Comment() wraps every realm in a markdown code span (comment.go:33) with no escaping, so the backtick closes the span and comment.md carries `- [`gno.land/r/x/ev`il<img src=x>`](...)`. render() writes that file at main.go:156 and pr-preview-publish.yml:174-177 posts it with `gh api -F body=@_preview/comment.md` as github-actions[bot] on gnolang/gno, on every push, before any human review. No successful crawl of the hostile realm is needed: Comment() lists plan.Realms and never consults the crawler. Index() (main.go:141) has the same hole into the published index.html, where GitHub's comment sanitizer does not apply.",
+      "verify_by": "cp reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-catalog-r2-comment-injection.go misc/gnopreview/zz_inject_test.go && cd misc/gnopreview && go test -run 'TestCommentEscapesRealmPath|TestIndexEscapesRealmPath' ./...",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Both tests FAIL at ecf7af0. comment.md: `- [`gno.land/r/x/ev`il<img src=x>`](https://gnolang.github.io/gno-previews/pr-1/r/x/ev`il<img src=x>/) · [source](...)`. index.html: `<li><a href=\"r/x/ev`il<img src=x>/\"><code>gno.land/r/x/ev`il<img src=x></code></a>`.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-catalog-r2-comment-injection.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 177,
+      "angle": "catalog",
+      "summary": "gnodev's key directory and both gnodev logs are created inside -out, the directory the tool hands its caller to publish",
+      "failure_scenario": "startGnodev sets -home to filepath.Join(cfg.out, \".gnodev-<port>\") and os.Create's gnodev.log / gnodev-base.log in the same directory, so the snapshot the README tells a caller to serve contains the node's home and the build logs. pr-preview.yml:103 only works because it remembers `rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*`; anyone running `gnopreview render -out _preview` by hand and serving _preview publishes them. The scratch state belongs outside -out (os.MkdirTemp, or a sibling directory), so no caller has to know the deny list.",
+      "verify_by": "grep -n 'rm -rf _preview' .github/workflows/pr-preview.yml — the workflow carries the cleanup the tool should not need",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 105,
+      "angle": "catalog",
+      "summary": "render never clears a pre-existing -out, so a second run publishes the first run's pages beside the new ones",
+      "failure_scenario": "render() only os.MkdirAll's cfg.out. Running it twice in one tree (the documented local flow in misc/gnopreview/README.md) leaves every page, screenshot and _before/ capture the earlier plan produced, while preview.json and index.html list only the new plan's realms: the published snapshot then serves stale realm pages nothing links to, and a realm dropped from the plan still resolves. CI never sees it because each job gets a fresh runner.",
+      "verify_by": "run `gnopreview render -changed a.txt -out _preview` then again with a disjoint changed list, and diff `ls -R _preview` against the second preview.json",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 235,
+      "angle": "catalog",
+      "summary": "determinism: newRealms is a map that could order the comment's before/after pairs",
+      "settled_by": "grep -n 'for .*range' misc/gnopreview/*.go — the only map ranges are plan.go:200/298 (building byDir and rev, both re-sorted through sortedKeys) and plan.go:319; ScreenshotPairs (shots.go:67) iterates the realms slice and only index-reads newRealms, and plan.ChangedFiles reaches preview.json through encoding/json, which sorts map keys"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 27,
+      "angle": "catalog",
+      "summary": "global mutable state: a package-level var mutated at runtime",
+      "settled_by": "grep -n 'map\\[\\|sync\\.' over the package: main.go declares only consts and the config struct; the package-level vars are shots.go:104 shotPlan and crawl.go:160 explosiveArgs, both written once in their literal and only read afterwards"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 241,
+      "angle": "catalog",
+      "summary": "renderBase indexes plan.Dirs[i] off a plan.Realms index, so a shorter Dirs would panic",
+      "settled_by": "plan.go:271-276 builds Dirs in one loop over plan.Realms after the cap and the gnoweb seed append, and pkgs[r] is non-nil on both paths (affected comes from pkgs; the seed append is guarded by `pkgs[r] != nil`), so len(Dirs) == len(Realms) always"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 188,
+      "angle": "catalog",
+      "summary": "cmd.Env appends GNOROOT while pr-preview.yml:95 already exports one, so the base pass might inherit the head root",
+      "settled_by": "os/exec dedups Cmd.Env keeping the last occurrence (dedupEnv, since Go 1.9), so the appended GNOROOT=<root> wins and the base pass runs with GNOROOT=cfg.baseRoot"
+    }
+  ]
+}

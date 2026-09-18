@@ -1,0 +1,126 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 131,
+      "angle": "refactor",
+      "summary": "render's precondition is len(plan.Realms) > 0 but the guard above it, Plan.Empty, answers on plan.Gnoweb: a gnoweb plan with no realms reaches urlOf(plan.Realms[0]) and panics",
+      "failure_scenario": "A pull request touches gno.land/pkg/gnoweb/ (or contribs/gnodev/) in a tree where none of the four gnowebSeedRealms resolve under examples/gno.land -- one of them renamed or moved by that same PR, or a checkout that does not carry them. BuildPlan sets Gnoweb=true and leaves Realms empty, so Plan.Empty (!Gnoweb && len(Realms)==0) is false and the workflow's own gate, jq '.gnoweb or (.realms | length > 0)', passes too. render prints 'rendering 0 realm(s):', starts gnodev with no package dirs, then evaluates urlOf(plan.Realms[0]) for the readiness probe and panics with 'index out of range [0] with length 0'. The job dies on a Go stack trace with no preview and no comment, and the 'Show the gnodev log' step has nothing to show because gnodev never failed. The deeper form is Empty() reporting on what render consumes, len(p.Realms) == 0, since a plan with no realms renders nothing whatever set Gnoweb to true.",
+      "verify_by": "cp tests/b3-refactor-gnoweb-plan-no-realms_test.go misc/gnopreview/zz_b3_refactor_test.go && cd misc/gnopreview && go test -run TestGnowebPlanWithNoRealms -v ./...",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Both tests PASS at ecf7af0f2 with go1.25.9. TestGnowebPlanWithNoRealmsIsNotEmpty: BuildPlan returns gnoweb=true, realms=[], Empty()==false. TestRenderPanicsOnGnowebPlanWithNoRealms, with /bin/true standing in for gnodev: 'rendering 0 realm(s): ' then 'render panicked: runtime error: index out of range [0] with length 0'.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-refactor-gnoweb-plan-no-realms_test.go"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 334,
+      "angle": "refactor",
+      "summary": "envOr is cmp.Or with one call site: 7 lines (helper plus its blank) become 0, at the cost of one import, main.go 339 -> 328 with the two other rewrites",
+      "failure_scenario": "No failure; the helper duplicates cmp.Or from the standard library (go.mod pins go 1.25.9) and its only caller is fs.StringVar(&cfg.gnodev, \"gnodev\", envOr(\"GNODEV\", \"gnodev\")), which reads cmp.Or(os.Getenv(\"GNODEV\"), \"gnodev\") at the same width. A private helper named for an env lookup is a promise of callers that do not exist.",
+      "verify_by": "git apply tests/b3-refactor-main-shorter.patch && cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "gofmt -l silent, go vet silent, 'ok  github.com/gnolang/gno/misc/gnopreview  0.024s'; git diff --numstat for the three rewrites together reads '19  30  misc/gnopreview/main.go'.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-refactor-main-shorter.patch"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 216,
+      "angle": "refactor",
+      "summary": "fileBudget is a three-line doc comment over a six-line function with one call site: 10 lines become 5 written into the Crawler literal that consumes them",
+      "failure_scenario": "No failure; the indirection costs a reader one hop to learn that the budget is GnowebFileBudget when plan.Gnoweb and zero otherwise, and the doc comment explaining why sits a screen away from the Crawler field it explains. Inlined: build the Crawler without FileBudget, then 'if plan.Gnoweb { c.FileBudget = GnowebFileBudget }' with the same comment above it.",
+      "verify_by": "git apply tests/b3-refactor-main-shorter.patch && cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Same run: the patch's two hunks for this block read '@@ -210,16 +216,6 @@' (10 removed) and '@@ -126,7 +127,12 @@' (5 added); tests green, gofmt and vet silent.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-refactor-main-shorter.patch"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 167,
+      "angle": "refactor",
+      "summary": "startGnodev(cfg, root, dirs, port, logName) takes root and port as parameters while receiving a cfg that already carries both fields, and during the base pass those fields hold the head's values: 5 parameters become 3, same line count",
+      "failure_scenario": "renderBase calls startGnodev(cfg, cfg.baseRoot, dirs, cfg.port+1, ...), so inside the callee cfg.root is the head checkout and cfg.port is the head's web port while the pass being started is the base one. Today the body happens to read only cfg.out and cfg.gnodev off the struct, so nothing is wrong; the next line added there that reaches for cfg.root or cfg.port -- the obvious spelling -- silently boots the base pass against the head tree or collides on the head's ports, and no test would see it because the base pass is best-effort and its failure only costs the comment an image. The deeper form is one source for each value: the caller copies cfg and sets cfg.root, cfg.port = cfg.baseRoot, cfg.port+1 before the call.",
+      "verify_by": "git apply tests/b3-refactor-main-shorter.patch && cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "Same run: hunks '@@ -164,28 +170,28 @@', '@@ -248,8 +244,8 @@' and '@@ -257,7 +253,7 @@' move root and port onto cfg at no net line cost; gofmt and vet silent, tests green.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-refactor-main-shorter.patch"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 102,
+      "angle": "refactor",
+      "summary": "the command name is validated after findRoot, readLines and BuildPlan have run, so a typo walks examples/ and blocks on stdin instead of printing the usage line run() already holds",
+      "failure_scenario": "`gnopreview help` (or any misspelling of plan/render) parses flags, finds the root, then reads -changed, which defaults to '-'. With a terminal or an open pipe on stdin the process hangs forever and never reaches 'unknown command'; redirected from a file it walks every package under examples/gno.land and parses their imports first. Moving the switch above the work -- a three-line guard after 'cmd, args := args[0], args[1:]' -- makes the usage error immediate and costs nothing else.",
+      "verify_by": "cd misc/gnopreview && go build -o /tmp/gnopreview . && (sleep 30 | timeout 5 /tmp/gnopreview help); echo $?",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "exit 124 (timeout killed it) with no output; the same binary run as `gnopreview plan -changed <file>` returns normally.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 77,
+      "angle": "refactor",
+      "summary": "`if err := fs.Parse(args); err != nil { return err }` cannot run: the flag set is built with flag.ExitOnError, so Parse exits the process on a bad flag",
+      "failure_scenario": "No failure; three lines of dead error handling sit in a run() whose whole shape exists to funnel errors through main's single Fprintln/os.Exit(1). A reader takes the branch as proof that a bad flag is reported the same way, and it is not: `gnopreview plan -bogus` prints the flag package's own usage and exits 2 without ever returning to run. Either drop the branch or switch the flag set to flag.ContinueOnError, which is the depth the surrounding code is written at.",
+      "verify_by": "cd misc/gnopreview && go build -o /tmp/gnopreview . && /tmp/gnopreview plan -bogus; echo $?",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "exit 2, output is flag's usage dump ('  -timeout duration ... (default 5m0s)'), never main's 'gnopreview: ' prefix, which is what a returned error would have printed with exit 1.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 310,
+      "angle": "refactor",
+      "summary": "readLines reads stdin as the file \"/dev/stdin\" where io.ReadAll(os.Stdin) is the same length and does not depend on a device node existing",
+      "failure_scenario": "The default -changed value is '-', so the stdin branch is the one a local run takes. os.ReadFile(\"/dev/stdin\") needs /dev/stdin to exist and to be readable: it is absent on Windows, and in a container built without a populated /dev the same invocation fails with 'open /dev/stdin: no such file or directory' rather than reading the pipe it was handed. The CI job passes -changed changed.txt, so nothing in the workflow exercises this path.",
+      "verify_by": "cd misc/gnopreview && sed -i 's|os.ReadFile(\"/dev/stdin\")|io.ReadAll(os.Stdin)|' main.go && goimports -w main.go && go test ./... && printf 'gno.land/pkg/gnoweb/x.go\\n' | go run . plan -changed -",
+      "band": "Nit",
+      "checked": false,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 237,
+      "angle": "refactor",
+      "summary": "renderBase indexes plan.Dirs[i] with an index from plan.Realms, so the two slices could diverge",
+      "settled_by": "sed -n '271,276p' misc/gnopreview/plan.go: BuildPlan's final loop is `for _, r := range plan.Realms { plan.Dirs = append(plan.Dirs, pkgs[r].Dir) ... }`, one Dirs entry per Realms entry in order, and Realms only holds keys that came out of the pkgs map, so len(Dirs) == len(Realms) on every path."
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 176,
+      "angle": "refactor",
+      "summary": "the head and base gnodev run at the same time and could collide on the RPC listener or on GNOHOME",
+      "settled_by": "Read of startGnodev's arg block: -node-rpc-listener is tcp://127.0.0.1:<port>+10000 and -home is <out>/.gnodev-<port>, both derived from the web port, which renderBase sets to cfg.port+1; head 8899/18899/.gnodev-8899 against base 8900/18900/.gnodev-8900."
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 216,
+      "angle": "refactor",
+      "summary": "stop() calls syscall.Kill(-cmd.Process.Pid, SIGTERM), which would take the caller's own process group down with it",
+      "settled_by": "cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} puts the child in a group of its own, and the repro run exercised stop() through render's defer while the test binary lived: 'ok  github.com/gnolang/gno/misc/gnopreview  0.004s'."
+    }
+  ],
+  "blocks_rewritten": [
+    "renderBase's five copies of `fmt.Fprintln(os.Stderr, \"  ! base render:\", err); return nil, newRealms` folded into an inner crawlBase(cfg, realms, dirs, live) (*Crawler, error) with the print at the one caller: 50 lines become 53, because the second signature and its `base, err :=` block cost more than the four repeated branches save. Rejected.",
+    "The same five branches folded with a `fail := func(err error) bool` closure and `if fail(waitReady(...)) || fail(base.Run()) || fail(base.Write(...))`: 7 lines shorter and unreadable, since the side effect sits inside a boolean chain. Rejected.",
+    "startGnodev's (func(), <-chan error, error) triple replaced by a *gnodev value carrying Stop() and Died: +8 lines for the type and its two methods against two call sites that already destructure the triple on one line. Rejected.",
+    "render's two screenshot arms (ChangedRealms -> renderBase + ScreenshotPairs, else Gnoweb -> Screenshot) merged into one dispatcher: same length, and the merged form hides that the two arms answer different questions, which the comment above them exists to state. Rejected.",
+    "writeJSON folded into writeFile with an `any` body: one line saved and writeFile loses the string signature its three other callers use. Rejected.",
+    "readLines' SplitSeq/TrimSpace loop replaced by strings.Fields(string(b)): 5 lines become 1 and a path containing a space is split in two. Rejected."
+  ]
+}

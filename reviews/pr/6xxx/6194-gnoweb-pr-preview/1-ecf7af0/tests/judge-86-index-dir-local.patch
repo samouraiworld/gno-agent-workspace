@@ -1,0 +1,30 @@
+# judge-86-index-dir-local.patch — candidate #86 isolated from b5-refactor-comment-shorter.patch,
+# which bundles five rewrites. gnolang/gno PR 6194, head ecf7af0f29abe4737a52803d672bc5a33c17cc60.
+# Index computes strings.TrimPrefix(path.Dir(urlToFile(u)), "/") three times per row; one dir local carries it.
+# 196 -> 196 lines (statement 4 -> 4: one dir local added, two argument lines collapsed to one); Comment and Index render byte-identically (golden digest unchanged).
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin ecf7af0f29abe4737a52803d672bc5a33c17cc60 && git checkout FETCH_HEAD
+#   cp <round>/tests/b5-refactor-comment-golden_test.go misc/gnopreview/
+#   (cd misc/gnopreview && go test -run TestRefactorGolden ./...)   # PASS at head
+#   git apply <this file>
+#   (cd misc/gnopreview && gofmt -l . && go vet ./... && go test -run TestRefactorGolden ./...)  # PASS
+#   git checkout -- misc/gnopreview/comment.go && rm misc/gnopreview/b5-refactor-comment-golden_test.go
+diff --git a/misc/gnopreview/comment.go b/misc/gnopreview/comment.go
+index 7d2229734..70e7a1423 100644
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -170,10 +170,10 @@ func Index(p *Plan, c *Crawler) string {
+ 		if _, ok := c.pages[u]; !ok {
+ 			continue
+ 		}
++		dir := strings.TrimPrefix(path.Dir(urlToFile(u)), "/")
+ 		rows.WriteString(fmt.Sprintf(
+ 			`    <li><a href="%s/"><code>gno.land%s</code></a> <a href="%s/_t/source/">source</a> <a href="%s/_t/help/">help</a></li>`+"\n",
+-			strings.TrimPrefix(path.Dir(urlToFile(u)), "/"), u,
+-			strings.TrimPrefix(path.Dir(urlToFile(u)), "/"), strings.TrimPrefix(path.Dir(urlToFile(u)), "/")))
++			dir, u, dir, dir))
+ 	}
+ 	return fmt.Sprintf(`<!doctype html>
+ <meta charset="utf-8">

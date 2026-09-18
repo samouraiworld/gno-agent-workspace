@@ -1,0 +1,30 @@
+# b7-refactor-hasprefixany.patch — PR 6194 (gnolang/gno), head ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#
+# BuildPlan's gnoweb scan open-codes hasPrefixAny, the helper 30 lines below it: 4 lines -> 2, and the scan stops at the first match instead of walking all three prefixes.
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno.git && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+#
+# Measured at ecf7af0 with go1.25.9: gofmt silent, vet silent,
+#   "ok  github.com/gnolang/gno/misc/gnopreview  0.005s"
+# Baseline (unpatched) at the same head: same "ok" line.
+diff --git a/misc/gnopreview/plan.go b/misc/gnopreview/plan.go
+index 4828aac3e..75bb2bfba 100644
+--- a/misc/gnopreview/plan.go
++++ b/misc/gnopreview/plan.go
+@@ -209,10 +209,8 @@ func BuildPlan(root string, changed []string, maxRealms int) (*Plan, error) {
+ 		if f == "" {
+ 			continue
+ 		}
+-		for _, gw := range gnowebPaths {
+-			if strings.HasPrefix(f, gw) {
+-				plan.Gnoweb = true
+-			}
++		if hasPrefixAny(f, gnowebPaths) {
++			plan.Gnoweb = true
+ 		}
+ 		if !strings.HasPrefix(f, pkgRoot+"/") || !renderRelevant(f) {
+ 			continue

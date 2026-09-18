@@ -1,0 +1,79 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 126,
+      "angle": "catalog",
+      "summary": "the -max-pages backstop aborts the whole render instead of truncating, so every page already crawled is discarded",
+      "failure_scenario": "A pull request whose selected realms expose more than 400 crawlable pages (render-argument paths are uncapped, so one blog-shaped realm supplies them) makes Run return `page cap 400 reached (queue still had N)`; main.render (main.go:134) returns that error before Crawler.Write, so no HTML, no index.html and no preview comment are written and the render job goes red. The author gets nothing instead of a truncated preview. The same tool truncates its other cap: plan.go:257 keeps 25 realms and comment.go:86 prints the warning '%d more affected realm(s) were not rendered (cap reached)', and main.go:271 logs this very error from the baseline crawl and carries on. README.md:118 calls the page cap a backstop.",
+      "verify_by": "tests/b9-catalog-pagecap_test.go, TestArgPagesBlowThePageCapAndDiscardTheCrawl: httptest realm serving 50 in-scope pages, MaxPages=10; expect a truncated crawl, observe a fatal error with the 10 captured pages discarded",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "go1.25.9, go test -run TestArgPages -count=1 ./... : `Run error: page cap 10 reached (queue still had 43)` and `10 pages were crawled and are thrown away: main.render returns this error before Crawler.Write`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-catalog-pagecap_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 209,
+      "angle": "catalog",
+      "summary": "render-argument pages (/r/x/y:p/...) carry no per-realm budget, so one realm's whole argument tree is captured",
+      "failure_scenario": "inScope budgets only the `file=` query argument (wantFile, GnowebFileBudget=2) and lets every `:args` path through unmetered, so a selected realm that renders one path per item yields one captured page per item. gno.land/r/gnoland/blog is seeded for exactly that shape (plan.go:41, 'render arguments (:page paths)'). Measured on one realm: 50 argument pages captured against 2 per-file pages. README.md:108-116 enumerates every shape the crawl skips and does not name this one, leaving it to the -max-pages cap, which does not truncate but kills the render (crawl.go:126); the ADR's 8.8 MB per preview and its 1 GB Pages budget (adr:80-96) were measured without such a realm, so the site-size bound the design rests on is unproven on this axis.",
+      "verify_by": "tests/b9-catalog-pagecap_test.go, TestArgPagesHaveNoBudget: one realm serving 50 `:p/postN` links and 10 `$source&file=` links, FileBudget=GnowebFileBudget; count each class in c.pages",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "go1.25.9: `captured: 50 arg pages, 2 per-file pages, 55 total`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-catalog-pagecap_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 318,
+      "angle": "catalog",
+      "summary": "a failed /public/_chroma/style.css fetch is swallowed, so source pages ship unhighlighted with nobody told",
+      "failure_scenario": "Write keeps the chroma stylesheet only on `err == nil && code == http.StatusOK` and has no else branch, while the sibling check three lines up (crawl.go:315) does print a warning when the asset rewrite found nothing. A gnodev that answers 404 or errors on that path leaves every `$source` page in the preview without syntax highlighting and leaves the job log silent, so the reviewer reads the missing highlighting as a regression the pull request caused.",
+      "verify_by": "read crawl.go:314-322: the chroma `if` has no else and no Fprintln on the error path, unlike the `n == 0` warning at crawl.go:315",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 61,
+      "angle": "catalog",
+      "summary": "TestURLToFile pins _dir and _root outputs for URLs the crawl can never produce",
+      "failure_scenario": "urlToFile's `listing` branch (crawl.go:490) and its `_root` default fire only on a base ending in '/' or on '/' itself. Both call sites feed them clean bases: crawl.go:142 runs on a URL that passed seedSet or inScope, and inScope rejects every trailing-slash base (pinned by crawl_test.go:83) while Seeds stops the directory walk at two slashes (pinned by TestSeedsSkipSingleSegmentDirs); comment.go:175 passes urlOf(realm). So the two rows document dead branches as behaviour, and the next reader maintains them instead of deleting the `listing`/`_root` handling.",
+      "verify_by": "grep -rn 'urlToFile(' misc/gnopreview/*.go for the call sites, then confirm no seed and no in-scope URL ends in '/'",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 100,
+      "angle": "catalog",
+      "summary": "determinism: Go map iteration order reaching the crawl order or the written output",
+      "settled_by": "grep -n 'for .*range ' misc/gnopreview/*.go: every map in an output path goes through sortedKeys (crawl.go:100, plan.go:229, plan.go:274) or sort.Strings (links, crawl.go:461), and writePages iterates the c.order slice; the repro run captured f0.gno and f1.gno, the two lowest sorted links, on every invocation. No time.Now, rand or goroutine scheduling on an output path (time.Now appears only in waitReady's deadline)."
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 12,
+      "angle": "catalog",
+      "summary": "global mutable state and concurrency: the diff adds t.Parallel() tests over package-level state",
+      "settled_by": "go test -race -count=1 ./... in misc/gnopreview: `ok github.com/gnolang/gno/misc/gnopreview 1.018s`; go vet ./... silent. The package's only package-level vars are the four regexps (crawl.go:37-42), unsafeSeg (crawl.go:478), explosiveArgs (crawl.go:160), shotPlan and the plan.go slices, all init-only and never assigned after."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 486,
+      "angle": "catalog",
+      "summary": "path traversal: urlToFile sanitizes args and query through slug but leaves base raw, so a base carrying .. would escape the output directory through path.Join",
+      "settled_by": "inScope accepts a URL only when `base == urlOf(r)` for a realm in c.Realms (crawl.go:195-201) and Seeds derives every other base from path.Dir, so no crawled URL can carry a traversal in base; comment.go:175 passes urlOf(realm). TestURLToFileIsSafe already covers the args and query halves."
+    }
+  ]
+}

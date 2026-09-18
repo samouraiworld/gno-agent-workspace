@@ -1,0 +1,96 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 187,
+      "angle": "catalog",
+      "summary": "chromeShot's only success test is that a non-empty file sits at the destination, so a browser run that wrote nothing passes on a file an earlier run left there",
+      "failure_scenario": "chromeShot never removes dst before launching the browser and never checks that the file it stats is new or is a PNG. Run gnopreview twice into the same -out (the README's local flow) and let the second browser run exit 0 without writing — `chromeShot(\"/bin/true\", url, dst)` over a 22-byte file returns nil — and the previous run's image is published as this pull request's screenshot with no line on stderr.",
+      "verify_by": "go test -run TestChromeShotFalseSuccess/stale_file ./... in misc/gnopreview with the artifact test: expect an error from chromeShot, observe nil",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestChromeShotFalseSuccess/stale_file (0.00s) — \"chromeShot returned nil after the browser wrote nothing, because a file from an earlier run was still at the destination\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-catalog-r2-chromeshot-false-success_test.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 78,
+      "angle": "catalog",
+      "summary": "a URL the preview server answers 404 on is photographed and published as the realm's rendering, because chromeShot treats any non-empty PNG as a successful shot",
+      "failure_scenario": "chromeShot(bin, origin+\"/\"+afterFile, dst) against a path that is not on disk returns nil and writes a 6743-byte PNG of the file server's \"404 page not found\" text. ScreenshotPairs then sets pair.After and the comment captions that error page as the realm, with nothing on stderr. Today every afterFile comes from c.pages, whose pages writePages has written, so the miss is latent rather than live; it becomes live the moment a page's file name and its served path stop agreeing (a prefix, an escape, a writeFile that failed).",
+      "verify_by": "go test -run TestChromeShotFalseSuccess/missing_page ./... in misc/gnopreview with the artifact test: expect an error from chromeShot on a 404 URL, observe nil and a written PNG",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestChromeShotFalseSuccess/missing_page (0.40s) — \"chromeShot on a URL the server answers 404 on returned nil and wrote 6743 bytes\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-catalog-r2-chromeshot-false-success_test.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 73,
+      "angle": "catalog",
+      "summary": "a changed realm the crawler never captured drops out of the before/after grid on a bare continue, with no line naming it",
+      "failure_scenario": "Crawler.Run skips a seed on a transport error, a non-200 answer or a spent per-file budget (crawl.go:130-140), so head.FileOf(urlOf(r)) returns !ok for a realm that is still in plan.ChangedRealms. ScreenshotPairs continues silently; comment.go:62 still lists the realm under \"Changed realms\", so the comment names a realm it shows nothing for and the log's only trace is the crawler's own line about a URL, never about the realm losing its preview.",
+      "verify_by": "read crawl.go:130-141 for the three continue paths that leave c.pages without the seed, and shots.go:72-75 for the bare continue; no stderr write sits between them",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 162,
+      "angle": "catalog",
+      "summary": "the screenshot server's Serve error is dropped, so a server that never starts is reported as a Chrome failure on every shot",
+      "failure_scenario": "serve() backgrounds srv.Serve(ln) with the error discarded. If Serve returns before any Close — the listener refused, the handler panicking the goroutine away — every following chromeShot gets a connection error from the browser and prints \"! screenshot <realm> (after): exit status 1\", pointing the reader at Chrome while the failure was the local server. The //nolint reason, \"Serve always returns on Close\", covers only the shutdown case.",
+      "verify_by": "read shots.go:153-164: no channel, no variable and no stderr write receives the value srv.Serve returns",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 180,
+      "angle": "catalog",
+      "summary": "--virtual-time-budget=4000 is a no-op on current Chrome stable, so the frame is grabbed before the controller modules and webfonts the comment names have settled",
+      "settled_by": "a package test calling chromeShot against a page whose div turns red on a 1200ms setTimeout: pixel(10,10)=255,0,0 after 400ms of wall clock, so virtual time did advance past the timer. A bare `google-chrome-stable --headless=new --virtual-time-budget=4000 --screenshot=...` against the same page behind `python3 -m http.server` stayed white, which is that single-threaded server holding a pending fetch and pausing virtual time, not the flag being ignored."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 171,
+      "angle": "catalog",
+      "summary": "chromeShot passes no --user-data-dir, so --headless=new would run in the developer's live Chrome profile and collide with a running browser",
+      "settled_by": "env HOME=<tmp> google-chrome-stable --headless=new ... created .config/google-chrome-headless and .cache/google-chrome-headless/scoped_dir94WACY; no Singleton* lock appeared under .config/google-chrome. Chrome 152.0.7977.75 gives new headless its own profile root."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 76,
+      "angle": "catalog",
+      "summary": "slug(strings.TrimPrefix(urlOf(r), \"/\")) could traverse out of _shots or collide two realms onto one screenshot file",
+      "settled_by": "crawl.go:520-533: unsafeSeg `[^A-Za-z0-9._-]+` replaces every separator, strings.Trim(out, \"-.\") removes any leading dots, and whenever the sanitized form differs from the input (every realm path, since it carries a /) sha256[:4] is appended, so \"r/x/leaf\" becomes \"r-x-leaf-<8 hex>\"."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 107,
+      "angle": "catalog",
+      "summary": "shotPlan names /r/gnoland/boards2/v0$help and /r/docs/security_patterns, which the crawler may never visit, leaving two of four gnoweb screenshots silently absent",
+      "settled_by": "plan.go:37-41 seeds exactly those three realms when plan.Gnoweb, appended after the maxRealms truncation at plan.go:256-268, and Seeds() adds $source and $help for every realm (crawl.go:84-97); all three directories exist under examples/gno.land at ecf7af0f2."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 67,
+      "angle": "catalog",
+      "summary": "determinism: the realm the before/after cap keeps, and the order pairs are published in, depend on Go map iteration order",
+      "settled_by": "plan.go:229 builds ChangedRealms from sortedKeys(changedPkgs), crawl.go:328 writes pages over the c.order slice, and every map access in shots.go (newRealms[r], c.pages[canonicalURL(...)]) is a keyed read; no range over a map reaches the output."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 89,
+      "angle": "catalog",
+      "summary": "the base crawler is built with no FileBudget, so chargeFile's `c.fileBudget[r] >= c.FileBudget` rejects every base page and no before half is ever produced",
+      "settled_by": "crawl.go:234-240: chargeFile returns true before reaching the budget when the URL carries no `file=` query parameter, and renderBase's seeds (main.go:261-264, RenderOnly) are plain realm URLs."
+    }
+  ]
+}

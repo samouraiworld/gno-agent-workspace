@@ -1,0 +1,79 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 266,
+      "angle": "claims",
+      "summary": "the gnoweb seed realms are appended after the cap, so -max-realms N renders up to N+4 realms",
+      "failure_scenario": "Plan.Realms' godoc says \"capped at MaxRealms\", main.go registers -max-realms as \"cap on rendered realms\" with default 25, and the PR body states \"At most 25 realms and 400 pages\". BuildPlan applies the cap at plan.go:256-259, then plan.go:263-270 appends every existing realm of gnowebSeedRealms afterwards. A PR that touches gnoweb and a package therefore boots gnodev on up to 29 realms and crawls them against the single shared 400-page budget, whose exhaustion is not a truncation but a hard error (crawl.go: `return fmt.Errorf(\"page cap %d reached\")`, propagated by main.go's `if err := c.Run(); err != nil`), so the whole preview job fails with no snapshot and no comment. In \"both\" mode those four extra realms also appear nowhere in the comment (comment.go:69 filters them out through isSeed), so they buy the reviewer nothing. The plan simultaneously reports Dropped=1 with 5 realms rendered under a cap of 1, so the comment's \"1 more affected realm(s) were not rendered (cap reached)\" is printed beside four realms the cap let through.",
+      "verify_by": "go test -run TestClaimSeedRealmsBypassCap in misc/gnopreview with a fake repo that contains the four gnowebSeedRealms: BuildPlan(root, [\"gno.land/pkg/gnoweb/app.go\", \"examples/gno.land/p/x/base/v0/lib.gno\"], 1) must return 1 realm; observe 5",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "zz_claims_test.go:88: max-realms=1 rendered 5 realms: [gno.land/r/docs/security_patterns gno.land/r/gnoland/blog gno.land/r/gnoland/boards2/v0 gno.land/r/gnoland/home gno.land/r/x/leaf] (Dirs=5, Dropped=1) --- FAIL: TestClaimSeedRealmsBypassCap. All four seed realms exist in the reviewed tree (checked with ls), so the branch is live on gnolang/gno.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-claims-cap_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 69,
+      "angle": "claims",
+      "summary": "a realm affected through a changed package is dropped from the comment's list and its count when it is also a gnoweb seed realm",
+      "failure_scenario": "In \"both\" mode (the PR touches gnoweb and a package), comment.go:69 skips every realm isSeed reports, which is membership in gnowebSeedRealms alone — not \"this realm was added as a seed\". gno.land/r/gnoland/home, r/gnoland/blog, r/gnoland/boards2/v0 and r/docs/security_patterns are the most-imported realms in examples/, so a PR changing gnoweb plus a package one of them imports renders that realm, publishes it, and then lists neither a link to it nor it in \"Realms affected through a changed package (N)\" — N undercounts by one per such realm. The reviewer is told one realm was affected when two were rendered, and has to guess the URL of the one that matters.",
+      "verify_by": "go test -run TestClaimAffectedSeedRealmIsUnlisted: Comment(&Plan{Gnoweb:true, ChangedPkgs:[\"gno.land/p/x/base/v0\"], Realms:[\"gno.land/r/gnoland/home\",\"gno.land/r/x/other\"]}, base, \"1\") must mention gno.land/r/gnoland/home and say (2); observe the realm absent and (1)",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "zz_claims_test.go:133: rendered realm \"gno.land/r/gnoland/home\" appears nowhere in the comment: ... **Realms affected through a changed package (1)** ... - [`gno.land/r/x/other`](https://example.test/pr-1/r/x/other/)",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-claims-cap_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 86,
+      "angle": "claims",
+      "summary": "the comment promises \"the changed realms are always kept\" while the cap drops changed realms once there are more than maxRealms of them",
+      "failure_scenario": "plan.go:252 states \"Directly changed realms first, so the cap never drops the realm the PR is actually about\", and comment.go:86 repeats it to the reviewer. The ordering only wins a tie: when a PR changes more realms than the cap (an import-path sweep or a formatting pass over examples/ exceeds 25 easily), the truncation at plan.go:258 drops directly changed realms in alphabetical order, and the comment still prints \"N more affected realm(s) were not rendered (cap reached) — the changed realms are always kept\". The reviewer reads that line and concludes the missing realms were only indirect dependents.",
+      "verify_by": "go test -run TestClaimChangedRealmsAreDropped: BuildPlan with three changed realms and maxRealms=1, then Comment on the result — no ChangedRealms entry may be missing from Realms while the body carries \"the changed realms are always kept\"",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "zz_claims_test.go:116: changed realms dropped by the cap: [gno.land/r/x/leaf gno.land/r/x/other] (rendered [gno.land/r/gnoland/home], Dropped=2); comment still says \"the changed realms are always kept\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-claims-cap_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 86,
+      "angle": "claims",
+      "summary": "the subtest \"tests fixtures are not pulled in indirectly\" pins nothing: its fixture does not import the package it changes",
+      "failure_scenario": "plan_test.go:42 wires gno.land/r/tests/vm/fixture to import p/x/base, and the subtest named for the exclusion changes p/x/mid, which the fixture never imports — so the case would pass with indirectExclude deleted. Deleting the plan.go:244 filter leaves that subtest green and reddens \"transitive dependency pulls both dependents\" and \"cap keeps the changed realm\" instead. The exclusion is covered, by cases whose names say nothing about it; the case that reads as its regression test is a duplicate of \"transitive dependency\", so a later edit that narrows indirectExclude will be debugged against the wrong subtest. Pointing the fixture's import at p/x/mid makes the name true.",
+      "verify_by": "replace the `!changedPkgs[p] && hasPrefixAny(p, indirectExclude)` guard in plan.go:244 with `_ = indirectExclude` and run go test -run TestBuildPlan: the subtest named for the exclusion must go red",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestBuildPlan/cap_keeps_the_changed_realm_and_reports_the_rest (Dropped = 2; want 1) and --- FAIL: TestBuildPlan/transitive_dependency_pulls_both_dependents (Realms = [gno.land/r/tests/vm/fixture ...]); TestBuildPlan/tests_fixtures_are_not_pulled_in_indirectly stayed green under the mutation.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 58,
+      "angle": "claims",
+      "summary": "Pkg.Realm's godoc says \"lives under gno.land/r/\" while the code tests strings.Contains(rel, \"/r/\"), which a package path such as p/moul/r/v0 would also satisfy",
+      "settled_by": "find examples/gno.land/p -type d -name r returned nothing, so no package in the reviewed tree is misclassified"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 96,
+      "angle": "claims",
+      "summary": "the subtest \"quarantined packages never appear\" looked trivially green, pinning a prefix check rather than a quarantine rule",
+      "settled_by": "examples/quarantined exists in the reviewed tree and BuildPlan gates on strings.HasPrefix(f, pkgRoot+\"/\") with pkgRoot = examples/gno.land, so the claim in the fakeRepo header holds as written"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 256,
+      "angle": "claims",
+      "summary": "TestCommentBeforeAfter asserts \"The gnoweb sample and the before/after pairs are alternatives, never both\" with p.Shots empty, so the assertion could never fire",
+      "settled_by": "main.go:147-152 reads `if len(plan.ChangedRealms) > 0 { ... ScreenshotPairs ... } else if plan.Gnoweb { ... Screenshot ... }`, so the claim is true of the pipeline and only the assertion is vacuous"
+    }
+  ]
+}

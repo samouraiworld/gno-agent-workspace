@@ -1,0 +1,114 @@
+# judge-174-crawl-helper.patch
+#
+# Asserts: render() and renderBase() in misc/gnopreview/main.go run the same
+# five-step sequence (startGnodev, Crawler, waitReady on urlOf(realms[0]), Run,
+# Write) twice. This patch folds it into one crawlTree helper; the package's
+# own tests still pass, so the two copies are behaviourally one.
+# Measured at head ecf7af0f29abe4737a52803d672bc5a33c17cc60: main.go 27 insertions,
+# 31 deletions (net -4). render() 58 -> 46 lines, renderBase() 50 -> 35, plus a
+# 17-line crawlTree: 108 duplicated lines become 99 with one copy of the sequence.
+#
+# From a plain clone of gnolang/gno:
+#   gh pr checkout 6194 -R gnolang/gno && git checkout ecf7af0f2
+#   git apply judge-174-crawl-helper.patch
+#   cd misc/gnopreview && gofmt -l . && go build ./... && go test ./...
+#   # expect: no gofmt output, BUILD ok, "ok github.com/gnolang/gno/misc/gnopreview"
+#   git checkout -- main.go
+diff --git a/misc/gnopreview/main.go b/misc/gnopreview/main.go
+index 4d19bc42f..764693f85 100644
+--- a/misc/gnopreview/main.go
++++ b/misc/gnopreview/main.go
+@@ -114,28 +114,16 @@ func render(cfg config, plan *Plan) error {
+ 	}
+ 
+ 	fmt.Printf("rendering %d realm(s): %s\n", len(plan.Realms), strings.Join(plan.Realms, " "))
+-	stop, died, err := startGnodev(cfg, cfg.root, plan.Dirs, cfg.port, "gnodev.log")
+-	if err != nil {
+-		return err
+-	}
+-	defer stop()
+-
+ 	c := &Crawler{
+-		Base:         fmt.Sprintf("http://127.0.0.1:%d", cfg.port),
++		Base:         listenURL(cfg.port),
+ 		Realms:       plan.Realms,
+ 		MaxPages:     cfg.maxPages,
+ 		Live:         strings.TrimSuffix(cfg.live, "/"),
+ 		ChangedFiles: plan.ChangedFiles,
+ 		FileBudget:   fileBudget(plan),
+ 	}
+-	if err := waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout, died); err != nil {
+-		return err
+-	}
+-	if err := c.Run(); err != nil {
+-		return err
+-	}
+ 	assets := filepath.Join(cfg.root, "gno.land", "pkg", "gnoweb", "public")
+-	if err := c.Write(cfg.out, assets); err != nil {
++	if err := crawlTree(cfg, c, cfg.root, plan.Dirs, cfg.port, "gnodev.log", assets); err != nil {
+ 		return err
+ 	}
+ 	if err := writeFile(filepath.Join(cfg.out, "index.html"), Index(plan, c)); err != nil {
+@@ -161,6 +149,29 @@ func render(cfg config, plan *Plan) error {
+ 	return nil
+ }
+ 
++func listenURL(port int) string { return fmt.Sprintf("http://127.0.0.1:%d", port) }
++
++// crawlTree boots gnodev on the given tree and package dirs, waits for the
++// first realm to answer, crawls and writes. gnodev is stopped before it
++// returns: everything downstream reads the written tree, not the server.
++func crawlTree(cfg config, c *Crawler, tree string, dirs []string, port int, logName, assets string) error {
++	if len(c.Realms) == 0 {
++		return errors.New("no realm to crawl")
++	}
++	stop, died, err := startGnodev(cfg, tree, dirs, port, logName)
++	if err != nil {
++		return err
++	}
++	defer stop()
++	if err := waitReady(c.Base, urlOf(c.Realms[0]), cfg.timeout, died); err != nil {
++		return err
++	}
++	if err := c.Run(); err != nil {
++		return err
++	}
++	return c.Write(cfg.out, assets)
++}
++
+ // startGnodev boots gnodev on the given package dirs of the given tree.
+ // Dependencies resolve lazily out of examples/, so only the realms being
+ // previewed are loaded.
+@@ -249,30 +260,15 @@ func renderBase(cfg config, plan *Plan, head *Crawler) (*Crawler, map[string]boo
+ 		return nil, newRealms
+ 	}
+ 	port := cfg.port + 1
+-	stop, died, err := startGnodev(cfg, cfg.baseRoot, dirs, port, "gnodev-base.log")
+-	if err != nil {
+-		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+-		return nil, newRealms
+-	}
+-	defer stop()
+-
+ 	base := &Crawler{
+-		Base:       fmt.Sprintf("http://127.0.0.1:%d", port),
++		Base:       listenURL(port),
+ 		Realms:     realms,
+ 		MaxPages:   len(realms),
+ 		Live:       head.Live,
+ 		RenderOnly: true,
+ 		Prefix:     beforeDir,
+ 	}
+-	if err := waitReady(base.Base, urlOf(realms[0]), cfg.timeout, died); err != nil {
+-		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+-		return nil, newRealms
+-	}
+-	if err := base.Run(); err != nil {
+-		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+-		return nil, newRealms
+-	}
+-	if err := base.Write(cfg.out, ""); err != nil {
++	if err := crawlTree(cfg, base, cfg.baseRoot, dirs, port, "gnodev-base.log", ""); err != nil {
+ 		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+ 		return nil, newRealms
+ 	}

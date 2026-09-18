@@ -1,0 +1,79 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 62,
+      "angle": "reach",
+      "summary": "the changed-realm list is built from the uncapped Plan.ChangedRealms, so every changed realm the -max-realms cap dropped is posted as a working link and the cap note says the opposite",
+      "failure_scenario": "A PR that touches more than 25 realm packages — a gnomod.toml or version sweep is the shape, and examples/gno.land/r has 58 of them. BuildPlan caps Plan.Realms at defaultMaxRealms=25 (pr-preview.yml passes no -max-realms) but never truncates Plan.ChangedRealms, and Crawler.Realms is plan.Realms, so only 25 realms are ever fetched or written. Comment then prints '**Changed realms (58)**' with 58 '- [`pkg`](base/r/...)' rows plus [source] and [help] per row: 33 of the 58 are 404s on the published preview, and the line under them reads '⚠️ 33 more affected realm(s) were not rendered (cap reached) — the changed realms are always kept.' The two other consumers of the same set filter on what was rendered — Index (comment.go:169, `if _, ok := c.pages[u]; !ok { continue }`) and ScreenshotPairs (shots.go:72, `head.FileOf` !ok -> continue) — so index.html and the screenshots show 25 realms while the comment claims 58. The same unfiltered write at comment.go:80 also links an indirect realm whose fetch returned non-200, which Crawler.Run skips silently (crawl.go:133).",
+      "verify_by": "cp the artifact into misc/gnopreview and run `go test -run TestReachB5 -v ./...`: TestReachB5TreeWideChangeOutrunsTheCap feeds every examples/gno.land/r gnomod.toml as changed at the default cap, TestReachB5CommentLinksUnrenderedChangedRealms does it on the fake repo at cap 1",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "go1.25.9, misc/gnopreview at ecf7af0f2: 'changed files=58 ChangedRealms=58 Realms=25 Dropped=33 comment=16397 bytes' then '33 of 58 changed realms are linked by the comment but never rendered, e.g. [gno.land/r/gov/dao/treasury/test/v0 gno.land/r/gov/dao/treasury/v0 gno.land/r/nt/commondao/v0]'. On the fake repo at cap 1: 'comment links gno.land/r/x/lonely, which the cap dropped from the render set: https://example.test/pr-1/r/x/lonely/ 404s' and 'cap note claims every changed realm was kept, but 2 of 3 were dropped'.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-reach-comment-links_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 69,
+      "angle": "reach",
+      "summary": "isSeed() drops every gnoweb seed realm from the affected list whenever Plan.Gnoweb is set, including seed realms the changed package genuinely affects, so a gnoweb+package PR can name no realm at all",
+      "failure_scenario": "A PR touching gno.land/pkg/gnoweb/ and a p/ package imported only by seed realms — gno.land/p/leon/svgbtn/v0 is imported by r/gnoland/home and r/gnoland/boards2/v0, both in gnowebSeedRealms. BuildPlan returns Gnoweb=true, ChangedPkgs=[p/leon/svgbtn/v0], ChangedRealms empty, Realms=[the 4 seeds]; Mode() is 'both' so the default branch runs, and the indirect filter at line 69 excludes every seed because isSeed() cannot tell a realm BuildPlan appended as a seed from one already in Realms as a dependent (plan.go:264 appends only what is not already there and records nothing). The 'Realms affected through a changed package' section is therefore skipped entirely: the posted comment is the intro sentence, the homepage link and the sample screenshots, and it never names r/gnoland/home, r/gnoland/boards2/v0, or the changed package. With a mix of seed and non-seed dependents the section prints but its count understates and the affected seed realms are missing.",
+      "verify_by": "`go test -run TestReachB5CommentHidesIndirectSeedRealm -v ./...` in misc/gnopreview with the artifact copied in: it builds the plan from the real tree and asserts every rendered realm is named in the comment",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Mode=\"both\" Gnoweb=true ChangedPkgs=[gno.land/p/leon/svgbtn/v0] Realms=[gno.land/r/docs/security_patterns gno.land/r/gnoland/blog gno.land/r/gnoland/boards2/v0 gno.land/r/gnoland/home], and the whole comment body is: marker, '### 🖼️ gnoweb preview', 'This PR changes **gnoweb** and realm sources. **[Open the preview homepage](...)**', then the <sub> footer — four failures, one per realm the comment never names.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-reach-comment-links_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 48,
+      "angle": "reach",
+      "summary": "the 'both' branch asserts the PR changes realm sources, which Mode() also returns when only a p/ package changed",
+      "failure_scenario": "Mode() returns 'both' whenever Gnoweb is set and either ChangedRealms or ChangedPkgs is non-empty (plan.go:98). A PR touching gno.land/pkg/gnoweb/ and examples/gno.land/p/leon/svgbtn/v0 changes no realm source, and the comment still opens 'This PR changes **gnoweb** and realm sources.' — the same run as the candidate above prints it with ChangedRealms empty.",
+      "verify_by": "the TestReachB5CommentHidesIndirectSeedRealm output above: ChangedRealms is empty and the sentence is in the body",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "body printed by that test opens with 'This PR changes **gnoweb** and realm sources.' while ChangedPkgs=[gno.land/p/leon/svgbtn/v0] and ChangedRealms is empty",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-reach-comment-links_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 25,
+      "angle": "reach",
+      "summary": "a plan that becomes empty leaves the previous preview comment standing, since no comment.md is written and the publish job treats a missing body as nothing to do",
+      "failure_scenario": "Push 1 edits a realm: the preview renders and the comment is posted. Push 2 reverts that edit (the PR now touches docs only): render() returns at main.go:111 before Comment is ever called, so _preview/comment.md does not exist, and pr-preview-publish.yml:166 `[ -s _preview/comment.md ] || { echo \"no comment body — nothing to post\"; exit 0; }` exits before the PATCH at line 174. The PR keeps a preview comment listing realms the branch no longer touches, pointing at a snapshot of the old head. Comment()'s own empty-plan guard at line 24 is unreachable for the same reason — render() returns first — so the emptiness never reaches the publish path as an empty body either.",
+      "verify_by": "read main.go:105-114 (early return before the comment.md write) against pr-preview-publish.yml:160-178; a run needs two pushes through the workflow",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "main.go:111 `if plan.Empty() { fmt.Println(\"nothing to preview\"); return writeJSON(...preview.json, plan) }` — comment.md is written only at main.go:156; pr-preview-publish.yml:166 skips on a missing or empty body.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 61,
+      "angle": "reach",
+      "summary": "an uncapped changed-realm list could push the comment past GitHub's 65536-byte body limit and fail the post",
+      "settled_by": "TestReachB5TreeWideChangeOutrunsTheCap with every realm in the tree changed: 'changed files=58 ChangedRealms=58 Realms=25 Dropped=33 comment=16397 bytes' — 58 is the whole of examples/gno.land/r (`find examples/gno.land/r -name gnomod.toml | wc -l` = 58), so the worst case today is a quarter of the limit"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 63,
+      "angle": "reach",
+      "summary": "the page cap (-max-pages 400) could leave realms uncrawled while the comment still links them",
+      "settled_by": "crawl.go:126 `if c.MaxPages > 0 && len(c.pages) >= c.MaxPages { return fmt.Errorf(\"page cap %d reached ...\") }` and main.go:134 `if err := c.Run(); err != nil { return err }` — the cap aborts the whole render, so no comment is produced at all"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 163,
+      "angle": "reach",
+      "summary": "tabs() links /_t/source/ and /_t/help/ for every listed realm; the per-file budget could have skipped them",
+      "settled_by": "crawl.go:235-245 `chargeFile` returns true when the URL carries no `file=` key ('not a per-file page'), and Seeds() adds u+\"$source\" and u+\"$help\" for every realm in c.Realms, so the bare tab pages are always fetched"
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 263,
+      "angle": "claims",
+      "summary": "gnowebSeedRealms is documented as the sample rendered \"when only gnoweb code changed\", but the seeds are appended whenever Gnoweb is set, and the comment then hides a genuinely affected realm that happens to be a seed",
+      "failure_scenario": "A PR changes gno.land/pkg/gnoweb/app.go and examples/gno.land/p/nt/ownable/v0/ownable.gno. gno.land/r/gnoland/home imports that package, so the reverse-import walk puts it in Plan.Realms and it is rendered. comment.go:69 then drops every realm isSeed() matches (comment.go:157 asks only whether the path is in gnowebSeedRealms, never why it is in Realms), so the published comment lists 6 affected realms instead of 7 and never links the realm the package change actually touched.",
+      "verify_by": "go test -run TestSeedRealmHiddenFromComment in misc/gnopreview with the artifact test: BuildPlan(root, [ownable change], 0) -> comment contains gno.land/r/gnoland/home; BuildPlan(root, [ownable change, gnoweb change], 0) -> home is in plan.Realms and absent from Comment()",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "FAIL: \"gno.land/r/gnoland/home is rendered (Plan.Realms) but absent from the comment\". The emitted comment reads \"**Realms affected through a changed package (6)**\" and lists foo20, grc20factory, disperse, devrels/events, valopers, valopers/proposal — home is missing. The control leg (package change alone, no gnoweb) passed, so the seed list is what removes it, not the cap (maxRealms 0 in both legs).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-claims-r2-seed-hidden_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 264,
+      "angle": "claims",
+      "summary": "the gnoweb seed-append branch is never exercised by a test: plan_test.go's fake repo deliberately contains none of the four seed realms",
+      "failure_scenario": "plan_test.go:111 states `wantRealms: []string{}, // the seed realms do not exist in the fake repo`, so TestBuildPlan's \"gnoweb alone\" and \"gnoweb and a realm\" cases both run with pkgs[r] == nil for every seed and the loop body never executes. Every behaviour of the branch — the seeds bypassing maxRealms, Dropped not counting them, a seed silently skipped when it moves, a seed also reached by the import walk — ships with no test that would go red.",
+      "verify_by": "add pkg(\"examples/gno.land/r/gnoland/home\", \"gno.land/r/gnoland/home\", ...) to fakeRepo and re-run go test ./misc/gnopreview -run TestBuildPlan: the \"gnoweb alone\" case must then assert the seed in wantRealms, and a maxRealms=1 gnoweb case must show Realms exceeding the cap",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 225,
+      "angle": "claims",
+      "summary": "ChangedFiles is documented as \"the base names of its files that the pull request touched\" and also records files the PR deleted, which then filter out every file that still exists",
+      "failure_scenario": "The changed-file list comes from `git diff --name-only base head` (pr-preview.yml), so it includes deletions. A PR that removes examples/gno.land/r/x/y/old.gno and changes nothing else in that realm gives ChangedFiles[\"gno.land/r/x/y\"] == [\"old.gno\"]; crawl.go:228 wantFile then returns false for every file that is still there and true only for a name gnoweb no longer serves, so the realm's $source pages come out empty for a reviewer who came to see what the deletion left behind.",
+      "verify_by": "read crawl.go:227-232 against BuildPlan's changedFiles population, then BuildPlan(root, [\"examples/gno.land/r/gnoland/home/deleted.gno\"], 0) and check ChangedFiles for a name no file carries",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 75,
+      "angle": "claims",
+      "summary": "Dirs is documented only as \"the repo-relative package dirs handed to gnodev\"; renderBase indexes it by Realms' index, an invariant neither field states",
+      "failure_scenario": "main.go:241 and main.go:246 read plan.Dirs[i] inside `for i, r := range plan.Realms`, so Dirs must stay index-aligned with Realms. BuildPlan builds them together at plan.go:271-273, but nothing says so: a later filter applied to Realms or Dirs alone silently pairs a realm with another realm's directory, and the before/after pass then renders the wrong package from the merge base with no error.",
+      "verify_by": "grep -n 'plan.Dirs' misc/gnopreview/*.go and read main.go:237-247; confirm no test asserts len(Dirs) == len(Realms) or their pairing",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 28,
+      "angle": "claims",
+      "summary": "gnowebPaths omits misc/gnopreview/, which pr-preview.yml lists in its paths filter as \"The preview tooling\", so that trigger can only ever reach \"nothing to preview\"",
+      "failure_scenario": "pr-preview.yml's paths filter includes `misc/gnopreview/**` and `.github/workflows/pr-preview.yml`, but BuildPlan sets Gnoweb only for the three trees in gnowebPaths. A PR that changes the crawler, the slugger or the comment writer alone triggers the workflow, checks out the merge base, builds gnopreview, plans an empty preview and skips — so the tool's own changes are never exercised end to end by the job they change.",
+      "verify_by": "read .github/workflows/pr-preview.yml paths against gnowebPaths, then run gnopreview plan with changed=misc/gnopreview/crawl.go and read the emitted JSON: gnoweb false, realms empty",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 29,
+      "angle": "claims",
+      "summary": "pkgRoot's comment claims examples/quarantined/ mirrors the gno.land layout and must never be previewed",
+      "settled_by": "ls examples/ prints `gno.land quarantined`; LoadPkgs walks root/examples/gno.land only and BuildPlan gates on HasPrefix(f, \"examples/gno.land/\"), and plan_test.go's \"quarantined packages never appear\" case covers it"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 163,
+      "angle": "claims",
+      "summary": "modFlags claims draft/ignore are \"always plain top-level `key = true` lines\"",
+      "settled_by": "grep -rh 'ignore|draft' examples --include=gnomod.toml returns `draft = true` once (r/demo/draftrealm) and `ignore = true` twice (both under examples/quarantined), every one a plain top-level line; gnovm/pkg/gnomod/file.go:21,27 declare both as top-level toml fields"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 51,
+      "angle": "claims",
+      "summary": "indirectExclude claims gno.land/r/tests/ realms are VM fixtures \"with no reader-facing render\"",
+      "settled_by": "grep -rl 'func Render' examples/gno.land/r/tests/ returns one file, examples/gno.land/r/tests/vm/interfaces.gno:20, but the list only suppresses indirect inclusion and plan_test.go's \"a changed test realm is still previewed\" covers the direct case, so nothing a reviewer needs is lost"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 37,
+      "angle": "claims",
+      "summary": "the four gnowebSeedRealms paths resolve to real packages at this head",
+      "settled_by": "each of examples/gno.land/r/{gnoland/home,docs/security_patterns,gnoland/boards2/v0,gnoland/blog} carries a gnomod.toml and 1, 1, 22 and 3 non-test .gno files, so LoadPkgs keys all four"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 92,
+      "angle": "claims",
+      "summary": "Plan.Shots is documented as \"Only populated for gnoweb changes\"",
+      "settled_by": "main.go:150 `} else if plan.Gnoweb { plan.Shots = Screenshot(...) }` is the only assignment, so the field is never set without Gnoweb"
+    }
+  ],
+  "blocks_rewritten": []
+}

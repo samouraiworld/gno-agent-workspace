@@ -1,0 +1,112 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 66,
+      "angle": "refactor",
+      "summary": "Pkg.Dir is always examplesRel + \"/\" + Pkg.Path, and byDir is a second index onto that identity: the field, the index and both lookups go, 345 -> 337 lines",
+      "failure_scenario": "LoadPkgs sets Dir = rel and Path = strings.TrimPrefix(rel, \"examples/\") from the same string, and the walk is rooted at examples/gno.land, so Dir == \"examples/\"+Path for every package with no exception. BuildPlan then builds byDir (5 lines) to invert a map it already has: byDir[path.Dir(f)] is pkgs[strings.TrimPrefix(path.Dir(f), examplesRel+\"/\")], and the f it is called on is already guarded by strings.HasPrefix(f, pkgRoot+\"/\") two lines above. plan.Dirs = append(plan.Dirs, pkgs[r].Dir) is examplesRel+\"/\"+r. Cost of keeping it: two fields that can disagree, and a second index every later reader has to prove is in sync with the first.",
+      "verify_by": "in a clone at ecf7af0f2, apply edit list A from the header of the artifact (drop the Dir field, drop Dir: rel, drop the byDir block, rewrite the two lookups), then cd misc/gnopreview && go test ./...",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "=== A dir-derivable: plan.go 345 -> 337 lines (-8) ===\\nok  \\tgithub.com/gnolang/gno/misc/gnopreview\\t0.004s",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-r2-plan-shape_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 273,
+      "angle": "refactor",
+      "summary": "altitude: BuildPlan knows exactly which realms it appended as gnoweb seeds and records nothing, so comment.go re-derives it by matching the global list — and in mode \"both\" an affected realm that is also a seed is rendered, crawled and linked nowhere",
+      "failure_scenario": "A PR that touches gno.land/pkg/gnoweb/ and a package imported by gno.land/r/gnoland/home gets Mode() == \"both\". Comment() takes the default branch, which lists ChangedRealms and then every realm that is !direct[r] && !isSeed(r, p); isSeed matches gnowebSeedRealms, so gnoland/home is dropped from the indirect list even though it entered Plan.Realms as a genuinely affected realm, not as a seed. The seed branch that would have listed it only runs in mode \"gnoweb\". The realm is booted in gnodev, crawled and written into the snapshot, and no link in the comment reaches it. The deeper form is for BuildPlan to record what it appended (a Seeds field, or a per-realm reason) instead of comment.go guessing from a package-level list; the shallow form costs a silent misclassification every time a seed realm is also affected.",
+      "verify_by": "go test -run TestSeedRealmDroppedFromComment -v ./misc/gnopreview with the artifact copied to misc/gnopreview/zz_b7_test.go: the comment for a Gnoweb+ChangedPkgs plan whose Realms hold gno.land/r/gnoland/home never mentions that realm",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "--- PASS: TestSeedRealmDroppedFromComment\\n    Mode()=\\\"both\\\"\\n    ABSENT gno.land/r/gnoland/home: in Plan.Realms, so rendered and crawled, and linked nowhere in the comment",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-r2-plan-shape_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 123,
+      "angle": "refactor",
+      "summary": "altitude: the dotted-directory guard is written at the entry and not at the walk, so it drops that directory's own package and still descends into every child",
+      "failure_scenario": "`if !d.IsDir() || strings.HasPrefix(d.Name(), \".\") { return nil }` returns nil, which tells filepath.WalkDir to keep going: a package at examples/gno.land/r/.hidden/deep is loaded, previewed and booted in gnodev, while a package at examples/gno.land/r/.self is skipped. fs.SkipDir is the one-word deeper form that prunes the subtree the guard was written for. No dotted directory exists under examples/gno.land at this head (`find examples/gno.land -type d -name '.*'` is empty), so nothing is wrong today and the guard is half-applied for the next one.",
+      "verify_by": "go test -run TestDotDirGuardStillDescends -v ./misc/gnopreview with the artifact copied in: asserts gno.land/r/.hidden/deep loads and gno.land/r/.self does not",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "--- PASS: TestDotDirGuardStillDescends\\n    LOADED gno.land/r/.hidden/deep: the walk descended past the dotted directory\\n    SKIPPED gno.land/r/.self: the dotted directory's own package is dropped",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-r2-plan-shape_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 126,
+      "angle": "refactor",
+      "summary": "the same directory listing is computed twice: filepath.WalkDir reads all 304 directories under examples/gno.land to descend, and the callback throws every entry away and issues 304 more os.ReadDir calls",
+      "failure_scenario": "The callback only acts on d.IsDir() and then calls os.ReadDir(p) on the very directory the walk has just read, so the walk hands it 1531 entries it ignores and the tree is enumerated end to end twice. Handling the files as the walk delivers them — d.Name() == \"gnomod.toml\" into one map, the non-test .gno files into another, keyed by filepath.Dir(p) — needs no ReadDir at all and deletes the hasMod/ents bookkeeping. Measured at this head: packages=145 walk-callback-entries=1531 callback ReadDir calls=304.",
+      "verify_by": "add `var zzDirs, zzEntries int`, `zzEntries++` at the top of the WalkDir callback and `zzDirs++` before os.ReadDir(p), then a test calling LoadPkgs(\"../..\") and printing both counters (recipe in the artifact header)",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "zz_count_test.go:10: packages=145 walk-callback-entries=1531 callback ReadDir calls=304",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-r2-plan-shape_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 215,
+      "angle": "refactor",
+      "summary": "changedFiles is a map of maps deduping base names a changed-file list cannot repeat: a plain slice plus slices.Compact keeps the behaviour, 345 -> 343 lines and one allocation per changed package fewer",
+      "failure_scenario": "`changedFiles := map[string]map[string]bool{}` costs a nil check, an inner map per changed package and a sortedKeys call to get back to the []string the Plan field holds; the keys it dedupes are path.Base(f) for distinct f in the same directory, which are distinct by construction. `changedFiles := map[string][]string{}` with `changedFiles[p.Path] = append(changedFiles[p.Path], path.Base(f))` and `sort.Strings(f); plan.ChangedFiles[r] = slices.Compact(f)` is the same output, duplicate input included.",
+      "verify_by": "apply edit list B from the artifact header, then cd misc/gnopreview && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "=== B changedFiles: plan.go 345 -> 343 lines (-2) ===\\nok  \\tgithub.com/gnolang/gno/misc/gnopreview\\t0.005s",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-r2-plan-shape_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 213,
+      "angle": "refactor",
+      "summary": "plan.json carries \"realms\": [] rather than null only because sortedKeys happens to pre-allocate; say it in the Plan literal, `Realms: []string{}`, and the helper is free to be one line",
+      "failure_scenario": "Plan.Realms is written from sortedKeys, whose `make([]string, 0, len(m))` returns a non-nil empty slice, so an empty plan serialises as \"realms\": [] and a consumer reading plan.json can index it. Nothing in the file says that shape is load-bearing: the obvious one-line rewrite of the helper, `return slices.Sorted(maps.Keys(m))`, returns nil for an empty map and turns four TestBuildPlan subtests red with the unreadable \"Realms = []; want []\". Initialising Realms (and Dirs) in the Plan literal beside ChangedFiles puts the guarantee where the JSON shape is declared.",
+      "verify_by": "replace sortedKeys' body with `return slices.Sorted(maps.Keys(m))` and run cd misc/gnopreview && go test ./...: four subtests fail on nil vs empty",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "=== D sortedKeys: plan.go 345 -> 341 lines (-4) ===\\n--- FAIL: TestBuildPlan/nothing_relevant\\n        plan_test.go:144: Realms = []; want []",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-r2-plan-shape_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 326,
+      "angle": "refactor",
+      "summary": "sortedKeys rewritten as slices.Sorted(maps.Keys(m)), generic over the value type, 8 lines -> 3 and it also serves the map[string][]string form",
+      "settled_by": "applied it and ran `go test ./...` in misc/gnopreview: FAIL, four TestBuildPlan subtests on `plan_test.go:144: Realms = []; want []` — the iterator form returns nil for an empty map and reflect.DeepEqual separates nil from the pre-allocated empty slice. Kept as the evidence for the plan.go:213 candidate instead."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 253,
+      "angle": "refactor",
+      "summary": "the cap block sorts three times — sortedKeys, sort.SliceStable for the changed-first partition, sort.Strings again — and could sort once",
+      "settled_by": "wrote both replacements: slices.SortStableFunc needs a cmp int, so the boolean partition becomes a 6-line switch or needs a btoi helper, and the sort.Strings after the cut is what the JSON order depends on. Every form is longer than the 8 lines it replaces; no candidate."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 100,
+      "angle": "refactor",
+      "summary": "Empty() and Mode() encode the same predicate twice: Empty() is exactly Mode() == \"none\"",
+      "settled_by": "read Mode()'s four branches against Empty()'s expression — \"none\" is reached iff !Gnoweb && len(Realms) == 0 — and plan_test.go:152 already asserts the identity on every case. `return p.Mode() == \"none\"` is one line for one line, so the rewrite saves nothing and the drift it would prevent is already pinned."
+    }
+  ],
+  "blocks_rewritten": [
+    "sortedKeys -> slices.Sorted(maps.Keys(m)) generic, 8 lines -> 3: rejected, four TestBuildPlan subtests go red on nil vs empty slice",
+    "the realms cap block (sortedKeys + sort.SliceStable + cap + sort.Strings) as one slices.SortStableFunc: rejected, every form is longer than the original",
+    "Empty() as p.Mode() == \"none\": rejected, one line for one line and the test already pins the identity",
+    "LoadPkgs as a single-pass walk collecting gnomod.toml and .gno entries into two maps keyed by parent dir: kept as the plan.go:126 candidate on the double enumeration, not as a line-count rewrite — the rewritten LoadPkgs is 44 lines against 45",
+    "hasPrefixAny/contains/mustRel and the Pkg.Draft dead field: already on the SEEN list, not re-flagged"
+  ]
+}

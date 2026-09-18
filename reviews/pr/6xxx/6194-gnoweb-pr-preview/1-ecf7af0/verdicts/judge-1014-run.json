@@ -1,0 +1,28 @@
+{"verdicts": [
+ {"index": 86, "angle": "refactor", "state": "CONFIRMED", "band": "Suggestion",
+  "file": "misc/gnopreview/comment.go", "line": 175,
+  "tldr": "Index recomputes the same slug expression three times per row; one `dir` local carries it",
+  "details": "comment.go:175-176 holds three byte-identical copies of strings.TrimPrefix(path.Dir(urlToFile(u)), \"/\"), one for the <li> href and two for the source and help hrefs, with nothing tying them together: an edit to the slug rule that misses a copy points a row's source link at a different directory than its page link, and the landing page is the only navigation a reviewer has. The isolated rewrite renders byte-identically. It saves no lines, 196 -> 196 for the file and 4 -> 4 for the statement, so the candidate's \"5 lines to 4\" is off; the gain is one name, not shorter code. Fix: hoist dir := strings.TrimPrefix(path.Dir(urlToFile(u)), \"/\") above the Sprintf and pass dir, u, dir, dir.",
+  "evidence": "Head baseline: cd misc/gnopreview && go test -run TestRefactorGolden ./... -> ok github.com/gnolang/gno/misc/gnopreview 0.002s (digest bba94764c9cf0495c1a90e4ff5baa5d2c37beace99c5a53d3cec88ee8059fd9a). With tests/judge-86-index-dir-local.patch applied alone: wc -l comment.go = 196 (head 196), gofmt -l . empty, go vet ./... silent, go test -run TestRefactorGolden ./... -> ok 0.002s. Merge base bbd9b2ff has no misc/gnopreview directory, so the code is new in this diff.",
+  "verify_by": "apply tests/b5-refactor-comment-shorter.patch, then cd misc/gnopreview && go test ./... with tests/b5-refactor-comment-golden_test.go copied in",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-86-index-dir-local.patch",
+  "base_behaves_the_same": false},
+
+ {"index": 87, "angle": "refactor", "state": "CONFIRMED", "band": "Suggestion",
+  "file": "misc/gnopreview/comment.go", "line": 56,
+  "tldr": "the `direct` map exists only to answer a membership test contains answers in place",
+  "details": "comment.go:56-59 allocates and fills direct in the default branch, and it is read at one site, comment.go:69 !direct[r]. contains(p.ChangedRealms, r), already in the package at plan.go:335 and already used by isSeed, says the same thing in the line that asks, and the map with its loop goes: 196 -> 192. Two of the candidate's qualifications are loose and neither changes the call: the map sits inside the default case, so the gnoweb branch never builds it, and the single read site executes once per p.Realms entry rather than once. The scan is bounded by -max-realms (defaultMaxRealms 25, main.go:29) but that flag documents 0 as no cap, so the trade is len(Realms)*len(ChangedRealms) string compares once per preview build against one map allocation. Fix: delete lines 56-59 and read if !contains(p.ChangedRealms, r) && !isSeed(r, p).",
+  "evidence": "With tests/judge-87-drop-direct-map.patch applied alone: wc -l comment.go = 192 (head 196), gofmt -l . empty, go vet ./... silent, go test -run TestRefactorGolden ./... -> ok github.com/gnolang/gno/misc/gnopreview 0.002s, same digest bba94764c9cf0495c1a90e4ff5baa5d2c37beace99c5a53d3cec88ee8059fd9a the head run produced. The golden fixtures cover the branch both ways: a plan with ChangedRealms plus a wider Realms list, and a gnoweb plan with no ChangedRealms at all. Merge base has no misc/gnopreview.",
+  "verify_by": "apply tests/b5-refactor-comment-shorter.patch, then cd misc/gnopreview && go test ./... with tests/b5-refactor-comment-golden_test.go copied in",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-87-drop-direct-map.patch",
+  "base_behaves_the_same": false},
+
+ {"index": 88, "angle": "refactor", "state": "CONFIRMED", "band": "Suggestion",
+  "file": "misc/gnopreview/comment.go", "line": 18,
+  "tldr": "the marker and the heading are built into b above the guard that discards them",
+  "details": "comment.go:19-20 write CommentMarker and the \"### gnoweb preview\" heading into b, and comment.go:24 if p.Empty() { return \"\" } throws the builder away. Empty() is !p.Gnoweb && len(p.Realms) == 0 (plan.go:91) and reads nothing the two writes touch, so the reorder is free. The waste is two short appends; what the reader loses is that the function reads as if the marker always leads the body when the body can still be empty, and the marker is what the publishing job matches to update the sticky comment in place, so a later edit returning b.String() from the guard would post and then keep a marker-only comment. No line change: 196 -> 196. Fix: move the three-line guard above var b strings.Builder.",
+  "evidence": "With tests/judge-88-empty-guard-first.patch applied alone: gofmt -l . empty, go vet ./... silent, go test -run TestRefactorGolden ./... -> ok github.com/gnolang/gno/misc/gnopreview 0.003s, digest unchanged with the empty plan {} among the fixtures; wc -l comment.go = 196 (head 196). The package's own TestCommentEmptyIsSilent (plan_test.go:178) stays green in the full-package run of the bundled patch (ok ... 0.005s). Merge base has no misc/gnopreview.",
+  "verify_by": "apply tests/b5-refactor-comment-shorter.patch, then cd misc/gnopreview && go test ./... -run TestComment (TestCommentEmptyIsSilent covers this path)",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-88-empty-guard-first.patch",
+  "base_behaves_the_same": false}
+]}

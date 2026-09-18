@@ -1,0 +1,110 @@
+{
+  "dropped": [],
+  "drop_note": "No candidate was contradicted outright by a line of the diff or the head. Every source file the candidates anchor on was read whole this round (comment.go 196, crawl.go 611, plan.go 345, main.go 339, shots.go 213, crawl_test.go 320, plan_test.go 278, the three workflows 377, the Makefile and .gitignore), and each cited line was checked against its claim. What the read turned up was line-anchor drift, never a refutation: plan.go:100 cited for Empty (it is at 91), plan.go:273 cited for the seed-append loop (263-270), main.go:126/140/143 cited for the page-cap propagation (the call is at 134). Drift is not a contradiction, and per the Reflector contract unsure keeps the candidate. One rationale clause is wrong without touching its finding: index 87 says the `direct` map is 'allocated and filled on every Comment call, including the branches that never read it', but comment.go:56-59 sits inside the `default:` arm, which always reads it at :69 -- the refactor itself (contains(p.ChangedRealms, r) at the line that asks) still stands, so it is left to its judge.",
+  "candidates": [
+    {
+      "file": ".github/workflows/pr-preview-publish.yml",
+      "line": 140,
+      "angle": "claims + reach",
+      "band": "Warning",
+      "summary": "the privileged job commits fork-authored bytes verbatim to a Pages site on the shared gnolang.github.io origin, against the header comment that calls the snapshots trusted static content",
+      "failure_scenario": "pr-preview.yml runs on `pull_request`, so GitHub executes the fork's own copy of that workflow file, and line 77 builds and runs the fork's own copy of misc/gnopreview: every byte under _preview/ is chosen by the pull request, not produced by a trusted renderer. The publish job then does exactly two things to it -- `find ../_preview -name .git -prune -exec rm -rf {} +` and a 40 MiB `du -sm` check -- before `cp -r ../_preview/. \"pr-$PR/\"` and `git add -A`, so a fork PR gets arbitrary HTML and JavaScript hosted at https://gnolang.github.io/gno-previews/pr-<N>/ for the life of the PR. The file's own header (lines 14-17) reasons about this origin and settles it with \"The snapshots are static and hold no credentials, and every page is noindex, but it is why previews are not given a hostname that could be mistaken for production\" -- an argument about phishing, not about same-origin: scripts served from that path share localStorage, cookies and same-origin fetch with every other gnolang.github.io Pages site, the godoc mirror the same header names at lines 10-12 included. The comment-body assurance covers the same ground for one file only (\"passes it as a file and never interpolates it into a shell command\"); nothing filters the other N files.",
+      "verify_by": "read .github/workflows/pr-preview.yml:76-82 (the fork's own gnopreview is built and run) against .github/workflows/pr-preview-publish.yml:121-155 (the only filters are the .git prune and MAX_PREVIEW_MIB), then settle the impact half: check whether any other gnolang.github.io Pages site sets a cookie or writes localStorage (curl -sI https://gnolang.github.io/ and grep the godoc mirror for localStorage/sessionStorage) -- a hit makes this a shared-origin XSS, a miss leaves it org-branded hosting for arbitrary fork content",
+      "checked": true,
+      "run": false,
+      "evidence": "pr-preview.yml:77 `cd misc/gnopreview && go build -o \"$RUNNER_TEMP/gnopreview\" . && cd -`; pr-preview-publish.yml:127-132 the prune and the size cap; :140 `cp -r ../_preview/. \"pr-$PR/\"`. The cookie/localStorage half of the check was not run: it needs the live gnolang.github.io sites.",
+      "repro_path": ""
+    },
+    {
+      "file": ".github/workflows/pr-preview.yml",
+      "line": 49,
+      "angle": "claims",
+      "band": "Nit",
+      "summary": "the \"after\" render is the pull request's merge commit while the \"before\" is the merge base, so the pair also shows everything master changed in between",
+      "failure_scenario": "The checkout step passes no `ref:`, so on a `pull_request` event actions/checkout takes the default refs/pull/<N>/merge -- the head merged into the current base tip. The base worktree is `git worktree add --detach \"$RUNNER_TEMP/base\" \"$base\"` where $base is `git merge-base \"$BASE_SHA\" \"$HEAD_SHA\"` (line 63). main.go:224-228 states the opposite about what the pair means: \"It reuses the head's gnodev binary and the head's assets on purpose: the pair must differ by the realm change alone, not by whatever else moved on master.\" For a branch opened a week ago against a realm master has since touched, the before/after screenshots in the posted comment attribute master's change to the pull request, and the reviewer reads a diff the PR did not make. The changed-file list is unaffected (line 64 diffs merge-base against HEAD_SHA), so only the rendered pixels drift -- which is the half the comment leads with.",
+      "verify_by": "in the render job, `git rev-parse HEAD` differs from $HEAD_SHA and `git rev-parse HEAD^1` is the base tip; locally, `gh api repos/gnolang/gno/pulls/6194 --jq .merge_commit_sha` then `git log -1 --format=%P <that sha>` shows the two parents. Then render a PR whose base moved on a realm it also touches and compare the before/after pair against `git diff <merge-base> <head> -- <that realm>`",
+      "checked": true,
+      "run": false,
+      "evidence": "pr-preview.yml:49-52 sets only fetch-depth and persist-credentials -- `grep -n 'ref:' .github/workflows/pr-preview.yml` returns nothing, so the default merge ref is what is checked out; :63 and :70 pin the base worktree to the merge base.",
+      "repro_path": ""
+    },
+    {
+      "file": ".github/workflows/pr-preview.yml",
+      "line": 64,
+      "angle": "reach",
+      "band": "Nit",
+      "summary": "`git diff --name-only` quotes any path outside ASCII, and gnopreview reads the quoted, backslash-escaped string verbatim, so that file's realm silently drops out of the plan",
+      "failure_scenario": "core.quotePath defaults to true, so a changed file named examples/gno.land/r/x/caf/cafe\\u0301.gno is written into changed.txt as `\"examples/gno.land/r/x/caf/caf\\303\\251.gno\"` -- quotes and octal escapes included. readLines (main.go:306-324) only trims whitespace, and BuildPlan then tests `strings.HasPrefix(f, pkgRoot+\"/\")` at plan.go:217 against a string that starts with a double quote, so the line is dropped before it ever reaches byDir. A pull request whose only realm change is such a file gets `nothing to preview` and no comment; one that also touches an ASCII file gets a preview that silently omits the non-ASCII file from ChangedFiles, so its per-file $source page -- the one thing the reviewer came for -- is refused by the budget at crawl.go:229. No examples/ path is non-ASCII today, so this is latent; `-z` on the diff plus a NUL split, or `-c core.quotePath=false`, closes it.",
+      "verify_by": "run: in a scratch repo, commit a file whose name carries a non-ASCII byte and run `git diff --name-only HEAD~1 HEAD` -- observe the quoted form; then feed that exact line to `gnopreview plan -changed -` against a tree holding that realm and observe an empty realms list",
+      "checked": true,
+      "run": true,
+      "evidence": "Ran in a scratch git repo: `git diff --name-only HEAD~1 HEAD` printed `\"examples/gno.land/r/x/caf/caf\\303\\251.gno\"`, with `git config --get core.quotePath` unset (default true). The plan half was read, not run: plan.go:217 rejects any path not prefixed `examples/gno.land/`, and the quoted string starts with `\"`.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/Makefile",
+      "line": 20,
+      "angle": "lines",
+      "band": "Nit",
+      "summary": "`make run` reuses whatever gnodev binary is already at /tmp/gnodev, so a local preview is rendered by a gnodev built from a different branch",
+      "failure_scenario": "`$(GNODEV)` is a real file target at the fixed path /tmp/gnodev (line 4), and make skips a target whose file exists. A contributor who ran `make run` on one branch and then switches to a branch that changes contribs/gnodev or gno.land/pkg/gnoweb gets a snapshot rendered by the old binary, with no line of output saying so -- the exact confusion the tool exists to remove, since main.go:223-228 argues that both passes must use the head's gnodev. The fixed /tmp path is also shared: on a multi-user machine the first user's binary is what every other user's `make run` executes. Measured: with the target file present, `make -n run` prints the diff, the `go run . render` and the http.server and no build step at all.",
+      "verify_by": "run: `touch /tmp/gnodev-probe && GNODEV=/tmp/gnodev-probe make -n run` in misc/gnopreview -- expect a gnodev build in the recipe, observe none",
+      "checked": true,
+      "run": true,
+      "evidence": "`GNODEV=/tmp/gnodev-probe make -n run` printed exactly four lines -- the `git diff --name-only`, the `go run . render`, the echo and the `python3 -m http.server` -- with no `go build -o` for gnodev.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 166,
+      "angle": "tests",
+      "band": "Missing test",
+      "summary": "Index, the snapshot's landing page and the URL the comment tells every reviewer to open, is called by no test",
+      "failure_scenario": "`grep -n 'Index(' misc/gnopreview/*_test.go` returns nothing: the five Comment tests in plan_test.go cover Comment, pairGrid, shotGrid, tabs and isSeed, and crawl_test.go never constructs a Plan. So the header count at :191-195 (len(p.Realms) over rows filtered by c.pages), the three-times-repeated `strings.TrimPrefix(path.Dir(urlToFile(u)), \"/\")` that builds every href on the page, and the unescaped `<code>gno.land%s</code>` all ship unpinned. The comment's own `**[Open the preview homepage](%s/)**` link points here, so a regression that emits a relative href one directory off makes every row on the landing page 404 while the per-realm links in the comment still work -- a failure shape a reviewer reads as \"the preview is broken\" with nothing red in CI.",
+      "verify_by": "`grep -n 'Index(' misc/gnopreview/*_test.go` -- expect a call, observe none; then add a table test feeding Index a Plan of two realms with only one present in c.pages and assert both the row count and the header number, and that each row's href resolves to the file urlToFile chose",
+      "checked": true,
+      "run": true,
+      "evidence": "`grep -n 'Index(\\|writePages\\|\\.Write(\\|copyTree\\|\\.Run()' misc/gnopreview/*_test.go` returned no hits at all.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 326,
+      "angle": "tests",
+      "band": "Missing test",
+      "summary": "Write and writePages, the functions that produce the published tree, are called by no test, so the Prefix that keeps the before pass from overwriting the after pass is unexercised",
+      "failure_scenario": "The same grep that finds no Index call finds no `.Write(` and no writePages either. writePages walks c.order, dereferences c.pages[u] with no ok check (:328-329) and hands filepath.Join(dir, p.File) to writeFile, and it is the only place the `Prefix` field (\"_before\") is honoured -- through `path.Join(c.Prefix, urlToFile(u))` at :142. Drop the Prefix from that Join and the base pass writes its pages on top of the head pass's: every \"after\" screenshot in the posted comment is then a photograph of the merge base, and the pair reads as \"this PR changed nothing\". The whole misc/gnopreview suite stays green, because the only thing that would notice is a test of the write path, and there is none. Distinct from the untested Run and copyTree already raised: those are the fetch and the asset side, this is the one that decides what lands on disk.",
+      "verify_by": "`grep -n 'writePages\\|\\.Write(' misc/gnopreview/*_test.go` -- expect a call, observe none; then in a scratch worktree at ecf7af0 drop `c.Prefix` from the path.Join at crawl.go:142 and run `cd misc/gnopreview && go test ./...` -- expect a failure, observe ok",
+      "checked": true,
+      "run": true,
+      "evidence": "`grep -n 'Index(\\|writePages\\|\\.Write(\\|copyTree\\|\\.Run()' misc/gnopreview/*_test.go` returned no hits. The Prefix mutation itself was not run.",
+      "repro_path": ""
+    },
+    {
+      "file": ".github/workflows/pr-preview.yml",
+      "line": 17,
+      "angle": "catalog",
+      "band": "Nit",
+      "summary": "a push that touches no path in the filter leaves the previous preview comment standing, still claiming it is rebuilt on every push",
+      "failure_scenario": "The `paths:` filter (lines 17-26) is the gate on the whole preview pipeline: a push that only edits docs/, gnovm/ or a _test.gno never starts pr-preview.yml, so no workflow_run fires, pr-preview-publish.yml never runs, and the sticky comment from the last matching push stays exactly as it was -- linking screenshots and realm pages of an older head under its own closing sentence, comment.go:90, \"Rebuilt on every push to this PR; removed when PR #%s closes.\" The reviewer who opens those links after a later push is looking at a snapshot of code the branch no longer has, with nothing on the pull request saying the preview is behind. Same user-visible failure as the empty-plan case already filed against comment.go:24, reached by a different and far more common trigger: every gno pull request that mixes a realm change with a later docs-only or test-only push. The cheap fix is the comment naming the head sha it was built from.",
+      "verify_by": "`sed -n '14,27p' .github/workflows/pr-preview.yml` for the filter, then on a pull request that already carries a preview comment push a docs-only commit and confirm no `pr / preview` check runs and the comment body is unchanged",
+      "checked": true,
+      "run": false,
+      "evidence": "pr-preview.yml:17-26 lists examples/gno.land/**, the three gnoweb/gnodev trees, misc/gnopreview/** and pr-preview.yml itself; comment.go:90 is the \"Rebuilt on every push to this PR\" sentence, and nothing in the body carries a sha.",
+      "repro_path": ""
+    },
+    {
+      "file": ".github/workflows/pr-preview-cleanup.yml",
+      "line": 13,
+      "angle": "reach",
+      "band": "Nit",
+      "summary": "the cleanup runs the deploy-key checkout on every closed pull request in the repository, including the great majority that never had a preview",
+      "failure_scenario": "`pull_request_target: types: [closed]` carries no `paths:` filter, unlike pr-preview.yml two files over, and the job's only guard is `vars.GNOWEB_PREVIEW_BASE_URL != ''`. So every closed pull request -- a docs typo, a gnovm change, anything -- checks out gnolang/gno-previews with PREVIEWS_DEPLOY_KEY persisted (line 39-44), fetches and hard-resets main, and only then discovers at line 56 that there is no pr-<N> to remove and exits 0. Two costs: a runner and a full clone of a repository that grows with every live preview, on the majority of closed pull requests; and a privileged credential materialised on disk in a job that, for those runs, has nothing to do -- which is the shape that turns any future step added to this job into a supply-chain step running on every close. Gating the checkout on the directory existing needs one API read of the previews repo before the checkout, or the same paths filter pr-preview.yml already carries.",
+      "verify_by": "`sed -n '12,16p' .github/workflows/pr-preview-cleanup.yml` -- no paths filter; then `gh api 'repos/gnolang/gno/pulls?state=closed&per_page=100' --jq '[.[] | select(.merged_at != null)] | length'` against the count whose files match the pr-preview.yml filter, for the ratio of pointless runs",
+      "checked": true,
+      "run": false,
+      "evidence": "The workflow's whole `on:` block is `pull_request_target:` plus `types: [closed]`, printed above; pr-preview.yml:17-26 carries a six-entry paths filter for the same repository.",
+      "repro_path": ""
+    }
+  ]
+}

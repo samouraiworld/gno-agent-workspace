@@ -1,0 +1,80 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 107,
+      "angle": "reach",
+      "summary": "shotPlan's realm paths duplicate plan.go's gnowebSeedRealms with nothing tying the two lists, and a miss is a silent skip",
+      "failure_scenario": "boards2 moves to v1 in examples/ (or gnowebSeedRealms drops a realm, or plan.go's `pkgs[r] != nil` guard skips one): plan.Realms then never seeds /r/gnoland/boards2/v0$help, Screenshot's c.pages lookup at shots.go:134 misses, `if !ok { continue }` at 135 skips it with no line on stderr, and the gnoweb preview comment ships three sample shots instead of four. Nobody reading the comment or the render log can tell a shot was lost.",
+      "verify_by": "cd misc/gnopreview && go test -run TestShotPlanReachesCrawledPages -v . with a test asserting every canonicalURL(shotPlan[i].url) is a seed of Crawler{Realms: gnowebSeedRealms}.Seeds(); mutate one shotPlan URL from v0 to v1 and the test must go red",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "Green at ecf7af0 (all four shotPlan keys are seeds). After `sed -i s|boards2/v0$help|boards2/v1$help|` on shots.go:110: `--- FAIL: TestShotPlanReachesCrawledPages` / `shotPlan \"/r/gnoland/boards2/v1$help\" -> key \"/r/gnoland/boards2/v1$help\" is not a seed of gnowebSeedRealms: this shot can never be taken`. Tree restored with git checkout -- misc/gnopreview/shots.go.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-reach-r2-shotplan-before-tree_test.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 27,
+      "angle": "reach",
+      "summary": "the _before tree is written into the published snapshot and linked by nothing: only the two capped PNGs under _shots are ever read",
+      "failure_scenario": "renderBase gives the base crawler Prefix: beforeDir and base.Write(cfg.out, \"\") writes one full gnoweb page per changed realm that exists at the merge base into <out>/_before/. ScreenshotPairs reads at most maxPairs=2 of them, through Chrome, on the runner. The publish step then cp -r's the whole snapshot into the previews repo and du -sm's it against MAX_PREVIEW_MIB=40, so a PR touching a dozen realms commits a dozen HTML pages to the shared 1 GB site that no comment link, no index entry and no reader can reach.",
+      "verify_by": "cd misc/gnopreview && go test -run TestBeforeTreeUnreferenced -v . (Comment() and Index() over a Plan carrying a pair must contain _shots/ and must not contain _before/); grep -rn '_before\\|beforeDir' misc/gnopreview/*.go shows the only non-comment uses are the const and main.go:265",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "TestBeforeTreeUnreferenced passes at ecf7af0: `comment references _before/: false`, `index references _before/: false`, `comment references _shots/: true`. grep over misc/gnopreview/*.go: beforeDir appears only at shots.go:27 (the const) and main.go:265 (Prefix), plus two comments.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-reach-r2-shotplan-before-tree_test.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 24,
+      "angle": "reach",
+      "summary": "every published image path starts with an underscore, so the whole preview depends on a .nojekyll marker no step in this PR writes or checks",
+      "failure_scenario": "The previews repo is served by GitHub Pages (pr-preview-publish.yml pushes to its main, and its own comment calls a gitlink something 'GitHub Pages reports as a build error'). Jekyll drops every path whose name starts with _ unless the repo root carries .nojekyll. gnopreview emits no such marker and the Publish step only cp -r's the snapshot, so a previews repo recreated, forked or re-pointed without it serves a site where every <img src=\"..._shots/....png\"> in every sticky comment 404s and every _t/_a/_dir page is gone, with the render and publish jobs both green. README.md:96 states the marker is mandatory, which makes the feature depend on an out-of-tree manual step; `touch .nojekyll` before `git add -A` in the Publish step removes the dependency.",
+      "verify_by": "grep -rn nojekyll over the PR returns only misc/gnopreview/README.md:96 (ran: it does); then curl -sI <previews site>/pr-<N>/_shots/<name>.png on a live preview, and git ls-files .nojekyll in the previews repo",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn 'nojekyll|jekyll|Jekyll' over misc/gnopreview, the three pr-preview workflows and the ADR: one hit, README.md:96 'Because the site lives under `_t`/`_a`/`_shots`, a `.nojekyll` marker is mandatory'. The previews repository is not in this tree, so whether the marker exists there could not be run.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 180,
+      "angle": "reach",
+      "summary": "chromeShot passes no --user-data-dir, so a maintainer with Chrome already open would collide on the default profile",
+      "settled_by": "Ran chromeShot's exact flag list under a fake HOME: --headless=new creates $HOME/.config/google-chrome-headless, not the browser's .config/google-chrome profile, and two concurrent runs on the same HOME both printed exit=0 and wrote a 5675-byte PNG each."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 189,
+      "angle": "reach",
+      "summary": "--virtual-time-budget is a legacy-headless flag, so under --headless=new a page that paints after load would be screenshotted blank",
+      "settled_by": "Ran the exact flag list on a page whose body is replaced by a full-viewport black div at setTimeout 2000ms: the PNG's first pixel decodes as 00 00 00, identical to the same page painting immediately, while the empty control decodes ff ff ff. The late paint is captured."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 135,
+      "angle": "reach",
+      "summary": "GnowebFileBudget=2 would spend the budget on the realm root and $source, so shotPlan's boards2/v0$help could never be crawled",
+      "settled_by": "crawl.go:233 chargeFile: it parses the query for a `file=` key and `if name == \"\" { return true // not a per-file page }`, so $help and $source pages are never charged; the budget only gates $source&file=<name> pages."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 76,
+      "angle": "reach",
+      "summary": "slug() over a realm URL could emit a path separator or a .. segment and let the screenshot escape outDir/_shots",
+      "settled_by": "crawl.go:520 slug: unsafeSeg `[^A-Za-z0-9._-]+` turns every / into -, and strings.Trim(out, \"-.\") strips leading and trailing dots, so no separator and no bare .. survives; measured outputs r-gnoland-home-cd67592c, r-demo-boards-e78ddc59, r-docs-security_patterns-e831efd8."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 97,
+      "angle": "reach",
+      "summary": "the base crawler gets MaxPages exactly len(realms), so one extra queued URL would abort the whole before/after render",
+      "settled_by": "crawl.go:88 Seeds() returns after add(u) when RenderOnly, and crawl.go:180 inScope returns false when RenderOnly, so the queue holds exactly one URL per realm; the cap check `len(c.pages) >= c.MaxPages` runs after a pop, and the Nth page is added while len(c.pages) is N-1."
+    }
+  ]
+}

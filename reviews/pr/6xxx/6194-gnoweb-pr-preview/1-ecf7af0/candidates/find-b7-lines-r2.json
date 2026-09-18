@@ -1,0 +1,92 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 212,
+      "angle": "lines",
+      "summary": "the gnoweb trigger is a bare directory prefix with no file-type filter, so a test-only or README-only touch runs the whole preview and claims the PR changes gnoweb itself",
+      "failure_scenario": "a PR touching only gno.land/pkg/gnoweb/app_test.go (or gno.land/pkg/gnoweb/README.md, or contribs/gnodev/README.md) matches the workflow's paths filter, reaches BuildPlan, and the loop at plan.go:212 sets plan.Gnoweb = true on the prefix alone; Mode() returns \"gnoweb\", four seed realms are rendered, screenshots are taken, the Pages site is published and the comment opens on \"changes **gnoweb itself**\" for a change that alters no served byte. The realm side of the same loop body is gated by renderRelevant, which rejects _test.gno and non-render files; the gnoweb side has no equivalent gate.",
+      "verify_by": "built the head tool and ran it against the head worktree: echo gno.land/pkg/gnoweb/app_test.go | gnopreview plan -root <head> -changed -",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "C) README-only touch of gnoweb: gnoweb=True ... n_realms=4 / D) *_test.go-only touch of gnoweb: gnoweb=True changed_realms=None changed_pkgs=None dropped=0 n_realms=4 / E) contribs/gnodev README touch: gnoweb=True ... n_realms=4. The workflow's own paths filter (pr-preview.yml: gno.land/pkg/gnoweb/**, contribs/gnodev/**) admits all three.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 253,
+      "angle": "lines",
+      "summary": "past the changed/unchanged split the cap keeps realms in alphabetical order, so an archived realm is rendered and every r/sys/* realm is cut",
+      "failure_scenario": "sort.SliceStable's comparator has one key, changedPkgs[realm]; among the indirectly affected realms the order is whatever sortedKeys produced, so realms[:maxRealms] keeps the alphabetic head. A PR changing gno.land/p/nt/ufmt/v0 affects 31 realms: the 25 kept start at gno.land/r/archive/boards, an archived realm, and the 6 dropped are exactly the system realms gno.land/r/sys/names, r/sys/params, r/sys/users, r/sys/users/init, r/sys/validators/v0, r/sys/validators/v2. The reviewer is told a count was dropped, never which, and the cut is by name rather than by anything about the change.",
+      "verify_by": "diff the realm sets of the capped and uncapped plans for one changed package: gnopreview plan -root <head> -changed - (default cap 25) against -max-realms 0",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "affected total: 31  kept: 25  dropped: ['gno.land/r/sys/names', 'gno.land/r/sys/params', 'gno.land/r/sys/users', 'gno.land/r/sys/users/init', 'gno.land/r/sys/validators/v0', 'gno.land/r/sys/validators/v2'] / kept first: gno.land/r/archive/boards",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 114,
+      "angle": "lines",
+      "summary": "the hidden-directory guard returns nil, not fs.SkipDir, so a dot-directory is still descended into and the packages under it are loaded",
+      "failure_scenario": "WalkDir treats a nil return from a directory callback as \"keep descending\"; only fs.SkipDir prunes. A package at examples/gno.land/r/.staging/foo (gnomod.toml plus one .gno file) is therefore registered in pkgs, enters the dependents graph and can be rendered, while the line reads as a rule that hidden trees are skipped. Nothing under examples/gno.land is dot-prefixed today, so the guard protects nothing and misstates what it does.",
+      "verify_by": "read filepath.WalkDir's contract for a nil return from a directory entry, then find examples/gno.land -type d -name '.*'",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "find <head>/examples/gno.land -type d -name '.*' returned nothing, so the guard is unexercised; WalkDir prunes on fs.SkipDir alone.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 229,
+      "angle": "lines",
+      "summary": "a realm the pull request deletes is invisible to the plan, because the package lookup is against head",
+      "failure_scenario": "changed carries examples/gno.land/r/foo/foo.gno for a realm the PR removes; LoadPkgs walked the head tree, where the directory is gone, so byDir[path.Dir(f)] is nil and the file is dropped with no record. The realm is absent from ChangedRealms, from Realms and from Dropped, so the preview and its comment say nothing at all about a PR whose whole effect is that a realm stopped existing. The nil test reads as a guard against a stray path and is also the deletion path.",
+      "verify_by": "read the byDir lookup against LoadPkgs' root: pkgs is built from the head tree alone, and no branch records a changed path whose package is missing",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 132,
+      "angle": "lines",
+      "summary": "no case reaches the documented -max-realms 0 branch: the table rewrites 0 to defaultMaxRealms",
+      "failure_scenario": "plan_test.go:132 does limit := tc.maxRealms; if limit == 0 { limit = defaultMaxRealms }, so a table case cannot ask for the uncapped run. The flag documents \"0 for no cap\" (main.go:73) and BuildPlan implements it as maxRealms > 0 at plan.go:256. Invert that guard to maxRealms >= 0 and every test still passes while every run renders zero realms.",
+      "verify_by": "mutate plan.go:256 from maxRealms > 0 to maxRealms >= 0 and run go test ./... in misc/gnopreview; expect green",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 281,
+      "angle": "lines",
+      "summary": "Dirs and Realms are consumed as parallel slices by renderBase (main.go:237-246), so a seed realm appended after the cap could misalign them",
+      "settled_by": "read the order in BuildPlan: plan.Dirs is appended in the single loop over plan.Realms at plan.go:280, after the seed append and the final sort.Strings, so the two slices are built in one pass and cannot diverge"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 250,
+      "angle": "lines",
+      "summary": "pkgs[p] could be nil for a path returned by dependents()",
+      "settled_by": "read dependents(): out is seeded from changedPkgs, whose keys come from byDir values, and grown from rev, whose values are p.Path of a pkgs entry; every element is therefore a key of pkgs"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 247,
+      "angle": "lines",
+      "summary": "an ignored package left in the dependency graph pulls its importers in",
+      "settled_by": "read the graph direction: a realm importing an ignored package still depends transitively on the changed package through it, so expanding through the ignored node is the correct closure; only the node itself is filtered, at plan.go:250"
+    }
+  ]
+}

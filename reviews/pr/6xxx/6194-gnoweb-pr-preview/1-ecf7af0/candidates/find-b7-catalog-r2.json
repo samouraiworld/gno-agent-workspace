@@ -1,0 +1,66 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 131,
+      "angle": "catalog",
+      "summary": "the readiness gate is bound to plan.Realms[0], so one realm that does not answer 200 aborts the whole preview",
+      "failure_scenario": "render() waits with waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout, died), and waitReady only returns nil on HTTP 200 for that one path. plan.Realms[0] is whatever sorts first in the affected set: for a change to examples/gno.land/p/nt/avl/pager/v0 plus a gnoweb file it is gno.land/r/demo/defi/grc20factory, neither a changed realm nor one of the four curated gnowebSeedRealms. Any realm gnodev does not serve 200 for - one it failed to deploy, a draft package, a Render that panics on the empty path - makes waitReady poll until cfg.timeout and return \"gnoweb not ready after <timeout>\", render() propagates it, and the job dies with no artifact and no comment: the gnoweb screenshots and every other realm's page are lost to one unrelated realm, under an error message that blames gnoweb.",
+      "verify_by": "stand a server that answers 200 on / and 500 on /r/demo/broken, call waitReady on each: the root probe returns nil, the realm probe returns \"gnoweb not ready after 3s\" while the server is up",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "go test -run TestWaitReadyProbeIsOneRealm -v . : \"probe=/r/demo/broken err=gnoweb not ready after 3s (server healthy, 4 requests served)\" - PASS. Determinism run alongside: \"Realms[0]=gno.land/r/demo/defi/grc20factory probe=/r/demo/defi/grc20factory\" for changed=[examples/gno.land/p/nt/avl/pager/v0/pager.gno, gno.land/pkg/gnoweb/app.go], realms=8 changed_realms=0 gnoweb=true.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-catalog-r2-waitready-realm-probe.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 217,
+      "angle": "catalog",
+      "summary": "a realm the pull request deletes is invisible to the plan, so the preview never mentions the removal",
+      "failure_scenario": "changed.txt is `git diff --name-only $base $HEAD_SHA` (pr-preview.yml:64), which lists deleted paths. BuildPlan resolves every such path through byDir, built from LoadPkgs(root) over the head tree, so a deleted realm's directory is absent and `byDir[path.Dir(f)]` is nil: the file is dropped at line 220 with no record. A pull request that only removes realms produces Empty()==true and the workflow prints \"nothing to preview\"; one that removes gno.land/r/x/a and edits gno.land/r/x/b publishes a preview naming only b, so the reviewer reads a preview that silently omits the change with the largest blast radius.",
+      "verify_by": "BuildPlan(root, []string{\"examples/gno.land/r/does/not/exist/lib.gno\"}, 25) returns an empty plan with no Dropped and no error; compare against the same path present in the tree",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 114,
+      "angle": "catalog",
+      "summary": "a dot-prefixed directory is skipped with return nil, not fs.SkipDir, so WalkDir still descends into it",
+      "failure_scenario": "LoadPkgs returns nil for any entry whose name starts with a dot, which tells WalkDir to keep walking that subtree; every directory under it is still visited and os.ReadDir'ed. A hidden tree dropped under examples/gno.land - a tool cache, a vendored .git - is walked in full on every plan and render invocation for nothing. fs.SkipDir is the one-word fix and states the intent the current line only implies.",
+      "verify_by": "read filepath.WalkDir's contract: only fs.SkipDir prunes a directory; confirm no caller of LoadPkgs relies on descending into dot directories",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 239,
+      "angle": "catalog",
+      "summary": "catalog class Determinism: LoadPkgs, byDir and dependents all range Go maps, so Plan's field order or contents could vary run to run",
+      "settled_by": "go test -run TestBuildPlanDeterministic -v . : five BuildPlan calls on the real examples tree marshal to byte-identical JSON - PASS. Every output path funnels through sortedKeys or sort.Strings."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 107,
+      "angle": "catalog",
+      "summary": "Pkg.Path is the directory path while Pkg.Imports are declared module paths, so a package whose module differs from its directory loses every reverse-index edge in dependents()",
+      "settled_by": "compared `module = \"...\"` against the directory path for all 145 gnomod.toml files under examples/gno.land: \"mismatch count: 0\"."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 264,
+      "angle": "catalog",
+      "summary": "a gnowebSeedRealms entry that no longer resolves is skipped silently, so the gnoweb preview could ship with fewer seed pages than the list promises",
+      "settled_by": "checked all four seeds in the head worktree: gno.land/r/gnoland/home, gno.land/r/docs/security_patterns, gno.land/r/gnoland/boards2/v0 and gno.land/r/gnoland/blog each have a gnomod.toml and at least one non-test .gno file, so pkgs[r] != nil for all four today."
+    }
+  ]
+}

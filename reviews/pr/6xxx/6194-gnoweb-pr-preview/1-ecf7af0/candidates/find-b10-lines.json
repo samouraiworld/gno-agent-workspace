@@ -1,0 +1,130 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 62,
+      "angle": "lines",
+      "summary": "when the realm cap is reached the plan drops changed realms, but the comment still links every one of them and tells the reader the changed realms are always kept",
+      "failure_scenario": "A PR that touches more than --max-realms (default 25) realm directories, an examples-wide sweep such as a gnomod.toml migration across the 145 packages under examples/gno.land. BuildPlan caps plan.Realms (plan.go:256-259) and sets Dropped, but plan.ChangedRealms keeps every changed realm, and Comment's \"Changed realms (N)\" loop links all of them plus their _t/source/ and _t/help/ tabs. gnodev is only ever given plan.Dirs, built from the capped Realms, so the dropped realms have no page in the static output and every link to them 404s. The closing note then states the opposite: \"N more affected realm(s) were **not** rendered (cap reached) - the changed realms are always kept.\"",
+      "verify_by": "cp tests/b10-lines-cap-drops-changed-realms_test.go misc/gnopreview/b10_cap_test.go && cd misc/gnopreview && go test -run TestB10CapDropsChangedRealms -v ./...",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "ChangedRealms=[gno.land/r/x/leaf gno.land/r/x/lonely gno.land/r/x/other] Realms=[gno.land/r/x/leaf] Dropped=2; comment links 2 changed realm(s) that were never rendered: [gno.land/r/x/lonely gno.land/r/x/other]; the emitted comment carries '- [`gno.land/r/x/lonely`](https://example.test/pr-1/r/x/lonely/) - [source](.../_t/source/) - [help](.../_t/help/)' above '2 more affected realm(s) were **not** rendered (cap reached) - the changed realms are always kept.'",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-lines-cap-drops-changed-realms_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 120,
+      "angle": "lines",
+      "summary": "the only gnoweb-mode case asserts zero realms, so the seed-realm injection that gives a gnoweb-only PR anything to render is mutation-green",
+      "failure_scenario": "fakeRepo contains none of gnowebSeedRealms, and the \"gnoweb alone\" case writes that down (wantRealms: []string{}, // the seed realms do not exist in the fake repo). Deleting plan.go:263-270, the whole `if plan.Gnoweb { for _, r := range gnowebSeedRealms ... }` block, leaves `go test ./...` green. A regression there ships the PR's headline case, a gnoweb-only change, with an empty Realms list; render() passes the plan.Empty() guard because Gnoweb is true and then indexes plan.Realms[0] at main.go:131.",
+      "verify_by": "in a scratch worktree at ecf7af0: sed -i '263,270d' misc/gnopreview/plan.go && cd misc/gnopreview && go test ./...",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "### M-A: delete the gnoweb seed-realm injection (plan.go 263-270) -> ok github.com/gnolang/gno/misc/gnopreview 0.005s",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 54,
+      "angle": "lines",
+      "summary": "no case changes the ignore=true package directly, so the !p.Ignore guard on a directly changed package is mutation-green",
+      "failure_scenario": "fakeRepo writes examples/gno.land/r/x/ignored with ignore = true, but every case reaches it only indirectly, through the base package, where the second filter (plan.go:241) already removes it. Dropping `&& !p.Ignore` from plan.go:220 leaves the suite green, and with it an ignored realm enters changedPkgs, so it is listed under \"Changed realms\" in the comment while plan.Realms and plan.Dirs still exclude it: another link to a page gnodev never loaded.",
+      "verify_by": "in a scratch worktree at ecf7af0: sed -i '220s/ && !p.Ignore//' misc/gnopreview/plan.go && cd misc/gnopreview && go test ./...",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "### M-B: 'if p := byDir[path.Dir(f)]; p != nil {' -> ok github.com/gnolang/gno/misc/gnopreview 0.005s",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 229,
+      "angle": "lines",
+      "summary": "no case pairs Gnoweb with an indirectly affected realm, so the isSeed filter in the comment is mutation-green",
+      "failure_scenario": "TestCommentGnowebHasShots has Gnoweb true with no ChangedRealms or ChangedPkgs, so Mode() is \"gnoweb\" and the default branch that calls isSeed never runs; TestCommentRealms has Gnoweb false, so isSeed returns false at its first line. Dropping `&& !isSeed(r, p)` from comment.go:69 leaves the suite green. In \"both\" mode that regression lists the four gnoweb seed realms under \"Realms affected through a changed package\", attributing to the PR's changed package four realms it never touched.",
+      "verify_by": "in a scratch worktree at ecf7af0: sed -i '69s/ && !isSeed(r, p)//' misc/gnopreview/comment.go && cd misc/gnopreview && go test ./...",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "### M-C: 'if !direct[r] {' -> ok github.com/gnolang/gno/misc/gnopreview 0.005s",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 131,
+      "angle": "lines",
+      "summary": "render indexes plan.Realms[0] on a plan the tests themselves assert is valid with zero realms",
+      "failure_scenario": "plan.Empty() is `!p.Gnoweb && len(p.Realms) == 0`, so a plan with Gnoweb true and Realms empty passes the guard at main.go:110 and reaches `waitReady(c.Base, urlOf(plan.Realms[0]), ...)`, which panics with index out of range. plan_test.go:118-121 asserts exactly that plan (\"gnoweb alone\" -> Gnoweb true, Realms []). At ecf7af0 all four gnowebSeedRealms resolve, so the state is latent; it becomes live the first time a seed realm is renamed, moved, or left without a non-test .gno file, and the failure is a panic in the preview job rather than a message naming the missing seed.",
+      "verify_by": "read main.go:110-131 against Plan.Empty (plan.go:91); measured: all 4 seeds exist at head (home, docs/security_patterns, boards2/v0, blog, each with gnomod.toml and >=1 non-test .gno), so today the panic needs a seed rename",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "gno.land/r/gnoland/home : gnomod=yes nontest_gno=1 / gno.land/r/docs/security_patterns : gnomod=yes nontest_gno=1 / gno.land/r/gnoland/boards2/v0 : gnomod=yes nontest_gno=22 / gno.land/r/gnoland/blog : gnomod=yes nontest_gno=3",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 93,
+      "angle": "lines",
+      "summary": "the case named \"tests fixtures are not pulled in indirectly\" pins nothing about indirectExclude",
+      "failure_scenario": "The fixture realm gno.land/r/tests/vm/fixture imports base, not mid, so changing mid can never reach it and the case passes whatever indirectExclude does. Deleting the check at plan.go:244-246 leaves that subtest green; the coverage comes from \"transitive dependency pulls both dependents\", which is named for something else. A maintainer editing indirectExclude will run the case named for it and read a false all-clear.",
+      "verify_by": "in a scratch worktree at ecf7af0: sed -i '244,246d' misc/gnopreview/plan.go && cd misc/gnopreview && go test -run 'TestBuildPlan/tests_fixtures_are_not_pulled_in_indirectly' ./... && go test -run TestBuildPlan ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "only the case named for it: ok 0.004s; whole TestBuildPlan: --- FAIL: TestBuildPlan/transitive_dependency_pulls_both_dependents, --- FAIL: TestBuildPlan/cap_keeps_the_changed_realm_and_reports_the_rest",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 263,
+      "angle": "lines",
+      "summary": "the seed realms are appended after the cap, so Realms can exceed --max-realms by four and Dropped counts a realm that was re-added",
+      "failure_scenario": "The cap runs at plan.go:256-259 and the seed block at 263-270 appends afterwards, so a gnoweb change renders up to maxRealms+4 realms while the flag reads \"cap on rendered realms\". Worse for the reader: when a dropped realm is one of the four seeds it is appended back into plan.Realms and rendered, yet plan.Dropped still counts it, so the comment claims N realms were not rendered when N-1 were.",
+      "verify_by": "read plan.go:250-270; construct a plan with Gnoweb true and more than maxRealms affected realms including gno.land/r/gnoland/home and compare Dropped with len(Realms)",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:256 `if maxRealms > 0 && len(realms) > maxRealms { plan.Dropped = len(realms) - maxRealms; realms = realms[:maxRealms] }` precedes the unconditional `plan.Realms = append(plan.Realms, r)` at 266",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 58,
+      "angle": "lines",
+      "summary": "Pkg.Draft is parsed from gnomod.toml and never read, while its sibling ignore is honoured twice",
+      "failure_scenario": "modFlags returns both flags and BuildPlan consults only Ignore (plan.go:220 and 241). examples/gno.land/r/demo/draftrealm carries draft = true at this head, so a change to it, or to a package it imports, puts it in the plan and in the comment's realm list exactly like a deployable realm. Either draft realms belong in the preview, and the field is dead weight to remove, or they do not, and the guard was written and never applied.",
+      "verify_by": "grep -rn 'Draft' misc/gnopreview (assignment only, no read) and grep -rl '^draft = true' examples --include=gnomod.toml",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:58 (field), plan.go:142 (assignment), plan.go:155-168 (modFlags) are the only occurrences of Draft in misc/gnopreview; examples/gno.land/r/demo/draftrealm/gnomod.toml carries draft = true",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 35,
+      "angle": "lines",
+      "summary": "fakeRepo writes fixture material no case uses: examples/gnowork.toml and the realm gno.land/r/x/lonely",
+      "failure_scenario": "LoadPkgs never reads gnowork.toml, and no case in TestBuildPlan names lonely, so both lines read as coverage that does not exist: a reader looking for the orphan-realm case, a realm with no importers and no importees, finds the fixture for it and no assertion.",
+      "verify_by": "grep -n 'lonely\\|gnowork' misc/gnopreview/plan_test.go",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan_test.go:35 write(\"examples/gnowork.toml\", \"\") and plan_test.go:49 pkg(\"examples/gno.land/r/x/lonely\", ...) are each the only mention of their subject in the file",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 38,
+      "angle": "lines",
+      "summary": "fakeRepo always writes a gnomod.toml module line equal to the directory, so a package whose module path differs from its directory would silently drop out of the dependents graph, since LoadPkgs keys packages by directory and never reads module",
+      "settled_by": "bash over all 145 gnomod.toml under examples/gno.land comparing 'gno.land/'+dirname to the module value: total=145 mismatched=0"
+    }
+  ]
+}

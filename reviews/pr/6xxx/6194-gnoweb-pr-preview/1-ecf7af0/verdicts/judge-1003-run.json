@@ -1,0 +1,47 @@
+{
+  "verdicts": [
+    {
+      "index": 175,
+      "angle": "refactor",
+      "verify_by": "grep -n 'plan\\.\\(Shots\\|Pairs\\)' misc/gnopreview/*.go and grep -n 'Shots\\|Pairs' misc/gnopreview/plan.go: the fields are declared on Plan, never written by BuildPlan, and only assigned in render()",
+      "state": "REFUTED",
+      "band": "Suggestion",
+      "file": "misc/gnopreview/main.go",
+      "line": 151,
+      "tldr": "both fields are documented render outputs and omitempty keeps them out of the plan subcommand's JSON",
+      "details": "The structural half reads true: BuildPlan never touches Shots or Pairs, and main.go:149 and 151 are their only assignments. The harm does not follow. plan.go:82-87 labels each field as a render outcome in its own doc comment, and both carry omitempty, so `gnopreview plan` (main.go:97, json.NewEncoder(os.Stdout).Encode(plan)) emits a document with no shots and no pairs key at all — the reader of that JSON has nothing to mistake for intention. The plan-once-render-twice case has no caller: render is invoked at most once per process from the switch at main.go:99-100, it is the package's only call site, and both assignments overwrite rather than accumulate. Fix: none; leave Plan as it stands.",
+      "evidence": "grep -rn 'render(cfg|= Screenshot\\(|ScreenshotPairs\\(' misc/gnopreview/*.go -> main.go:100 (the sole call), 149, 151. grep -n omitempty misc/gnopreview/plan.go -> lines 81, 84, 87. misc/gnopreview does not exist at merge base bbd9b2ff (ls of its misc/ has no gnopreview), so there is no base behaviour to compare.",
+      "repro_path": "",
+      "base_behaves_the_same": false,
+      "refuted_by": "plan.go:84 `Shots []Shot `json:\"shots,omitempty\"`` under `// Shots are screenshots taken of the finished snapshot, embedded in the // PR comment. Only populated for gnoweb changes.`"
+    },
+    {
+      "index": 171,
+      "angle": "refactor",
+      "verify_by": "apply tests/b3-refactor-r2-contains-slices.patch at ecf7af0f2, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "misc/gnopreview/plan.go",
+      "line": 335,
+      "tldr": "contains() is a one-line alias of slices.Contains and the package already calls both names",
+      "details": "plan.go:335-337 is `func contains(s []string, v string) bool { return slices.Contains(s, v) }`, called from main.go:238, plan.go:265 and comment.go:161, while crawl.go:229 spells the same operation as slices.Contains directly. Two names for one operation in a 1700-line package: a reader greps one and misses the other's call sites. Reran the finder's patch in a scratch worktree at ecf7af0f2: it applies clean, main.go 339->340, plan.go 345->341, comment.go 196->197, 880 lines -> 878. Fix: take the finder's patch — delete the alias and call slices.Contains at the three sites.",
+      "evidence": "git apply tests/b3-refactor-r2-contains-slices.patch -> APPLIED; wc -l main.go plan.go comment.go: 339/345/196 = 880 before, 340/341/197 = 878 after; gofmt -l . silent, go vet ./... silent, 'ok github.com/gnolang/gno/misc/gnopreview 0.004s' both before and after. misc/gnopreview is absent at merge base bbd9b2ff, so the alias arrives with this PR.",
+      "repro_path": "tests/b3-refactor-r2-contains-slices.patch",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 202,
+      "angle": "refactor",
+      "verify_by": "go test -run TestPairURLIsUrlOf ./... over every realm-path shape, then delete the field, swap pairGrid's two %s/%s + p.URL for %s%s/ + urlOf(p.Realm), drop URL: from plan_test.go's three fixtures and run go vet ./... && go test ./... with the two href assertions added to TestCommentBeforeAfter",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "misc/gnopreview/shots.go",
+      "line": 38,
+      "tldr": "ShotPair.URL re-derives urlOf(Realm) through the file tree and the comment is byte-identical without it",
+      "details": "shots.go:77 stores URL as path.Dir(head.FileOf(urlOf(r))) + \"/\"; crawl.go:142 files a page at path.Join(c.Prefix, urlToFile(u)) and the head crawler (main.go:123-130) sets no Prefix — only the base crawler does, at main.go:265 — so that string is urlToFile(urlOf(r)) with its basename stripped, which is urlOf(r) minus its leading slash plus a slash. comment.go's link() and tabs() already spell the same realm link from urlOf. The finder's own test bypasses FileOf and so misses the Prefix hop; I checked the emitted comment instead. Dropping the field and building the href from urlOf(p.Realm) at pairGrid's two sites emits the same bytes, shots.go 213 -> 212. Fix: delete ShotPair.URL, spell the two pairGrid hrefs as urlOf(p.Realm), and drop URL: from the three fixtures.",
+      "evidence": "judge-202-shotpair-url-byte-identical.sh at ecf7af0f2 in a scratch worktree: '== BEFORE: shots.go 213 lines', the href '<a href=\"https://example.test/pr-5/r/x/leaf/\">' already present at head (grep -c -> 1), '== AFTER: shots.go 212 lines', gofmt/vet silent, 'ok github.com/gnolang/gno/misc/gnopreview 0.004s', diff of the two emitted comments empty -> 'PASS: comment byte-identical without ShotPair.URL'. misc/gnopreview is absent at merge base bbd9b2ff.",
+      "repro_path": "tests/judge-202-shotpair-url-byte-identical.sh",
+      "base_behaves_the_same": false
+    }
+  ]
+}

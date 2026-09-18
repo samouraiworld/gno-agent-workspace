@@ -1,0 +1,58 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 112,
+      "angle": "refactor",
+      "summary": "Run's seedSet is dead: every seed is queued before the loop, so `seedSet[link] ||` admits nothing the crawl would miss (Run 46 -> 41 lines)",
+      "failure_scenario": "Run() builds seedSet from c.Seeds() (:112-115) and ORs it into the link filter (:148) so that a link back to a seeded directory page — /r/x, which inScope rejects at :191/:201 — is still followed. Those seeds are already in `queue` before the loop starts, and every dequeued URL is marked visited at :125, so a link equal to a seed is always either visited or still queued: the extra term can only ever append a duplicate. The map, its four-line build and the second filter term encode a rule the queue already enforces, and the next person touching the link filter has to re-derive that the two are the same rule.",
+      "verify_by": "delete :112-115, replace `queue := append([]string(nil), seeds...)` with `queue := c.Seeds()` and the filter with `if !visited[link] && c.inScope(link)`; cd misc/gnopreview && go test ./... , plus tests/b2-refactor-r2-seedset-dead.go, which crawls a realm page linking to the seeded /r/x and pins the captured set on head and on the rewrite",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Both variants capture the same set. Rewritten: `captured [/r/x /r/x/y /r/x/y$help /r/x/y$source]`, `--- PASS: TestSeedSetAdmitsNothingNew`. Head ecf7af0: `captured [/r/x /r/x/y /r/x/y$help /r/x/y$source]`, `--- PASS`. Full suite `ok github.com/gnolang/gno/misc/gnopreview 0.004s`, `gofmt -l .` empty, `go vet ./...` silent. Diff `1 file changed, 2 insertions(+), 7 deletions(-)`; Run() 46 -> 41 lines.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-refactor-r2-seedset-dead.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 70,
+      "angle": "refactor",
+      "summary": "Crawler.order is a parallel key list for c.pages with one consumer; deleting it removes the field, the append and the reset Run() forgets (3 lines out, 2 in)",
+      "failure_scenario": "order exists only to give writePages (:327) the crawl order, which nothing observes — each page writes its own file, and the sorted key order produces a byte-identical tree. Meanwhile Run() resets c.pages (:110) and neither c.order nor c.fileBudget, so a second Run on the same Crawler walks stale URLs in writePages and nil-derefs, and starts with the previous run's per-file budget already spent. Adding `c.order = nil` to Run repairs one field and keeps the shape that caused it: the parallel structure has to be reset in lockstep forever, and c.fileBudget already shows the miss repeating. Deleting the field removes the whole class.",
+      "verify_by": "delete the field at :70 and the append at :144, make writePages iterate `slices.Sorted(maps.Keys(c.pages))`, add the `maps` import; cd misc/gnopreview && go test ./... , plus tests/b2-refactor-r2-order-redundant.go, which crawls, Writes into a temp dir and pins every output path with its sha256 on head and on the rewrite",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "Identical trees both ways: `r/x/index.html d0799a7d`, `r/x/y/_a/p-about-e71ffeb2/index.html 38acdcd1`, `r/x/y/_t/help/index.html 74584614`, `r/x/y/_t/source/index.html ed963051`, `r/x/y/index.html 9208ff45`. Head: `ok github.com/gnolang/gno/misc/gnopreview 0.004s`; rewritten: `--- PASS: TestWriteTreeIsOrderIndependent`, full suite `ok ... 0.005s`, `gofmt -l .` empty, `go vet ./...` silent, diff `1 file changed, 2 insertions(+), 3 deletions(-)`.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-refactor-r2-order-redundant.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 314,
+      "angle": "refactor",
+      "summary": "the `n == 0` asset warning counts /public/ over the whole asset tree while the invariant it names is one prefix in one file",
+      "failure_scenario": "copyTree returns the count of `/public/` across every .js and .css it copied (:573) and Write warns only when that total is zero, saying 'check js/index.js still needs relativizing' (:314-316). Today the total is exactly one occurrence, in js/index.js, so the guard tracks the invariant by coincidence. Let any stylesheet gain a `url(/public/imgs/x.svg)` and the count stays non-zero while index.js's hardcoded '/public/js/controller-' prefix is gone: every dynamic controller import 404s from the preview's mount point, the snapshot silently loses the interactive controls, and the warning the comment promises never fires. The check belongs on the string the comment names, in the file it names.",
+      "verify_by": "grep -rc '/public/' gno.land/pkg/gnoweb/public/js/index.js gno.land/pkg/gnoweb/public/main.css (1 and 0, so the whole-tree count is index.js's count); then make the guard count '/public/js/controller-' in js/index.js and re-run cd misc/gnopreview && go test ./...",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 485,
+      "angle": "refactor",
+      "summary": "urlToFile's godoc example spells /r/x/y:p/about$source as r/x/y/_a/p-about/_t/source/index.html",
+      "settled_by": "ran tests/b2-refactor-r2-order-redundant.go at head: the tree printed `r/x/y/_a/p-about-e71ffeb2/index.html` — slug() appends a digest because 'p/about' is not already a safe segment, so the example omits it. Dropped, not cleared: a candidate whose only fix is a comment's wording is never returned."
+    }
+  ],
+  "blocks_rewritten": [
+    "get() (:428-446): hoist the per-request http.Client to one package-level client — rejected, it moves five lines out of the function without removing any (get 19 -> 15, package +5), and the client already shares http.DefaultTransport, so nothing is pooled twice.",
+    "rewrite() (:350-351) and copyTree() (:569-572): extract the shared '../ depth of a relative path' computation into one helper — rejected, net line count unchanged, and the `d != \".\"` guard copyTree has and rewrite lacks is unreachable: urlToFile always emits at least one directory segment, so path.Dir(p.File) is never \".\".",
+    "Run() (:129-137): fold the transport-error and non-200 branches into one — rejected, the two stderr lines carry different diagnoses and folding them loses which one fired.",
+    "Crawler.Prefix (:55): drop the field and let the before-pass Write into dir/_before — rejected, rewrite() derives each page's ../ depth from p.File, so the prefix has to be inside p.File for a prefixed page's asset links to climb out to the shared public/ tree.",
+    "RenderOnly (:52): replace the mode flag with an explicit seed list plus a follow predicate — rejected here, the dead `if !c.RenderOnly` wrapper at :99 is already reported on this bundle and the two remaining branches are three lines.",
+    "chargeFile()/inScope(): share the (realm, file) derivation — already tried and refuted on this bundle."
+  ]
+}

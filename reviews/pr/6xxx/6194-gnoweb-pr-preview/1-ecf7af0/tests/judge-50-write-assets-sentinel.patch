@@ -1,0 +1,53 @@
+# Drops Write's `assets == ""` mode flag: the one caller that passed it, the
+# prefixed before-pass, calls WritePages directly instead. Write 22 -> 19 lines,
+# crawl.go 611 -> 610 (-3 for the branch, +2 for the exported method's comment).
+# Behaviour-identical: `base.Write(out, "")` ran exactly `c.writePages(out)`.
+#
+# From a local clone of gnolang/gno:
+#   gh pr checkout 6194 -R gnolang/gno && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   patch -p1 < judge-50-write-assets-sentinel.patch
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go build ./... && go test ./...
+#   # expect: gofmt and vet silent, "ok github.com/gnolang/gno/misc/gnopreview"
+#   cd ../.. && git checkout -- misc/gnopreview
+diff --git a/misc/gnopreview/crawl.go b/misc/gnopreview/crawl.go
+index e6383743e..bc886911f 100644
+--- a/misc/gnopreview/crawl.go
++++ b/misc/gnopreview/crawl.go
+@@ -301,9 +301,6 @@ func canonicalURL(p string) string {
+ // rewritten: to a relative path when we captured the target, to the live site
+ // otherwise. assets is the repo's gnoweb public/ dir, copied verbatim.
+ func (c *Crawler) Write(dir, assets string) error {
+-	if assets == "" { // a prefixed crawl reuses the assets already written
+-		return c.writePages(dir)
+-	}
+ 	n, err := copyTree(assets, filepath.Join(dir, "public"))
+ 	if err != nil {
+ 		return fmt.Errorf("copy assets: %w", err)
+@@ -320,10 +317,12 @@ func (c *Crawler) Write(dir, assets string) error {
+ 			return err
+ 		}
+ 	}
+-	return c.writePages(dir)
++	return c.WritePages(dir)
+ }
+ 
+-func (c *Crawler) writePages(dir string) error {
++// WritePages renders the captured pages into dir. A prefixed crawl calls it
++// directly: the assets are already on disk from the head pass.
++func (c *Crawler) WritePages(dir string) error {
+ 	for _, u := range c.order {
+ 		p := c.pages[u]
+ 		out := filepath.Join(dir, filepath.FromSlash(p.File))
+diff --git a/misc/gnopreview/main.go b/misc/gnopreview/main.go
+index 4d19bc42f..e64e0eb03 100644
+--- a/misc/gnopreview/main.go
++++ b/misc/gnopreview/main.go
+@@ -272,7 +272,7 @@ func renderBase(cfg config, plan *Plan, head *Crawler) (*Crawler, map[string]boo
+ 		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+ 		return nil, newRealms
+ 	}
+-	if err := base.Write(cfg.out, ""); err != nil {
++	if err := base.WritePages(cfg.out); err != nil {
+ 		fmt.Fprintln(os.Stderr, "  ! base render:", err)
+ 		return nil, newRealms
+ 	}

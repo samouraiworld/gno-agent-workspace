@@ -1,0 +1,72 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 282,
+      "angle": "refactor",
+      "summary": "TestSplitURLKeepsTrailingSlash is 10 lines that catch no mutation the other tests miss; deleting it is 10 lines to 0 with no coverage lost",
+      "failure_scenario": "A maintainer changing splitURL reads two tests covering the trailing slash and keeps both in step. Deleting the dedicated one and trimming the slash inside splitURL turns TestSplitURL, TestCanonicalURL, TestCrawlerInScope, TestURLToFile and TestURLToFileIsSafe red, so the 10-line test only costs a reader the question of what it adds. Its measurement (62,174 vs 48,642 bytes) is the part worth keeping: move that comment onto TestSplitURL's own \"/r/x/y/\" row, which already pins the exact base.",
+      "verify_by": "delete func TestSplitURLKeepsTrailingSlash, run `go test ./...` in misc/gnopreview (green), then add `p = strings.TrimSuffix(p, \"/\")` to splitURL and run again (five tests red)",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "With the function deleted: `ok github.com/gnolang/gno/misc/gnopreview 0.004s`. With it deleted and splitURL trimming the slash: `--- FAIL: TestSplitURL ... splitURL(\"/r/x/y/\") = \"/r/x/y\",\"\",\"\"; want \"/r/x/y/\",\"\",\"\"`, plus FAIL on TestCanonicalURL, TestCrawlerInScope, TestURLToFile and TestURLToFileIsSafe.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-refactor-test-shape_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 293,
+      "angle": "refactor",
+      "summary": "TestSeedsSkipSingleSegmentDirs asserts only absence, so it stays green on a Seeds() that emits no directory page at all; one reflect.DeepEqual is 10 lines to 5 and pins both sides",
+      "failure_scenario": "Seeds() walks up to the directory pages with `strings.Count(d, \"/\") >= 2`. Change that bound to >= 3 and Seeds() returns no directory page for any realm, so the crawl seeds only the realm's own three pages and every /r/<namespace> listing falls through to the live site. The whole package still passes, this test included: it looks for \"/r\" and \"/p\" and finds neither, which is also true when nothing was seeded. The deeper form is one equality against the four seeds the function actually returns, which rejects both the over-seed the test names and the under-seed it cannot see.",
+      "verify_by": "in misc/gnopreview change crawl.go's `strings.Count(d, \"/\") >= 2` to `>= 3` and run `go test ./...`: expect red, observe ok; then replace the loop with `reflect.DeepEqual(c.Seeds(), []string{\"/r/gnoland/home\", \"/r/gnoland/home$source\", \"/r/gnoland/home$help\", \"/r/gnoland\"})` and repeat",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "Unmutated: `Seeds() = []string{\"/r/gnoland/home\", \"/r/gnoland/home$source\", \"/r/gnoland/home$help\", \"/r/gnoland\"}`. With >= 3: `Seeds() = []string{\"/r/gnoland/home\", \"/r/gnoland/home$source\", \"/r/gnoland/home$help\"}` and `ok github.com/gnolang/gno/misc/gnopreview 0.005s`. TestB9SeedsAssertionIsOneSided in the artifact reproduces it without touching crawl.go.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-refactor-test-shape_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 276,
+      "angle": "refactor",
+      "summary": "the `maxSlugLen+16` bound is 7 chars looser than anything slug() can emit (73), so the assertion passes on a digest half again as wide; `maxSlugLen+9` is the exact bound and the same one line",
+      "failure_scenario": "slug() truncates to maxSlugLen and appends \"-\" plus 8 hex chars, so its longest segment is 73. The test allows 80. Widen the digest from sha256[:4] to sha256[:6] and segments reach 77: TestURLToFile and TestMapURL go red on their hardcoded digests, and TestURLToFileIsSafe, the test whose whole subject is that a long argument produces no unbounded segment, stays green. The +16 is a fudge with no derivation beside it; the bound the code can actually produce is maxSlugLen+9.",
+      "verify_by": "in misc/gnopreview replace both `hex.EncodeToString(sum[:4])` in crawl.go with `sum[:6]` and run `go test -run TestURLToFileIsSafe ./...`: expect red, observe ok; then set the bound to maxSlugLen+9 and repeat",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Probe on the head tree: `seg len 73 (maxSlugLen=64, bound used by the test=80)`. Under the sha256[:6] mutation the failures are `--- FAIL: TestMapURL` and `--- FAIL: TestURLToFile` only — TestURLToFileIsSafe does not appear.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 196,
+      "angle": "refactor",
+      "summary": "TestWantFile never calls wantFile: it drives inScope and chargeFile, so its green depends on three early returns the function it is named for does not own",
+      "failure_scenario": "wantFile (crawl.go:227) is the changed-set-vs-budget decision. The test named for it asserts through inScope, which returns false before ever reaching wantFile on RenderOnly, on a path carrying both render args and a tab query, and on a trailing slash. Add a fourth early return to inScope and this test still passes while the decision it claims to cover is no longer exercised for those paths; a maintainer grepping wantFile finds a test that proves something else. Either call c.wantFile(realm, name) directly, or name the test for inScope's file gate, which is what it measures.",
+      "verify_by": "grep -n 'wantFile' misc/gnopreview/*.go: the only call site is inScope at crawl.go:209, and crawl_test.go's TestWantFile body calls c.inScope and c.chargeFile and never c.wantFile",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep over misc/gnopreview: wantFile is declared at crawl.go:227 and called once, from inScope at crawl.go:209; TestWantFile (crawl_test.go:196-228) calls c.inScope on four URLs and c.chargeFile in the budget loop.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 127,
+      "angle": "refactor",
+      "summary": "TestMapURL's pages fixture carries File \"r/x/y/_t/file-a.gno-source/index.html\", a path urlToFile never produces (the real one is file-a.gno-source-adc2ecdc); building the fixture from urlToFile would keep the two in step",
+      "settled_by": "Applied the rewrite (fixture built by urlToFile, want updated to the real digest) and widened slug()'s digest to sha256[:6]: the rewrite turns TestMapURL red — `mapURL(\"/r/x/y$source&file=a.gno\") = \"../../../r/x/y/_t/file-a.gno-source-adc2ecdcb13b/\"` — on a change with nothing to do with mapURL, while TestURLToFile already caught that drift at head (`--- FAIL: TestURLToFile ... want \"r/gnoland/home/_t/file-home.gno-source-2ca84ba4/index.html\"`). The synthetic fixture is the right call: it keeps mapURL's test independent of slug()."
+    }
+  ],
+  "blocks_rewritten": [
+    "crawl.go inScope/chargeFile: extracted `func (c *Crawler) resolve(base, query string) (realm, file string)` so the Realms scan and the file= extraction are written once instead of twice. gofmt clean, go vet clean, 21/21 tests pass — and the file goes 611 to 610 lines, since the documented helper costs what the duplication cost. Rejected: no line saving worth the author's time.",
+    "crawl_test.go: merging TestWantFile's budget loop, TestFileBudgetZeroDropsAllUnchanged and TestFileBudgetChargedOnCaptureNotDiscovery (62 lines) into one table over (ChangedFiles, FileBudget). Rejected: the third asserts call ordering, that discovery does not spend what capture charges, which a value table cannot express.",
+    "crawl_test.go: a shared helper behind the nine `for _, tc := range []struct{in, want string}` loops. Rejected: idiomatic Go table tests, and a helper moves every failure's reported line onto itself.",
+    "crawl_test.go:79 TestCrawlerInScope: dropping the `{\"/r/gnoland/home$file=home.gno&source\", true}` row and the FileBudget field, both covered by TestWantFile. Rejected: 2 lines, and that row is the only one exercising the file= parse inside inScope's own query walk.",
+    "crawl_test.go:167 TestRewriteAddsNoindex: calling setNoindex directly instead of through c.rewrite, dropping the Crawler and page construction. Rejected: going through rewrite is what proves rewrite still calls it, which is the regression worth pinning."
+  ]
+}

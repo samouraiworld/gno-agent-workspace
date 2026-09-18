@@ -1,0 +1,193 @@
+# Refactor rewrite of misc/gnopreview/shots.go, PR 6194 head ecf7af0f29abe4737a52803d672bc5a33c17cc60.
+# 
+# What it changes, all behaviour-preserving:
+#   - shotEnv(): the 15-line findChrome -> serve -> MkdirAll prologue, byte-identical
+#     in ScreenshotPairs and Screenshot but for one word of the message, moved to one
+#     helper.
+#   - shotFile(): the image path, spelled twice per shot today (filepath.Join(outDir,
+#     shotsDir, name+".png") for Chrome, path.Join(shotsDir, name+".png") for the
+#     comment), built once and returned.
+#   - urlOf(r), called three times per realm in the ScreenshotPairs loop, hoisted to u.
+#   - Screenshot reads c.FileOf(s.url) instead of c.pages[canonicalURL(s.url)]:
+#     FileOf (crawl.go:338) is exactly that lookup, and the sibling function already
+#     uses it.
+#   - findChrome builds its candidate list as one literal.
+#   - Screenshot's serve() origin renamed base -> origin; "base" is the merge-base
+#     *Crawler forty lines up.
+# 
+# Measured, not claimed: this is NOT shorter. 213 -> 223 file lines, 169 -> 170
+# non-comment lines. The win is one prologue instead of two and one spelling of the
+# image path, not fewer lines.
+# 
+# Repro from a plain clone:
+# 
+#   git clone https://github.com/gnolang/gno
+#   cd gno && git fetch origin ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   # before
+#   grep -v '^[[:space:]]*//' misc/gnopreview/shots.go | grep -c '[^[:space:]]'   # 169
+#   git apply path/to/b4-refactor-shots-dedupe.diff
+#   cd misc/gnopreview
+#   gofmt -l .            # no output
+#   go vet ./... && go build ./... && go test ./...
+#   # ok  github.com/gnolang/gno/misc/gnopreview  0.005s
+#   grep -v '^[[:space:]]*//' shots.go | grep -c '[^[:space:]]'                   # 170
+# 
+# Run at this head with go1.25.9: gofmt clean, vet clean, "ok
+# github.com/gnolang/gno/misc/gnopreview 0.005s". crawl_test.go and plan_test.go
+# exercise no code in this file, so green here means compiles and the package's
+# tests still pass, never that the screenshot passes were exercised.
+
+diff --git a/misc/gnopreview/shots.go b/misc/gnopreview/shots.go
+index d68aba4de..8bc7b5f9c 100644
+--- a/misc/gnopreview/shots.go
++++ b/misc/gnopreview/shots.go
+@@ -43,53 +43,73 @@ type ShotPair struct {
+ 	New bool `json:"new,omitempty"`
+ }
+ 
+-// ScreenshotPairs photographs each changed realm as the merge base renders it
+-// and as this branch renders it. Both passes use the SAME gnoweb — the binary
+-// and the assets come from the head — so what the pair shows is the realm
+-// change and nothing else.
+-func ScreenshotPairs(outDir string, head, base *Crawler, realms []string, newRealms map[string]bool, chrome string) []ShotPair {
+-	bin := findChrome(chrome)
+-	if bin == "" {
+-		fmt.Fprintln(os.Stderr, "  ! no Chrome/Chromium found — publishing the preview without before/after")
+-		return nil
++// shotEnv resolves a browser and serves the snapshot over loopback: what both
++// passes need before they can photograph anything. A nil closer means no
++// screenshots — they are best-effort, so a missing browser costs the comment
++// its images, not the preview. lost names what the comment goes without.
++func shotEnv(outDir, chrome, lost string) (bin, origin string, srv io.Closer) {
++	if bin = findChrome(chrome); bin == "" {
++		fmt.Fprintln(os.Stderr, "  ! no Chrome/Chromium found — publishing the preview without "+lost)
++		return "", "", nil
+ 	}
+ 	srv, origin, err := serve(outDir)
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, "  ! screenshot server:", err)
+-		return nil
++		return "", "", nil
+ 	}
+-	defer srv.Close()
+ 	if err := os.MkdirAll(filepath.Join(outDir, shotsDir), 0o755); err != nil {
+ 		fmt.Fprintln(os.Stderr, "  !", err)
++		srv.Close()
++		return "", "", nil
++	}
++	return bin, origin, srv
++}
++
++// shotFile photographs src, one file of the snapshot, into shotsDir/name.png
++// and returns that image's path relative to outDir — the one spelling the
++// comment embeds and Chrome writes.
++func shotFile(bin, origin, outDir, src, name string) (string, error) {
++	rel := path.Join(shotsDir, name+".png")
++	return rel, chromeShot(bin, origin+"/"+src, filepath.Join(outDir, rel))
++}
++
++// ScreenshotPairs photographs each changed realm as the merge base renders it
++// and as this branch renders it. Both passes use the SAME gnoweb — the binary
++// and the assets come from the head — so what the pair shows is the realm
++// change and nothing else.
++func ScreenshotPairs(outDir string, head, base *Crawler, realms []string, newRealms map[string]bool, chrome string) []ShotPair {
++	bin, origin, srv := shotEnv(outDir, chrome, "before/after")
++	if srv == nil {
+ 		return nil
+ 	}
++	defer srv.Close()
+ 	var pairs []ShotPair
+ 	for _, r := range realms {
+ 		if len(pairs) >= maxPairs {
+ 			fmt.Fprintf(os.Stderr, "  i before/after capped at %d realm(s); the rest are listed as links\n", maxPairs)
+ 			break
+ 		}
+-		afterFile, ok := head.FileOf(urlOf(r))
++		u := urlOf(r)
++		afterFile, ok := head.FileOf(u)
+ 		if !ok {
+ 			continue
+ 		}
+-		name := slug(strings.TrimPrefix(urlOf(r), "/"))
++		name := slug(strings.TrimPrefix(u, "/"))
+ 		pair := ShotPair{Realm: r, URL: path.Dir(afterFile) + "/", New: newRealms[r]}
+-		if err := chromeShot(bin, origin+"/"+afterFile,
+-			filepath.Join(outDir, shotsDir, name+"-after.png")); err != nil {
++		after, err := shotFile(bin, origin, outDir, afterFile, name+"-after")
++		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "  ! screenshot %s (after): %v\n", r, err)
+ 			continue
+ 		}
+-		pair.After = path.Join(shotsDir, name+"-after.png")
++		pair.After = after
+ 
+ 		// "New in this PR" is asserted only from the merge-base tree, never
+ 		// inferred from a missing capture: a base pass that ran but failed on
+ 		// this realm would otherwise be reported as the realm not existing.
+ 		if base != nil {
+-			if beforeFile, ok := base.FileOf(urlOf(r)); ok {
+-				if err := chromeShot(bin, origin+"/"+beforeFile,
+-					filepath.Join(outDir, shotsDir, name+"-before.png")); err == nil {
+-					pair.Before = path.Join(shotsDir, name+"-before.png")
++			if beforeFile, ok := base.FileOf(u); ok {
++				if before, err := shotFile(bin, origin, outDir, beforeFile, name+"-before"); err == nil {
++					pair.Before = before
+ 				} else {
+ 					fmt.Fprintf(os.Stderr, "  ! screenshot %s (before): %v\n", r, err)
+ 				}
+@@ -114,33 +134,23 @@ var shotPlan = []struct{ url, label, name string }{
+ // Screenshot renders pages of the finished snapshot with headless Chrome. It is
+ // best-effort: a missing browser costs the comment its images, not the preview.
+ func Screenshot(outDir string, c *Crawler, chrome string) []Shot {
+-	bin := findChrome(chrome)
+-	if bin == "" {
+-		fmt.Fprintln(os.Stderr, "  ! no Chrome/Chromium found — publishing the preview without screenshots")
+-		return nil
+-	}
+-	srv, base, err := serve(outDir)
+-	if err != nil {
+-		fmt.Fprintln(os.Stderr, "  ! screenshot server:", err)
++	bin, origin, srv := shotEnv(outDir, chrome, "screenshots")
++	if srv == nil {
+ 		return nil
+ 	}
+ 	defer srv.Close()
+-	if err := os.MkdirAll(filepath.Join(outDir, shotsDir), 0o755); err != nil {
+-		fmt.Fprintln(os.Stderr, "  !", err)
+-		return nil
+-	}
+ 	var shots []Shot
+ 	for _, s := range shotPlan {
+-		p, ok := c.pages[canonicalURL(s.url)]
++		src, ok := c.FileOf(s.url)
+ 		if !ok {
+ 			continue
+ 		}
+-		dst := filepath.Join(outDir, shotsDir, s.name+".png")
+-		if err := chromeShot(bin, base+"/"+p.File, dst); err != nil {
++		file, err := shotFile(bin, origin, outDir, src, s.name)
++		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "  ! screenshot %s: %v\n", s.url, err)
+ 			continue
+ 		}
+-		shots = append(shots, Shot{File: path.Join(shotsDir, s.name+".png"), Label: s.label})
++		shots = append(shots, Shot{File: file, Label: s.label})
+ 		fmt.Printf("  📷 %s\n", s.url)
+ 	}
+ 	return shots
+@@ -193,11 +203,11 @@ func chromeShot(bin, url, dst string) error {
+ // findChrome resolves a browser binary: the explicit flag, then $CHROME, then
+ // the usual Linux names, then the macOS bundle path.
+ func findChrome(explicit string) string {
+-	candidates := []string{explicit, os.Getenv("CHROME")}
+-	candidates = append(candidates,
++	candidates := []string{
++		explicit, os.Getenv("CHROME"),
+ 		"google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+ 		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+-	)
++	}
+ 	for _, c := range candidates {
+ 		if c == "" {
+ 			continue

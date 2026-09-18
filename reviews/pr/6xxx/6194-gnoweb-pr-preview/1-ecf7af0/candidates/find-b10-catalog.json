@@ -1,0 +1,145 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 258,
+      "angle": "catalog",
+      "summary": "the realm cap truncates directly-changed realms, and the posted comment still links every one of them",
+      "failure_scenario": "A repo-wide gno version bump edits every examples/**/gnomod.toml, which renderRelevant() counts as render-relevant. BuildPlan collects 58 changed realms, sorts changed-first, then `realms = realms[:maxRealms]` cuts to 25, so plan.Dirs (what gnodev is handed) holds 25. Comment() then writes one bullet per p.ChangedRealms, unfiltered, so all 58 get a clickable preview link and 33 of them 404. The same comment closes with '33 more affected realm(s) were not rendered (cap reached) - the changed realms are always kept', which is false for those 33.",
+      "verify_by": "cp reviews/.../tests/b10-catalog-cap-drops-changed-realms.go misc/gnopreview/zz_b10_cap_test.go && cd misc/gnopreview && GNOROOT_FIXTURE=$(git rev-parse --show-toplevel) go test -run TestB10 -v .",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "ChangedRealms=58 rendered=25 Dropped=33 / changed realms linked but never rendered (404): 33 / comment length=13436 bytes, bullet lines=58 / comment claims 'changed realms are always kept': true. Synthetic case: ChangedRealms=[a b c], Realms=[a b], Dirs=[examples/gno.land/r/x/a examples/gno.land/r/x/b], comment links https://example.test/pr-1/r/x/c/.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-catalog-cap-drops-changed-realms.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 96,
+      "angle": "catalog",
+      "summary": "the 'quarantined packages never appear' case pins nothing: the pkgRoot prefix guard can be deleted and it stays green",
+      "failure_scenario": "The case feeds examples/quarantined/gno.land/r/x/quar/lib.gno and expects no realms. LoadPkgs only walks examples/gno.land, so byDir has no entry for that directory and the file is dropped by the `p != nil` lookup whatever the prefix guard does. Deleting `!strings.HasPrefix(f, pkgRoot+\"/\")` from BuildPlan leaves `go test -run TestBuildPlan .` green, so the guard the case is named for is unprotected: a later refactor that also widens LoadPkgs would start previewing quarantined packages with no test to say so.",
+      "verify_by": "cd misc/gnopreview && perl -0pi -e 's/if !strings\\.HasPrefix\\(f, pkgRoot\\+\"\\/\"\\) \\|\\| !renderRelevant\\(f\\) \\{/if !renderRelevant(f) {/' plan.go && go test -run TestBuildPlan .",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "after the mutation: `ok  github.com/gnolang/gno/misc/gnopreview  0.004s`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-catalog-cap-drops-changed-realms.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 122,
+      "angle": "catalog",
+      "summary": "the only cap case keeps one changed realm under a cap of one, so changed-realms-over-cap is never exercised",
+      "failure_scenario": "'cap keeps the changed realm and reports the rest' sets maxRealms=1 with exactly one changed realm (r/x/other) and one indirect (r/x/leaf), so the stable changed-first partition alone decides the result and the truncation never cuts into the changed group. The bound the case is named for - changed realms are always kept - has no case where len(ChangedRealms) > maxRealms, which is the shape that ships the 33 dead links above.",
+      "verify_by": "add a case with three changed realms and maxRealms=2 and assert every ChangedRealms entry is in Realms; see TestB10CapDropsDirectlyChangedRealms in the repro file",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "TestB10CapDropsDirectlyChangedRealms: ChangedRealms=[gno.land/r/x/a gno.land/r/x/b gno.land/r/x/c], Realms(rendered)=[gno.land/r/x/a gno.land/r/x/b], Dropped=1",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-catalog-cap-drops-changed-realms.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 45,
+      "angle": "catalog",
+      "summary": "fakeRepo builds an `ignore = true` package but no case changes a file inside it, so the `!p.Ignore` guard on a direct change is untested",
+      "failure_scenario": "Every case reaches examples/gno.land/r/x/ignored only through the indirect path, where a second filter (`pkgs[p].Ignore` in the affected loop) already excludes it. Deleting `&& !p.Ignore` from the changed-file lookup in BuildPlan leaves `go test -run TestBuildPlan .` green. If that guard is ever lost, a directly changed ignored realm enters ChangedRealms - and so gets a comment link - while the affected loop still keeps it out of Realms and Dirs, producing the same 404 link as the cap defect.",
+      "verify_by": "cd misc/gnopreview && perl -0pi -e 's/if p := byDir\\[path\\.Dir\\(f\\)\\]; p != nil && !p\\.Ignore \\{/if p := byDir[path.Dir(f)]; p != nil {/' plan.go && go test -run TestBuildPlan .",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "after the mutation: `ok  github.com/gnolang/gno/misc/gnopreview  0.006s`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-catalog-cap-drops-changed-realms.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 84,
+      "angle": "catalog",
+      "summary": "'tests fixtures are not pulled in indirectly' cannot reach the fixture it names, so indirectExclude is pinned only by the case above it",
+      "failure_scenario": "The case changes examples/gno.land/p/x/mid/v0/lib.gno, but fakeRepo's r/tests/vm/fixture imports p/x/base/v0, not p/x/mid/v0, so the fixture is not in mid's dependent set under any rule. Deleting the indirectExclude filter turns 'transitive dependency pulls both dependents' red and leaves this case green; a maintainer trimming the transitive case as redundant would silently lose the only coverage of the r/tests/ exclusion.",
+      "verify_by": "cd misc/gnopreview && perl -0pi -e 's/\\t\\tif !changedPkgs\\[p\\] && hasPrefixAny\\(p, indirectExclude\\) \\{\\n\\t\\t\\tcontinue\\n\\t\\t\\}\\n//' plan.go && go test -run TestBuildPlan -v . 2>&1 | grep -- '--- '",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestBuildPlan/transitive_dependency_pulls_both_dependents ; --- PASS: TestBuildPlan/tests_fixtures_are_not_pulled_in_indirectly",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-catalog-cap-drops-changed-realms.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 58,
+      "angle": "catalog",
+      "summary": "Pkg.Draft is parsed and stored and never read, and no plan_test case covers `draft = true`",
+      "failure_scenario": "modFlags returns both flags and BuildPlan assigns pkg.Draft, but nothing in misc/gnopreview ever reads the field, so it is dead state that reads as a policy the tool does not have. Previewing a draft realm is in fact correct - gno.land/pkg/sdk/vm/keeper.go:668 rejects a draft addpkg only above height 0, so gnodev's genesis loads examples/gno.land/r/demo/draftrealm - which makes the field removable rather than a missing filter.",
+      "verify_by": "grep -rn 'Draft' misc/gnopreview/*.go  (one declaration, one assignment, no read)",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:58 declaration, plan.go:142 assignment, no other hit in the package",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 264,
+      "angle": "catalog",
+      "summary": "the gnoweb seed realms are appended after the truncation, so maxRealms is not a bound on len(plan.Realms)",
+      "failure_scenario": "BuildPlan truncates to maxRealms, sets plan.Dropped, then appends up to four gnowebSeedRealms that were not already kept, so a gnoweb-touching PR can hand gnodev up to maxRealms+4 realms while the comment still reports Dropped against the pre-seed count. The overrun is small and I could not exhibit it on the real repo: with all 145 gnomod.toml files plus a gnoweb change, the four seeds were already inside the kept 25 and len(Realms)=25.",
+      "verify_by": "build a fake repo whose 25 changed realms sort before gno.land/r/docs/security_patterns, set Gnoweb, and assert len(plan.Realms) <= maxRealms",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "TestSeedsOverflowTheCap on the real tree: maxRealms=25 len(Realms)=25 len(Dirs)=25 Dropped=33 - no overflow exhibited, the append-after-truncate shape is read-only evidence",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 156,
+      "angle": "catalog",
+      "summary": "modFlags swallows the gnomod.toml read error and reports draft=false, ignore=false",
+      "failure_scenario": "LoadPkgs only calls modFlags once it has seen a gnomod.toml entry in the directory, so the read failing means a permission change or a concurrent removal between ReadDir and ReadFile. In that window an `ignore = true` package is silently treated as live and gets rendered and linked. Thin reachability; the fix is to return the error or log it rather than collapse it into two falses.",
+      "verify_by": "chmod 000 examples/gno.land/r/x/<pkg>/gnomod.toml as a non-root user, run BuildPlan on that root, observe the package present in plan.Realms",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:155-159 returns false,false on any os.ReadFile error",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 63,
+      "angle": "catalog",
+      "summary": "catalog class 'global mutable state & concurrency': the PR adds 22 t.Parallel() calls and _ci-go.yml runs go test with no -race",
+      "settled_by": "cd misc/gnopreview && go test -race -count=2 ./...  ->  `ok  github.com/gnolang/gno/misc/gnopreview  1.021s`. No package-level var in misc/gnopreview is written after init: gnowebPaths, gnowebSeedRealms, indirectExclude, shotPlan, explosiveArgs and the crawl.go regexps are literals read-only after package init."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 179,
+      "angle": "catalog",
+      "summary": "catalog class 'determinism'/'type-check': gnoImports drops a .gno file whose go/parser parse fails, silently erasing its dependency edges",
+      "settled_by": "TestGnoParseFailures over the reviewed tree: `non-test .gno files under examples/gno.land: 364, go/parser ImportsOnly failures: 0`. No shipped realm or package currently loses its imports."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 37,
+      "angle": "catalog",
+      "summary": "a gnowebSeedRealms entry naming a path absent from examples/ would vanish silently, and plan_test.go never exercises the seed path",
+      "settled_by": "all four exist at this head: examples/gno.land/r/gnoland/home, examples/gno.land/r/docs/security_patterns, examples/gno.land/r/gnoland/boards2/v0, examples/gno.land/r/gnoland/blog each carry a gnomod.toml"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 140,
+      "angle": "catalog",
+      "summary": "Realm is decided by strings.Contains(rel, \"/r/\"), so a p/ package under a directory named r would be classified a realm and linked",
+      "settled_by": "find examples/gno.land/p -type d -name r  ->  no output"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 250,
+      "angle": "catalog",
+      "summary": "catalog class 'determinism': BuildPlan derives Realms, Dirs and ChangedFiles from Go maps, whose iteration order varies per run",
+      "settled_by": "every map-derived slice passes through sortedKeys()/sort.Strings() before it leaves BuildPlan (plan.go:250, 260, 269, 274, 314, 322), and dependents()'s BFS order only affects the set it returns; go test -race -count=2 ./... is green across repeated runs"
+    }
+  ]
+}

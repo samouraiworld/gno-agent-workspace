@@ -1,0 +1,99 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 256,
+      "angle": "catalog",
+      "summary": "the -max-realms cap truncates Plan.Realms but never Plan.ChangedRealms, so the published comment links changed realms the snapshot never rendered and then claims none were dropped",
+      "failure_scenario": "A pull request touching more realm packages than -max-realms (default 25): BuildPlan puts every changed realm in ChangedRealms (lines 229-235, uncapped) and truncates realms to maxRealms (lines 256-259). comment.go:61-65 then lists all of ChangedRealms as links into the preview base URL, and comment.go:86 prints \"the changed realms are always kept\". The realms past the cap were never in Dirs, so gnodev never loaded them, the crawler never fetched them and c.Write never emitted their page: every one of those links 404s in the published static preview, under a sentence telling the reader they were kept. Two first-parent commits in the last 300 on this branch exceed the cap: #5669 (123 realm dirs) and #6162 (44 realm dirs), so the shape hits exactly the sweeping pull requests a preview is most wanted on.",
+      "verify_by": "go test -run TestCapDropsChangedRealms ./misc/gnopreview with four changed realms and maxRealms=2: expect ChangedRealms to be a subset of Realms and the comment to link only rendered pages; observe two orphans linked and the \"always kept\" sentence printed",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "FAIL at ecf7af0f2, go1.25.9: \"Realms = [gno.land/r/x/a gno.land/r/x/b] (2)\" / \"ChangedRealms = [gno.land/r/x/a gno.land/r/x/b gno.land/r/x/c gno.land/r/x/d] (4)\" / \"changed realms not rendered: [gno.land/r/x/c gno.land/r/x/d]\" / \"comment links gno.land/r/x/c, a page the snapshot does not contain: (https://example.invalid/preview/6194/r/x/c/)\" / \"comment claims \\\"the changed realms are always kept\\\" while 2 changed realm(s) were dropped\". The repo's own case at plan_test.go:121-127, \"cap keeps the changed realm and reports the rest\", only exercises one changed realm under a cap of 1, so it never reaches this.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-catalog-cap-drops-changed-realms_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 142,
+      "angle": "catalog",
+      "summary": "Pkg.Draft is parsed from gnomod.toml and never read anywhere in the program",
+      "failure_scenario": "modFlags returns both flags and line 142 stores Draft on every package, but grep over misc/gnopreview/*.go finds Draft only at its declaration (plan.go:58) and that assignment. Ignore is consulted twice (lines 220, 241); Draft is consulted nowhere, so a draft = true realm, which gno.land keeps out of genesis, is rendered in the preview exactly like a live one. Either the filter was dropped or the field is dead; both sites move together.",
+      "verify_by": "grep -n 'Draft' misc/gnopreview/*.go: expect a read site, observe only plan.go:58 and plan.go:142",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep over misc/gnopreview/*.go returned exactly two hits, plan.go:58 (the field comment) and plan.go:142 (the assignment), and no read. One draft = true line exists across examples/.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 257,
+      "angle": "catalog",
+      "summary": "Dropped is computed before the gnoweb seed realms are appended, so a seed realm cut by the cap is counted as dropped and rendered anyway",
+      "failure_scenario": "With plan.Gnoweb true and more affected realms than maxRealms, line 257 sets Dropped from the truncation, then lines 263-270 append any of the four gnowebSeedRealms that fell outside the cut. comment.go:86 prints \"N more affected realm(s) were not rendered\" with N still counting realms that are in plan.Realms, so the warning overstates the loss by up to len(gnowebSeedRealms).",
+      "verify_by": "BuildPlan with gnoweb changed, maxRealms below the affected count and gno.land/r/gnoland/home among the truncated affected realms: expect Dropped to exclude it, observe it counted while present in plan.Realms",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "Read of plan.go:256-270: Dropped is assigned at line 257, the seed append runs at 263-270, and nothing recomputes the count.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 157,
+      "angle": "catalog",
+      "summary": "modFlags swallows the gnomod.toml read error and reports the package as neither draft nor ignored",
+      "failure_scenario": "LoadPkgs sets hasMod from the directory listing, so the file is known to exist when modFlags runs; an unreadable one (permissions, a dangling symlink, a truncated checkout) returns false, false at line 157. An ignore = true package then passes the line 220 and line 241 filters and is rendered, which is the opposite of what the file asked for, with nothing on stderr.",
+      "verify_by": "chmod 000 on an ignore = true gnomod.toml and run BuildPlan: expect the package excluded, observe it in plan.Realms",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "Read of plan.go:155-158 against plan.go:117-133: hasMod comes from os.ReadDir, so the error path is a read failure on a file that exists, and the return is indistinguishable from a package with no flags.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 91,
+      "angle": "catalog",
+      "summary": "Empty() does not imply len(Realms) > 0, and main.go indexes plan.Realms[0] behind it",
+      "failure_scenario": "Empty() is !Gnoweb && len(Realms)==0, so a plan with Gnoweb true and no realms is not empty. main.go:127-131 passes that guard and evaluates urlOf(plan.Realms[0]), an unchecked index. Reaching it needs all four gnowebSeedRealms absent from LoadPkgs (renamed, emptied of non-test .gno files) on a pull request whose only render-relevant change is under gno.land/pkg/gnoweb, gno.land/cmd/gnoweb or contribs/gnodev; the preview job then panics with index out of range instead of reporting nothing to preview.",
+      "verify_by": "BuildPlan on a root whose examples tree carries none of the four seed realms with changed=[gno.land/pkg/gnoweb/public/main.css]: expect Empty() true or a guarded render, observe Empty() false and plan.Realms empty",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "Read of plan.go:91 and plan.go:263-270 against main.go:127-131: the seed append is conditional on pkgs[r] != nil, so plan.Realms can stay empty while Gnoweb is true, and nothing between Empty() and the index re-checks the length. All four seed directories exist at this head, so the path is latent.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 300,
+      "angle": "catalog",
+      "summary": "determinism: dependents() builds its reverse index by ranging a Go map, so rev[cur] slices carry map iteration order into the BFS",
+      "settled_by": "Read of plan.go:295-315 and 250-261: the BFS accumulates into the set out and returns sortedKeys(out), a full transitive closure whose membership is order-independent, and every other output path (LoadPkgs, gnoImports, changedFiles, sortedKeys(changedPkgs)) ends in sort.Strings. The later sort.SliceStable(realms, less) at line 253 uses less(i,j) = changed[i] && !changed[j], which is key[i] < key[j] for key = changed?0:1, a valid strict weak ordering, so the partition is stable over an already-alphabetical slice. No map order reaches the JSON."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 28,
+      "angle": "catalog",
+      "summary": "global mutable state: gnowebPaths, gnowebSeedRealms and indirectExclude are package-level vars",
+      "settled_by": "grep -n 'gnowebPaths\\|gnowebSeedRealms\\|indirectExclude' misc/gnopreview/*.go returns only the three declarations plus read sites (plan.go:212, 244, 264; comment.go:161). No assignment, no append into them, so they are init-time-only and safe to read concurrently per the catalog's own fix shape."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 179,
+      "angle": "catalog",
+      "summary": "error handling: gnoImports discards every parser.ParseFile error",
+      "settled_by": "plan.go:177-180 carries the comment \"a PR that does not compile still gets a best-effort plan\", and the only consequence is a package losing its gno.land imports, which shrinks the dependents closure rather than corrupting it. Deliberate degradation, not a swallowed error under the catalog's class."
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 342,
+      "angle": "catalog",
+      "summary": "error handling: mustRel panics instead of returning an error",
+      "settled_by": "Read of plan.go:109-110 and 136: base is filepath.Join(root, \"examples/gno.land\") and p comes from filepath.WalkDir(base), so both sides share root's absoluteness and filepath.Rel cannot fail. Programmer error, which the catalog allows a panic for in .go."
+    }
+  ]
+}

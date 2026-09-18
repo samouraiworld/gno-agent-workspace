@@ -1,0 +1,79 @@
+# b7-refactor-contains-wrapper.patch — PR 6194 (gnolang/gno), head ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#
+# contains() is a one-line alias of slices.Contains, which crawl.go:229 already calls directly. Deleting it and calling slices.Contains at the three call sites: 7 lines -> 5 across three files.
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno.git && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+#
+# Measured at ecf7af0 with go1.25.9: gofmt silent, vet silent,
+#   "ok  github.com/gnolang/gno/misc/gnopreview  0.005s"
+# Baseline (unpatched) at the same head: same "ok" line.
+diff --git a/misc/gnopreview/comment.go b/misc/gnopreview/comment.go
+index 7d2229734..0aff36734 100644
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -3,6 +3,7 @@ package main
+ import (
+ 	"fmt"
+ 	"path"
++	"slices"
+ 	"sort"
+ 	"strings"
+ )
+@@ -158,7 +159,7 @@ func isSeed(pkgPath string, p *Plan) bool {
+ 	if !p.Gnoweb {
+ 		return false
+ 	}
+-	return contains(gnowebSeedRealms, pkgPath)
++	return slices.Contains(gnowebSeedRealms, pkgPath)
+ }
+ 
+ // Index is the landing page of the snapshot: every captured render page, so a
+diff --git a/misc/gnopreview/main.go b/misc/gnopreview/main.go
+index 4d19bc42f..e401dab20 100644
+--- a/misc/gnopreview/main.go
++++ b/misc/gnopreview/main.go
+@@ -19,6 +19,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"slices"
+ 	"strings"
+ 	"syscall"
+ 	"time"
+@@ -235,7 +236,7 @@ func renderBase(cfg config, plan *Plan, head *Crawler) (*Crawler, map[string]boo
+ 	newRealms := map[string]bool{}
+ 	var realms, dirs []string
+ 	for i, r := range plan.Realms {
+-		if !contains(plan.ChangedRealms, r) {
++		if !slices.Contains(plan.ChangedRealms, r) {
+ 			continue
+ 		}
+ 		if _, err := os.Stat(filepath.Join(cfg.baseRoot, filepath.FromSlash(plan.Dirs[i]))); err != nil {
+diff --git a/misc/gnopreview/plan.go b/misc/gnopreview/plan.go
+index 4828aac3e..1913b0c91 100644
+--- a/misc/gnopreview/plan.go
++++ b/misc/gnopreview/plan.go
+@@ -262,7 +262,7 @@ func BuildPlan(root string, changed []string, maxRealms int) (*Plan, error) {
+ 
+ 	if plan.Gnoweb {
+ 		for _, r := range gnowebSeedRealms {
+-			if pkgs[r] != nil && !contains(plan.Realms, r) {
++			if pkgs[r] != nil && !slices.Contains(plan.Realms, r) {
+ 				plan.Realms = append(plan.Realms, r)
+ 			}
+ 		}
+@@ -332,10 +332,6 @@ func hasPrefixAny(s string, prefixes []string) bool {
+ 	return false
+ }
+ 
+-func contains(s []string, v string) bool {
+-	return slices.Contains(s, v)
+-}
+-
+ func mustRel(base, p string) string {
+ 	r, err := filepath.Rel(base, p)
+ 	if err != nil {

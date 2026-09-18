@@ -1,0 +1,47 @@
+{
+ "verdicts": [
+  {
+   "index": 123,
+   "angle": "refactor",
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "file": "misc/gnopreview/crawl_test.go",
+   "line": 293,
+   "tldr": "TestSeedsSkipSingleSegmentDirs stays green on a Seeds() that emits no directory page at all",
+   "details": "Seeds() yields exactly one directory page per realm through `for d := path.Dir(u); strings.Count(d, \"/\") >= 2; d = path.Dir(d)`. Moving that bound to `>= 3` drops it: Seeds() returns three entries instead of four and the whole package still reports ok, because the test only looks for \"/r\" and \"/p\", both absent whether the directory page was seeded or silently dropped. Under that mutation every /r/<namespace> listing falls through to the live site instead of the snapshot and no test says so. Both line counts: the assertion is 5 lines and the one-equality form is 4, the function 10 lines to 9. Fix: replace the loop with one reflect.DeepEqual against the four seeds Seeds() returns, which rejects the over-seed the test names and the under-seed it cannot see.",
+   "evidence": "Head worktree at ecf7af0f, misc/gnopreview: probe prints Seeds()=[\"/r/gnoland/home\" \"/r/gnoland/home$source\" \"/r/gnoland/home$help\" \"/r/gnoland\"]. With `>= 3` the probe prints the first three only and `go test ./...` prints `ok github.com/gnolang/gno/misc/gnopreview 0.004s`. With the DeepEqual form in place the same mutation fails: `crawl_test.go:299: Seeds() = [\"/r/gnoland/home\" \"/r/gnoland/home$source\" \"/r/gnoland/home$help\"]; want [... \"/r/gnoland\"]`, and unmutated it is ok 0.004s. The finder's artifact reruns green: `--- PASS: TestB9SeedsAssertionIsOneSided`. No base run: misc/gnopreview does not exist at bbd9b2ff.",
+   "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-refactor-test-shape_test.go",
+   "base_behaves_the_same": false,
+   "verify_by": "in misc/gnopreview change crawl.go's `strings.Count(d, \"/\") >= 2` to `>= 3` and run `go test ./...`: expect red, observe ok; then replace the loop with `reflect.DeepEqual(c.Seeds(), []string{\"/r/gnoland/home\", \"/r/gnoland/home$source\", \"/r/gnoland/home$help\", \"/r/gnoland\"})` and repeat"
+  },
+  {
+   "index": 122,
+   "angle": "refactor + tests + lines",
+   "state": "CONFIRMED",
+   "band": "Nit",
+   "file": "misc/gnopreview/crawl_test.go",
+   "line": 282,
+   "tldr": "TestSplitURLKeepsTrailingSlash guards no mutation five other tests miss",
+   "details": "Deleting the function leaves the package green, and adding `strings.TrimSuffix(p, \"/\")` to splitURL then turns five other tests red on their own rows: TestSplitURL, TestCanonicalURL, TestCrawlerInScope, TestURLToFile and TestURLToFileIsSafe. 10 lines to 0, no coverage lost; what the function carries that they do not is its measurement comment. Its second reading is refuted: the `_dir`/`_root` branches are unreachable from Run today, but they are what keeps /r/x/y and /r/x/y/ on different files, and deleting them is the collision TestURLToFileIsSafe's `seen` map exists to catch. Fix: delete the function and move the 62,174 vs 48,642 measurement onto TestSplitURL's own \"/r/x/y/\" row; leave urlToFile's `_dir` and `_root` branches alone.",
+   "evidence": "Head worktree at ecf7af0f, misc/gnopreview. Function removed: `ok github.com/gnolang/gno/misc/gnopreview 0.004s`. Function removed and splitURL returning `strings.TrimSuffix(p, \"/\")`: `--- FAIL: TestSplitURL`, `--- FAIL: TestCanonicalURL`, `--- FAIL: TestCrawlerInScope`, `--- FAIL: TestURLToFile`, `--- FAIL: TestURLToFileIsSafe`. On the queue half, a probe prints `inScope(\"/r/gnoland/home/\")=false urlToFile=\"r/gnoland/home/_dir/index.html\"`, likewise for \"/r/\", \"/r/gnoland/\" and \"/\", and no seed ends in \"/\" \u2014 Run admits a link only through `seedSet[link] || c.inScope(link)`. The finder's artifact reruns green: `--- PASS: TestB9TrailingSlashTestIsRedundant`. No base run: misc/gnopreview does not exist at bbd9b2ff.",
+   "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-refactor-test-shape_test.go",
+   "base_behaves_the_same": false,
+   "refuted_by": "crawl.go:492 `listing := strings.HasSuffix(base, \"/\") && base != \"/\"` \u2014 the branch the candidate's second half asks to delete is what stops /r/x/y/ landing on r/x/y/index.html",
+   "verify_by": "delete func TestSplitURLKeepsTrailingSlash, run `go test ./...` in misc/gnopreview (green), then add `p = strings.TrimSuffix(p, \"/\")` to splitURL and run again (five tests red) | `grep -n 'HasSuffix(base, \"/\")' misc/gnopreview/crawl.go` and the Seeds body at crawl.go:75-105; confirm no queued URL can end in `/`, then delete the `_dir`/`_root` branches and their two test cases and re-run | replace `return p, args, query` in splitURL with `return strings.TrimSuffix(p, \"/\"), args, query` and read which tests go red"
+  },
+  {
+   "index": 124,
+   "angle": "refactor + tests",
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "file": "misc/gnopreview/crawl_test.go",
+   "line": 276,
+   "tldr": "the one assertion on the slug length cap is 7 chars looser than anything slug() can emit",
+   "details": "slug() truncates to maxSlugLen and appends \"-\" plus 8 hex chars, so its longest segment is 73 = maxSlugLen+9, while crawl_test.go:276 allows maxSlugLen+16 = 80. Widening the digest to sha256[:6] puts the segment at 77: only TestURLToFile goes red, on its hardcoded digests, and TestURLToFileIsSafe \u2014 the test whose whole subject is that a long argument produces no unbounded segment \u2014 reports ok. The bound is also written against maxSlugLen itself, so raising maxSlugLen to 400 raises the bound with it and the assertion still passes. One line for one line. Fix: bound each segment by maxSlugLen+9 at crawl_test.go:276.",
+   "evidence": "Head worktree at ecf7af0f, misc/gnopreview. Probe: `maxSlugLen=64 longest segment=73 test bound=maxSlugLen+16=80`. With both `hex.EncodeToString(sum[:4])` widened to `sum[:6]` the segment is 77 and `go test ./...` reports `--- FAIL: TestURLToFile` alone, while `go test -run TestURLToFileIsSafe .` reports `ok ... 0.002s` \u2014 the finder's evidence also names TestMapURL, which cannot fail here: mapURL never calls urlToFile, it reads the literal File values of its own pages map. With the bound at maxSlugLen+9 the same mutation fails on `crawl_test.go:277: segment \"zzzz\u2026-6768a45ee86c\" is 77 chars`, and with the digest restored the package is `ok 0.004s`. With `const maxSlugLen = 400` and the +16 bound, `go test -run TestURLToFileIsSafe .` is `ok`. No base run: misc/gnopreview does not exist at bbd9b2ff.",
+   "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-124-slug-length-bound_test.go",
+   "base_behaves_the_same": false,
+   "verify_by": "in misc/gnopreview replace both `hex.EncodeToString(sum[:4])` in crawl.go with `sum[:6]` and run `go test -run TestURLToFileIsSafe ./...`: expect red, observe ok; then set the bound to maxSlugLen+9 and repeat | `sed -i 's/^const maxSlugLen = 64/const maxSlugLen = 400/' misc/gnopreview/crawl.go && cd misc/gnopreview && go test -run TestURLToFileIsSafe ./...` \u2014 expect a failure, observe `ok`; then `mkdir <400 z's>` for the filesystem half"
+  }
+ ]
+}

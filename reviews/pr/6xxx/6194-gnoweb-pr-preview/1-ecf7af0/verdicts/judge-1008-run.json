@@ -1,0 +1,14 @@
+{"verdicts": [
+  {"index": 249,
+   "angle": "refactor",
+   "verify_by": "cd misc/gnopreview && replace sortedKeys' body with `return slices.Sorted(maps.Keys(m))`, go test ./... and read the failure lines",
+   "state": "CONFIRMED",
+   "band": "Nit",
+   "file": "misc/gnopreview/plan_test.go",
+   "line": 144,
+   "tldr": "the one difference DeepEqual catches at plan_test.go:144 is the one %v cannot print",
+   "details": "plan_test.go:143 asserts Realms with reflect.DeepEqual, which beyond element equality buys exactly one thing over slices.Equal: it separates a nil Realms from an empty one. That separation is load-bearing because Plan.Realms carries `json:\"realms\"` with no omitempty (plan.go:73), so nil marshals into preview.json as \"realms\":null and []string{} as []. Four table cases pin wantRealms to []string{}, so nil-vs-empty is the failure mode those cases exist to catch, and line 144 prints it with %v: both sides render as []. Fix: print the Realms mismatch with %#v, one character, which turns `Realms = []; want []` into `Realms = []string(nil); want []string{}`.",
+   "evidence": "In a scratch worktree at ecf7af0, sortedKeys' body replaced with slices.Sorted(maps.Keys(m)) (maps imported), `go test ./...` in misc/gnopreview: `--- FAIL: TestBuildPlan/nothing_relevant` / `plan_test.go:144: Realms = []; want []`, the same line for gnoweb_alone, quarantined_packages_never_appear and tests_and_filetests_do_not_trigger_a_preview. Same probe with the verb flipped to %#v on that one Errorf: `plan_test.go:144: Realms = []string(nil); want []string{}` on all four. Baseline green before both. misc/gnopreview does not exist at the merge base, so there is nothing to run there.",
+   "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-249-realms-message-verb.sh",
+   "base_behaves_the_same": false}
+]}

@@ -1,0 +1,164 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 129,
+      "angle": "tests",
+      "summary": "TestMapURL hands mapURL a hand-written `up`, so rewrite's own depth computation — the one thing every published link and asset path is built from — is exercised by no test",
+      "failure_scenario": "rewrite() computes `depth := len(strings.Split(strings.Trim(path.Dir(p.File), \"/\"), \"/\"))` and `up := strings.Repeat(\"../\", depth)` (crawl.go:350-351). TestMapURL declares `const up = \"../../../\"` and passes it in, and TestRewriteAddsNoindex is the only caller of rewrite but its bodies carry no href/src at all, so nothing runs that computation. Change it to `depth+1` and the entire PR suite stays green while every page published to GitHub Pages rewrites `/r/a/b` to `../../../../r/a/b/`, which resolves one directory above the preview root: every realm link, every `/public/` stylesheet and the `/public/js/controller-*.js` imports the body calls load-bearing all 404, on every preview, with CI green.",
+      "verify_by": "in a scratch worktree at ecf7af0: `sed -i 's|up := strings.Repeat(\"../\", depth)|up := strings.Repeat(\"../\", depth+1)|' misc/gnopreview/crawl.go && cd misc/gnopreview && go test ./...` — expect a failure, observe `ok`",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "MUT-G applied to crawl.go:351 (`depth` -> `depth+1`), full suite: `ok  github.com/gnolang/gno/misc/gnopreview  0.005s`. The missing assertion, added as TestRewriteResolvesFromThePageDir, goes red on the same mutation: `page r/x/y/index.html: \"/r/a/b\" rewritten to \"../../../../r/a/b/\", which resolves to \"../r/a/b\"; want \"r/a/b\" — the published link 404s`, and again for `/public/img/logo.svg` and for the deeper `r/x/y/_t/source/index.html`. Both green at the unmutated head.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-tests-unpinned-crawl-invariants.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 276,
+      "angle": "tests",
+      "summary": "the only assertion on the slug length cap bounds each segment by `maxSlugLen+16`, so no value of maxSlugLen can fail it",
+      "failure_scenario": "crawl.go:510 states `maxSlugLen keeps a long render argument from producing a path the filesystem or the static host rejects` and the PR body repeats it (\"non-trivial slugs now carry a digest and are length capped\"). TestURLToFileIsSafe's segment loop writes its bound in terms of the same constant, so the guard is self-certifying. Set `maxSlugLen = 400` and the test still passes while `urlToFile` emits a 400-byte path segment; NAME_MAX is 255 on ext4 and tmpfs, so `os.MkdirAll` in writeFile returns ENAMETOOLONG, `Crawler.Write` propagates it and main.go:139 aborts the whole render step — one long `:arg` on any previewed realm takes down the preview job rather than one page.",
+      "verify_by": "`sed -i 's/^const maxSlugLen = 64/const maxSlugLen = 400/' misc/gnopreview/crawl.go && cd misc/gnopreview && go test -run TestURLToFileIsSafe ./...` — expect a failure, observe `ok`; then `mkdir <400 z's>` for the filesystem half",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "MUT-A (`maxSlugLen = 400`): `go test -run TestURLToFileIsSafe ./...` -> `ok  github.com/gnolang/gno/misc/gnopreview  0.003s`. The literal-bounded replacement fails on the same mutation: `urlToFile(<407-char url>) segment is 400 bytes; NAME_MAX is 255`. Filesystem half on this machine: `getconf NAME_MAX /tmp` -> 255, and `mkdir .../zzz...(400)` -> `mkdir: cannot create directory ...: File name too long`.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-tests-unpinned-crawl-invariants.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 180,
+      "angle": "tests",
+      "summary": "TestRewriteAddsNoindex counts the robots meta but never asserts where it landed, so setNoindex's <head> branch can die unnoticed",
+      "failure_scenario": "The test's first two cases (`normal head`, `head with attrs`) exist to exercise setNoindex's `headRe` insertion at crawl.go:374-376, but the four assertions only check presence, a count of 1, a single robots meta and the absence of `index, follow` — all of which the fallback `return noindexTag + body` satisfies. Kill the head branch and the test stays green while every published page ships `<meta name=\"robots\">` ahead of `<!doctype html>`; content before the doctype puts the whole page into quirks mode, so the preview a reviewer is asked to judge gnoweb's CSS by renders with different box sizing than gno.land.",
+      "verify_by": "`sed -i 's|if loc := headRe.FindStringIndex(body); loc != nil {|if loc := headRe.FindStringIndex(body); false \\&\\& loc != nil {|' misc/gnopreview/crawl.go && cd misc/gnopreview && go test -run TestRewriteAddsNoindex ./...` — expect a failure, observe `ok`",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "MUT-C: `go test -run TestRewriteAddsNoindex ./...` -> `ok  github.com/gnolang/gno/misc/gnopreview  0.002s`. The placement assertion goes red on it: `normal head: noindex tag at 0 is outside <head> (69..91)` and `normal head: 48 bytes precede the doctype, which puts the page in quirks mode: <meta name=\"robots\" content=\"noindex, nofollow\"><!doctype html>...`.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-tests-unpinned-crawl-invariants.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 547,
+      "angle": "tests",
+      "summary": "copyTree, the `/public/` -> relative asset rewrite the PR body calls load-bearing, is called by no test",
+      "failure_scenario": "The body states that `public/js/index.js` builds its dynamic `import()` specifiers from a hardcoded `/public/js/controller-` prefix and that \"without that, every interactive control 404s from any mount point but the site root\", and that \"the renderer warns loudly if that string ever disappears\". Both the rewrite and the `n == 0` warning at crawl.go:314 live in copyTree, and `grep -c copyTree` over crawl_test.go and plan_test.go is 0 in both. The per-file `up` it computes from `filepath.Dir(rel)` differs from the page-side `up` (asset-relative, not root-relative), and nothing checks that a controller imported from `public/js/index.js` resolves back to `public/js/controller-*.js`. A regression there ships a preview where every control silently does nothing, which is exactly the failure round 1 already caught once in a different form.",
+      "verify_by": "`grep -c copyTree misc/gnopreview/*_test.go`; then add a table test feeding copyTree a tree with `public/js/index.js` and `public/index.js` and asserting each rewritten specifier resolves to the real file",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "`grep -c copyTree crawl_test.go plan_test.go` -> `crawl_test.go:0`, `plan_test.go:0`. The same grep over the whole test surface shows the only crawl.go functions any test calls are inScope, chargeFile, Seeds, rewrite, urlToFile, splitURL, canonicalURL, links, mapURL and urlOf.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 109,
+      "angle": "tests",
+      "summary": "Crawler.Run is called by no test, so the MaxPages cap that aborts the whole render is unexercised",
+      "failure_scenario": "Run returns `fmt.Errorf(\"page cap %d reached (queue still had %d)\", ...)` at crawl.go:127 and main.go:134 propagates it, so hitting the 400-page default fails the render job outright rather than publishing a truncated preview. No test constructs a Crawler and calls Run, so neither the cap's abort-vs-truncate behaviour, nor the order chargeFile is called in relative to the fetch, nor the fact that a budget-refused page has its links dropped from the queue (crawl.go:138-151) is pinned. Combined with the unpinned GnowebFileBudget below, raising the per-file budget turns a working preview into a hard CI failure with nothing red until it runs against a real chain.",
+      "verify_by": "`grep -n 'c.Run()\\|\\.Run()' misc/gnopreview/*_test.go`; then drive Run against an httptest.Server serving two linked pages with MaxPages 1 and assert the error, and again with MaxPages 0",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "`grep -on 'c.Run()' crawl_test.go plan_test.go` returns nothing; the only Crawler methods any test calls are inScope, chargeFile, Seeds and rewrite (one call, crawl_test.go:180).",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 219,
+      "angle": "tests",
+      "summary": "the budget tests take their bound from GnowebFileBudget itself, so the constant's value is pinned by nothing",
+      "failure_scenario": "TestWantFile loops `for i := range GnowebFileBudget` with `FileBudget: GnowebFileBudget`, and TestCrawlerInScope sets the same field from the same constant. Change the constant and every one of the four budget tests stays green, so the per-realm cap on unchanged files — the thing that decides how many pages a preview crawls and screenshots, and how close Run gets to the MaxPages abort — can move with no test red and no reviewer prompt.",
+      "verify_by": "`sed -i 's/^const GnowebFileBudget = 2/const GnowebFileBudget = 7/' misc/gnopreview/crawl.go && cd misc/gnopreview && go test ./...` — expect a failure, observe `ok`",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "MUT-B (`GnowebFileBudget = 7`), full suite: `ok  github.com/gnolang/gno/misc/gnopreview  0.006s`.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 282,
+      "angle": "tests",
+      "summary": "TestSplitURLKeepsTrailingSlash and TestURLToFile's `/r/` case guard a URL shape Run can never queue, because inScope drops every trailing-slash path first",
+      "failure_scenario": "crawl.go:191 returns false for any base ending in `/`, and its own comment says the listing is deliberately left to the live site. Seeds only ever produces `urlOf(r)`, `$source`, `$help` and `path.Dir` results, none of which end in `/`, and Run queues a link only when `seedSet[link] || c.inScope(link)`. So `urlToFile`'s `listing`/`_dir` branch (crawl.go:490, 496-498) and its `_root` branch (crawl.go:493) are both unreachable from the binary, and comment.go's Index passes only `urlOf(r)`. Two of TestURLToFile's seven cases and the whole of TestSplitURLKeepsTrailingSlash therefore assert on dead code, while crawl.go carries two comments giving contradictory reasons for the same trailing slash.",
+      "verify_by": "`grep -n 'HasSuffix(base, \"/\")' misc/gnopreview/crawl.go` and the Seeds body at crawl.go:75-105; confirm no queued URL can end in `/`, then delete the `_dir`/`_root` branches and their two test cases and re-run",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:191-193 `if strings.HasSuffix(base, \"/\") { return false }`, comment at 188-190: \"let the listing fall through to the live site\". crawl.go:488-490 says the opposite reason: \"give it its own file so the two can never overwrite each other\". TestCrawlerInScope's own `{\"/r/gnoland/home/\", false}` case confirms the drop. comment.go:169-176 calls urlToFile(urlOf(r)) only.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 124,
+      "angle": "tests",
+      "summary": "TestMapURL's pages fixture uses File values urlToFile never produces, contradicting TestURLToFile in the same file",
+      "failure_scenario": "The fixture maps `/r/x/y$file=a.gno&source` to `r/x/y/_t/file-a.gno-source/index.html`, while TestURLToFile forty lines above asserts the real output for that shape is `r/x/y/_t/file-home.gno-source-2ca84ba4/index.html` — slug() appends a digest to any argument that is not already a safe segment. The mapURL expectations therefore model a directory layout the renderer never builds, so a reader checking that a rewritten link points at a real file on disk is reading a shape that does not exist, and the digest suffix (the collision guard round 1 asked for) is absent from the one test that shows links resolving.",
+      "verify_by": "run `urlToFile(\"/r/x/y$file=a.gno&source\")` and compare with the File literal at crawl_test.go:127",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "slug() at crawl.go:520-533 returns `out + \"-\" + hex(sha256(s)[:4])` whenever `out != s`; `file=a.gno&source` contains `=` and `&`, so it always carries a digest. TestURLToFile:55 pins exactly that for the sibling input.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 196,
+      "angle": "tests",
+      "summary": "TestWantFile never calls wantFile",
+      "failure_scenario": "The test drives inScope and chargeFile only. wantFile's two branches are reached through inScope, so the coverage is real, but the name sends the next reader looking for a direct table over `(realm, name)` that is not there — and the ChangedFiles branch's exact-match semantics (`slices.Contains`, so `a.gno` but not `dir/a.gno`) are never stated anywhere a reader of that function would look.",
+      "verify_by": "`grep -n 'wantFile' misc/gnopreview/crawl_test.go` — expect a call, observe none",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "`grep -on 'chargeFile\\|wantFile' crawl_test.go` returns four chargeFile hits (221, 225, 314, 317) and no wantFile hit.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 297,
+      "angle": "tests",
+      "summary": "TestSeedsSkipSingleSegmentDirs reports a loosened depth guard as a hang, not a failure",
+      "failure_scenario": "Seeds' loop terminates only because `strings.Count(d, \"/\") >= 2` stops before `path.Dir(\"/\")`, which returns `/` forever. Loosen it by one and Seeds never returns: the test that exists to guard the seed set spins until the Go test binary's 10-minute panic, so the CI signal is a timeout on an unrelated-looking job rather than the assertion the test wrote.",
+      "verify_by": "`sed -i 's|strings.Count(d, \"/\") >= 2|strings.Count(d, \"/\") >= 1|' misc/gnopreview/crawl.go && cd misc/gnopreview && go test -run TestSeedsSkipSingleSegmentDirs ./...`",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "MUT-F: `timeout 60 go test -run TestSeedsSkipSingleSegmentDirs ./...` produced no output at all and was killed at 60s, against 0.00s for every other run of that test.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 140,
+      "angle": "tests",
+      "summary": "TestMapURL asserts mapURL(\"/\") = up+\"index.html\" while TestURLToFile asserts urlToFile(\"/\") = \"_root/index.html\" — suspected broken home link on every page",
+      "settled_by": "`grep -n 'index.html' misc/gnopreview/main.go` -> `141: if err := writeFile(filepath.Join(cfg.out, \"index.html\"), Index(plan, c)); err != nil {` — the root index.html is the generated landing page from comment.go's Index(), which is what mapURL(\"/\") is meant to reach. Not a defect."
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 243,
+      "angle": "tests",
+      "summary": "TestURLToFileIsSafe's traversal assertions suspected true by construction (\"..\" survives the unsafeSeg regexp, so nothing obviously strips it)",
+      "settled_by": "MUT-D `sed -i 's/strings.Trim(unsafeSeg.ReplaceAllString(s, \"-\"), \"-.\")/strings.Trim(unsafeSeg.ReplaceAllString(s, \"-\"), \"-\")/' crawl.go && go test -run TestURLToFileIsSafe ./...` -> `--- FAIL: TestURLToFileIsSafe ... urlToFile(\"/r/x/y:..\") = \"r/x/y/index.html\" — traversed onto the render page`. The test has teeth on the guard it names."
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 304,
+      "angle": "tests",
+      "summary": "TestFileBudgetChargedOnCaptureNotDiscovery and TestWantFile's budget loop suspected vacuous (they never assert the charge actually bites)",
+      "settled_by": "MUT-H, an early `return true` at the top of chargeFile: `--- FAIL: TestWantFile ... crawl_test.go:226: budget exceeded but the page was still captured` and `--- FAIL: TestFileBudgetChargedOnCaptureNotDiscovery ... crawl_test.go:318: second capture accepted with a budget of 1`. Both bite."
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 1,
+      "angle": "tests",
+      "summary": "suspected that no CI job ever executes misc/gnopreview's tests, since the directory carries its own go.mod and the repo-root `go test ./...` cannot reach it",
+      "settled_by": "`grep -rn gnopreview .github/workflows/` -> `.github/workflows/ci-dir-misc.yml:42: - gnopreview`, in the `program` matrix that calls `_ci-go.yml` with `modulepath: misc/${{ matrix.program }}`, on `pull_request` paths `misc/**`. The tests do run."
+    }
+  ]
+}

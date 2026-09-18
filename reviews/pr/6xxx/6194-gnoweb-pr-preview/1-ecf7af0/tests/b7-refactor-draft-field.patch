@@ -1,0 +1,64 @@
+# b7-refactor-draft-field.patch — PR 6194 (gnolang/gno), head ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#
+# Pkg.Draft is written by LoadPkgs and read nowhere in the module; modFlags exists to return it. Dropping the field and narrowing modFlags to ignored(): 12 lines -> 8.
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno.git && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+#
+# Measured at ecf7af0 with go1.25.9: gofmt silent, vet silent,
+#   "ok  github.com/gnolang/gno/misc/gnopreview  0.005s"
+# Baseline (unpatched) at the same head: same "ok" line.
+diff --git a/misc/gnopreview/plan.go b/misc/gnopreview/plan.go
+index 4828aac3e..07156ea33 100644
+--- a/misc/gnopreview/plan.go
++++ b/misc/gnopreview/plan.go
+@@ -55,7 +55,6 @@ type Pkg struct {
+ 	Dir     string   // examples/gno.land/r/gnoland/home (repo-relative, slash-separated)
+ 	Imports []string // gno.land/* imports of its non-test files
+ 	Realm   bool     // lives under gno.land/r/
+-	Draft   bool     // gnomod.toml: draft = true
+ 	Ignore  bool     // gnomod.toml: ignore = true
+ }
+ 
+@@ -139,7 +138,7 @@ func LoadPkgs(root string) (map[string]*Pkg, error) {
+ 			Dir:   rel,
+ 			Realm: strings.Contains(rel, "/r/"),
+ 		}
+-		pkg.Draft, pkg.Ignore = modFlags(filepath.Join(p, "gnomod.toml"))
++		pkg.Ignore = ignored(filepath.Join(p, "gnomod.toml"))
+ 		pkg.Imports = gnoImports(files)
+ 		pkgs[pkg.Path] = pkg
+ 		return nil
+@@ -150,22 +149,19 @@ func LoadPkgs(root string) (map[string]*Pkg, error) {
+ 	return pkgs, nil
+ }
+ 
+-// modFlags reads the two booleans we care about out of a gnomod.toml without
+-// pulling in a TOML parser: they are always plain top-level `key = true` lines.
+-func modFlags(p string) (draft, ignore bool) {
++// ignored reports whether a gnomod.toml carries `ignore = true`, without
++// pulling in a TOML parser: it is always a plain top-level `key = true` line.
++func ignored(p string) bool {
+ 	b, err := os.ReadFile(p)
+ 	if err != nil {
+-		return false, false
++		return false
+ 	}
+ 	for line := range strings.SplitSeq(string(b), "\n") {
+-		switch strings.ReplaceAll(strings.TrimSpace(line), " ", "") {
+-		case "draft=true":
+-			draft = true
+-		case "ignore=true":
+-			ignore = true
++		if strings.ReplaceAll(strings.TrimSpace(line), " ", "") == "ignore=true" {
++			return true
+ 		}
+ 	}
+-	return draft, ignore
++	return false
+ }
+ 
+ // gnoImports returns the gno.land/* imports of the given files. .gno is Go

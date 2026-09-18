@@ -1,0 +1,37 @@
+# judge-87-drop-direct-map.patch — candidate #87 isolated from b5-refactor-comment-shorter.patch,
+# which bundles five rewrites. gnolang/gno PR 6194, head ecf7af0f29abe4737a52803d672bc5a33c17cc60.
+# the direct map is built to answer contains(p.ChangedRealms, r); the scan says it in the line that asks.
+# 196 -> 192 lines (4 removed); Comment and Index render byte-identically (golden digest unchanged).
+#
+# Repro from a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin ecf7af0f29abe4737a52803d672bc5a33c17cc60 && git checkout FETCH_HEAD
+#   cp <round>/tests/b5-refactor-comment-golden_test.go misc/gnopreview/
+#   (cd misc/gnopreview && go test -run TestRefactorGolden ./...)   # PASS at head
+#   git apply <this file>
+#   (cd misc/gnopreview && gofmt -l . && go vet ./... && go test -run TestRefactorGolden ./...)  # PASS
+#   git checkout -- misc/gnopreview/comment.go && rm misc/gnopreview/b5-refactor-comment-golden_test.go
+diff --git a/misc/gnopreview/comment.go b/misc/gnopreview/comment.go
+index 7d2229734..0b3430dea 100644
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -53,10 +53,6 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 			b.WriteString(shotGrid(p.Shots, base))
+ 		}
+ 		b.WriteString(pairGrid(p.Pairs, base))
+-		direct := map[string]bool{}
+-		for _, r := range p.ChangedRealms {
+-			direct[r] = true
+-		}
+ 		if len(p.ChangedRealms) > 0 {
+ 			b.WriteString(fmt.Sprintf("**Changed realms (%d)**\n\n", len(p.ChangedRealms)))
+ 			for _, r := range p.ChangedRealms {
+@@ -66,7 +62,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 		}
+ 		var indirect []string
+ 		for _, r := range p.Realms {
+-			if !direct[r] && !isSeed(r, p) {
++			if !contains(p.ChangedRealms, r) && !isSeed(r, p) {
+ 				indirect = append(indirect, r)
+ 			}
+ 		}

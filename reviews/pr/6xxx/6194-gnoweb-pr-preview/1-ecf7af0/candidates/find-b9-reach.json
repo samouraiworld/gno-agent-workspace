@@ -1,0 +1,105 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 138,
+      "angle": "reach",
+      "summary": "the per-file budget is charged after the fetch, so it bounds captures and not work: every per-file link on a $source page is rendered by gnodev and then thrown away",
+      "failure_scenario": "Run() fetches a realm's $source page, queues every /r/<realm>$source&file=<name> link on it (inScope consults fileBudget, which is still 0 because nothing has been captured yet), then fetches all of them and calls chargeFile only after the body is in hand. With FileBudget=2 and a source page carrying 3000 file links the crawler issued 3004 requests and kept 6 pages; -max-pages never saw the 2998 discarded renders because it counts len(c.pages). Every realm pays this: a realm with 40 .gno files costs 40 chroma-highlighted source renders to keep 2. The extreme is fork-controlled — the crawled HTML is the PR's own realm Render output, pr-preview.yml runs on pull_request and sets no timeout-minutes, so the fan-out is bounded only by GitHub's 6h job default, and README.md:118 ('a -max-pages cap (400) backstops the rest') is the claim that fails.",
+      "verify_by": "tests/b9-reach-crawl-caps_test.go, TestB9ReachMaxPagesDoesNotBoundFetches: httptest server counting requests, one $source page with 3000 file links, MaxPages=10, FileBudget=2; expect the cap to bound the requests, observe 3004",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "go test -run B9Reach -v ./... at ecf7af0f2: 'B9REACH captured=6 served=3004 maxPages=10 fileBudget=2' — PASS, Run() returned nil",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-reach-crawl-caps_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 127,
+      "angle": "reach",
+      "summary": "reaching -max-pages returns an error instead of truncating, so the PR loses the whole preview and gets a red job",
+      "failure_scenario": "A realm whose Render emits 400+ of its own :arg links (a docs or blog realm paginating its entries — gno.land/r/gnoland/blog is a gnoweb seed chosen precisely for ':page paths') fills the queue with in-scope URLs; at the 400th capture Run returns 'page cap 400 reached', render() propagates it, main exits 1. c.Write is never reached, so the 400 pages already crawled are discarded: the pull request gets no preview at all and a failing pr-preview job, on exactly the changes a preview is most useful for.",
+      "verify_by": "tests/b9-reach-crawl-caps_test.go, TestB9ReachArgLinksReachTheDefaultCap: a page with 500 /r/x/y:p/postN links, MaxPages=defaultMaxPages; expect a truncated snapshot, observe an error and nothing written",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "'B9REACH defaultMaxPages=400 err=page cap 400 reached (queue still had 120998) captured=400' — Run returned an error with 400 pages in hand, all dropped",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-reach-crawl-caps_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 148,
+      "angle": "reach",
+      "summary": "the queue dedupes against visited, which is only written at dequeue, so every page re-enqueues the links it shares with the others",
+      "failure_scenario": "links are appended when `!visited[link]`, but `visited[u]` is set only when u is dequeued, so a URL referenced by N already-crawled pages is queued N times. Every gnoweb page carries the same header, breadcrumb and footer links, so the queue grows as pages x links-per-page rather than as the link set: the 400-page run above left 120,998 entries queued. The fetches are still deduped, so this costs memory and slice churn, not requests — a `queued` set written at append time removes it.",
+      "verify_by": "tests/b9-reach-crawl-caps_test.go, TestB9ReachArgLinksReachTheDefaultCap: read the queue length in the cap error after 400 pages of 500 shared links",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "'page cap 400 reached (queue still had 120998)' — 500 distinct URLs, 120,998 queue entries",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-reach-crawl-caps_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 70,
+      "angle": "reach",
+      "summary": "the _dir and _root rows cover urlToFile branches no crawl can reach",
+      "failure_scenario": "urlToFile is called from crawl.go:142 on crawled URLs and from comment.go:175 on urlOf(realm). A crawled URL is a seed or an inScope link; inScope returns false for any base ending in '/' (crawl.go:191) and Seeds() emits none, so base never ends in '/' and never empties. The listing branch (`_dir`) and the root branch (`_root`) are therefore dead, and TestURLToFile's {\"/r/\", \"r/_dir/index.html\"} and {\"/\", \"_root/index.html\"} rows report coverage for code that cannot run — the directory-listing page the `_dir` branch was written for is fetched as '/r/gnoland' (no slash) and lands in r/gnoland/index.html instead. Either drop both branches with their rows, or make inScope admit the listing URL the branch expects.",
+      "verify_by": "tests/b9-reach-crawl-caps_test.go, TestB9ReachListingBranchesAreUnreachable: inScope of '/', '/r/', '/r/gnoland/', '/r/gnoland/home/' and every Seeds() entry",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "'B9REACH seeds=[/r/gnoland/home /r/gnoland/home$source /r/gnoland/home$help /r/gnoland]' with every inScope call false; grep shows urlToFile's only other caller is comment.go:175, on urlOf(r)",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-reach-crawl-caps_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 136,
+      "angle": "reach",
+      "summary": "TestMapURL's page fixture holds File values urlToFile never produces",
+      "failure_scenario": "The fixture maps /r/x/y$file=a.gno&source to 'r/x/y/_t/file-a.gno-source/index.html', but urlToFile of that URL is 'r/x/y/_t/file-home.gno-source-2ca84ba4/index.html' shaped — slug appends a hash whenever the sanitised form differs from the input, as TestURLToFile:67 asserts. mapURL only takes path.Dir of the value, so the test passes either way, and the drift hides the one thing worth pinning: that mapURL's output is the directory urlToFile chose for the same URL. Build the fixture with urlToFile instead of a literal.",
+      "verify_by": "compare crawl_test.go:136 with the urlToFile output asserted at crawl_test.go:67",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 243,
+      "angle": "reach",
+      "summary": "chargeFile treats an empty file= value as 'not a per-file page' and captures it free of the budget",
+      "failure_scenario": "chargeFile takes the last file= part and returns true when the value is empty, while inScope's wantFile accepts an empty name under the budget branch (0 < FileBudget). A realm page linking to /r/x/y$source&file= therefore gets captured without charging the budget. canonicalURL sorts the empty value ahead of any non-empty one, so a URL carrying both still charges correctly and the bypass is one page per realm — a leak, not a hole. Treating an empty value as a per-file page closes it.",
+      "verify_by": "call c.inScope and c.chargeFile on '/r/x/y$source&file=' with FileBudget=2 and no ChangedFiles; expect a charge, observe true from chargeFile with fileBudget untouched",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 187,
+      "angle": "reach",
+      "summary": "TestRewriteAddsNoindex's robots fixture may not match what gnoweb emits, leaving two conflicting robots metas",
+      "settled_by": "grep -rn 'name=\"robots\"' gno.land/pkg/gnoweb/ at ecf7af0f2 returns components/layouts/head.html:38 '<meta name=\"robots\" content=\"index, follow\" />' and components/views/redirect.html:6 '<meta name=\"robots\" content=\"noindex\" />' — both match robotsRe, so setNoindex replaces rather than appends"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 486,
+      "angle": "reach",
+      "summary": "a realm page could emit /r/x/y:../../../tmp/pwn and drive urlToFile out of the output tree",
+      "settled_by": "slug() runs unsafeSeg over the args ('/' becomes '-') then strings.Trim(out, \"-.\"), which empties a pure-dots slug and falls to the sha256 branch; TestURLToFileIsSafe covers ':..', ':../..' and ':.' and stays green"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 228,
+      "angle": "reach",
+      "summary": "wantFile keys ChangedFiles by realm while the plan might key it differently, silently falling back to the budget",
+      "settled_by": "plan.go:271-274 fills plan.ChangedFiles[r] while ranging plan.Realms, and main.go:126-128 passes both fields from the same plan, so the key spaces are identical by construction"
+    }
+  ]
+}

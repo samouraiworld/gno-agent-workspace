@@ -1,0 +1,132 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 68,
+      "angle": "lines",
+      "summary": "the before/after cap counts realms the PR added, which can never carry a before half, so they spend the two slots the modified realms needed",
+      "failure_scenario": "a PR adds gno.land/r/a/added and gno.land/r/b/added and edits gno.land/r/z/modified. plan.go:229 builds ChangedRealms with sortedKeys, so the two additions come first. ScreenshotPairs appends a pair for each (Before empty, New true), hits len(pairs) >= maxPairs on the third, breaks, and the only realm with a merge-base rendering gets no comparison at all. The comment shows two single images captioned \"New in this PR - nothing to compare against\" and the realm the reviewer needs to diff is one link in the list below.",
+      "verify_by": "go test -run TestScreenshotPairsCapSpentOnAddedRealms -v . in misc/gnopreview with the repro file: expect the modified realm among the pairs, observe both slots taken by the added realms with Before empty",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "pair realm=\"gno.land/r/a/added\" before=\"\" after=\"_shots/r-a-added-3b55b24d-after.png\" new=true / pair realm=\"gno.land/r/b/added\" before=\"\" after=\"_shots/r-b-added-84738813-after.png\" new=true / \"i before/after capped at 2 realm(s); the rest are listed as links\" — gno.land/r/z/modified, the only realm with a _before/ page, never appears. PASS at ecf7af0f2, go1.25.9.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-lines-pair-cap.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 204,
+      "angle": "lines",
+      "summary": "an explicit -chrome that does not resolve is silently discarded and auto-detection runs instead",
+      "failure_scenario": "findChrome puts the -chrome value at the head of the same candidate slice as google-chrome, chromium and the macOS bundle path, then returns the first entry that LookPath or Stat resolves. A -chrome pointing at a moved or misspelled binary falls through to whatever browser is on PATH, so the operator's one knob for picking the browser does nothing and the screenshots come from a different build than the one they named; where nothing else resolves the message reads \"no Chrome/Chromium found\" and never mentions that the flag was bad.",
+      "verify_by": "go test -run TestFindChrome -v . in misc/gnopreview with the repro file: a decoy chromium on PATH and findChrome(\"/nonexistent/path/to/chrome\"); expect \"\" or an error, observe the decoy",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "findChrome(\"/nonexistent/path/to/chrome\") = \"/tmp/TestFindChromeSilentlyIgnoresBadExplicitFlag758579940/001/chromium\" — PASS at ecf7af0f2, go1.25.9.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-lines-chrome-flag.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 180,
+      "angle": "lines",
+      "summary": "nothing bounds the Chrome process's wall clock, and the render job declares no timeout-minutes",
+      "failure_scenario": "chromeShot calls exec.Command(...).CombinedOutput() with no context and no deadline. --virtual-time-budget=4000 bounds the page's virtual clock, not the process: a Chrome that wedges on startup (profile lock, a crashed zygote, a stuck GPU probe) never returns, ScreenshotPairs never finishes, and since .github/workflows/pr-preview.yml sets no timeout-minutes the render job holds an ubuntu-latest runner to the 6-hour default before GitHub kills it. No other exec in misc/gnopreview uses CommandContext either, but gnodev at main.go:186 is at least reaped by a stop() on defer.",
+      "verify_by": "grep -c 'CommandContext\\|context\\.' misc/gnopreview/shots.go and grep -c timeout-minutes .github/workflows/pr-preview.yml",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "both greps return 0 at ecf7af0f2; grep -rn CommandContext misc/gnopreview/ returns nothing.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 98,
+      "angle": "lines",
+      "summary": "the progress line prints \"(before/after)\" for every appended pair, including the ones that have no before half",
+      "failure_scenario": "the Printf sits after the append with no reference to pair.Before, so a realm whose before shot was never attempted (base nil, or base.FileOf miss) or failed still logs \"  📷 gno.land/r/a/added (before/after)\". Reading the job log, the maintainer sees before/after was produced for every capped realm and only the comment shows otherwise.",
+      "verify_by": "the TestScreenshotPairsCapSpentOnAddedRealms output above, where both logged pairs have Before empty",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "\"  📷 gno.land/r/a/added (before/after)\" printed for a pair whose returned Before is \"\".",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-lines-pair-cap.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 181,
+      "angle": "lines",
+      "summary": "--no-sandbox is passed unconditionally, including on a maintainer's own machine",
+      "failure_scenario": "README.md:54 documents running gnopreview render locally against a contributor's branch. The pages Chrome then loads are HTML the PR's own realms rendered, and the renderer runs with the sandbox off, so a Chrome renderer bug is a full-privilege escape on the maintainer's workstation rather than a contained one. CI needs the flag; a local run does not.",
+      "verify_by": "read the exec.Command argument list at shots.go:177-190 and README.md:50-60: the flag is a constant with no CI guard",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "\"--no-sandbox\" is a literal element of the argument slice, no conditional; README.md:54 shows the local invocation.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 93,
+      "angle": "lines",
+      "summary": "a before shot that failed is indistinguishable in the ShotPair from one that was never attempted, and the comment then shows an unlabelled single image",
+      "failure_scenario": "when chromeShot fails for the before half the error goes to stderr and pair.Before stays \"\" with New false. comment.go:106 renders that case as a bare <img> with no note at all — the note only exists for New — so the reader sees one picture under the realm heading with nothing saying it is the after. The ShotPair doc comment says New exists precisely so the comment does not claim a realm is new when we did not look; the failed-before case falls into the same hole from the other side.",
+      "verify_by": "read shots.go:86-96 against comment.go:99-125: the only branch that emits a note tests p.New",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "comment.go:106-113 — note is \"\" unless p.New, and the img carries alt=p.Realm only.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 196,
+      "angle": "lines",
+      "summary": "the stat error is discarded and every failure reports \"chrome wrote no image\"",
+      "failure_scenario": "os.Stat(out) failing for any reason — a permission error on the _shots directory, a path the umask made unreadable — is reported as \"chrome wrote no image\", so the job log blames the browser for a filesystem fault and the real errno never reaches the maintainer reading the failed render step.",
+      "verify_by": "read shots.go:193-199: err from os.Stat is bound and never used in the returned error",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "if fi, err := os.Stat(out); err != nil || fi.Size() == 0 { return fmt.Errorf(\"chrome wrote no image\") } — err is dropped.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 76,
+      "angle": "lines",
+      "summary": "slug() on the realm URL could traverse out of _shots or collide between two realms",
+      "settled_by": "go test -run TestScreenshotPairsCapSpentOnAddedRealms -v . printed \"shot written: r-a-added-3b55b24d-after.png\": crawl.go:520 maps every character outside [A-Za-z0-9._-] to '-' so no '/' survives, and appends sha256(s)[:4] whenever the slug differs from its input, which it always does for a path, so two realms cannot share a name."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 89,
+      "angle": "lines",
+      "summary": "the before page is served from outDir but the base crawl writes under _before/, so origin+\"/\"+beforeFile would 404",
+      "settled_by": "crawl.go:142 — p := &page{URL: u, File: path.Join(c.Prefix, urlToFile(u)), Body: body} — and main.go:265 sets Prefix: beforeDir, so base.FileOf already returns \"_before/r/.../index.html\"; the repro serves exactly that path and chromeShot resolves it."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 135,
+      "angle": "lines",
+      "summary": "Screenshot looks up c.pages[canonicalURL(s.url)] while Run stores c.pages[u] raw, so the three shotPlan entries carrying $ would miss",
+      "settled_by": "crawl.go:287-299 — '$' is the webquery separator canonicalURL re-emits (base + \"$\" + sorted parts), and ':' is the render-args one, so canonicalURL(\"/r/gnoland/home$source\") == \"/r/gnoland/home$source\", the same key Seeds() queued."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 196,
+      "angle": "lines",
+      "summary": "fi.Size() dereferences a nil FileInfo when os.Stat errors",
+      "settled_by": "Go's || short-circuits: err != nil returns before fi.Size() is evaluated. No panic."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 154,
+      "angle": "lines",
+      "summary": "serve() hands outDir to http.FileServer, so gnodev's home under _preview/.gnodev-<port> is exposed and later uploaded",
+      "settled_by": ".github/workflows/pr-preview.yml:103 — rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-* runs before the upload-artifact step at line 117, and the listener binds 127.0.0.1:0."
+    }
+  ]
+}

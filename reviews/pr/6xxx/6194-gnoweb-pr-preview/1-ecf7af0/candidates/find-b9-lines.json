@@ -1,0 +1,119 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 86,
+      "angle": "lines",
+      "summary": "the listing case pins the realm match, not the trailing-slash guard it names, and that guard in inScope is unreachable",
+      "failure_scenario": "inScope refuses a base ending in \"/\" at crawl.go:191, then matches base against urlOf(r) at crawl.go:196. urlOf never yields a trailing slash (it is \"/\"+pkgPath-after-the-first-slash, and pkg paths come from a directory walk), so a base ending in \"/\" is already unmatchable and the guard can never decide anything. Deleting the three guard lines leaves the whole misc/gnopreview suite green, crawl_test.go:86 {\"/r/gnoland/home/\", false} and TestSplitURLKeepsTrailingSlash included, so the suite would not notice a later change to the realm match that re-admits directory URLs.",
+      "verify_by": "perl -0pi -e 's{\\tif strings\\.HasSuffix\\(base, \"/\"\\) \\{\\n\\t\\treturn false\\n\\t\\}\\n}{}' misc/gnopreview/crawl.go && cd misc/gnopreview && go test -vet=off -count=1 .",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "mutation deleting crawl.go:191-193 ('if strings.HasSuffix(base, \"/\") { return false }', git diff --stat: 1 file changed, 3 deletions) then `go test -vet=off -count=1 .` => 'ok  github.com/gnolang/gno/misc/gnopreview  0.005s'. The artifact's TestB9TrailingSlashGuardIsRedundant logs: 'base \"/r/gnoland/home/\" matches no urlOf(realm); crawl.go's HasSuffix guard is dead'.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-lines-crawl-guards_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 196,
+      "angle": "lines",
+      "summary": "TestWantFile drives the changed-set path through inScope only, leaving chargeFile's ChangedFiles exemption, the line that carries the feature on every realms-only PR, unpinned",
+      "failure_scenario": "fileBudget(plan) in main.go:216 returns 0 whenever plan.Gnoweb is false, i.e. for every ordinary PR that edits a realm and not gnoweb. With FileBudget 0, chargeFile reaches 'c.fileBudget[r] >= c.FileBudget' as 0 >= 0 and refuses every per-file page; only the exemption at crawl.go:250 keeps the changed files' $source pages alive. No test calls chargeFile with a realm listed in ChangedFiles: TestWantFile checks the changed set through inScope, and TestFileBudgetZeroDropsAllUnchanged covers the unlisted realm. Deleting the exemption leaves the suite green while the preview silently loses the source page of every file the PR changed, which is the tool's headline output.",
+      "verify_by": "perl -0pi -e 's{\\t\\tif _, listed := c\\.ChangedFiles\\[r\\]; listed \\{\\n\\t\\t\\treturn true[^\\n]*\\n\\t\\t\\}\\n}{}' misc/gnopreview/crawl.go && cd misc/gnopreview && go test -vet=off -count=1 .",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "mutation deleting crawl.go:250-252 (git diff --stat: 1 file changed, 3 deletions) then `go test -vet=off -count=1 .` => 'ok  github.com/gnolang/gno/misc/gnopreview  0.005s'. The artifact's TestB9ChangedFilesSurviveAZeroBudget is green at head and red under the same mutation: 'chargeFile(\"/r/x/touched$source&file=a.gno\") = false; the changed file was dropped at capture' for a.gno, b.gno and gnomod.toml.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b9-lines-crawl-guards_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 62,
+      "angle": "lines",
+      "summary": "{\"/\", \"_root/index.html\"} pins a mapping no crawl can produce and no link can reach",
+      "failure_scenario": "Seeds() never emits \"/\" (the dir walk stops at strings.Count(d,\"/\") >= 2) and inScope refuses it (base \"/\" ends in a slash, and it matches no realm), so \"/\" is never captured and _root/index.html is never written. mapURL short-circuits target == \"/\" to up+\"index.html\" at crawl.go:399, before the pages lookup, so even a captured root page would stay unlinked. The case pins a branch of urlToFile that cannot run, and a reader takes it as evidence that the root page is handled.",
+      "verify_by": "assert in a test that c.inScope(\"/\") is false and that c.mapURL(\"/\", up) does not contain path.Dir(urlToFile(\"/\")) even with c.pages[\"/\"] populated",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "TestB9RootPageIsUnreachable, run in the scratch worktree: PASS, logging 'urlToFile(\"/\") = \"_root/index.html\", mapURL(\"/\") = \"../../../index.html\"' with c.pages[\"/\"] set and c.inScope(\"/\") false.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 282,
+      "angle": "lines",
+      "summary": "TestSplitURLKeepsTrailingSlash catches nothing five other tests do not, and the property it names lives in urlToFile",
+      "failure_scenario": "The only mutation it can catch is splitURL trimming the trailing slash off base. That mutation is killed by TestSplitURL, TestCanonicalURL, TestCrawlerInScope, TestURLToFile and TestURLToFileIsSafe as well, and the collapse the test's message warns about, the listing landing on the render page, is decided by urlToFile's `listing` flag at crawl.go:490, already covered by TestURLToFile's {\"/r/\", \"r/_dir/index.html\"} case. A reader takes the test as protection for something it does not reach.",
+      "verify_by": "replace `return p, args, query` in splitURL with `return strings.TrimSuffix(p, \"/\"), args, query` and read which tests go red",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "mutation M1 on crawl.go: 'killed by -> TestCanonicalURL TestCrawlerInScope TestSplitURL TestSplitURLKeepsTrailingSlash TestURLToFile TestURLToFileIsSafe'.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 124,
+      "angle": "lines",
+      "summary": "TestMapURL's pages fixture carries File values urlToFile never produces, so it exercises a crawl state that cannot exist",
+      "failure_scenario": "The fixture maps \"/r/x/y$file=a.gno&source\" to File \"r/x/y/_t/file-a.gno-source/index.html\", but slug() appends a hash whenever the sanitised form differs from the input, and \"file=a.gno&source\" sanitises to \"file-a.gno-source\", so urlToFile yields \"r/x/y/_t/file-a.gno-source-<8 hex>/index.html\" (TestURLToFile's own golden for the sibling URL is file-home.gno-source-2ca84ba4). mapURL reads File straight out of the map, so the test still passes, but the expectation string is not what a reader can compare against a real snapshot, and a change to slug's hashing would leave TestMapURL green.",
+      "verify_by": "call urlToFile(\"/r/x/y$file=a.gno&source\") and compare it to the fixture's File value",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "read: crawl.go:520-533 appends '-'+hex(sha256(s)[:4]) whenever out != s, and crawl_test.go:58 pins exactly that shape for the sibling URL, 'r/gnoland/home/_t/file-home.gno-source-2ca84ba4/index.html'.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 304,
+      "angle": "lines",
+      "summary": "TestFileBudgetChargedOnCaptureNotDiscovery pins that every over-budget per-file page is fetched from gnodev before it is thrown away",
+      "failure_scenario": "The test asserts discovery must not be refused before a capture happens, which is what crawl.go:129-141 implements: getRetry fetches the page, then chargeFile decides. Because inScope reads the budget without charging, all of a realm's $source&file= links are queued at discovery, so gnodev renders and chroma-highlights every source file of every realm and the crawler keeps two. The cost is paid on the CI runner for pages that are discarded, and the test name makes it look deliberate rather than measured.",
+      "verify_by": "count the $source&file= URLs queued for a realm with N source files against the pages kept, e.g. by logging c.order and the visited set for a realm whose overview links every file",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "read: crawl.go:129 getRetry precedes crawl.go:138 chargeFile; inScope's wantFile at crawl.go:231 compares the counter without incrementing it, so nothing is charged until capture.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 95,
+      "angle": "lines",
+      "summary": "the directory seeds Seeds() captures are orphaned because gnoweb's breadcrumb emits a trailing slash",
+      "settled_by": "read gno.land/pkg/gnoweb/handler_http.go:1061-1075 and components/layouts/header.html:127: generateBreadcrumbPaths builds part URLs by joining the split path, and the template appends '/' only at `{{ if eq $index 0 }}`, i.e. to \"/r\" alone. \"/r/gnoland\" is linked without a slash, and the harness run confirms it: captured '/r/gnoland -> r/gnoland/index.html' and no broken relative link to it."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 229,
+      "angle": "lines",
+      "summary": "the uncapped ChangedFiles branch lets a wide PR blow MaxPages, and Run turns the cap into an error that fails the render job",
+      "settled_by": "built gnopreview at ecf7af0 and planned the widest realistic sweep, every non-test .gno under examples/gno.land/r (158 files): {\"realms\": 25, \"dropped\": 33, \"changed_files_total\": 75, \"max_files_in_one_realm\": 22}, i.e. ~165 pages against the 400 default cap."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 287,
+      "angle": "lines",
+      "summary": "canonicalURL sorts the web query, so the crawler requests $file=a.gno&source where gnoweb linked $source&file=a.gno",
+      "settled_by": "gno.land/pkg/gnoweb/weburl/url.go:37 declares WebQuery as url.Values, a map, so the mode flag is read by key and the order carries no meaning."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 370,
+      "angle": "lines",
+      "summary": "setNoindex's robotsRe misses the robots meta gnoweb emits, leaving two conflicting directives",
+      "settled_by": "grep 'name=\"robots\"' over gno.land/pkg/gnoweb: components/layouts/head.html:38 '<meta name=\"robots\" content=\"index, follow\" />' and components/views/redirect.html:6 '<meta name=\"robots\" content=\"noindex\" />', both matched by `(?i)<meta\\s+name=\"robots\"[^>]*>`."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 381,
+      "angle": "lines",
+      "summary": "the written snapshot emits relative links that resolve to nothing",
+      "settled_by": "ran the crawler against an httptest server serving gnoweb-shaped HTML, wrote the snapshot, and resolved every href/src against its own file: 5 pages captured, every link resolved except /public/*, which the harness itself left uncopied by passing an empty assets dir to Write."
+    }
+  ]
+}

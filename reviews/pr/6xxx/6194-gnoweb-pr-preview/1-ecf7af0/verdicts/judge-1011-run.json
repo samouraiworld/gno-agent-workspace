@@ -1,0 +1,46 @@
+{
+  "verdicts": [
+    {
+      "index": 73,
+      "angle": "refactor",
+      "verify_by": "hoist u := urlOf(r) above the FileOf call and use it at all three sites; go test ./... in misc/gnopreview",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "misc/gnopreview/shots.go",
+      "line": 72,
+      "tldr": "urlOf(r) is evaluated three times per realm in one loop body; one local removes two calls for one added line",
+      "details": "Read at head: shots.go:72 head.FileOf(urlOf(r)), :76 slug(strings.TrimPrefix(urlOf(r), \"/\")), :89 base.FileOf(urlOf(r)) — three evaluations of the same expression per realm, all on the same r. urlOf (crawl.go:470) is strings.Cut plus a concat and is pure, so the after shot, the slug and the before shot cannot disagree today: the divergence the candidate describes is latent, not a live defect, which is why this is a readability win and not a bug. The minimal hoist is gofmt-clean and the package still passes. Fix: bind u := urlOf(r) above the head.FileOf call and read u at all three sites.",
+      "evidence": "Scratch worktree at ecf7af0f2. Minimal hoist applied to shots.go alone: grep shows 72 u := urlOf(r), 73 head.FileOf(u), 77 slug(strings.TrimPrefix(u, \"/\")), 90 base.FileOf(u); gofmt -l silent; go test ./... -> ok github.com/gnolang/gno/misc/gnopreview 0.005s. Line counts: file 213 -> 214, non-comment 169 -> 170. The finder's artifact reapplied whole from the file: git apply ok, gofmt -l silent, go vet silent, ok github.com/gnolang/gno/misc/gnopreview 0.004s, non-comment 169 -> 170. crawl_test.go and plan_test.go call no symbol declared in shots.go, so green means the package compiles, never that either screenshot pass was exercised.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-shots-dedupe.diff",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 75,
+      "angle": "refactor + catalog",
+      "verify_by": "go doc os/exec.LookPath for the slash rule, then in a scratch dir: touch chromium && chmod -x chromium, and call findChrome(\"\") with CHROME unset from that working directory; observe a non-empty return whose exec fails | read shots.go:195-212: LookPath is the executability test and the Stat fallback has no IsExecutable check; confirm with touch /tmp/x && gnopreview render -chrome /tmp/x",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "misc/gnopreview/shots.go",
+      "line": 208,
+      "tldr": "the os.Stat fallback hands back a browser path that cannot be executed, so a clean skip becomes one exec failure per page",
+      "details": "exec.LookPath resolves a slash-carrying path directly whenever it is runnable, so the -chrome flag, $CHROME and the macOS bundle path all reach the caller through the LookPath branch at shots.go:205. The os.Stat branch at :208 therefore fires only when the path exists, is not a directory, and LookPath refused it — no exec permission. findChrome returns it, bin != \"\", and every chromeShot then dies with permission denied, printing '  ! screenshot <url>: ...' once per page instead of the single '  ! no Chrome/Chromium found' line at :53 and :119. A bare name is worse: os.Stat resolves \"chromium\" against the working directory while exec.Command re-resolves a separator-free name on PATH, so the value returned cannot be run at all, even when the cwd file is executable. What the user loses is the diagnosis, not the preview — screenshots are best-effort and both routes end with no images. Fix: drop the os.Stat branch, or gate it on the executable bit and on the candidate carrying a path separator.",
+      "evidence": "Wrote judge-75-findchrome-stat-fallback_test.go into misc/gnopreview in a scratch worktree at ecf7af0f2 and ran go test -run TestJudge75 -v. All three pass at head. TestJudge75_LookPathCoversExecutableSlashedPath: a 0755 file named 'Google Chrome' comes back from exec.LookPath unchanged, so Stat is never consulted for a runnable candidate. TestJudge75_StatFallbackReturnsNonExecutable, same file at 0644: 'LookPath rejected it: exec: \"/tmp/.../chrome-no-x\": permission denied', findChrome still returns that path, and 'every chromeShot on this bin fails: fork/exec /tmp/.../chrome-no-x: permission denied'. TestJudge75_StatFallbackReturnsBareNameUnrunnable, PATH set to an empty dir, CHROME empty, cwd holding an executable ./chromium: findChrome returns \"chromium\" and 'exec.Command re-resolves it on PATH and fails: exec: \"chromium\": executable file not found in $PATH'.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-75-findchrome-stat-fallback_test.go",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 76,
+      "angle": "refactor",
+      "verify_by": "rename to origin in Screenshot and run go build ./... && go test ./... in misc/gnopreview",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "misc/gnopreview/shots.go",
+      "line": 122,
+      "tldr": "base is the serve() origin string at line 122 and the merge-base *Crawler at line 50, in one file",
+      "details": "shots.go:50 declares func ScreenshotPairs(outDir string, head, base *Crawler, ...) and calls base.FileOf; :122 binds srv, base, err := serve(outDir) and uses base+\"/\"+p.File as an HTTP origin. Same identifier, two types, seventy lines apart, in two functions that share the whole findChrome -> serve -> MkdirAll prologue — the obvious place for a later edit to move a line. The sibling already spells it origin at :56, so the file disagrees with itself. Nothing misbehaves today; the cost is the next reader and the next edit. Fix: rename the Screenshot local to origin, matching ScreenshotPairs.",
+      "evidence": "Scratch worktree at ecf7af0f2. Minimal rename applied to shots.go alone (srv, base -> srv, origin at :122 and its one use at :139): gofmt -l silent, go test ./... -> ok github.com/gnolang/gno/misc/gnopreview. Line counts unchanged, file 213 -> 213 and non-comment 169 -> 169, so this rewrite is free. grep after the rename shows origin at 56, 78, 90, 122, 139 and no remaining string-typed base. The finder's artifact carries the same rename and reapplies clean: gofmt silent, vet silent, ok ... 0.004s.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-shots-dedupe.diff",
+      "base_behaves_the_same": false
+    }
+  ]
+}

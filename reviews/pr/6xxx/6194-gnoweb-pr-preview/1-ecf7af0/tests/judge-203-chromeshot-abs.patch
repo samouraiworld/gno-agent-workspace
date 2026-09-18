@@ -1,0 +1,39 @@
+# The rewrite for candidate #203: delete chromeShot's filepath.Abs block.
+# misc/gnopreview/shots.go 213 -> 209 lines.
+#
+# Repro from a plain clone (needs Chrome on PATH):
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && go vet . && go test .
+# Measured with the b4 fixture's TestChromeShotRelativeDst: the relative dst
+# lands at the same path and the same 5654 bytes with the block and without it.
+--- a/misc/gnopreview/shots.go
++++ b/misc/gnopreview/shots.go
+@@ -164,10 +164,6 @@
+ }
+ 
+ func chromeShot(bin, url, dst string) error {
+-	out, err := filepath.Abs(dst)
+-	if err != nil {
+-		return err
+-	}
+ 	cmd := exec.Command(bin,
+ 		"--headless=new",
+ 		"--disable-gpu",
+@@ -178,13 +174,13 @@
+ 		// Let the controller modules load and the webfonts settle before the
+ 		// frame is grabbed; without it the shot is unstyled text.
+ 		"--virtual-time-budget=4000",
+-		"--screenshot="+out,
++		"--screenshot="+dst,
+ 		url,
+ 	)
+ 	if b, err := cmd.CombinedOutput(); err != nil {
+ 		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(b)))
+ 	}
+-	if fi, err := os.Stat(out); err != nil || fi.Size() == 0 {
++	if fi, err := os.Stat(dst); err != nil || fi.Size() == 0 {
+ 		return fmt.Errorf("chrome wrote no image")
+ 	}
+ 	return nil

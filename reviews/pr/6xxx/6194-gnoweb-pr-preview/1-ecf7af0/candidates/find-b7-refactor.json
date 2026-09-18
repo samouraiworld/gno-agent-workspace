@@ -1,0 +1,102 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 212,
+      "angle": "refactor",
+      "summary": "BuildPlan open-codes hasPrefixAny over gnowebPaths, the helper defined 114 lines below it: 4 lines -> 2",
+      "failure_scenario": "No wrong output: the loop at 212-216 walks all three prefixes even after setting plan.Gnoweb, and the identical predicate is spelled twice in one file, so a change to prefix matching (case folding, a trailing-slash rule) has to be made in two places and the loop is the one a reader forgets.",
+      "verify_by": "git apply reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-hasprefixany.patch at ecf7af0, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "applied at ecf7af0: `git diff --numstat` = `2\t4\tmisc/gnopreview/plan.go`; gofmt silent, vet silent, `ok  github.com/gnolang/gno/misc/gnopreview\t0.005s` (baseline at the same head: same ok line)",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-hasprefixany.patch"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 58,
+      "angle": "refactor",
+      "summary": "Pkg.Draft is computed for every package and read nowhere; modFlags exists only to return it: 12 lines -> 8",
+      "failure_scenario": "`grep -rn Draft misc/gnopreview` returns the field declaration and its one write and nothing else, so every gnomod.toml is scanned for `draft = true` and the answer is discarded. The maintenance cost is the wrong half: the field reads as if draft packages were filtered like ignored ones, so the next reader has to prove they are not. Either drop it, or make it the filter it looks like -- a draft realm is one gnodev may refuse to load, which would abort the preview render rather than skip the realm.",
+      "verify_by": "git apply reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-draft-field.patch at ecf7af0, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...; and grep -rn 'Draft' misc/gnopreview for the read that does not exist",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "`grep -rn 'Draft' --include=*.go misc/gnopreview` -> only `plan.go:58:\tDraft   bool` and `plan.go:142:\t\tpkg.Draft, pkg.Ignore = modFlags(...)`. Rewrite applied (field dropped, modFlags narrowed to ignored()): numstat `8\t12\tmisc/gnopreview/plan.go`, gofmt silent, vet silent, `ok  github.com/gnolang/gno/misc/gnopreview\t0.005s`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-draft-field.patch"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 339,
+      "angle": "refactor",
+      "summary": "mustRel is a panicking 7-line helper with one call site, inside a callback that already returns error: 10 lines -> 5, and plan.go stops importing fmt",
+      "failure_scenario": "The fix sits at the wrong depth: LoadPkgs' WalkDir callback returns error on every other failure (os.ReadDir at 117, the walk's own err at 111), and this one path panics instead. A `gnopreview plan` run whose -root and walked path disagree on absolute vs relative kills the CI step with a stack trace where the sibling errors produce `plan: ...` on stderr. Inlining filepath.Rel with `return err` removes the helper, its one caller's indirection and the fmt import.",
+      "verify_by": "git apply reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-mustrel.patch at ecf7af0, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "`grep -rn mustRel --include=*.go misc/gnopreview` -> one call (plan.go:136) and the definition (plan.go:339); `grep -n 'fmt\\.' plan.go` -> only line 342, inside mustRel. Rewrite applied: numstat `5\t10\tmisc/gnopreview/plan.go`, gofmt silent, vet silent, `ok  github.com/gnolang/gno/misc/gnopreview\t0.005s`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-mustrel.patch"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 335,
+      "angle": "refactor",
+      "summary": "contains() is a one-line alias of slices.Contains, which crawl.go:229 already calls directly: 7 lines -> 5 across three files",
+      "failure_scenario": "The package now spells one stdlib call two ways, and the wrapper shadows the name a reader expects to be `slices.Contains`, so the next grep for call sites of the stdlib helper in this module misses three of the four. Deleting it and calling slices.Contains at plan.go:265, main.go:238 and comment.go:161 costs two import lines and removes four.",
+      "verify_by": "git apply reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-contains-wrapper.patch at ecf7af0, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "call sites: plan.go:265, main.go:238, comment.go:161, against `crawl.go:229: return slices.Contains(changed, name)`. Rewrite applied: numstat `2\t1\tcomment.go`, `2\t1\tmain.go`, `1\t5\tplan.go`; gofmt silent, vet silent, `ok  github.com/gnolang/gno/misc/gnopreview\t0.005s`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-contains-wrapper.patch"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 263,
+      "angle": "refactor",
+      "summary": "the maxRealms cap is applied at 256-259, before the seed realms are appended at 263-270, so a gnoweb change renders up to four realms past the cap and Dropped does not count them",
+      "failure_scenario": "`gnopreview plan -max-realms 2` on a PR that touches gno.land/pkg/gnoweb/ and two realms produces Realms of length up to 6: the cap truncates to 2, then the four gnowebSeedRealms are appended unchecked. The operator knob that exists to bound render cost is enforced at one of the two places that grow the slice, and the Plan doc at line 71 says Realms is `capped at MaxRealms`. Nothing catches it: plan_test.go's fakeRepo contains none of the four seed realms (its own comment at line 111 says so), so the whole append at 263-270 is unexecuted by the suite. The deeper form is one cap applied after both contributors, with Dropped computed there.",
+      "verify_by": "add a seed realm (gno.land/r/gnoland/home) to plan_test.go's fakeRepo and a case with maxRealms 1 plus a gnoweb file, then assert len(Realms) <= 1; expect 2",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "read at ecf7af0: cap at plan.go:256-259 (`plan.Dropped = len(realms) - maxRealms; realms = realms[:maxRealms]`), seeds appended at plan.go:263-270 with no length check; plan_test.go:111 `wantRealms: []string{}, // the seed realms do not exist in the fake repo`",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 284,
+      "angle": "refactor",
+      "summary": "the `_test.gno` / `_filetest.gno` predicate is written twice, at 128 in LoadPkgs and at 284 in renderRelevant",
+      "failure_scenario": "The two sites must agree or a file is planned as render-relevant while its package's file list excludes it (or the reverse). A third test suffix, or a change to how filetests are named, gets added to one of the two -- renderRelevant is the one with a test, LoadPkgs is not -- and the divergence is silent because both halves still return a plausible plan. One `isTestSource(name string) bool` used by both makes the pair impossible to split.",
+      "verify_by": "extract isTestSource and call it from both switches, then cd misc/gnopreview && go test ./... (TestRenderRelevant and TestBuildPlan/'tests and filetests do not trigger a preview' are the two that cover the pair)",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:128 `case strings.HasSuffix(e.Name(), \"_test.gno\"), strings.HasSuffix(e.Name(), \"_filetest.gno\"):` against plan.go:284 `case strings.HasSuffix(base, \"_test.gno\"), strings.HasSuffix(base, \"_filetest.gno\"):`",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 317,
+      "angle": "refactor",
+      "summary": "sortedKeys' 8-line body rewritten as slices.Sorted(maps.Keys(m)), 8 lines -> 3 including the import",
+      "settled_by": "applied at ecf7af0 and run: `go test ./...` -> `--- FAIL: TestBuildPlan/nothing_relevant  plan_test.go:144: Realms = []; want []` plus three more cases (gnoweb_alone, quarantined_packages_never_appear, tests_and_filetests_do_not_trigger_a_preview). slices.Sorted returns nil for an empty map where make([]string, 0, len(m)) returns an empty non-nil slice, and reflect.DeepEqual separates them; Plan.Realms carries no omitempty, so the emitted JSON would flip from [] to null for the consumer. Patch and output kept at tests/b7-refactor-sortedkeys-REFUTED.patch."
+    }
+  ],
+  "blocks_rewritten": [
+    "sortedKeys -> slices.Sorted(maps.Keys(m)): applied and run, refuted by four TestBuildPlan cases (see dropped).",
+    "LoadPkgs' WalkDir callback: WalkDir already yields every entry, so os.ReadDir(p) re-reads each directory; folding the file scan into the walk needs per-directory accumulation state and comes out longer, not shorter.",
+    "BuildPlan's realm ordering (250-260): sortedKeys + sort.SliceStable + truncate + sort.Strings folded into one slices.SortFunc -- the truncate has to sit between the two orderings, so the fold does not exist.",
+    "Plan.Empty() rewritten as `p.Mode() == \"none\"`: one line for one line, and it makes the cheap predicate depend on the string switch.",
+    "dependents()' BFS rewritten as a recursive walk over rev: same line count, and it loses the deterministic sortedKeys(seeds) start order.",
+    "modFlags' line scan replaced by a regexp: one line longer and pulls regexp in for two fixed keys.",
+    "byDir dropped in favour of scanning pkgs per changed file: O(files x pkgs) and no shorter.",
+    "renderRelevant's switch as a slices.ContainsFunc over suffix lists: longer, and it loses the /filetests/ case.",
+    "LoadPkgs' hidden-directory guard (114) returning fs.SkipDir instead of nil: one token, not fewer lines, and it changes what the walk visits -- left to the lines angle."
+  ]
+}

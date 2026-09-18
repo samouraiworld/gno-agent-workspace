@@ -1,0 +1,36 @@
+# Candidate 91: Comment's switch p.Mode() is a two-way branch. Mode() returns four
+# strings and Comment's Empty() guard removes "none", so the default is reached by
+# "both" and "realms" alone and its first statement re-reads p.Gnoweb to tell them
+# apart. Measured at PR 6194 head ecf7af0f2: comment.go 196 -> 195 lines, the
+# Comment body 48 -> 47; `go test ./...` in misc/gnopreview stays green, with
+# tests/b5-refactor-comment-golden_test.go copied in.
+#
+# From a plain clone:
+#
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-91-comment-mode-if.patch
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+diff --git a/misc/gnopreview/comment.go b/misc/gnopreview/comment.go
+index 7d2229734..eaa97822d 100644
+--- a/misc/gnopreview/comment.go
++++ b/misc/gnopreview/comment.go
+@@ -33,8 +33,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 		return fmt.Sprintf("[`%s`](%s%s/)", label, base, urlPath)
+ 	}
+ 
+-	switch p.Mode() {
+-	case "gnoweb":
++	if p.Mode() == "gnoweb" {
+ 		b.WriteString("This PR changes **gnoweb itself**, so the preview is a sample of pages rendered with it:\n\n")
+ 		if base != "" {
+ 			b.WriteString(fmt.Sprintf("**[Open the preview homepage](%s/)**\n\n", base))
+@@ -43,7 +42,7 @@ func Comment(p *Plan, baseURL, pr string) string {
+ 		for _, r := range p.Realms {
+ 			b.WriteString("- " + link(urlOf(r), r) + "\n")
+ 		}
+-	default:
++	} else {
+ 		if p.Gnoweb {
+ 			b.WriteString("This PR changes **gnoweb** and realm sources. ")
+ 			if base != "" {

@@ -1,0 +1,132 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 405,
+      "angle": "lines",
+      "summary": "a page the crawl loses is linked to production gno.land, so the preview shows the live realm under the PR's own preview URL",
+      "failure_scenario": "mapURL's last branch sends any target missing from c.pages to c.Live. That set is not only \"links that leave the preview\", which is what README.md:99 promises: it also holds every in-preview page the crawl dropped. Two ways in. (1) A non-200 or a transport error at crawl.go:138-146 logs one stderr line and continues, so /r/x/y$source is absent and the render page's \"source\" tab becomes href=\"https://gno.land/r/x/y$source\". (2) FileBudget is 0 for every realm-only pull request (main.go:216-221), so each /r/x/y$source&file=N.gno link outside plan.ChangedFiles is refused and rewritten the same way. A reviewer clicking the changed realm's own source file in the PR preview reads production's copy of that file, not the branch's, with nothing in the page or the comment saying so; for a realm the PR adds, gno.land answers 404.",
+      "verify_by": "cp the harness to misc/gnopreview/b2_lines_test.go and run `go test -run TestB2DroppedPageLinksToProduction -v .` in misc/gnopreview: an httptest gnodev answers /r/x/y and 500s on /r/x/y$source; assert Run() == nil and that rewrite of /r/x/y emits href=\"https://gno.land/r/x/y$source\" and href=\"https://gno.land/r/x/y$source&amp;file=a.gno\"",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS. Crawl log: `✓ /r/x/y` then `! /r/x/y$source: HTTP 500`, Run() returned nil, and both assertions held — the render page ships href=\"https://gno.land/r/x/y$source\" and href=\"https://gno.land/r/x/y$source&amp;file=a.gno\". README.md:99 states the live fallback is for \"a link that leaves the preview\".",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-lines-crawl-drops.go.txt"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 127,
+      "angle": "lines",
+      "summary": "reaching -max-pages returns an error that discards every page already crawled, so the pull request gets a red job and no preview at all",
+      "failure_scenario": "Run returns an error at the cap instead of stopping. render() (main.go:134-136) propagates it before c.Write, before Index and before comment.md, so the pages already fetched, the copied assets and the comment are all thrown away and gnopreview exits 1 — the preview job goes red with \"page cap 400 reached\" and the reviewer gets nothing, where truncating and saying so in the comment costs one line. The check also sits at the top of the loop, before the fetch, so it fires on the first unvisited URL past the cap even when every remaining queue entry would have been dropped by a 404 or by chargeFile. README.md:118 calls the cap a backstop.",
+      "verify_by": "`go test -run TestB2PageCapDiscardsEveryCapturedPage -v .` in misc/gnopreview with the harness in place: MaxPages 2, two realms whose render pages answer and whose $source/$help/dir seeds 404; assert Run() != nil and len(c.pages) == 2",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS. `Run() = page cap 2 reached (queue still had 3)` with `2 captured page(s) discarded by the error`; the 3 remaining queue entries were all seeds the server 404s, so the abort fired with zero capturable work left.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-lines-crawl-drops.go.txt"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 153,
+      "angle": "lines",
+      "summary": "Run has no floor: a crawl that captures nothing returns nil and the pipeline publishes an empty preview on a green job",
+      "failure_scenario": "Every fetch failure inside the loop is a stderr line and a continue, and Run ends on an unconditional return nil. waitReady only proves gnodev answered one URL before the crawl; if gnodev dies or wedges during it (an OOM on the runner, the node falling over mid-render), every page errors, c.pages is empty, and render() carries on: Write copies the assets, Index emits \"0 realm(s) rendered\" with an empty <ul>, comment.md is written and posted, and gnopreview exits 0. pr-preview.yml deletes gnodev.log on success and only prints it `if: failure()`, so the sticky comment points a reviewer at a preview with no pages and the log that would explain it is gone.",
+      "verify_by": "the same harness: TestB2DroppedPageLinksToProduction already shows Run() == nil with a page lost; make every handler 500 and assert Run() == nil with len(c.pages) == 0, then read main.go:134-158 for the absence of any page-count check before Write, Index and Comment",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Run() returned nil in the harness with /r/x/y$source lost to a 500. main.go:134-158 gates nothing on len(c.pages); the only use of it is the closing `done: %d page(s)` line at main.go:159. pr-preview.yml:101 `rm -rf _preview/gnodev.log` runs on success, and the log step is `if: failure()`.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-lines-crawl-drops.go.txt"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 209,
+      "angle": "lines",
+      "summary": "the per-realm budget gates only file= query pages; :args render paths are followed without any cap",
+      "failure_scenario": "inScope budgets a URL only when a query part's key is \"file\". A path-argument page, /r/x/y:anything, matches the realm, has an empty query, and returns true — crawl_test.go:87 pins {\"/r/gnoland/home:p/x\", true}. A realm that renders a link per item (a docs index, a board, a paginated list) therefore enqueues one page per link with no per-realm ceiling, and each captured page's own links widen it again. Nothing bounds the snapshot but MaxPages, and by the finding at line 127 hitting MaxPages destroys the whole run rather than truncating it. The body's own size worry (a 700 MiB enforced budget against a 1 GB site cap) is what this feeds.",
+      "verify_by": "read crawl.go:177-214 for any ceiling on the args branch and crawl_test.go:78-105 for what inScope is pinned to accept; grep examples/gno.land/r/docs for the number of \":\" links one rendered page emits",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:204-212 budgets only on key == \"file\"; crawl_test.go:87 asserts /r/gnoland/home:p/x is in scope. No other ceiling exists in inScope, wantFile or chargeFile.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 328,
+      "angle": "lines",
+      "summary": "Run resets c.pages but not c.order, so a second Run on the same Crawler nil-derefs in writePages",
+      "failure_scenario": "Run's first line is c.pages = map[string]*page{} while c.order and c.fileBudget keep whatever the previous call left. A second Run on the same Crawler leaves c.order holding URLs whose pages are gone, and writePages does `p := c.pages[u]` followed by `p.File` with no ok check — a nil pointer dereference that crashes the render. main.go builds a second Crawler for the base pass today, so nobody hits it, but nothing in the type says Run is single-shot and the fix is resetting both fields beside c.pages.",
+      "verify_by": "read crawl.go:110 against 144 and 326-333; call Run twice on one Crawler against an httptest server and observe the panic in writePages",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:110 `c.pages = map[string]*page{}` is the only reset; c.order is appended at 144 and read at 327 with the unchecked deref at 328-329.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 318,
+      "angle": "lines",
+      "summary": "the chroma stylesheet is fetched with both failure paths swallowed and is the one asset that skips the /public/ rewrite",
+      "failure_scenario": "`if body, code, err := c.get(...); err == nil && code == http.StatusOK` has no else. A gnodev that answers the pages but not /public/_chroma/style.css — a version skew, a 404, the 30 s client timeout — leaves every $source page in the snapshot unhighlighted and says nothing on stderr, in index.html or in the comment, while Write still returns nil and the job stays green. The same line also writes the fetched bytes straight through writeFile, so unlike every other .css the copyTree pass at 573-585 touches, any /public/ reference inside it keeps an absolute path that 404s under the preview's subdirectory.",
+      "verify_by": "read crawl.go:318-322 for the missing else and compare with the .js/.css branch at crawl.go:573-585 that copyTree applies to every other stylesheet",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:318-322 is the whole handling; there is no else branch and no stderr line, unlike the copyTree n == 0 warning at 314-316.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 235,
+      "angle": "lines",
+      "summary": "chargeFile spends the per-realm budget per URL rather than per distinct file, and reads the last file= while wantFile checks every one",
+      "failure_scenario": "chargeFile's loop keeps overwriting `name` so only the last file= in the query is considered, while inScope's loop at 204-212 runs wantFile on every one. Two canonical URLs that name the same file — /r/x/y$file=a.gno&source and /r/x/y$help&file=a.gno, both in scope since \"help\" is not in explosiveArgs — each take a unit of a budget whose default is 2, so an untouched dependency realm can spend its whole allowance on one file and capture no second file at all.",
+      "verify_by": "read crawl.go:236-243 against crawl.go:204-212; call c.chargeFile twice with /r/x/y$file=a.gno&source and /r/x/y$help&file=a.gno at FileBudget 2 and observe c.fileBudget[\"gno.land/r/x/y\"] reach 2 for a single file",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:238-241 assigns `name = v` inside the loop with no break and no set; explosiveArgs (crawl.go:160-171) holds oid, tid, download, func and state, not help.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 400,
+      "angle": "lines",
+      "summary": "mapURL sends href=\"/\" to up+\"index.html\", but urlToFile writes the root page to _root/index.html, so the link looked broken",
+      "settled_by": "grep -n 'index.html' misc/gnopreview/main.go → main.go:141 `writeFile(filepath.Join(cfg.out, \"index.html\"), Index(plan, c))` — the snapshot root really does carry an index.html, written by Index rather than by the crawl"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 486,
+      "angle": "lines",
+      "summary": "urlToFile slugs args and query but passes base through raw, so a base carrying .. would escape the output directory once path.Join cleans it",
+      "settled_by": "sed -n '196p' misc/gnopreview/crawl.go → `if base == urlOf(r) {` — inScope admits a link only on an exact match against a realm path, and Seeds builds its directory entries with path.Dir, which Cleans; crawl_test.go:247 already pins the args and query forms"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 583,
+      "angle": "lines",
+      "summary": "copyTree rewrites /public/ to a path relative to the asset file, which would be wrong for a URL the browser resolves against the document",
+      "settled_by": "grep -rn '/public/' gno.land/pkg/gnoweb/public/ → the single hit is `let a=\"/public/js/controller-\"` in public/js/index.js, consumed by `import(i)`; rel is js/index.js so up is \"../\", and a dynamic import resolves against the module URL <out>/public/js/index.js, giving <out>/public/js/controller-<name>.js"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 370,
+      "angle": "lines",
+      "summary": "robotsRe requires name= immediately after <meta, so gnoweb's own robots tag looked like it could survive beside the injected noindex",
+      "settled_by": "grep -rn 'robots' gno.land/pkg/gnoweb/components/ → layouts/head.html:38 `<meta name=\"robots\" content=\"index, follow\" />` and views/redirect.html:6 `<meta name=\"robots\" content=\"noindex\" />`, both matched by the regex and both covered by crawl_test.go:178"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 419,
+      "angle": "lines",
+      "summary": "time.Duration(attempt) * 2 * time.Second looked like a Duration multiplied by a Duration",
+      "settled_by": "Duration is int64 nanoseconds, so Duration(1)*2*time.Second is 2e9 ns; the backoff is the intended 0 s, 2 s, 4 s"
+    }
+  ]
+}

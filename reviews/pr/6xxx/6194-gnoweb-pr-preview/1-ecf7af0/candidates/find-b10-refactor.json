@@ -1,0 +1,105 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 210,
+      "angle": "refactor",
+      "summary": "the two negative screenshot assertions (plan_test.go:210 and :257) cannot fail: both fixtures leave Plan.Shots empty, so shotGrid returns \"\" whatever Comment does",
+      "failure_scenario": "TestCommentRealms asserts the rendered comment carries no \"<table>\" and TestCommentBeforeAfter asserts it carries no \"Home — rendered markdown\", each under a comment stating the invariant (\"Screenshots are a gnoweb-change affordance only\", \"The gnoweb sample and the before/after pairs are alternatives, never both\"). Neither fixture sets Plan.Shots, and shotGrid returns \"\" for an empty slice, so the absence is supplied by the input, not by the code. Delete the `if p.Gnoweb {` guard that wraps `b.WriteString(shotGrid(p.Shots, base))` in comment.go's default branch — the exact guard those two lines read as protecting — and `go test ./... -run TestComment` stays green. The branch they claim to cover, comment.go:47-53 (the Mode()==\"both\" arm that would emit shotGrid beside pairGrid), has zero statement coverage. Fix: add `Shots: []Shot{{File: \"_shots/home.png\", Label: \"Home — rendered markdown\"}}` to both fixtures; both tests then stay green on head and turn red on that mutation.",
+      "verify_by": "cd misc/gnopreview && go test ./... (green), then remove the `if p.Gnoweb` guard around shotGrid in comment.go's default branch and re-run `go test ./... -run TestComment`: still green. Copy tests/b10-refactor-vacuous-shot-assertions_test.go into misc/gnopreview and re-run under the same mutation: red.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "head, unmodified: `ok github.com/gnolang/gno/misc/gnopreview 0.004s`. With the `if p.Gnoweb` guard removed from comment.go's default branch: `go test ./... -run TestComment` -> `ok github.com/gnolang/gno/misc/gnopreview 0.003s` (the PR's own assertions pin nothing). Same mutation, artifact added: `--- FAIL: TestVacuousRealmOnlyCommentDropsShots ... realm-only comment carries a screenshot grid` and `--- FAIL: TestVacuousBeforeAfterDropsGnowebSample`. Adding one Shot to each of the PR's own two fixtures reproduces the same pair of failures under the mutation (`--- FAIL: TestCommentBeforeAfter ... realm change should not carry the gnoweb sample`, `--- FAIL: TestCommentRealms ... realm-only comment should carry no screenshots`) and leaves head green (`ok ... 0.005s`). Coverage on head: `comment.go:47.15,49.18 2 0` and `comment.go:52.4,53.42 2 0` — the Mode()==\"both\" arm is never entered by any test.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-refactor-vacuous-shot-assertions_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 111,
+      "angle": "refactor",
+      "summary": "altitude: the \"gnoweb alone\" case pins wantRealms as empty because fakeRepo omits every seed realm, so BuildPlan's gnowebSeedRealms branch (plan.go:263-270) never appends in any test",
+      "failure_scenario": "The seed-realm append is what every gnoweb-only preview runs in CI: it turns an empty realm list into the four pages of gnowebSeedRealms, and those four realms are what the reviewer clicks. The fixture instead pins the opposite outcome with the comment \"the seed realms do not exist in the fake repo\", so `go test -coverprofile` shows `plan.go:265.51,267.5 1 0` — the `plan.Realms = append(plan.Realms, r)` body never executes. Nothing in the suite covers the two properties that branch decides: that a seed is skipped when pkgs[r] is nil, and that seeds are appended after the maxRealms cap is applied, so a capped gnoweb+realms PR renders maxRealms+4. Deeper form: give fakeRepo one gnowebSeedRealms entry (gno.land/r/gnoland/home) and assert it appears in the \"gnoweb alone\" case, rather than documenting its absence.",
+      "verify_by": "cd misc/gnopreview && go test -coverprofile=/tmp/cov.out ./... && awk -F'[:, ]' '$NF==0' /tmp/cov.out | grep plan.go:265",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "`github.com/gnolang/gno/misc/gnopreview/plan.go:265.51,267.5 1 0` — zero executions of the seed append. `go tool cover -func` reports BuildPlan at 94.2%, and comment.go's isSeed at 66.7% with `contains` at 0.0%, both consistent with no seed realm ever reaching Plan.Realms in the suite.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 58,
+      "angle": "refactor",
+      "summary": "altitude: Pkg.Draft is parsed and never read — modFlags' first return value, the `case \"draft=true\"` branch and the field are six dead lines, or the draft filter is the one that is missing",
+      "failure_scenario": "plan_test.go exercises modFlags through LoadPkgs and only ever asserts on `ignore`. Grepping the whole tool for Draft finds three sites: the field (plan.go:58), the assignment (plan.go:142) and modFlags' return (plan.go:155-168); no reader. The coverprofile confirms the parse branch never fires: `plan.go:162.21,163.16 1 0`. The asymmetry is the wrong way round against the real tree — `examples/gno.land/` holds 0 packages with `ignore = true` (the filter BuildPlan applies, and the one the test fixture has to hand-write) and 1 with `draft = true`, `examples/gno.land/r/demo/draftrealm`, which BuildPlan will happily put in plan.Dirs and hand to gnodev. So either draft packages should be filtered like ignored ones, or the three sites come out and modFlags returns one bool.",
+      "verify_by": "grep -rn 'Draft' misc/gnopreview/*.go (three sites, no reader); grep -rl 'draft *= *true' examples/gno.land/ | wc -l vs grep -rl 'ignore *= *true' examples/gno.land/ | wc -l",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "grep over misc/gnopreview/*.go: `plan.go:58: Draft bool`, `plan.go:142: pkg.Draft, pkg.Ignore = modFlags(...)`, `plan.go:155/162/163/168` inside modFlags — no other occurrence. Coverage: `plan.go:162.21,163.16 1 0`. Tree counts: draft=true -> 1 (`examples/gno.land/r/demo/draftrealm/gnomod.toml`), ignore=true -> 0.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 132,
+      "angle": "refactor",
+      "summary": "rewrite: cmp.Or folds the 4-line maxRealms default and a mustContain helper folds three copies of the same 5-line contains loop — 278 lines to 273, tests green",
+      "failure_scenario": "`limit := tc.maxRealms; if limit == 0 { limit = defaultMaxRealms }` (4 lines) is `cmp.Or(tc.maxRealms, defaultMaxRealms)` inline at the one call site. The same five-line skeleton `for _, want := range []string{...} { if !strings.Contains(got, want) { t.Errorf(\"comment missing %q\\n---\\n%s\", want, got) } }` is written out three times, at plan_test.go:195, :223 and :245, and becomes one `mustContain(t *testing.T, got string, want ...string)` helper with t.Helper(), so a failure reports the caller's line. Altitude half: the 0 sentinel means the table cannot express maxRealms=0, which is the documented no-cap mode of the -max-realms flag (main.go:73), so the only uncapped path has no case; a per-case explicit limit would make it expressible.",
+      "verify_by": "apply both rewrites, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./... && wc -l plan_test.go",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "before `278 plan_test.go`, after `273 plan_test.go`; `gofmt -l .` empty, `go vet ./...` silent, `go test ./...` -> `ok github.com/gnolang/gno/misc/gnopreview 0.006s`.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 19,
+      "angle": "refactor",
+      "summary": "altitude: Comment writes the marker and the heading into the builder and then discards both on the p.Empty() early return; the guard belongs above the work it guards",
+      "failure_scenario": "comment.go:19-20 append CommentMarker and \"### \\ud83d\\uddbc\\ufe0f gnoweb preview\" to the builder, and comment.go:24-26 return \"\" for an empty plan, throwing the builder away. TestCommentEmptyIsSilent (plan_test.go:178) pins the empty return, so the two writes are provably unreachable output. Moving `if p.Empty() { return \"\" }` and its comment above `var b strings.Builder` keeps the suite green and puts the guard first, which is also where the next reader looks for it.",
+      "verify_by": "move the p.Empty() guard above the builder in comment.go, then cd misc/gnopreview && gofmt -l . && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "reordered guard: `gofmt -l .` empty, `go test ./...` -> `ok github.com/gnolang/gno/misc/gnopreview 0.005s`.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 178,
+      "angle": "refactor",
+      "summary": "altitude: 101 of plan_test.go's 278 lines test comment.go, which has no test file of its own while crawl.go has crawl_test.go",
+      "failure_scenario": "TestCommentEmptyIsSilent, TestCommentRealms, TestCommentGnowebHasShots, TestCommentBeforeAfter and TestCommentNoBaseMakesNoClaim (plan_test.go:178-278) exercise Comment, pairGrid, shotGrid, tabs and isSeed, all in comment.go; the package already splits crawl.go/crawl_test.go, so the one-test-file-per-source convention is set and this file breaks it. A reader looking for the comment renderer's coverage opens comment_test.go, finds nothing, and concludes it is untested — which is how the vacuous assertions above survived review. Moving the five tests into comment_test.go costs a file move and no behaviour.",
+      "verify_by": "ls misc/gnopreview/*_test.go (crawl_test.go, plan_test.go; no comment_test.go); sed -n '178,278p' misc/gnopreview/plan_test.go names only comment.go symbols",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "`ls misc/gnopreview` -> comment.go, crawl.go, crawl_test.go, go.mod, main.go, Makefile, plan.go, plan_test.go, README.md, shots.go. No comment_test.go.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 152,
+      "angle": "refactor",
+      "summary": "suspected `got.Empty() != (tc.wantMode == \"none\")` to be a tautology of Mode(), three lines asserting nothing",
+      "settled_by": "mutated plan.go to `func (p *Plan) Empty() bool { return len(p.Realms) == 0 }` and ran `go test ./... -run TestBuildPlan`: `--- FAIL: TestBuildPlan/gnoweb_alone ... plan_test.go:153: Empty = true; want false`. The gnoweb-alone case, whose Realms are empty while Gnoweb is true, falsifies the mutation independently, so the assertion is live."
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 143,
+      "angle": "refactor",
+      "summary": "suspected reflect.DeepEqual(got.Realms, tc.wantRealms) could become slices.Equal, dropping the reflect import",
+      "settled_by": "read plan.go:250-261: Realms comes from sortedKeys, which returns `make([]string, 0, len(m))`, and Plan.Realms carries `json:\"realms\"` into preview.json, which the publish workflow reads. DeepEqual is the only assertion distinguishing `[]` from `null` there; slices.Equal would treat them alike. Kept."
+    }
+  ],
+  "blocks_rewritten": [
+    "fakeRepo's `pkg` closure given a variadic extra-gnomod-line parameter so the hand-written ignored package (plan_test.go:45-47) folds into one pkg() call: 3 lines to 1, but the closure grows a parameter with one caller; net -2 on 278, rejected as below the noise floor.",
+    "the five per-field assertions in the TestBuildPlan subtest body (Gnoweb, Realms, Mode, Dropped, Empty) folded into one reflect.DeepEqual against a want *Plan: rejected, the table sets 4 of Plan's 9 fields and Dirs/ChangedFiles would have to be spelled out per case, which is longer and hides which field differed.",
+    "TestRenderRelevant's table moved under t.Run subtests for parity with TestBuildPlan: rejected, it is a pure-function table with an in/want pair and no fixture, so the subtest wrapper is four lines of furniture per case.",
+    "`got.Empty() != (tc.wantMode == \"none\")` deleted as derivable from Mode(): rejected by the mutation run recorded under dropped.",
+    "reflect.DeepEqual -> slices.Equal on Realms: rejected, see dropped."
+  ]
+}

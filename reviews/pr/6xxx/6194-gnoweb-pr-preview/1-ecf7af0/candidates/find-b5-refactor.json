@@ -1,0 +1,101 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 191,
+      "angle": "refactor",
+      "summary": "Index's header counts len(p.Realms) while its list drops every realm the crawler never captured, so the landing page says it rendered more realms than it lists; the filter sits in Index instead of in the plan, which is why Comment (no crawler) still links the missing ones",
+      "failure_scenario": "gnodev returns HTTP 500 for one of two planned realms: crawl.go Run logs `! /r/x/broken: HTTP 500` to stderr and leaves it out of c.pages. index.html then reads `<p>2 realm(s) rendered with gnodev on a fresh chain.` above a single <li>, and comment.md links https://preview.test/pr-7/r/x/broken/, which 404s on the static host. The only notice that a realm failed is a stderr line inside the CI job log; the reviewer reading the comment sees a complete-looking list. Depth: main.go:139 has c right after c.Run(), so pruning plan.Realms to the captured URLs there fixes the count, the dead links and lets Index drop its own c.pages filter (comment.go:170-172); guarding only inside Index leaves the next reader of Plan.Realms, Comment, unsafe.",
+      "verify_by": "cp tests/b5-refactor-index-parity_test.go misc/gnopreview/ && cd misc/gnopreview && go test -run TestUnrenderedRealmParity -v ./...",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS at head with `index says 2 rendered, lists 1; comment links /r/x/broken/ which is not in the snapshot`. Same shape in the three-realm dump: `<p>3 realm(s) rendered with gnodev on a fresh chain.` over two <li> rows.",
+      "repro_path": "tests/b5-refactor-index-parity_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 175,
+      "angle": "refactor",
+      "summary": "Index computes strings.TrimPrefix(path.Dir(urlToFile(u)), \"/\") three times per row; one `dir` local carries it, 5 lines to 4",
+      "failure_scenario": "No wrong output: urlToFile re-parses and re-slugs the same URL three times per realm and the three copies can drift apart under an edit, since nothing ties the <li> href to the source/help hrefs. Rewrite: `dir := strings.TrimPrefix(path.Dir(urlToFile(u)), \"/\")` then `dir, u, dir, dir` as the Sprintf args.",
+      "verify_by": "apply tests/b5-refactor-comment-shorter.patch, then cd misc/gnopreview && go test ./... with tests/b5-refactor-comment-golden_test.go copied in",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Golden digest bba94764c9cf0495c1a90e4ff5baa5d2c37beace99c5a53d3cec88ee8059fd9a unchanged after the rewrite; `ok github.com/gnolang/gno/misc/gnopreview`; gofmt and go vet clean.",
+      "repro_path": "tests/b5-refactor-comment-shorter.patch"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 56,
+      "angle": "refactor",
+      "summary": "the `direct` set is built to answer one membership test one loop later; contains(p.ChangedRealms, r) says the same in the line that asks, 4 lines removed",
+      "failure_scenario": "No wrong output: a map is allocated and filled on every Comment call, including the branches that never read it, to replace a scan of a list that gates a page of markdown. p.Realms is capped at 25 (main.go defaultMaxRealms) so the scan is at most 25 * len(ChangedRealms) string compares, once per preview build. Rewrite: delete the map and read `if !contains(p.ChangedRealms, r) && ...` in the indirect filter.",
+      "verify_by": "apply tests/b5-refactor-comment-shorter.patch, then cd misc/gnopreview && go test ./... with tests/b5-refactor-comment-golden_test.go copied in",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Golden digest unchanged; package suite ok; comment.go 196 -> 189 lines over the whole rewrite.",
+      "repro_path": "tests/b5-refactor-comment-shorter.patch"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 18,
+      "angle": "refactor",
+      "summary": "the marker and the heading are written into b before the p.Empty() guard that throws them away; the guard belongs at the top of the function",
+      "failure_scenario": "No wrong output: on the empty plan the builder grows two strings that the next statement discards, and the function reads as if the marker always leads the comment when the comment can still be empty. It also puts the one line a future edit would be tempted to `return b.String()` from above the guard. Rewrite: move the three-line guard above `var b strings.Builder`.",
+      "verify_by": "apply tests/b5-refactor-comment-shorter.patch, then cd misc/gnopreview && go test ./... -run TestComment (TestCommentEmptyIsSilent covers this path)",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Golden digest unchanged with base=\"\" and the empty plan among the fixtures; TestCommentEmptyIsSilent still green.",
+      "repro_path": "tests/b5-refactor-comment-shorter.patch"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 29,
+      "angle": "refactor",
+      "summary": "link(urlPath, label) takes two parameters that are never independent: all three call sites pass urlOf(r), r, so the second is derivable and a mismatched pair is expressible; link(pkgPath string) computing urlOf inside is the same 6 lines with one parameter",
+      "failure_scenario": "No wrong output today: the signature promises a call site that labels a link with something other than its own package path, and none exists. It costs the reader the check that the two arguments agree at each of lines 44, 63 and 80, and lets a later edit pass urlOf(a), b silently. Rewrite: `link := func(pkgPath string) string` returning fmt.Sprintf(\"[`%s`](%s%s/)\", pkgPath, base, urlOf(pkgPath)), call sites become link(r).",
+      "verify_by": "apply tests/b5-refactor-comment-shorter.patch, then cd misc/gnopreview && go test ./... with tests/b5-refactor-comment-golden_test.go copied in",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Golden digest unchanged across all five plan shapes and three baseURL shapes; go vet clean.",
+      "repro_path": "tests/b5-refactor-comment-shorter.patch"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 157,
+      "angle": "refactor",
+      "summary": "isSeed(pkgPath string, p *Plan) is a one-call-site free function taking its receiver last; as (p *Plan) isSeed(pkgPath string) it is one expression, 6 lines to 3, and sits beside Empty and Mode where the other Plan predicates live",
+      "failure_scenario": "No wrong output: the argument order reads backwards against every other Plan predicate in the package (p.Empty(), p.Mode()), and the early return spells out what `p.Gnoweb && contains(gnowebSeedRealms, pkgPath)` says in one line. Depth: the seed list is Plan's own concept, so the predicate belongs on Plan rather than in the comment renderer.",
+      "verify_by": "apply tests/b5-refactor-comment-shorter.patch, then cd misc/gnopreview && go test ./... with tests/b5-refactor-comment-golden_test.go copied in",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Golden digest unchanged, including the Gnoweb+realms fixture where a seed realm is filtered out of the indirect list; gofmt clean.",
+      "repro_path": "tests/b5-refactor-comment-shorter.patch"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 36,
+      "angle": "refactor",
+      "summary": "switch p.Mode() has one case and a default whose first statement re-asks p.Gnoweb: a stringly-typed two-way branch reading one fact through two sources; `if p.Mode() == \"gnoweb\"` says it in one line",
+      "failure_scenario": "No wrong output: Mode() returns four strings and Comment distinguishes exactly one of them, so the switch promises per-mode branches that do not exist, and the default then reads p.Gnoweb directly, which is one of the three conjuncts Mode() already tested. Adding a fifth mode to Mode() silently lands in default here. Not applied in the verified rewrite: it is a shape call for the author.",
+      "verify_by": "cd misc/gnopreview && go test ./... with tests/b5-refactor-comment-golden_test.go copied in, after replacing the switch with if/else",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [],
+  "blocks_rewritten": [
+    "folding tabs() into the link closure as one row() helper: tabs' 8 lines reappear inside the closure and the gnoweb branch (line 44) wants the link without tabs, so it needs both helpers anyway; no net line change, rejected",
+    "unifying the two 'This PR changes **gnoweb**' intros across the switch's two branches: their whitespace differs ('...:\\n\\n' + homepage + '\\n\\n' versus '. ' + homepage + '\\n' + '\\n'), so any fold moves bytes in the posted comment; rejected",
+    "hoisting the `base == \"\"` early returns out of shotGrid and pairGrid to the call sites: the caller guards base only for the homepage link, so the guard would have to be repeated at three sites to remove it from two functions; rejected",
+    "sort.Strings(indirect) -> slices.Sort: same line count, and the file still imports sort for nothing else only after the change; not worth a finding",
+    "replacing the three fmt.Sprintf HTML blocks in pairGrid/shotGrid with a shared cell helper: the before-only, pair and single-shot cells differ in the link wrapper and the caption, so the helper needs three parameters and grows the file; rejected"
+  ]
+}

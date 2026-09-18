@@ -1,0 +1,106 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 200,
+      "angle": "claims",
+      "summary": "the snapshot's landing page states that links out of the preview do not work, while the crawler rewrites them to the live site and the same file's comment footer says so",
+      "failure_scenario": "A reviewer opens the preview root and reads \"Static snapshot — transactions, search and links outside the preview do not work\" (comment.go:200-201), so an outbound link reads as dead. mapURL (crawl.go:405) returns c.Live + target for every in-site path that was not captured, and Live defaults to https://gno.land (main.go:28, 70, 127), so the link does work and silently shows master's render of a realm the PR may have changed. comment.go:97 tells the PR reader the opposite: \"links out of the preview go to the live site\". One of the two sentences the diff writes about the same behaviour is false, and it is the one on the page the reviewer lands on.",
+      "verify_by": "grep -n 'return c.Live + target' misc/gnopreview/crawl.go and grep -n 'defaultLive\\|\"live\"\\|Live:' misc/gnopreview/main.go: the uncaptured-link fallback is the live origin, default https://gno.land, so the index page's sentence is false",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:405 `return c.Live + target + frag`; crawl.go:49 `Live string // absolute origin for links we did not capture`; main.go:28 `defaultLive = \"https://gno.land\"`, main.go:127 `Live: strings.TrimSuffix(cfg.live, \"/\")`",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 84,
+      "angle": "claims",
+      "summary": "\"Realms affected through a changed package\" also lists realms that only import a changed realm, and then names no changed package at all",
+      "failure_scenario": "A PR changes examples/gno.land/r/gnops/valopers/valopers.gno and nothing else. BuildPlan puts every changed package into changedPkgs, realms included (plan.go:216-223), and dependents() walks reverse imports from all of them (plan.go:295), so r/gnops/valopers/proposal — which imports the changed realm, not a package — lands in p.Realms. It is not in ChangedRealms and is not a seed, so Comment prints it under \"**Realms affected through a changed package (1)**\"; p.ChangedPkgs is empty, so the `_changed:_` line that would name the culprit is skipped and the reader is told a package changed when none did.",
+      "verify_by": "grep -n 'gno.land/r/gnops/valopers\"' examples/gno.land/r/gnops/valopers/proposal/proposal.gno for the realm-to-realm import, then plan.go:216 (realms enter changedPkgs) and plan.go:295 (dependents seeds from changedPkgs) — the indirect branch has no package to name for that realm",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "60 non-test realm files import another gno.land/r/ path; proposal.gno:7 `valopers \"gno.land/r/gnops/valopers\"`; plan.go:216 `changedPkgs[p.Path] = true` for realms and packages alike",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 99,
+      "angle": "claims",
+      "summary": "the footer promises the preview is rebuilt on every push, but the render workflow only runs on pushes touching the previewed paths and the comment carries no head SHA",
+      "failure_scenario": "A PR changes a realm, gets a preview, then pushes a commit touching only gnovm/ or gno.land/pkg/sdk/. pr-preview.yml's `paths:` filter (lines 17-26: examples/gno.land/**, gnoweb, gnodev, misc/gnopreview, the workflow itself) does not match, so nothing renders and nothing publishes; the sticky comment still reads \"Rebuilt on every push to this PR\" and names no commit, so the reviewer cannot tell the snapshot is of an older head — and a gnovm change is exactly the kind that changes what a realm renders.",
+      "verify_by": "sed -n '14,27p' .github/workflows/pr-preview.yml for the paths filter, and grep -n 'Rebuilt on every push' misc/gnopreview/comment.go: the sentence is emitted whenever pr != \"\", with no rendered-SHA anywhere in the body",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "pr-preview.yml: `on: pull_request: types: [opened, synchronize, reopened]` with `paths:` limited to examples/gno.land/**, gno.land/pkg/gnoweb/**, gno.land/cmd/gnoweb/**, contribs/gnodev/**, misc/gnopreview/**, .github/workflows/pr-preview.yml",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 109,
+      "angle": "claims",
+      "summary": "with an empty baseURL the body drops the screenshots and the before/after pairs entirely, against the godoc's promise that it still lists what was rendered",
+      "failure_scenario": "`gnopreview render` with -base-url unset (its default, main.go:71) on a gnoweb-only change: Comment's godoc (comment.go:24-25) says that when baseURL is empty \"the comment still lists what was rendered, just without links\", but pairGrid (109) and shotGrid (140) return \"\" as soon as base is empty. The body then asserts \"the preview is a sample of pages rendered with it\" and shows no sample: the four screenshots recorded in preview.json appear nowhere, and a realm's before/after pair is not even named.",
+      "verify_by": "go run ./misc/gnopreview render -changed <a gnoweb file list> -out /tmp/p with no -base-url, then grep -c '<img' /tmp/p/comment.md (0) against jq '.shots|length' /tmp/p/preview.json (4)",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "comment.go:109 `if len(pairs) == 0 || base == \"\" { return \"\" }`; comment.go:140 same guard in shotGrid; main.go:71 -base-url defaults to \"\"",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 121,
+      "angle": "claims",
+      "summary": "the comment embeds images from a snapshot the cleanup job deletes on close, and no job can edit the comment afterwards",
+      "failure_scenario": "The footer says the preview is \"removed when PR #N closes\", and pr-preview-cleanup.yml does exactly that: `rm -rf pr-$PR` in gno-previews. Every <img src=\"<base>/...\"> that pairGrid (121, 127, 130) and shotGrid (150) wrote into the sticky comment then 404s, so every merged PR keeps a comment of broken image boxes and dead links in its permanent history. The cleanup job runs with `permissions: {}` and holds only the previews deploy key, so it cannot rewrite the comment it invalidates.",
+      "verify_by": "read .github/workflows/pr-preview-cleanup.yml: `permissions: {}` on both the workflow and the job, `rm -rf \"pr-$PR\"` as its only action, and no gh api call against issues/comments anywhere in it",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "pr-preview-cleanup.yml:31 `permissions: {}`, job-level `permissions: {} # everything this job touches lives in the previews repository`, step `rm -rf \"pr-$PR\"`; no comment PATCH in the file",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 105,
+      "angle": "claims",
+      "summary": "pairGrid claims both columns come from the same gnoweb, so the pair isolates the realm change",
+      "settled_by": "main.go:187 `exec.Command(cfg.gnodev, args...)` runs the same head-built binary for the base pass (renderBase, main.go:252), gnoweb embeds its assets into that binary (gno.land/pkg/gnoweb/static.go:16 `//go:embed public/*`), and the snapshot's public/ tree is copied from cfg.root, the head checkout (main.go:137-138), with base.Write(cfg.out, \"\") copying none: both columns are rendered by head's gnoweb"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 19,
+      "angle": "claims",
+      "summary": "CommentMarker claims the publishing job updates the comment in place; the marker literal could differ from the workflow's copy",
+      "settled_by": "grep -rn 'gnoweb-pr-preview' .github/workflows/pr-preview-publish.yml returns line 169 `marker='<!-- gnoweb-pr-preview -->'`, byte-for-byte the const at comment.go:21, and the body is written by Comment with that const on its first line"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 157,
+      "angle": "claims",
+      "summary": "tabs claims a source/help shortcut for every listed realm; the pages might never be captured",
+      "settled_by": "crawl.go:91-92 seeds `u+\"$source\"` and `u+\"$help\"` for every realm in c.Realms when RenderOnly is false, and crawl.go:485 maps the tab query under `_t/`, so `<realm>/_t/source/` and `_t/help/` are the seeded pages' own output paths — the only loss is the page cap, already covered by the uncaptured-realm candidate at comment.go:63"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 137,
+      "angle": "claims",
+      "summary": "shotGrid claims it embeds the screenshots two per row",
+      "settled_by": "comment.go:146 `if i > 0 && i%2 == 0 { b.WriteString(\"</tr><tr>\") }` opens a new row before every even index, so rows carry two cells and the last carries one when the count is odd"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 25,
+      "angle": "claims",
+      "summary": "Comment's godoc claims baseURL is accepted with or without a trailing slash",
+      "settled_by": "comment.go:37 `base := strings.TrimSuffix(baseURL, \"/\")` and every use is `base + <path>`, so https://x/ and https://x produce byte-identical bodies"
+    }
+  ]
+}

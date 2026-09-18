@@ -1,0 +1,125 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 111,
+      "angle": "tests",
+      "summary": "the only gnoweb-mode case asserts Realms empty, so the seed-realm injection that gives a gnoweb PR anything to preview is untested",
+      "failure_scenario": "plan.go:263-270 is the block that makes a gnoweb-only PR worth previewing: with no changed realm, the four gnowebSeedRealms are what the plan renders. fakeRepo carries none of those four paths, so the `gnoweb alone` case asserts `wantRealms: []string{}` with an inline comment admitting why — it pins the opposite of production. Replace the whole block with `if false { _ = gnowebSeedRealms }` and `go test ./...` is green, so a later edit that drops the seeds ships a preview comment listing zero pages, on exactly the PRs the tool exists for, with no red test.",
+      "verify_by": "in a worktree at ecf7af0f2, replace plan.go:263-270 with `if false { _ = gnowebSeedRealms }`, then `cd misc/gnopreview && go test ./...`",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "mutated tree, shipped suite: `ok github.com/gnolang/gno/misc/gnopreview 0.004s`. Same mutation with the artifact test added: `--- FAIL: TestGnowebSeedRealmsAreSeeded` / `Realms = []; want the seed realm present in the repo` and `Dirs = []; want the seed realm's dir`. Artifact passes on the unmutated head.",
+      "repro_path": "tests/b10-tests-untested-guards_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 211,
+      "angle": "tests",
+      "summary": "`realm-only comment should carry no screenshots` runs against a Plan whose Shots are nil, so it is true by construction",
+      "failure_scenario": "TestCommentRealms builds a Plan with no Shots and then asserts the rendered comment has no `<table>`; shotGrid returns \"\" for an empty slice whatever comment.go does with it, so the assertion holds however the gnoweb sample grid is gated. Hoisting `b.WriteString(shotGrid(p.Shots, base))` above the `if p.Gnoweb {` at comment.go:53 — the edit that would paste the four-page gnoweb sample onto every realm-only PR's comment — leaves the suite green. The `Home — rendered markdown` negative at line 258 is the same shape: that string is a real Shot label (shots.go:108), but the Plan under test again has no Shots.",
+      "verify_by": "in a worktree at ecf7af0f2, move `b.WriteString(shotGrid(p.Shots, base))` out of the `if p.Gnoweb` block of Comment's default branch, then `cd misc/gnopreview && go test ./...`",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "mutated tree, shipped suite: `ok github.com/gnolang/gno/misc/gnopreview 0.005s`. Same mutation with the artifact test added: `--- FAIL: TestRealmsModeDropsGnowebSample` / `realm-only comment carries the gnoweb sample`.",
+      "repro_path": "tests/b10-tests-untested-guards_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 47,
+      "angle": "tests",
+      "summary": "no case edits a file inside the `ignore = true` realm, so BuildPlan's direct-change Ignore guard is unpinned",
+      "failure_scenario": "fakeRepo writes examples/gno.land/r/x/ignored with `ignore = true` and a comment saying it must not show up, but every case reaches it only as a dependent of base, which the `pkgs[p].Ignore` skip at plan.go:241 covers. The other guard, `p != nil && !p.Ignore` at plan.go:220, is what decides a PR that edits that realm's own .gno: without it the realm enters ChangedRealms and plan.Dirs, and main.go:117 starts gnodev on a package gnomod.toml says to skip, so the comment links pages that 404. Dropping `&& !p.Ignore` leaves the suite green.",
+      "verify_by": "in a worktree at ecf7af0f2, change plan.go:220 to `if p := byDir[path.Dir(f)]; p != nil {`, then `cd misc/gnopreview && go test ./...`",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "mutated tree, shipped suite: `ok github.com/gnolang/gno/misc/gnopreview 0.008s`. Same mutation with the artifact test added: `--- FAIL: TestIgnoredRealmChangedDirectly` / `ChangedRealms = [gno.land/r/x/ignored]; want none for an ignored realm`.",
+      "repro_path": "tests/b10-tests-untested-guards_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 145,
+      "angle": "tests",
+      "summary": "the table subtest asserts five Plan fields and never Dirs, ChangedFiles or ChangedPkgs, the three the rest of the tool consumes",
+      "failure_scenario": "The subtest body checks Gnoweb, Realms, Mode, Dropped and Empty. plan.Dirs is the argument main.go:117 hands gnodev; plan.ChangedFiles is what crawl.go:228 and :250 use to choose the before/after pages; plan.ChangedPkgs renders the `_changed:_` line of the comment. Replacing plan.go:274 with `_ = f`, or plan.go:233 with `_ = p`, leaves the whole suite green — crawl_test.go:200 hand-builds its own ChangedFiles map, so the producing side of that contract is pinned nowhere. A BuildPlan regression there yields a preview started on no directories or a comment with no before/after pairs, and CI stays green.",
+      "verify_by": "in a worktree at ecf7af0f2, apply `s/plan.ChangedFiles\\[r\\] = sortedKeys(f)/_ = f/` on plan.go:274, then separately `s/plan.ChangedPkgs = append(plan.ChangedPkgs, p)/_ = p/` on plan.go:233, running `cd misc/gnopreview && go test ./...` after each",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "ChangedFiles mutation, shipped suite: `ok ... 0.006s`; ChangedPkgs mutation, shipped suite: `ok ... 0.004s`. With the artifact test added the first gives `--- FAIL: TestPlanCarriesChangedFilesAndDirs` / `ChangedFiles = map[]; want map[gno.land/r/x/leaf:[lib.gno]]`.",
+      "repro_path": "tests/b10-tests-untested-guards_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 84,
+      "angle": "tests",
+      "summary": "the case named `tests fixtures are not pulled in indirectly` never consults indirectExclude",
+      "failure_scenario": "That case changes examples/gno.land/p/x/mid/v0/lib.gno, but the fixture realm gno.land/r/tests/vm/fixture imports base, not mid, so it is not a dependent and the `hasPrefixAny(p, indirectExclude)` skip at plan.go:244 is never reached. Emptying indirectExclude reddens `transitive dependency pulls both dependents` and `cap keeps the changed realm and reports the rest` and leaves this case green: the one case named after the rule is the one that does not exercise it, so a reader trusts a name the fixture does not back. Fix is one line in fakeRepo — point the fixture's import at mid.",
+      "verify_by": "in a worktree at ecf7af0f2, set `var indirectExclude = []string{}` and run `cd misc/gnopreview && go test -run TestBuildPlan ./...`; read which subtests fail",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "`--- FAIL: TestBuildPlan/cap_keeps_the_changed_realm_and_reports_the_rest` and `--- FAIL: TestBuildPlan/transitive_dependency_pulls_both_dependents` (`Realms = [gno.land/r/tests/vm/fixture gno.land/r/x/leaf gno.land/r/x/other]`); `tests_fixtures_are_not_pulled_in_indirectly` is absent from the failure list.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 96,
+      "angle": "tests",
+      "summary": "`quarantined packages never appear` exercises the same branch as `nothing relevant`, not a quarantine rule",
+      "failure_scenario": "fakeRepo puts the package at examples/quarantined/gno.land/r/x/quar, outside pkgRoot = examples/gno.land, so LoadPkgs never walks it and the changed path fails `strings.HasPrefix(f, pkgRoot+\"/\")` at plan.go:217 — the branch the `nothing relevant` case already covers with docs/x.md. There is no quarantine concept in plan.go for the case to pin, and the fixture package it builds is unreachable by construction.",
+      "verify_by": "grep plan.go for a quarantine check: `grep -n quarantin misc/gnopreview/*.go` returns only plan_test.go, and pkgRoot is examples/gno.land",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:22 `pkgRoot = examplesRel + \"/gno.land\"`; plan.go:217 skips any changed path without that prefix. No quarantine symbol exists outside the test.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 58,
+      "angle": "tests",
+      "summary": "Pkg.Draft is parsed from every gnomod.toml and read by nothing, and no test notices",
+      "failure_scenario": "modFlags parses `draft = true` and plan.go:142 stores it on every package, but grep over misc/gnopreview finds no reader of the field. Deleting the `case \"draft=true\": draft = true` arm leaves the whole suite green. The field is a promise that draft realms are filtered out of a preview; they are not, so a draft realm renders like any other and a reader of the struct is told otherwise.",
+      "verify_by": "`grep -n '\\.Draft' misc/gnopreview/*.go` (only the declaration and the assignment), then delete the draft arm of modFlags and run `cd misc/gnopreview && go test ./...`",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "grep returns plan.go:58 (declaration) and plan.go:142 (assignment) only, no read. Mutated tree, shipped suite: `ok github.com/gnolang/gno/misc/gnopreview 0.005s`.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 187,
+      "angle": "tests",
+      "summary": "TestCommentEmptyIsSilent may hold by construction, since Comment writes the marker and heading into the builder before the Empty check",
+      "settled_by": "changed comment.go:25 from `return \"\"` to `return b.String()` and ran `cd misc/gnopreview && go test ./...`: `--- FAIL: TestCommentEmptyIsSilent`. The test does pin the early return."
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 271,
+      "angle": "tests",
+      "summary": "TestCommentNoBaseMakesNoClaim may not pin the p.New guard in pairGrid",
+      "settled_by": "changed comment.go's `if p.New {` in pairGrid to `if true {` and ran `cd misc/gnopreview && go test ./...`: `--- FAIL: TestCommentNoBaseMakesNoClaim`. The guard is pinned."
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 131,
+      "angle": "tests",
+      "summary": "the cap case may not pin the changed-realm-first sort, only the cap arithmetic",
+      "settled_by": "deleted the `sort.SliceStable(realms, ...)` call at plan.go:253 and ran `go test -run TestBuildPlan ./...`: `--- FAIL: TestBuildPlan/cap_keeps_the_changed_realm_and_reports_the_rest`. The priority sort is pinned."
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 111,
+      "angle": "tests",
+      "summary": "the `indirectExclude` rule as a whole may be untested",
+      "settled_by": "set `var indirectExclude = []string{}` and ran `go test -run TestBuildPlan ./...`: two subtests fail, `transitive_dependency_pulls_both_dependents` reporting `Realms = [gno.land/r/tests/vm/fixture gno.land/r/x/leaf gno.land/r/x/other]`. The rule is covered; only the case named after it is not, which ships as a Nit."
+    }
+  ]
+}

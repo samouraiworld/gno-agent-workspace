@@ -1,0 +1,115 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 370,
+      "angle": "claims",
+      "summary": "nothing pins robotsRe to the template it is written against, and misc/gnopreview is a separate Go module so no import can",
+      "failure_scenario": "setNoindex's comment stakes the gno.land search results on REPLACING gnoweb's own robots meta rather than adding a second one. The match is the regex `(?i)<meta\\s+name=\"robots\"[^>]*>` against a string written in another module: gno.land/pkg/gnoweb/components/layouts/head.html:38. Reorder that tag's attributes (`<meta content=\"index, follow\" name=\"robots\" />`) or switch it to single quotes and robotsRe stops matching; setNoindex falls to its headRe arm and inserts noindexTag as a SECOND tag, so every published preview page ships `index, follow` and `noindex, nofollow` together \u2014 the exact two-conflicting-directives outcome the comment says is not worth betting on. misc/gnopreview/go.mod is `module github.com/gnolang/gno/misc/gnopreview`, so no test there can import gnoweb; crawl_test.go:178 hard-codes today's spelling as a literal, and `grep -rn robots gno.land/pkg/gnoweb/*_test.go` returns nothing, so neither side pins the string. Both trees stay green through the change.",
+      "verify_by": "in a scratch worktree rewrite head.html:38 to `<meta content=\"index, follow\" name=\"robots\" />`, then `cd misc/gnopreview && go test ./...` and `cd gno.land && go test ./pkg/gnoweb/...`: both stay green while robotsRe no longer matches the page gnoweb serves. The test that would fail does not exist: a case reading ../../gno.land/pkg/gnoweb/components/layouts/head.html from disk and asserting robotsRe.MatchString on it.",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "misc/gnopreview/go.mod line 1: `module github.com/gnolang/gno/misc/gnopreview`. grep -rn 'robots' gno.land/pkg/gnoweb/*_test.go gno.land/pkg/gnoweb/components/*_test.go -> no output. crawl_test.go:178 carries the tag as a literal: `<meta name=\"robots\" content=\"index, follow\" />`. head.html:38 is the only emitter of the live tag.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 314,
+      "angle": "claims",
+      "summary": "the guard the comment says warns when /public/js/controller- disappears counts every /public/ in every asset instead",
+      "failure_scenario": "The comment above the guard says the snapshot silently loses every interactive control if the hardcoded prefix stops being there, 'so say so'. What fires the warning is `n == 0`, and n is copyTree's count of EVERY `/public/` occurrence across every .js and .css in the assets tree. Today the guard is correct only by coincidence: `grep -ro '/public/' gno.land/pkg/gnoweb/public --include='*.js' --include='*.css' | wc -l` is 1, and that one hit is the controller prefix in js/index.js. Add one `url(/public/fonts/...)` to main.css, or land the `import.meta.url` fix the PR body offers to take, and n stays >= 1 while the prefix is gone \u2014 the warning never prints and the snapshot ships with every control 404ing from any mount point below the site root.",
+      "verify_by": "grep -rc '/public/' gno.land/pkg/gnoweb/public --include='*.js' --include='*.css' (one file, count 1, js/index.js); then read copyTree line 573: `if n := strings.Count(string(b), \"/public/\"); n > 0 { rewrites += n }` \u2014 the counter is not scoped to the controller prefix the comment names.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rc '/public/' <assets> --include='*.js' --include='*.css' | grep -v ':0$' -> only `public/js/index.js:1`; total occurrences 1; `grep -rn -o '/public/js/controller-' <assets>` -> the same single hit. index.ts:7 `const CONTROLLER_PATH = \"/public/js/controller-\";`",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 231,
+      "angle": "claims",
+      "summary": "the per-file budget bounds what is written, never what is fetched: every over-budget source page is rendered by gnodev and discarded",
+      "failure_scenario": "wantFile's comment defends moving the charge to capture time ('a link that is discovered and then 404s must not spend a slot'), and the charge did move \u2014 but the read side at line 231 tests `c.fileBudget[realm] < c.FileBudget` against a counter only chargeFile advances, and chargeFile runs after getRetry. A realm's $source overview links one page per file, so the whole set clears inScope in one discovery burst, is queued, and each URL is fetched in full from gnodev before chargeFile drops it at line 138. With FileBudget=2 and a 12-file realm that is 12 gnoweb source renders (chroma highlighting included) for 2 kept pages; across the documented 25-realm worst case it is the dominant cost of the crawl. README lines 37-38 report the fix as '22.2 MB / 243 pages -> 8.8 MB / 110 pages' \u2014 both figures are output, and the render work behind them is unchanged. crawl_test.go:304 pins the behaviour rather than bounding it: five discoveries are asserted to pass with FileBudget=1.",
+      "verify_by": "read Run lines 129-141 (getRetry, then the 200 check, then chargeFile) against wantFile line 231; then crawl_test.go:309-313, which loops inScope five times with FileBudget 1 and requires every call to return true. A counting check: point a Crawler at an httptest server whose $source page links 12 file= URLs, FileBudget 2, and count the server's request log \u2014 12 requests, 2 pages in c.pages.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:129-141 orders getRetry -> status check -> chargeFile; crawl.go:231 reads c.fileBudget, crawl.go:259 is the only writer and sits in chargeFile; crawl_test.go:309 `for range 5 { if !c.inScope(\"/r/x/y$source&file=a.gno\") { t.Fatal(...) } }` with FileBudget 1.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 158,
+      "angle": "claims",
+      "summary": "explosiveArgs' header says the top-level $state page is still captured, while \"state\": true in the same map makes inScope drop it",
+      "settled_by": "the code is intentional and only the header is stale: crawl.go:167-170 carries its own justification for the entry, and README lines 112-113 list $state under the deliberately skipped shapes. Fix is comment wording alone, so it ships SKIP per Calibration rather than a candidate."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 28,
+      "angle": "claims",
+      "summary": "suspected the generated root index.html escapes the noindex claim, since writePages only rewrites crawled pages",
+      "settled_by": "grep -rn 'noindex' misc/gnopreview/comment.go -> comment.go:181 `<meta name=\"robots\" content=\"noindex, nofollow\">` inside the Index template written at main.go:141."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 366,
+      "angle": "claims",
+      "summary": "suspected robotsRe misses gnoweb's actual tag, leaving two conflicting robots directives on every page today",
+      "settled_by": "head.html:38 is `<meta name=\"robots\" content=\"index, follow\" />`; `(?i)<meta\\s+name=\"robots\"[^>]*>` matches it ([^>]* absorbs the self-closing slash). Holds at this head; the untested coupling is returned as the Missing test above."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 286,
+      "angle": "claims",
+      "summary": "canonicalURL sorts the web query, so the URL actually fetched is the reordered one \u2014 suspected gnoweb answers it differently",
+      "settled_by": "weburl/url.go:37 `WebQuery url.Values` parsed by url.ParseQuery at ParseFromURL; GetPackageView dispatches on WebQuery.Has(\"help\")/Has(\"source\"), so key order carries no meaning."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 94,
+      "angle": "claims",
+      "summary": "Seeds claims gnoweb answers a single-segment path with 400 and that the directory pages above a realm are captured",
+      "settled_by": "both hold: prepareIndexBodyView's default arm returns http.StatusBadRequest for a path that is neither IsRealm/IsPure/IsUser (\"/r\" fails HasPrefix \"/r/\"), and GetRealmView maps ErrClientPackageNotFound to GetPathsListView, which returns http.StatusOK with the listing."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 392,
+      "angle": "claims",
+      "summary": "suspected `gnoweb emits \"/public//favicon.ico\"` was a stale justification for the path.Clean call",
+      "settled_by": "head.html:35 `<link rel=\"icon\" href=\"{{ .AssetsPath }}/favicon.ico\" ...>` with app.go:92 AssetsPath \"/public/\" \u2014 the double slash is emitted exactly as claimed."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 544,
+      "angle": "claims",
+      "summary": "suspected the /public/ rewrite breaks the controller loader, since a rewritten relative path resolves against the document URL rather than the asset's",
+      "settled_by": "frontend/js/index.ts:38 `modulePromise = import(path)` \u2014 a dynamic import inside the module, so `../js/controller-<name>.js` resolves against index.js's own URL. The minified build carries the same `import(i)`."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 225,
+      "angle": "claims",
+      "summary": "suspected ChangedFiles holds repo-relative paths while gnoweb's file= carries a base name, which would make every changed realm's per-file page miss",
+      "settled_by": "plan.go:225 `changedFiles[p.Path][path.Base(f)] = true`, and plan.go:77 documents base names."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 588,
+      "angle": "claims",
+      "summary": "suspected waitReady draining `died` deadlocks the teardown that also waits on the process",
+      "settled_by": "main.go:199-204 \u2014 `died` is buffered 1 and the goroutine closes a separate `waited` channel after the send; stop() at main.go:205-209 waits on `waited`, never on `died`."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 317,
+      "angle": "claims",
+      "summary": "suspected the hardcoded /public/_chroma/style.css path does not match what gnoweb serves",
+      "settled_by": "app.go:126 `chromaStylePath := path.Join(assetsBase, \"_chroma\", \"style.css\")` with assetsBase \"/public/\", registered at app.go:200; the file is absent from `git ls-files gno.land/pkg/gnoweb/public` (23 tracked files), matching 'generated at runtime, not embedded in public/'."
+    }
+  ]
+}

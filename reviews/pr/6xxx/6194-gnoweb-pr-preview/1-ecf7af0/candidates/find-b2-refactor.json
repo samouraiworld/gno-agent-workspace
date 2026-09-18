@@ -1,0 +1,125 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 126,
+      "angle": "refactor",
+      "summary": "the page cap aborts the crawl where its sibling realm cap truncates and reports, so a wide PR loses the whole preview instead of a bounded one",
+      "failure_scenario": "A pull request that bumps a widely imported p/ package, or touches a realm whose render page links many :p/<arg> views, crosses -max-pages (400). Run returns `page cap 400 reached`, main.go:134 returns before Write, and every captured page is discarded: the render job goes red, no artifact is uploaded, and the publish workflow posts no comment. One level up, plan.go:256-258 meets the same overflow by truncating the realm list and recording plan.Dropped (\"never silently\"), so the reviewer still gets a preview plus a line naming what was left out. The deeper form is the same shape here: stop enqueueing at the cap, write what was captured, and carry a Truncated count into the comment the way Dropped already is. What the shallow form costs to maintain is two caps on one pipeline with opposite failure modes, and a README (line 118) that calls the page cap a backstop.",
+      "verify_by": "cd misc/gnopreview && go test ./... -run PageCap -v with tests/b2-refactor-pagecap_test.go copied in: a Crawler with MaxPages=3 against an httptest gnoweb whose page links ten :p/<n> views",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Green on the unmodified head worktree: `cap tripped: page cap 3 reached (queue still had 31) — 3 captured pages discarded by the caller`, with the three `✓ /r/x/y`, `✓ /r/x/y$source`, `✓ /r/x/y$help` captures printed before the abort. main.go:134-138 reads `if err := c.Run(); err != nil { return err }` ahead of `c.Write(cfg.out, assets)`, so the captured pages never reach disk.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-refactor-pagecap_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 99,
+      "angle": "refactor",
+      "summary": "Seeds 31 -> 18 lines: the `if !c.RenderOnly` wrapper at line 99 is dead (the same flag already `continue`d before dirs could be filled) and the seen/add closure repeats the dedupe Run applies with `visited`",
+      "failure_scenario": "Not a defect: dirs is only written inside the loop body that line 92's `if c.RenderOnly { continue }` skips, so under RenderOnly sortedKeys(dirs) is empty and the guard at line 99 can never change the result. The eight-line add/seen closure dedupes a slice whose only consumer, Run, already skips a repeat through `visited` and stores seeds in a set. Dropping both leaves `for ... { out = append(out, u); ...; }` plus `return append(out, sortedKeys(dirs)...)`: 31 lines become 18, one nesting level and one closure gone. Run's line 117 `queue := append([]string(nil), seeds...)` is the same shape one function over — Seeds returns a fresh slice on every call, so the defensive copy guards nothing and is a nineteenth line to drop.",
+      "verify_by": "cd misc/gnopreview && patch -p1 < tests/b2-refactor-crawl.patch from the repo root, then gofmt -l . && go vet ./... && go test ./... with tests/b2-refactor-crawl-equivalence_test.go copied in, which compares Seeds against the original body over five crawler shapes including a realm nested under another realm",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Patch applies from the repo root; `gofmt -l` silent, `go vet` silent, `ok github.com/gnolang/gno/misc/gnopreview 0.005s` with the package's own tests plus TestRefactorSeedsEquivalent green. crawl.go 611 -> 590 lines overall (39 insertions, 60 deletions). Harness is non-vacuous: dropping the sort from links turned TestRefactorLinksEquivalent and the package's own TestLinks red.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-refactor-crawl-equivalence_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 235,
+      "angle": "refactor",
+      "summary": "chargeFile 29 -> 18 lines: it re-derives (realm, file) from the URL that inScope at line 177 already derived, with two 8-line helpers shared by both (inScope 38 -> 32, 67 -> 66 total but one derivation instead of two)",
+      "failure_scenario": "Not a defect today. The per-file budget is tested in wantFile (reached from inScope, which walks the query and matches base against c.Realms) and charged in chargeFile, which walks the query and matches base against c.Realms again with its own spelling: inScope rejects the page if any file= value fails, chargeFile keeps the last file= it sees, and where base is not a selected realm inScope answers false while chargeFile answers true. Extracting `func (c *Crawler) realmOf(base string) string` and `func fileArg(query string) string` gives both one derivation and collapses chargeFile's realm loop to a straight-line body. The cost of leaving it is that the next change to how gnoweb spells the tab query has to land in two functions that already disagree about a repeated file= and about an unselected realm.",
+      "verify_by": "cd misc/gnopreview && patch -p1 < tests/b2-refactor-crawl.patch from the repo root, then go test ./... with tests/b2-refactor-crawl-equivalence_test.go copied in: TestRefactorInScopeEquivalent and TestRefactorChargeFileEquivalent replay 24 URLs over five crawler shapes, three passes each, and compare the returned bool and the final budget map against the original bodies",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "`ok github.com/gnolang/gno/misc/gnopreview 0.005s`, both equivalence tests green including the final `reflect.DeepEqual(a.fileBudget, b.fileBudget)`. A first attempt that moved the `c.fileBudget == nil` init below the budget check went red on that assertion (`crawler 1: budget map map[]; original map[]` — nil vs allocated), so the shipped form keeps the original init order.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-refactor-crawl-equivalence_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 449,
+      "angle": "refactor",
+      "summary": "links 19 -> 12 lines: it hand-rolls the dedupe-and-sort that the package's own sortedKeys (plan.go:317) already provides, and its `p == \"\"` guard cannot fire behind the `HasPrefix(raw, \"/\")` filter",
+      "failure_scenario": "Not a defect. The body keeps `seen`, a parallel `out`, a `seen[p]` test, an append and a trailing sort.Strings for a result that is exactly sortedKeys(seen); the `p == \"\"` arm is unreachable because raw is already known to start with \"/\", so the cut at \"#\" leaves at least \"/\". `seen[canonicalURL(p)] = true` then `return sortedKeys(seen)` is the same function in 12 lines. One delta to state: sortedKeys returns an allocated empty slice where the original returned nil for a page with no in-site links, and Run's only use is `for _, link := range links(body)`, which cannot tell them apart.",
+      "verify_by": "cd misc/gnopreview && patch -p1 < tests/b2-refactor-crawl.patch from the repo root, then go test ./... with tests/b2-refactor-crawl-equivalence_test.go copied in: TestRefactorLinksEquivalent compares against the original body over four bodies including the empty one, the protocol-relative href and the two query orderings",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Green with the package's own TestLinks. The nil-vs-empty delta is real and was caught by the harness before it was normalised: `links(\"\") = []; original = []` failed reflect.DeepEqual on nil vs an allocated slice.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-refactor-crawl-equivalence_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 304,
+      "angle": "refactor",
+      "summary": "Write's `assets == \"\"` sentinel is a mode flag on a path parameter with one call site; exporting writePages removes the branch and names what the caller wants",
+      "failure_scenario": "Not a defect. main.go:275 calls `base.Write(cfg.out, \"\")` to mean \"this is the prefixed before-pass, the assets are already on disk\", and Write decodes that sentinel into `return c.writePages(dir)`. The method it wants already exists one line down, unexported. Exporting it and calling `base.WritePages(cfg.out)` drops the branch and its comment, and leaves Write's signature saying only what it does. What the sentinel costs: a future caller that genuinely has no assets directory gets the _chroma/style.css fetch silently skipped as well, and the reason is three words in a trailing comment rather than a method name. Same shape as RenderOnly + Prefix + MaxPages=len(realms), all four set together at the single renderBase call site.",
+      "verify_by": "rename writePages to WritePages, replace main.go:275 with base.WritePages(cfg.out), drop crawl.go:304-306; cd misc/gnopreview && go build ./... && go test ./...",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 412,
+      "angle": "refactor",
+      "summary": "getRetry 15 -> 11 lines: three declaration lines exist only to carry the loop's result past its scope, which named results already do",
+      "failure_scenario": "Not a defect. `var body string`, `var code int`, `var err error` above the loop and the duplicated `return body, code, err` in both the loop and the tail are what a named result signature removes: `func (c *Crawler) getRetry(p string) (body string, code int, err error)`, the assignment folded into the if, and `break` where the early return stood. Same values on every path.",
+      "verify_by": "cd misc/gnopreview && patch -p1 < tests/b2-refactor-crawl.patch from the repo root, then gofmt -l . && go vet ./... && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "`gofmt -l` silent, `go vet` silent, `ok github.com/gnolang/gno/misc/gnopreview 0.005s`. No dedicated case in the equivalence harness: the 429 path sleeps 2s then 4s, so it is covered by vet plus the identical return expressions rather than by a six-second test.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-refactor-crawl.patch"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 382,
+      "angle": "refactor",
+      "summary": "mapURL's `raw == \"\"` clause is dead: `!strings.HasPrefix(\"\", \"/\")` is already true, so the next clause returns the empty href untouched",
+      "failure_scenario": "Not a defect. The three-clause guard reads as if the empty href needed its own arm; it does not, and the package's own TestMapURL case `{\"\", \"\"}` passes with the clause removed. One clause, no behaviour.",
+      "verify_by": "cd misc/gnopreview && patch -p1 < tests/b2-refactor-crawl.patch from the repo root, then go test ./... -run MapURL",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "TestMapURL and TestRefactorMapURLEmptyHref both green with the clause removed; `mapURL(\"\", \"../\")` returns \"\".",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-refactor-crawl-equivalence_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 534,
+      "angle": "refactor",
+      "summary": "slug's `out != \"\"` beside `out == s` looked like a redundant clause",
+      "settled_by": "Both are load-bearing: for s == \"\" the two are equal and the clause is what routes the empty input to the digest branch instead of returning an empty path segment that path.Join would swallow. `grep -n 'slug(' crawl.go shots.go` shows only urlToFile (args or query already non-empty) and shots.go:76 (a realm path), so removing it would be safe today and unsafe for the next caller — the guard is at the right depth."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 359,
+      "angle": "refactor",
+      "summary": "rewrite's depth expression `len(strings.Split(strings.Trim(path.Dir(p.File), \"/\"), \"/\"))` looked foldable to strings.Count+1",
+      "settled_by": "Equivalent (p.File comes from path.Join, so it carries no leading or trailing slash) but the same one line either way: no shorter form, so not a refactor candidate."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 582,
+      "angle": "refactor",
+      "summary": "copyTree converts the whole asset to a string three times (strings.Count, then strings.ReplaceAll on string(b))",
+      "settled_by": "bytes.Count/bytes.ReplaceAll is the same line count — an allocation note on every .js and .css asset copied, not a shorter form, so it does not belong in this angle's output."
+    }
+  ],
+  "blocks_rewritten": [
+    "setNoindex (crawl.go:379): tried merging the three branches into one regexp pass; the replace, the head-insert and the no-head prepend are genuinely different operations and the merged form came out longer. Rejected.",
+    "splitURL + canonicalURL (crawl.go:284, 296): tried folding canonicalURL into splitURL; inScope and urlToFile both need the three components unjoined, so the merge only moves the split to three call sites. Rejected.",
+    "explosiveArgs (crawl.go:169): tried a []string plus slices.Contains in place of the map; longer at the call site and loses the per-key comments that carry the measured page and byte costs. Rejected.",
+    "copyTree (crawl.go:556): tried filepath.WalkDir plus bytes.Count/bytes.ReplaceAll; same line count, so it is an allocation note rather than a shorter form. Rejected.",
+    "slug (crawl.go:529): tried dropping the `out != \"\"` clause; it is what keeps an empty input from producing an empty path segment. Rejected, see dropped."
+  ]
+}

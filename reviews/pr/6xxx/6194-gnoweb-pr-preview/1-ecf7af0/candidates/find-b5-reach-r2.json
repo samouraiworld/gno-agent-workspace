@@ -1,0 +1,99 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 166,
+      "angle": "reach",
+      "summary": "Index, the published preview homepage, has zero test coverage; every statement in it is uncovered",
+      "failure_scenario": "go test -coverprofile over misc/gnopreview reports count 0 for every block of Index (166.40,168.29 through 178.2,195.33). Index is the page behind the comment's \"Open the preview homepage\" link and the only artifact the whole crawl is turned into for a reader, yet no test constructs a Plan and a Crawler and reads what it emits. Three of the five tests a first coverage of it would carry fail at this head: the headline count (2 realm(s) rendered above 1 row), the href that ignores Crawler.Prefix, and the source/help links emitted for pages the crawl never captured.",
+      "verify_by": "cd misc/gnopreview && go test -coverprofile=/tmp/cover.out ./... && grep comment.go /tmp/cover.out | awk '$NF==0'  -> every Index block at 0; then copy tests/b5-reach-r2-index-both-mode_test.go in and go test -run B5Reach ./...",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "coverage: comment.go:166.40,168.29 2 0 / 168.29,170.31 2 0 / 170.31,171.12 1 0 / 173.3,176.102 1 0 / 178.2,195.33 1 0. New tests at head: --- FAIL: TestB5ReachIndexCountMatchesRows: index counts 2 realm(s) but carries 1 row(s); --- FAIL: TestB5ReachIndexHonorsCrawlerPrefix; --- FAIL: TestB5ReachIndexTabLinksAreCaptured.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-reach-r2-index-both-mode_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 47,
+      "angle": "reach",
+      "summary": "the Mode()==\"both\" branch and isSeed's seed-membership line are reached by no test",
+      "failure_scenario": "A PR touching gnoweb and realm sources at once is the mixed case the tool exists for, and Comment's branch for it (47-53: the \"changes **gnoweb** and realm sources\" sentence, the homepage link, shotGrid) plus isSeed's membership check (161) are uncovered. Nothing pins which realms that branch lists, so the seed filter can drop or keep the wrong realms with every test still green.",
+      "verify_by": "cd misc/gnopreview && go test -coverprofile=/tmp/cover.out ./... && grep comment.go /tmp/cover.out | awk '$NF==0'  -> 47.15,49.18 / 49.18,51.5 / 52.4,53.42 / 161.2,161.44 all at 0; TestB5ReachCommentBothMode in the artifact is the first test to enter the branch and it passes",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "comment.go:47.15,49.18 2 0 / 49.18,51.5 1 0 / 52.4,53.42 2 0 / 161.2,161.44 1 0; --- PASS: TestB5ReachCommentBothMode (0.00s)",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-reach-r2-index-both-mode_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 30,
+      "angle": "reach",
+      "summary": "the no -base-url shape of the comment, which every local run produces, is covered by no test",
+      "failure_scenario": "-base-url defaults to \"\", so any developer running `gnopreview render` locally gets the degraded comment: link returns a bare code span (30-32), tabs returns \"\" (150-152), shotGrid returns \"\" (131-133). All three blocks are at coverage 0, so that whole comment shape can lose its realm list or its screenshots without a test noticing.",
+      "verify_by": "cd misc/gnopreview && go test -coverprofile=/tmp/cover.out ./... && grep comment.go /tmp/cover.out | awk '$NF==0'  -> 30.17,32.4 / 131.35,133.3 / 150.16,152.3 at 0; every Comment test in plan_test.go passes a non-empty base URL",
+      "band": "Missing test",
+      "checked": true,
+      "run": false,
+      "evidence": "comment.go:30.17,32.4 1 0 / 131.35,133.3 1 0 / 150.16,152.3 1 0; grep 'Comment(' plan_test.go shows every call passing https://example.test/...",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 174,
+      "angle": "reach",
+      "summary": "Index checks that the render page was captured and then links source and help unconditionally, two pages the crawl is free to skip",
+      "failure_scenario": "Crawler.Run logs and continues on a fetch error or a non-200 for any seed (crawl.go: `! %s: %v` then continue, `! %s: HTTP %d` then continue), and $source/$help are seeds like the render page. A realm whose render page came back 200 while its $source 500'd gets a row whose source link points at r/x/leaf/_t/source/, a directory Crawler.Write never created, so the preview homepage serves a 404 for it. The row's own guard at 170 shows the author knew the crawl can miss a page; the two other links on the same row are not behind it.",
+      "verify_by": "Index(&Plan{Realms:[\"gno.land/r/x/leaf\"]}, crawler holding only \"/r/x/leaf\") and grep the output for _t/source/",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestB5ReachIndexTabLinksAreCaptured: index links _t/source/ for a realm whose page was never captured; row emitted: <li><a href=\"r/x/leaf/\"><code>gno.land/r/x/leaf</code></a> <a href=\"r/x/leaf/_t/source/\">source</a> <a href=\"r/x/leaf/_t/help/\">help</a></li>",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-reach-r2-index-both-mode_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 175,
+      "angle": "reach",
+      "summary": "Index recomputes each row's path with urlToFile instead of reading the page's own File, so it silently drops Crawler.Prefix",
+      "failure_scenario": "page.File is path.Join(c.Prefix, urlToFile(u)) and writePages writes exactly there, but Index rebuilds the href from urlToFile alone. The two agree only because render() calls Index with the head crawler, whose Prefix is \"\"; the other Crawler in the program, the merge-base one, carries Prefix \"_before\". Point Index at any prefixed crawler, now or in the next change that adds one, and every link on the preview homepage 404s while the page renders as if fine. c.pages[u].File is the value already computed and already used for writing.",
+      "verify_by": "Index(&Plan{Realms:[\"gno.land/r/x/leaf\"]}, crawler with Prefix \"_before\") and compare the href with c.pages[\"/r/x/leaf\"].File",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestB5ReachIndexHonorsCrawlerPrefix: index links a path the crawler never wrote; page lives at \"_before/r/x/leaf/index.html\"; emitted href=\"r/x/leaf/\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-reach-r2-index-both-mode_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 118,
+      "angle": "reach",
+      "summary": "suspected every changed realm is labelled \"New in this PR\" when no merge-base checkout is given, since renderBase stats baseRoot+dir",
+      "settled_by": "sed -n '225,235p' main.go: renderBase opens with `if cfg.baseRoot == \"\" { return nil, nil }`, so newRealms is nil and ShotPair.New is never set on that path; plan_test.go:271 TestCommentNoBaseMakesNoClaim pins it"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 154,
+      "angle": "reach",
+      "summary": "suspected the _t/source/ and _t/help/ URLs the comment builds do not match the files urlToFile writes for $source and $help",
+      "settled_by": "urlToFile(\"/r/x$source\") routes the query through slug(\"source\"), and slug returns its input unchanged when it carries no unsafe byte (crawl.go: `if out == s && out != \"\" { return out }`), giving r/x/_t/source/index.html — the exact path tabs() links; plan_test.go:197 already asserts https://example.test/pr-7/r/x/leaf/_t/source/"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 121,
+      "angle": "reach",
+      "summary": "suspected a ShotPair can reach pairGrid with an empty After, emitting <img src=\"base/\">",
+      "settled_by": "shots.go ScreenshotPairs sets pair.After only after chromeShot returns nil and `continue`s before the append on failure, so no appended pair has After == \"\""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 137,
+      "angle": "reach",
+      "summary": "suspected shotGrid's i%2 row wrap misplaces </tr><tr> for the four-shot production plan",
+      "settled_by": "shots.go shotPlan has 4 entries; i==2 is the only wrap, giving rows [0,1] and [2,3]. Uncovered by tests (cover.out 137.24,139.4 1 0) but correct."
+    }
+  ]
+}

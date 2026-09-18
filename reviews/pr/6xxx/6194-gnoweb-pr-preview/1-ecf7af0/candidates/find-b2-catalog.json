@@ -1,0 +1,112 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 134,
+      "angle": "catalog",
+      "summary": "a realm page that does not return 200 is dropped, Run() still reports success, and every link to it is rewritten to production gno.land",
+      "failure_scenario": "A PR breaks r/demo/b so gnoweb answers 500 for /r/demo/b. Run() logs \"  ! /r/demo/b: HTTP 500\" to stderr, continues, and returns nil; main.go treats the crawl as a success and publishes the snapshot. mapURL (crawl.go:405) finds no captured page for /r/demo/b, so the link inside the captured page becomes href=\"https://gno.land/r/demo/b\" — the deployed realm. Index (comment.go:168) then omits the realm from the list while its header still reports len(p.Realms), so the count and the list disagree. The reviewer clicks the link the preview offers, sees the old realm render correctly, and concludes the PR is fine. The only trace of the failure is one stderr line in a CI log the preview comment does not link. Catalog class: error & panic handling — a swallowed error on the path that decides what the preview shows.",
+      "verify_by": "go test -run TestCatalogFailedPageSilentlyFallsBackToLive in misc/gnopreview with a httptest gnoweb that 500s one of two seeded realms: expect Run() to report the broken realm, observe nil and a link rewritten to the live origin",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS on head ecf7af0f2: \"  ! /r/demo/b: HTTP 500\" then \"Run() error = <nil>\", \"captured 1 of 2 requested realms, Run() == nil\", and the rewritten body carries href=\"https://gno.land/r/demo/b\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-catalog-crawl-failure-modes_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 127,
+      "angle": "catalog",
+      "summary": "the page cap is unbounded per realm and aborts the whole crawl, discarding every page already captured",
+      "failure_scenario": "inScope follows every render-argument link of a selected realm (/r/x:record), so the page count is set by what the realm renders, not by the size of the diff: a one-realm crawl over a directory realm with 6 records already captures 10 pages, and one with several hundred records blows the 400-page default. At the cap Run() returns an error instead of stopping the crawl, main.go:134 returns it, the \"Render the snapshot\" step in pr-preview.yml fails, upload-artifact never runs, and the PR gets no preview at all — while the pages already captured (3 of 3 in the run below) are thrown away. Catalog class: accounting bound — the cap is charged against what has been captured, does not bound the work, and its only outcome is a hard failure.",
+      "verify_by": "go test -run TestCatalogPageCapDiscardsTheWholeCrawl in misc/gnopreview: crawl one realm emitting N /r/demo/dir:uN links, first uncapped then with MaxPages=3; expect a truncated snapshot, observe an error and a discarded crawl",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS on head ecf7af0f2: \"uncapped crawl captured 10 pages for one realm with 6 records\"; then \"capped Run() error = page cap 3 reached (queue still had 7); pages already captured = 3\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-catalog-crawl-failure-modes_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 486,
+      "angle": "catalog",
+      "summary": "urlToFile slugs the args and query but not the base, and the test that states the escape invariant never exercises that position",
+      "failure_scenario": "TestURLToFileIsSafe (crawl_test.go:243) states \"No output may escape its realm directory\" and checks /r/x/y:.., /r/x/y$.., /r/x/y:../.., /r/x/y:. — every case in the args or query position, which slug() neutralises. The base position has no slug: urlToFile(\"/../../etc/passwd\") returns \"../../etc/passwd/index.html\", which writePages hands to filepath.Join(dir, ...) and writes outside the output tree. Today the only guard is inScope requiring base == urlOf(r), so nothing reaches it through a crawled link; the write path itself is unguarded and the test that claims otherwise passes. A seed built from a pkgPath read out of a PR's own gno.mod (plan.go:183 accepts any string prefixed gno.land/) bypasses inScope entirely.",
+      "verify_by": "call urlToFile(\"/../../etc/passwd\") in misc/gnopreview and check the result stays under the realm directory; add that case to TestURLToFileIsSafe and watch it fail",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "on head ecf7af0f2: urlToFile(\"/../../etc/passwd\") = \"../../etc/passwd/index.html\", while urlToFile(\"/r/x/y:../../..\") = \"r/x/y/_a/297823c2/index.html\" (the slugged position the test covers)",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 421,
+      "angle": "catalog",
+      "summary": "getRetry retries 429 only, so a transient dial error or a 5xx drops the page for good",
+      "failure_scenario": "getRetry loops three times but returns on the first attempt unless the status is exactly 429. gnodev reloads the chain when a watched file changes, and a request in flight during the reload comes back as a dial error or a 5xx; that page is then dropped permanently by crawl.go:130/134, with the silent live-site fallback above. The retry loop exists precisely because the server is flaky, and it covers the one status that is not the flaky case.",
+      "verify_by": "read crawl.go:412-426 and count the statuses that re-enter the loop: only http.StatusTooManyRequests does",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 318,
+      "angle": "catalog",
+      "summary": "the _chroma/style.css fetch swallows both its error and its status, so every $source page can ship unstyled with no signal",
+      "failure_scenario": "Write fetches /public/_chroma/style.css inside an if with err == nil && code == http.StatusOK and no else. If gnodev answers 404 or the connection drops, the stylesheet is simply not written, Write returns nil, and every captured $source page in the snapshot renders its code block without highlighting. Nothing in the job output, the index page or the PR comment says the snapshot is incomplete — the reviewer reads a rendering difference that the PR did not cause.",
+      "verify_by": "read crawl.go:317-322: the failure branch is absent, and Write returns nil either way",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 185,
+      "angle": "catalog",
+      "summary": "inScope rejects any URL carrying render args and a query together, so a subpath's source tab falls through to the live site",
+      "failure_scenario": "A realm that renders subpaths links to /r/x/y:p/about$source. inScope returns false on args != \"\" && query != \"\", the page is never captured, and mapURL sends the link to https://gno.land/r/x/y:p/about$source — the deployed realm, inside a preview of the PR. The comment above the function says render arguments and the tab query \"are part of the same page family, so they are followed\", which is true of each alone and false of the two together.",
+      "verify_by": "call inScope(\"/r/x/y:p/about$source\") with Realms=[\"gno.land/r/x/y\"]; expect true per the comment, observe false at crawl.go:185",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 147,
+      "angle": "catalog",
+      "summary": "determinism: output order or page selection depending on Go map iteration order",
+      "settled_by": "grep -n 'range' crawl.go returns only sortedKeys(dirs) at 100, the seeds slice at 113, links(body) at 147 (sorted before return, crawl.go:465), c.order at 327 and a regexp match slice at 452 — no range over a map reaches the written output"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 523,
+      "angle": "catalog",
+      "summary": "slug truncates at 64 bytes and could split a multi-byte rune into an invalid filename",
+      "settled_by": "ran slug(\"source&file=\"+strings.Repeat(\"é\",80)+\".gno\") on head: \"source-file-.gno-5a7ec76d\" valid-utf8=true len=25 — unsafeSeg replaces every non-ASCII byte before the truncation"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 177,
+      "angle": "catalog",
+      "summary": "path traversal reaching writePages through a crawled link",
+      "settled_by": "inScope (crawl.go:194-203) requires base == urlOf(r) for a realm in c.Realms, and Seeds derives every other entry from path.Dir, which cleans; urlToFile(\"/r/x/y$source&file=../../../../etc/passwd\") = \"r/x/y/_t/source-file-..-..-..-..-etc-passwd-c2dac161/index.html\", inside the realm directory"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 37,
+      "angle": "catalog",
+      "summary": "global mutable state: package-level vars mutated at runtime and raced by a parallel crawl",
+      "settled_by": "the package-level vars are four compiled regexps (crawl.go:37-42) and explosiveArgs (crawl.go:160), none written after init; grep -rn 'go func' misc/gnopreview/*.go returns only main.go:201, the gnodev process wait, and Run is single-goroutine"
+    }
+  ]
+}

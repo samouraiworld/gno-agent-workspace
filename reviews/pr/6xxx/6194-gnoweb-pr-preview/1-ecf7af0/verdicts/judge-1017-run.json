@@ -1,0 +1,31 @@
+{"verdicts": [
+ {"index": 101, "state": "CONFIRMED", "band": "Suggestion",
+  "angle": "refactor + lines + tests + refactor + lines + catalog",
+  "file": "misc/gnopreview/plan.go", "line": 58,
+  "tldr": "Pkg.Draft is written for every package and read by nothing, so the field reads as a filter the tool does not have",
+  "details": "Draft appears three times in the module and never as a read: the declaration at plan.go:58, the write at plan.go:142 (pkg.Draft, pkg.Ignore = modFlags(...)), and the `case \"draft=true\"` arm plus the first return value of modFlags at plan.go:155-168 that feed it. Its sibling Ignore is read twice in the same file, plan.go:218 (`p != nil && !p.Ignore`) and plan.go:242 (`pkgs[p].Ignore`), and plan_test.go covers `ignore = true` at lines 45-47 with no draft case, so nothing notices. The reader's cost is the wrong half: every gnomod.toml under examples/ is scanned for `draft = true` and the answer discarded, while the field's presence makes the next reader prove draft realms are not filtered like ignored ones. The finder's second framing, that the draft filter is the missing one, is not settled here: the tree holds one draft realm, examples/gno.land/r/demo/draftrealm, and the only draft rejection in the chain is gno.land/pkg/sdk/vm/keeper.go:668 `if gm.Draft && height > 0`, which leaves genesis loading alone, so whether a gnodev preview would refuse it needs a boot.",
+  "evidence": "grep -rn 'Draft' misc/gnopreview --include='*.go' at ecf7af0 returns exactly plan.go:58 (`Draft   bool     // gnomod.toml: draft = true`) and plan.go:142, no read. Finder's patch applied in my own scratch worktree: git diff --numstat = `8\t12\tmisc/gnopreview/plan.go` (12 lines -> 8), gofmt -l . silent, go vet ./... silent, `ok  github.com/gnolang/gno/misc/gnopreview\t0.004s`; unpatched baseline at the same head the same ok line. Merge base bbd9b2f has no misc/gnopreview directory at all, so this is new code, not a regression.",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-draft-field.patch",
+  "base_behaves_the_same": false,
+  "verify_by": "git apply reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-draft-field.patch at ecf7af0, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...; and grep -rn 'Draft' misc/gnopreview for the read that does not exist"},
+
+ {"index": 102, "state": "CONFIRMED", "band": "Suggestion",
+  "angle": "refactor",
+  "file": "misc/gnopreview/plan.go", "line": 339,
+  "tldr": "mustRel is a 7-line panicking helper with one caller and is the only reason plan.go imports fmt; inlining filepath.Rel drops 5 lines and the import",
+  "details": "mustRel is defined at plan.go:339-345 and called once, at plan.go:136 inside LoadPkgs' WalkDir callback, which already returns error on the walk's own err (plan.go:111) and on os.ReadDir (plan.go:117). `fmt.` occurs nowhere else in plan.go: line 342, mustRel's panic message, is the file's only use, so the helper carries the import on its own. The finder's failure scenario is the part that does not hold: p is produced by filepath.WalkDir(base, ...) where base := filepath.Join(root, filepath.FromSlash(pkgRoot)) at plan.go:109-110, so every walked path is root's own path extended and cannot disagree with it on absolute versus relative, which is the only way filepath.Rel errors here. The panic is unreachable, so what the reader gains is five lines and one import fewer, not a crash removed.",
+  "evidence": "grep -rn 'mustRel\\|fmt\\.' misc/gnopreview/plan.go at ecf7af0: plan.go:136 (the one call), plan.go:339 (the definition), plan.go:342 (the only fmt. in the file). Finder's patch applied in my scratch worktree: git diff --numstat = `5\t10\tmisc/gnopreview/plan.go` (10 lines -> 5) and the hunk removes `\"fmt\"` from the import block; gofmt -l . silent, go vet ./... silent, `ok  github.com/gnolang/gno/misc/gnopreview\t0.004s`. Merge base bbd9b2f has no misc/gnopreview, so the helper is new code.",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-mustrel.patch",
+  "base_behaves_the_same": false,
+  "verify_by": "git apply reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-mustrel.patch at ecf7af0, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./..."},
+
+ {"index": 100, "state": "CONFIRMED", "band": "Nit",
+  "angle": "refactor",
+  "file": "misc/gnopreview/plan.go", "line": 212,
+  "tldr": "BuildPlan spells the gnowebPaths prefix test by hand while calling hasPrefixAny for the same test 32 lines later",
+  "details": "plan.go:212-216 loops over gnowebPaths setting plan.Gnoweb = true on a strings.HasPrefix match, with no break, so it walks all three prefixes even after matching. hasPrefixAny at plan.go:326-334 is that predicate, and BuildPlan already calls it at plan.go:244 for indirectExclude, so the same function uses both spellings. Output is identical either way: both are true exactly when some prefix matches. What the maintainer loses is that a change to prefix matching, case folding or a trailing-slash rule, has to land in two places, and the open-coded loop is the one a reader forgets.",
+  "evidence": "Read at ecf7af0: plan.go:212 `for _, gw := range gnowebPaths {` ... `if strings.HasPrefix(f, gw) { plan.Gnoweb = true }` against plan.go:326 `func hasPrefixAny(s string, prefixes []string) bool` and its existing caller plan.go:244 `if !changedPkgs[p] && hasPrefixAny(p, indirectExclude)`. Finder's patch applied in my scratch worktree: git diff --numstat = `2\t4\tmisc/gnopreview/plan.go` (4 lines -> 2), gofmt -l . silent, go vet ./... silent, `ok  github.com/gnolang/gno/misc/gnopreview\t0.004s`; unpatched baseline at the same head the same ok line. Merge base bbd9b2f has no misc/gnopreview.",
+  "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-hasprefixany.patch",
+  "base_behaves_the_same": false,
+  "verify_by": "git apply reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-hasprefixany.patch at ecf7af0, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./..."}
+]}

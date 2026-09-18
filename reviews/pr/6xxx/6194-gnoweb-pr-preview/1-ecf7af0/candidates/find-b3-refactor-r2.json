@@ -1,0 +1,85 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 238,
+      "angle": "refactor",
+      "summary": "contains() is a one-line alias of slices.Contains with three call sites, while crawl.go:229 already calls slices.Contains directly: deleting it takes the three files from 880 to 878 lines and leaves one name for the operation",
+      "failure_scenario": "plan.go:335 declares `func contains(s []string, v string) bool { return slices.Contains(s, v) }`; main.go:238, plan.go:265 and comment.go:161 call it, crawl.go:229 calls slices.Contains. A reader greps for one of the two names and misses the other's call sites, and the next contributor has to pick.",
+      "verify_by": "apply tests/b3-refactor-r2-contains-slices.patch at ecf7af0f2, then cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "gofmt -l . silent, go vet ./... silent, 'ok  github.com/gnolang/gno/misc/gnopreview  0.005s'; wc -l main.go plan.go comment.go 339/345/196 = 880 before, 340/341/197 = 878 after (main.go and comment.go each gain one import line, plan.go loses the four-line helper)",
+      "repro_path": "tests/b3-refactor-r2-contains-slices.patch"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 63,
+      "angle": "refactor",
+      "summary": "one flag set serves both subcommands, so `plan` advertises and accepts eight flags it cannot act on (-out, -gnodev, -port, -base-root, -base-url, -pr, -chrome, -timeout)",
+      "failure_scenario": "`gnopreview plan -chrome /nonexistent -port 1 -timeout 1s -out /nope -root <tree> -changed /dev/null` prints the plan JSON and exits 0, and `gnopreview plan -h` lists all thirteen flags. A CI author who puts a render flag on the plan step, or misspells a value, gets no error and no screenshots; the flags each subcommand actually reads are only discoverable by reading render().",
+      "verify_by": "go build -o /tmp/gnopreview . && /tmp/gnopreview plan -h  (expect only -root/-changed/-max-realms/-live; observe all thirteen) && /tmp/gnopreview plan -chrome /nonexistent -port 1 -out /nope -root <tree> -changed /dev/null",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "plan -h prints '-base-root', '-base-url', '-chrome', '-gnodev', '-out', '-port', '-pr', '-timeout' and exits 0; the flagged plan run answers {\"gnoweb\":false,...,\"realms\":[],\"dropped\":0,\"dirs\":null}",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 177,
+      "angle": "refactor",
+      "summary": "gnodev's scratch state is written into -out, the directory that gets published: the keybase at <out>/.gnodev-<port> (177) and the two logs (183), which .github/workflows/pr-preview.yml then has to delete by name before upload",
+      "failure_scenario": "pr-preview.yml:103 carries `rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*` as the only thing keeping the gnodev home and the logs out of the published static site. The guard is at the caller, in another repository file, against three hardcoded names: a fourth scratch file, a renamed log, or any second caller (a local `gnopreview render` the docstring invites, a future workflow) publishes the keybase directory. The deeper form is a work dir of its own — os.MkdirTemp or a -work flag — so -out holds only what is meant to be served.",
+      "verify_by": "grep -n 'rm -rf _preview' .github/workflows/pr-preview.yml, then grep -n 'cfg.out' misc/gnopreview/main.go to list what render writes there",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "pr-preview.yml:103 'rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*'; main.go:177 '-home', filepath.Join(cfg.out, fmt.Sprintf(\".gnodev-%d\", port)) and main.go:183 os.Create(filepath.Join(cfg.out, logName)); upload-artifact at pr-preview.yml:121 takes 'path: _preview' whole",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 267,
+      "angle": "refactor",
+      "summary": "the base pass is a hand-copied second instance of the head pass: boot, Crawler literal, waitReady on urlOf(realms[0]), Run, Write appear at 117-140 and again at 252-279, so every fix to the sequence has to be made twice",
+      "failure_scenario": "The unguarded urlOf(...Realms[0]) probe already exists at both 131 and 267, and the base copy carries none of the head copy's later steps. A fix applied to render() — a guard on the empty realm list, a second probe, a shorter readiness timeout — silently leaves the base pass on the old shape, and the failure shows up as a missing 'before' image nobody can trace. The deeper form is one function (or a Crawler method) taking root, dirs, realms and prefix, with render() and renderBase() differing only in their arguments.",
+      "verify_by": "read main.go:117-140 beside main.go:252-279; both call startGnodev, build a Crawler, call waitReady(base, urlOf(realms[0]), cfg.timeout, died), Run and Write in that order",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "render(): startGnodev 117, Crawler literal 123-130, waitReady 131, c.Run 134, c.Write 138. renderBase(): startGnodev 252, Crawler literal 259-266, waitReady 267, base.Run 271, base.Write 275. Crawler.Seeds() (crawl.go:75-103) already derives urlOf(c.Realms[0]) as its first seed, so both call sites recompute what the crawler owns.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 151,
+      "angle": "refactor",
+      "summary": "render() writes its results back into the Plan it was handed (plan.Pairs 149, plan.Shots 151), so one struct is both the plan subcommand's output and the render subcommand's report",
+      "failure_scenario": "Plan carries Shots and Pairs (plan.go:84-89) that BuildPlan can never set and that `gnopreview plan` can never emit, and renderBase() takes the same *Plan as read-only input while render() mutates it. A reader of preview.json cannot tell which fields describe the intention and which describe the outcome, and any future caller that plans once and renders twice gets the first render's screenshots in the second's record.",
+      "verify_by": "grep -n 'plan\\.\\(Shots\\|Pairs\\)' misc/gnopreview/*.go and grep -n 'Shots\\|Pairs' misc/gnopreview/plan.go: the fields are declared on Plan, never written by BuildPlan, and only assigned in render()",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:84-89 declares Shots []Shot and Pairs []ShotPair on Plan; BuildPlan (plan.go:193-279) never touches either; main.go:149 and 151 are the only writers, both inside render(), between the two writeJSON calls at 113 and 153",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 241,
+      "angle": "refactor",
+      "summary": "renderBase indexes plan.Dirs[i] with an index into plan.Realms, which would stat the wrong directory if the two slices ever drifted",
+      "settled_by": "sed -n '272,277p' misc/gnopreview/plan.go: `for _, r := range plan.Realms { plan.Dirs = append(plan.Dirs, pkgs[r].Dir) ... }` runs after the gnoweb seed realms are appended and after the cap, so Dirs is built in Realms order and the two are aligned by construction"
+    }
+  ],
+  "blocks_rewritten": [
+    "renderBase 252-279: the four `fmt.Fprintln(os.Stderr, \"  ! base render:\", err); return nil, newRealms` sites folded into one report — as an inner closure returning error the tail is 13 lines either way, and as a helper function renderBase+crawlBase comes to 54 lines against 50, because the helper pays for its own signature, doc comment and return",
+    "startGnodev 199-204: the died/waited channel pair replaced with `wait := sync.OnceValue(cmd.Wait)` — two lines out, one line plus a `sync` import in, no reduction",
+    "run 81-85: `root, err := findRoot(cfg.root)` plus `cfg.root = root` folded into `var err error; if cfg.root, err = findRoot(cfg.root); err != nil` — 5 lines become 4, and the hoisted `var err error` costs what the fold saves",
+    "render 123-130 beside renderBase 259-266: the two Crawler literals behind a constructor — six of the fields differ, so the two call sites come out longer than the literals they replace",
+    "readLines 306-324 rewritten over bufio.Scanner — same line count, and the caller wants the whole file, not a stream"
+  ]
+}

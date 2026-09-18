@@ -1,0 +1,116 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 40,
+      "angle": "lines",
+      "summary": "the rewrite covers only href and src, so every realm's $help page publishes the crawl-time http://127.0.0.1:<port> origin",
+      "failure_scenario": "Seeds() adds u+\"$help\" for every realm, so every preview captures one. gnoweb builds that page's function form from buildHelpURL (components/view_action.go:73 = data.Origin + pkgPath + \"$help&func=\"), and handler_http.go:390 sets Origin = requestOrigin(r) — the scheme+host the crawler dialled, i.e. http://127.0.0.1:8899. attrRe at crawl.go:40 matches only href and src, and action.html puts that URL in form action= (line 104) and data-copy-text-value= (line 84). A reviewer who fills in the args form on the published preview and submits it navigates to http://127.0.0.1:8899/... (connection refused on their machine), and the \"Copy function link\" button copies that same localhost URL. mapURL would not save either attribute anyway: it returns raw untouched for anything not starting with \"/\".",
+      "verify_by": "go test -run TestSnapshotKeepsCrawlTimeOrigin ./... in misc/gnopreview with tests/b2-lines-r2-help-origin_test.go: crawl a $help body shaped like action.html against an httptest server, write the snapshot, assert the server host does not survive",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "FAIL. The written r/x/y/_t/help/index.html holds: action=\"http://127.0.0.1:43095/r/x/y$help&amp;func=Foo\" and data-copy-text-value=\"http://127.0.0.1:43095/r/x/y$help&func=Foo\", while the sibling href on the same page was rewritten to ../../../../../r/x/y/_t/source/. Grep evidence: handler_http.go:390 `gnourl.Origin = requestOrigin(r)`; view_action.go:73 `url.WriteString(data.Origin + pkgPath + \"$help&func=\" + fn.Name)`; action.html:104 `action=\"{{ buildHelpURL $data . }}\"`.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-lines-r2-help-origin_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 167,
+      "angle": "lines",
+      "summary": "TestRewriteAddsNoindex is the only test over rewrite() and asserts nothing about the URL rewrite it exists to perform",
+      "failure_scenario": "rewrite() does two jobs: inject noindex and relativize every URL. The test asserts only the first — it counts robots metas on four bodies and never looks at an attribute. No test anywhere writes a page and asserts the result carries no crawl-time origin and no absolute gnoweb path. That is exactly the gap the $help form action falls through; a one-line assertion that the written body contains neither c.Base nor a bare \\\"/r/\\\" would have caught it and would catch the next attribute gnoweb adds.",
+      "verify_by": "grep -n 'href\\|src\\|action\\|c.Base' misc/gnopreview/crawl_test.go between lines 167 and 194: no hit, the test body only counts noindexTag and robots metas",
+      "band": "Missing test",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 444,
+      "angle": "lines",
+      "summary": "io.ReadAll with no limit and no byte budget anywhere: -max-pages bounds the page count, nothing bounds the bytes",
+      "failure_scenario": "get() reads every response whole with io.ReadAll and Run() keeps every body in c.pages until Write(). The PR under preview is what decides those bodies: a realm whose Render() emits a large page, or a $source page of a large changed file, is read into memory, held for the life of the run, and written into the uploaded artifact. grep for LimitReader|MaxBytes|ContentLength|maxSize over misc/gnopreview returns nothing, so the only backstop is -max-pages (400) — a count, not a size. The README quotes 22.2 MB / 243 pages as the shape it has seen, which is the measurement of one run, not a bound.",
+      "verify_by": "grep -rnE 'LimitReader|MaxBytes|ContentLength|maxSize|max-size' misc/gnopreview — expect a byte cap, observe none; then confirm the only cap flag is -max-pages at main.go:74",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 599,
+      "angle": "lines",
+      "summary": "waitReady wraps cmd.Wait()'s error with %w, and a gnodev that exits 0 sends nil, so the diagnostic prints %!w(<nil>)",
+      "failure_scenario": "startGnodev (main.go:198-203) does `died <- cmd.Wait()`, which is nil when gnodev exits with status 0 — a bad flag it rejects cleanly, a `local` subcommand that prints usage and returns. waitReady then returns fmt.Errorf(\"gnodev exited before serving %s — see the gnodev log: %w\", probe, nil), which renders as \"... see the gnodev log: %!w(<nil>)\". The channel was added, per its own comment, so a gnodev that dies on startup reports why; the clean-exit case is the one where it reports garbage instead.",
+      "verify_by": "fmt.Errorf(\"x: %w\", error(nil)) in a scratch main: expect a usable message, observe \"x: %!w(<nil>)\"",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 361,
+      "angle": "lines",
+      "summary": "the cssRe replacement rebuilds url(...) without the quotes it matched, so a rewritten asset path that needs quoting becomes invalid CSS",
+      "failure_scenario": "cssRe (line 41) matches an optional quote — `url\\(\\s*\"?(/public/[^)\"']*)\"?\\s*\\)` — and the replacement at line 361 always emits `url(` + up + path + `)`. A stylesheet that wrote url(\"/public/fonts/My Font.woff2\") comes back as url(../public/fonts/My Font.woff2), which is not a valid unquoted CSS url token; the browser drops the declaration and the asset silently does not load. Keeping sub-match's quoting, or always emitting double quotes, costs one concatenation.",
+      "verify_by": "read crawl.go:41 and 359-362: the regex captures the quote as optional and the replacement never re-emits it",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 38,
+      "angle": "lines",
+      "summary": "headRe is `<head[^>]*>`, which also matches `<header ...>`",
+      "failure_scenario": "setNoindex falls back to headRe when no robots meta is present, and gnoweb's layouts ship `<header class=\"b-header\">` (components/layouts/header.html:5) on every page. A body served without a <head> — the fragment case crawl_test.go:175 says it is defending — has its noindex meta inserted inside the <header> element instead of the document head, where it is not a head meta at all. `<head[\\s>]` matches the real tag and not the other one.",
+      "verify_by": "regexp `(?i)<head[^>]*>` against `<header class=\"b-header\">`: expect no match, observe a match on `<header class=\"b-header\">`",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 578,
+      "angle": "lines",
+      "summary": "copyTree's blanket /public/ -> up rewrite inside .js breaks index.js's dynamic controller import, which resolves against the document rather than the script",
+      "settled_by": "read gno.land/pkg/gnoweb/public/js/index.js: the prefix `a=\"/public/js/controller-\"` is consumed by `s=import(i)`, and a dynamic import() specifier resolves against the referencing script's URL, so ../js/controller-x.js from public/js/index.js lands on public/js/controller-x.js. copyTree's up for rel=js/index.js is \"../\", which is correct."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 39,
+      "angle": "lines",
+      "summary": "robotsRe's `<meta\\s+name=\"robots\"` misses gnoweb's tag if the attributes are ordered otherwise, leaving two contradicting robots metas",
+      "settled_by": "grep -rn robots gno.land/pkg/gnoweb/: head.html:38 `<meta name=\"robots\" content=\"index, follow\" />` and redirect.html:6 `<meta name=\"robots\" content=\"noindex\" />` — name is first in both, so the regex matches and the branch is live, not dead."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 399,
+      "angle": "lines",
+      "summary": "mapURL sends a link to \"/\" to up+index.html, which does not exist in a prefixed crawl",
+      "settled_by": "main.go:141 `writeFile(filepath.Join(cfg.out, \"index.html\"), Index(plan, c))` writes that file at the output root before renderBase runs, so the target resolves for both the prefixed and unprefixed crawls."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 590,
+      "angle": "lines",
+      "summary": "waitReady's url.JoinPath drops the leading slash and requests a relative path",
+      "settled_by": "url.JoinPath on a base with an empty EscapedPath takes the relative branch and strips the leading slash from path.Join, but URL.String() re-adds it when Host is set; the resulting request is http://127.0.0.1:8899/r/x/y. The crawl in tests/b2-lines-r2-help-origin_test.go reached every seed through that path."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 354,
+      "angle": "lines",
+      "summary": "attrRe rewrites href/src occurrences inside the $source view's rendered code, corrupting the displayed source",
+      "settled_by": "chroma's HTML formatter escapes the double quote, so a source line reading href=\"/x\" reaches the page as href=&#34;/x&#34; and never matches attrRe's literal quote."
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 520,
+      "angle": "lines",
+      "summary": "slug's maxSlugLen truncation can split a multi-byte rune and emit an invalid UTF-8 directory name",
+      "settled_by": "unsafeSeg is [^A-Za-z0-9._-]+, so every non-ASCII byte is replaced with '-' before the truncation; out is pure ASCII by the time out[:maxSlugLen] runs."
+    }
+  ]
+}

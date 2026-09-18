@@ -1,0 +1,119 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 171,
+      "angle": "catalog",
+      "summary": "chromeShot runs the browser with no deadline, so a headless Chrome that never exits blocks the render step indefinitely",
+      "failure_scenario": "Chrome hangs on the runner (crashpad handler stuck, a profile lock left by the previous invocation, a renderer that never reaches --virtual-time-budget). exec.Command has no context and CombinedOutput blocks forever; ScreenshotPairs never returns, so the render step never finishes, the artifact is never uploaded and no preview comment is posted. Every other subprocess the tool starts is bounded (-timeout, default 5m, main.go:76, passed to waitReady at main.go:131 and main.go:267), and none of the three workflows sets timeout-minutes, so the job holds a runner until GitHub's 360-minute default kills it with no log (the render step deletes gnodev.log only on success, and the failure() log step does not run on a cancelled job).",
+      "verify_by": "go test -run TestChromeShotHasNoDeadline in misc/gnopreview with a stub browser that sleeps: chromeShot must return a deadline error; observe it still blocked after 6s. Plus grep -c timeout-minutes .github/workflows/pr-preview*.yml, all three 0.",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "TestChromeShotHasNoDeadline: 'chromeShot still blocked after 6s on a browser that never exits: no deadline bounds exec.Command' --- PASS (6.00s). grep -c timeout-minutes over pr-preview.yml, pr-preview-publish.yml, pr-preview-cleanup.yml returns 0,0,0. main.go:76 fs.DurationVar(&cfg.timeout, \"timeout\", 5*time.Minute, ...) bounds gnodev only.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-catalog-chromeshot-timeout_test.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 163,
+      "angle": "catalog",
+      "summary": "serve returns the net.Listener as the io.Closer, so the http.Server is never Closed and the //nolint comment describes a Close that never happens",
+      "failure_scenario": "serve() builds srv := &http.Server{...} but returns ln. The callers' defer srv.Close() (shots.go:61, shots.go:127) closes the listener; http.Server.Close(), which drains tracked connections, is never called, and the goroutine's Serve error is discarded under //nolint:errcheck // Serve always returns on Close. A bind that succeeds but a Serve that fails immediately leaves every chromeShot reporting Chrome's own connection error instead of the real cause. The process exits shortly after, so nothing leaks past it.",
+      "verify_by": "read shots.go:153-163 against shots.go:61 and shots.go:127: the value named srv at the call sites is the listener, and no reference to the *http.Server survives serve().",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 208,
+      "angle": "catalog",
+      "summary": "findChrome's os.Stat fallback returns a path exec.LookPath already rejected as non-executable",
+      "failure_scenario": "-chrome or $CHROME points at a regular file with no exec bit (a wrapper saved without chmod, a downloaded archive member). exec.LookPath fails, os.Stat succeeds and !IsDir, so findChrome returns it as the browser. The 'no Chrome/Chromium found - publishing the preview without screenshots' branch is skipped, and every chromeShot instead fails with fork/exec: permission denied, once per realm, so the operator reads N exec errors rather than the one line the code was written to print.",
+      "verify_by": "read shots.go:195-212: LookPath is the executability test and the Stat fallback has no IsExecutable check; confirm with touch /tmp/x && gnopreview render -chrome /tmp/x.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 134,
+      "angle": "catalog",
+      "summary": "Screenshot looks up c.pages by canonicalURL while Crawler.Run inserts under the raw URL, so the two keying conventions disagree on any multi-arg query",
+      "failure_scenario": "crawl.go:142 stores c.pages[u] under the raw crawled URL; shots.go:134 and crawl.go:338 (FileOf) read c.pages[canonicalURL(u)], which sorts the &-separated query parts, while comment.go:170 (Index) reads it raw again. A page reached through a link whose query parts are not already in sorted order is stored under one key and looked up under another, so it is silently absent from the screenshot plan and from FileOf while still being written to disk and listed by Index. Only plain realm URLs and single-part queries, which is every shotPlan entry today, hide the mismatch.",
+      "verify_by": "grep -n 'c.pages\\[' misc/gnopreview/*.go: crawl.go:142 inserts under u, crawl.go:338 and shots.go:134 read canonicalURL(u), comment.go:170 reads u.",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 52,
+      "angle": "catalog",
+      "summary": "ScreenshotPairs and Screenshot return no error, so a mkdir or listener failure is a stderr line and an empty result rather than a failed render",
+      "failure_scenario": "os.MkdirAll on _shots fails (read-only -out, a name collision with a crawled page) or net.Listen on 127.0.0.1:0 fails. Both print one stderr line and return nil, the render step exits 0, the artifact uploads, and the posted comment carries no before/after with nothing in it saying why. The workflow comment at pr-preview.yml:88 sanctions exactly one of those cases, a missing browser, and the same silent path now covers the two that are real failures of the tool's own environment.",
+      "verify_by": "read shots.go:50-66 and shots.go:116-131: three early returns, all returning nil with no error channel back to render(); main.go:149 and main.go:151 assign the result and never check it.",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 174,
+      "angle": "catalog",
+      "summary": "--no-sandbox renders pull-request-authored realm output in an unsandboxed browser",
+      "failure_scenario": "The pages fed to Chrome are gnoweb's render of realm source taken from the pull request, so their content is fork-authored. With --no-sandbox a renderer compromise reaches the host directly. In pr-preview.yml no boundary is crossed, since that job already builds and runs the fork's gnodev and holds no secrets. The README documents the same command for a local run, where the host is a maintainer's machine, and that is the case the flag is not argued for anywhere in the diff.",
+      "verify_by": "read shots.go:171-181 and misc/gnopreview/README.md's local-run section; confirm pr-preview.yml's job has no secrets and already executes fork code (it builds contribs/gnodev from the checkout).",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 68,
+      "angle": "catalog",
+      "summary": "determinism: maxPairs=2 truncates realms, so which two get before/after could depend on map iteration order",
+      "settled_by": "plan.go:230 builds ChangedRealms from sortedKeys(changedPkgs), and plan.go:317-323 is a range-then-sort.Strings; newRealms is read by key only (shots.go:77) and shotPlan is a package-level slice. No map range reaches an output path."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 76,
+      "angle": "catalog",
+      "summary": "path traversal or collision: slug() feeds filepath.Join(outDir, _shots, name+\"-after.png\")",
+      "settled_by": "go test -run TestSlugStaysInsideShotsDir: slug(\"..\")=\"5ec1f7e7\", slug(\"../..\")=\"0cfd1c96\", slug(\"r/../../../etc/passwd\")=\"r-..-..-..-etc-passwd-f89a28cf\", slug(\"/\")=\"8a5edab2\". unsafeSeg strips every separator, Trim(out, \"-.\") empties a pure-dots name, and the sha256 suffix is appended whenever out != s, which covers both truncation at maxSlugLen and every rewritten character."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 107,
+      "angle": "catalog",
+      "summary": "global mutable state and concurrency: shotPlan is a package-level var and serve() starts a goroutine",
+      "settled_by": "grep -n '^var ' misc/gnopreview/*.go lists seven package vars (crawl.go:37,160,478, plan.go:28,37,48, shots.go:107), all composite literals assigned at init and never written afterwards. The single goroutine, go srv.Serve(ln), shares only the listener, and ScreenshotPairs and Screenshot are mutually exclusive at main.go:147-151."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 1,
+      "angle": "catalog",
+      "summary": "the gno-specific catalog classes: gas, realm state safety, caller and access control, coin and banker, storage deposit, VM-fault recoverability, VM semantics vs Go, type-check and preprocess",
+      "settled_by": "The bundle is a Go host program under misc/gnopreview with its own go.mod; it imports fmt, io, net, net/http, os, os/exec, path, path/filepath, strings, time and nothing from gnovm or gno.land. No .gno file, no VM op, no realm. review.md gates the catalog off for tooling-only diffs and these eight classes have no material here."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 186,
+      "angle": "catalog",
+      "summary": "error handling: os.Stat's error is discarded and fi.Size() could deref a nil fi",
+      "settled_by": "shots.go:186 is `if fi, err := os.Stat(out); err != nil || fi.Size() == 0`; Go's || short-circuits, so fi.Size() is evaluated only when err is nil. No nil deref; the discarded Stat error is subsumed by the fixed 'chrome wrote no image' message."
+    }
+  ]
+}

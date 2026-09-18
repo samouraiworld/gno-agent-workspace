@@ -1,0 +1,112 @@
+# judge-134 — plan_test.go: cmp.Or folds the maxRealms default, mustContain folds
+# three copies of the same contains loop. 278 lines -> 273; gofmt clean, go vet
+# silent, go test green at head ecf7af0f29abe4737a52803d672bc5a33c17cc60.
+#
+# from a local clone of gnolang/gno:
+#   gh pr checkout 6194 -R gnolang/gno && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   curl -fsSL -o /tmp/j134.patch https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-134-plan-test-cmp-or-mustcontain.patch
+#   git apply /tmp/j134.patch
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./... && wc -l plan_test.go
+#   git checkout -- misc/gnopreview/plan_test.go
+diff --git a/misc/gnopreview/plan_test.go b/misc/gnopreview/plan_test.go
+index d63d805ef..a50d141aa 100644
+--- a/misc/gnopreview/plan_test.go
++++ b/misc/gnopreview/plan_test.go
+@@ -1,6 +1,7 @@
+ package main
+ 
+ import (
++	"cmp"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+@@ -50,6 +51,16 @@ func fakeRepo(t *testing.T) string {
+ 	return root
+ }
+ 
++// mustContain fails the test for every want the rendered comment is missing.
++func mustContain(t *testing.T, got string, want ...string) {
++	t.Helper()
++	for _, w := range want {
++		if !strings.Contains(got, w) {
++			t.Errorf("comment missing %q\n---\n%s", w, got)
++		}
++	}
++}
++
+ func TestBuildPlan(t *testing.T) {
+ 	t.Parallel()
+ 	root := fakeRepo(t)
+@@ -129,11 +140,7 @@ func TestBuildPlan(t *testing.T) {
+ 	} {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			t.Parallel()
+-			limit := tc.maxRealms
+-			if limit == 0 {
+-				limit = defaultMaxRealms
+-			}
+-			got, err := BuildPlan(root, tc.changed, limit)
++			got, err := BuildPlan(root, tc.changed, cmp.Or(tc.maxRealms, defaultMaxRealms))
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+@@ -192,7 +199,7 @@ func TestCommentRealms(t *testing.T) {
+ 		Dropped:       3,
+ 	}
+ 	got := Comment(p, "https://example.test/pr-7/", "7")
+-	for _, want := range []string{
++	mustContain(t, got,
+ 		CommentMarker,
+ 		"**Changed realms (1)**",
+ 		"https://example.test/pr-7/r/x/leaf/",
+@@ -201,11 +208,7 @@ func TestCommentRealms(t *testing.T) {
+ 		"gno.land/p/x/base/v0",
+ 		"3 more affected realm(s) were **not** rendered",
+ 		"PR #7 closes",
+-	} {
+-		if !strings.Contains(got, want) {
+-			t.Errorf("comment missing %q\n---\n%s", want, got)
+-		}
+-	}
++	)
+ 	// Screenshots are a gnoweb-change affordance only.
+ 	if strings.Contains(got, "<table>") {
+ 		t.Errorf("realm-only comment should carry no screenshots:\n%s", got)
+@@ -220,15 +223,11 @@ func TestCommentGnowebHasShots(t *testing.T) {
+ 		Shots:  []Shot{{File: "_shots/home.png", Label: "Home"}},
+ 	}
+ 	got := Comment(p, "https://example.test/pr-9", "9")
+-	for _, want := range []string{
++	mustContain(t, got,
+ 		"changes **gnoweb itself**",
+ 		`<img src="https://example.test/pr-9/_shots/home.png"`,
+ 		"https://example.test/pr-9/r/gnoland/home/",
+-	} {
+-		if !strings.Contains(got, want) {
+-			t.Errorf("comment missing %q\n---\n%s", want, got)
+-		}
+-	}
++	)
+ }
+ 
+ func TestCommentBeforeAfter(t *testing.T) {
+@@ -242,17 +241,13 @@ func TestCommentBeforeAfter(t *testing.T) {
+ 		},
+ 	}
+ 	got := Comment(p, "https://example.test/pr-5", "5")
+-	for _, want := range []string{
++	mustContain(t, got,
+ 		`<img src="https://example.test/pr-5/_shots/r-x-leaf-before.png"`,
+ 		"before — merge base",
+ 		"<b>after — this PR</b>",
+ 		// a realm the PR adds has no before, and the comment says why
+ 		"New in this PR — nothing to compare against.",
+-	} {
+-		if !strings.Contains(got, want) {
+-			t.Errorf("comment missing %q\n---\n%s", want, got)
+-		}
+-	}
++	)
+ 	// The gnoweb sample and the before/after pairs are alternatives, never both.
+ 	if strings.Contains(got, "Home — rendered markdown") {
+ 		t.Errorf("realm change should not carry the gnoweb sample:\n%s", got)

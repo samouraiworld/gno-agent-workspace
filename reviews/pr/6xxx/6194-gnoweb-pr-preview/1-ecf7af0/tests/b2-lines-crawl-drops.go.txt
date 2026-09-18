@@ -1,0 +1,103 @@
+// b2-lines-crawl-drops — two checks on misc/gnopreview/crawl.go at ecf7af0f2.
+//
+// Repro from a plain clone:
+//
+//	git clone https://github.com/gnolang/gno gno && cd gno
+//	git fetch origin ecf7af0f29abe4737a52803d672bc5a33c17cc60
+//	git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+//	cp <this file> misc/gnopreview/b2_lines_test.go
+//	cd misc/gnopreview && go test -run 'TestB2' -v ./...
+//
+// TestB2DroppedPageLinksToProduction: a page the crawl does not capture (a
+// non-200 from gnodev, or a per-file budget refusal) leaves Run returning nil
+// and every link to it rewritten to c.Live, i.e. https://gno.land. The preview
+// then serves production content under the PR's preview URL with nothing said.
+//
+// TestB2PageCapDiscardsEveryCapturedPage: reaching MaxPages returns an error
+// from Run, which render() propagates before c.Write, so every page already
+// crawled is thrown away and the PR gets no preview at all. The error fires on
+// the cap check alone, before the fetch, so it fires even when every remaining
+// queue entry would have been dropped anyway.
+
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func TestB2DroppedPageLinksToProduction(t *testing.T) {
+	render := `<!doctype html><html><head></head><body>` +
+		`<a href="/r/x/y$source">source</a>` +
+		`<a href="/r/x/y$source&amp;file=a.gno">a.gno</a>` +
+		`</body></html>`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/r/x/y":
+			fmt.Fprint(w, render)
+		case "/r/x/y$source":
+			// gnodev answered, but not with a page: a 500, a timeout, a
+			// realm gnodev refused to publish all land here.
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			fmt.Fprint(w, `<!doctype html><html><head></head><body>ok</body></html>`)
+		}
+	}))
+	defer srv.Close()
+
+	c := &Crawler{
+		Base:   srv.URL,
+		Realms: []string{"gno.land/r/x/y"},
+		Live:   "https://gno.land",
+	}
+	if err := c.Run(); err != nil {
+		t.Fatalf("Run() = %v; the crawl reports nothing when a page is lost", err)
+	}
+	if _, ok := c.pages["/r/x/y$source"]; ok {
+		t.Fatal("the 500 page was captured after all")
+	}
+	got := c.rewrite(c.pages["/r/x/y"])
+	if !strings.Contains(got, `href="https://gno.land/r/x/y$source"`) {
+		t.Errorf("the lost page's link was not sent to production:\n%s", got)
+	}
+	// The per-file budget is the same silent fallback with no failure at all
+	// behind it: FileBudget is 0 for every realm-only pull request.
+	if !strings.Contains(got, `href="https://gno.land/r/x/y$source&amp;file=a.gno"`) {
+		t.Errorf("the budget-refused file link was not sent to production:\n%s", got)
+	}
+}
+
+func TestB2PageCapDiscardsEveryCapturedPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Only the two render pages answer; the $source and $help seeds and
+		// the /r/x directory 404, so nothing past the cap would be captured.
+		switch r.URL.Path {
+		case "/r/x/y", "/r/x/z":
+			fmt.Fprint(w, `<!doctype html><html><head></head><body>ok</body></html>`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	c := &Crawler{
+		Base:     srv.URL,
+		Realms:   []string{"gno.land/r/x/y", "gno.land/r/x/z"},
+		Live:     "https://gno.land",
+		MaxPages: 2,
+	}
+	err := c.Run()
+	if err == nil {
+		t.Fatal("Run() returned nil at the cap")
+	}
+	t.Logf("Run() = %v", err)
+	if len(c.pages) != 2 {
+		t.Fatalf("captured %d page(s), want 2", len(c.pages))
+	}
+	// render() returns this error before c.Write and before the comment, so
+	// the two captured pages, the assets and the comment are all lost.
+	t.Logf("%d captured page(s) discarded by the error", len(c.pages))
+}

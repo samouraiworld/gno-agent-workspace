@@ -1,0 +1,93 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 142,
+      "angle": "reach",
+      "summary": "Pkg.Draft is parsed from gnomod.toml and never read, so the draft half of modFlags is dead",
+      "failure_scenario": "LoadPkgs sets pkg.Draft at plan.go:142 and the field is read nowhere: BuildPlan gates on Ignore at plan.go:220 and plan.go:241 and on nothing else, Pkg carries no json tags and is not embedded in Plan. A PR touching examples/gno.land/r/demo/draftrealm (the tree's only draft = true package) is planned, rendered and screenshotted exactly as a non-draft realm, and a reader of the struct is told a filter exists that does not. Either the field and the draft=true case in modFlags (plan.go:161) go, or draft realms are filtered like ignored ones.",
+      "verify_by": "grep -rn 'Draft' misc/gnopreview/ -- five hits: plan.go:58 decl, plan.go:142 assign, and nothing else; no read site anywhere in the module",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn \"Draft\\|Ignore\" misc/gnopreview/ returned plan.go:58 (decl), plan.go:59 (decl), plan.go:142 (assign both), plan.go:220 (!p.Ignore), plan.go:241 (pkgs[p].Ignore). Draft has no read site. examples/gno.land/r/demo/draftrealm/gnomod.toml is the only file under examples/gno.land carrying draft or ignore.",
+      "repro_path": ""
+    },
+    {
+      "file": ".github/workflows/pr-preview.yml",
+      "line": 78,
+      "angle": "reach",
+      "summary": "the plan step pipes the new binary into tee, so a non-zero exit is discarded and the skip gate reads an empty plan.json",
+      "failure_scenario": "pr-preview.yml sets no shell: key and no defaults:, so GitHub runs the step as bash -e {0} with no pipefail. In `\"$RUNNER_TEMP/gnopreview\" plan -changed changed.txt | tee plan.json` the pipeline's status is tee's, so any failure of the just-built binary (root discovery per main.go:300, an unreadable changed.txt, a WalkDir error in LoadPkgs) leaves plan.json empty and the step green. jq then reads the empty file, prints nothing and exits 0, so the comparison against \"no\" fails, skip stays unset, and the job goes on to build gnodev and check out the merge base before render hits the same error. The reader gets a red preview job pointing at render, minutes after the step that actually failed.",
+      "verify_by": "grep -n 'shell:|defaults:|pipefail|set -e' .github/workflows/pr-preview.yml returns nothing; then bash -e -c 'false | tee x; echo rc=$?' prints rc=0 and continues, and jq -r 'if .gnoweb or (.realms | length > 0) then \"yes\" else \"no\" end' on an empty file prints nothing with rc=0",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "grep for shell:/defaults:/pipefail/set -e in pr-preview.yml: no matches. `bash -e -c 'false | tee x.json; echo \"after pipe, rc=$?\"; echo reached-next-line'` printed \"after pipe, rc=0\" then \"reached-next-line\"; the same under -eo pipefail exited 1. jq on an empty plan.json: stdout=[] rc=0, so the gate does not skip.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 262,
+      "angle": "lines",
+      "summary": "gnoweb seed realms are appended after the maxRealms truncation, so the rendered count exceeds the cap while Dropped reports the pre-seed number",
+      "failure_scenario": "BuildPlan truncates realms to maxRealms and records plan.Dropped at plan.go:256-258, and only then, at plan.go:262, appends every gnowebSeedRealms entry not already present. A PR that touches gnoweb and more than maxRealms realms renders up to maxRealms+4 realms, each with its own gnodev crawl and screenshots, past the bound the flag names; the comment built from plan.Dropped tells the reader N were dropped while the list under it is longer than the cap. The seeds also skip the Realm and Ignore filters applied at plan.go:241. Seeding before the sort and the cap fixes both.",
+      "verify_by": "read plan.go:250-270 for the order of truncation and seeding; build a Plan with maxRealms=2, three changed realms and a gnoweb change, and count len(plan.Realms) against maxRealms",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:256 `if maxRealms > 0 && len(realms) > maxRealms { plan.Dropped = len(realms) - maxRealms; realms = realms[:maxRealms] }` then plan.go:261-268 `if plan.Gnoweb { for _, r := range gnowebSeedRealms { if pkgs[r] != nil && !contains(plan.Realms, r) { plan.Realms = append(plan.Realms, r) } } }`. gnowebSeedRealms holds 4 entries.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "reach",
+      "summary": "the module requires nothing, so plan.go carries a second gnomod.toml reader beside gnovm/pkg/gnomod and accepts only one spelling of the flags",
+      "failure_scenario": "go.mod declares no dependency on github.com/gnolang/gno, so the planner cannot call the repo's own parser for the file it reads. modFlags (plan.go:155-167) instead scans lines and compares strings.ReplaceAll(strings.TrimSpace(line), \" \", \"\") against the literals \"draft=true\" and \"ignore=true\". Valid TOML that gnomod.ParseBytes reads and this misses: a trailing comment (`ignore = true # quarantined`), a tab between the key and the value, and a key under any table rather than the top level. An ignored package then re-enters the plan at plan.go:220 and plan.go:241, gnodev is asked to load a package the gno toolchain ignores, and the reviewer gets a preview page for a realm that does not exist on chain. Latent at this head: examples/gno.land/r/demo/draftrealm/gnomod.toml is the only flagged file under the walked root and it uses the plain form. The tradeoff is the maintainer's: a require plus replace on the root module buys gnovm/pkg/gnomod and costs the dependency-free build the workflows rely on.",
+      "verify_by": "cat -A examples/gno.land/r/demo/draftrealm/gnomod.toml for the live spelling, then feed modFlags a file whose line is `ignore = true # why` and compare its result with gnomod.ParseBytes on the same bytes",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "go.mod is three lines, module + go 1.25.9, no require block and no go.sum; `GOPROXY=off go test ./...` passes offline, confirming zero non-stdlib deps. gnovm/pkg/gnomod/file.go:21,27 declare Ignore and Draft with toml tags and gnovm/pkg/gnomod/parse.go exports ParseBytes/ParseFilepath. cat -A of the one live flagged file shows `draft = true$`, the spelling modFlags handles.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 3,
+      "angle": "catalog",
+      "summary": "suspected a toolchain or go-directive skew against the rest of the repo",
+      "settled_by": "find . -name go.mod | xargs grep -E '^(module|go|toolchain) ' -- all 24 modules including the root declare go 1.25.9 and none declares a toolchain line; the module path github.com/gnolang/gno/misc/gnopreview matches its directory, which is what ci-dir-misc's -coverpkg=github.com/gnolang/gno/misc/... and _ci-go.yml's -pkg filter resolve against"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "reach",
+      "summary": "suspected the new module is skipped by make tidy and by the go.mod sum verification",
+      "settled_by": "misc/mod_tidy.sh finds modules with `gomods=$(find . -type f -name go.mod)` and runs `go -C $dir mod tidy` on each, and ci-codegen-verify.yml:39 runs `make tidy VERIFY_MOD_SUMS=true`, so the new module is covered; `GOPROXY=off go mod tidy` in misc/gnopreview left go.mod byte-identical and created no go.sum"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "reach",
+      "summary": "suspected the new module gets no lint, build or test job in CI",
+      "settled_by": "ci-dir-misc.yml lists gnopreview in the program matrix and calls _ci-go.yml, whose lint, build and test jobs all run with working-directory misc/gnopreview; the CI test command reproduced locally, `GOPROXY=off go test -covermode=set -coverpkg=github.com/gnolang/gno/misc/... ./...`, printed `ok github.com/gnolang/gno/misc/gnopreview 0.005s coverage: 45.9% of statements in github.com/gnolang/gno/misc/...`"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "lines",
+      "summary": "suspected the 10MB built binary sitting beside go.mod is committed",
+      "settled_by": "git ls-files misc/gnopreview lists ten source files and no binary; git check-ignore -v misc/gnopreview/gnopreview reports .gitignore:13"
+    },
+    {
+      "file": "misc/gnopreview/go.mod",
+      "line": 1,
+      "angle": "catalog",
+      "summary": "walked every class of skills/invariant-catalog.md against this bundle",
+      "settled_by": "the catalog is 63 lines covering Realm audit patterns, Caller identity predicates and the current-guard rule; the diff adds a Go tooling module under misc/ and touches no realm, stdlib or GnoVM code, so no class has material here"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 127,
+      "angle": "claims",
+      "summary": "the documented 400-page cap is not a cap: reaching it fails the render and the pull request's preview check",
+      "failure_scenario": "misc/gnopreview/README.md calls -max-pages (400) a cap that \"backstops the rest\" and gno.land/adr/pr6194_gnoweb_pr_previews.md lists \"At most 25 realms and 400 pages\" under Bounds. Crawler.Run returns an error the moment len(c.pages) reaches MaxPages, so a change to a widely imported package that pulls in 25 link-rich realms (each :p/<arg> render argument is its own page) produces no snapshot, no comment.md and no artifact; `gnopreview render` exits 1 and the `pr / preview` job goes red on the contributor's pull request with \"page cap 400 reached\". The measured worst case in the description is 110 pages, so the cliff is unexercised, not unreachable.",
+      "verify_by": "cd misc/gnopreview && go test ./... -run PageCap -v with tests/b1-claims-page-cap-aborts-render.go copied in: Crawler{Realms: 1, MaxPages: 2}.Run() must truncate to 2 pages and return nil; observe an error instead, and the same crawl with MaxPages: 0 returning nil to show the fixture is sound",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "go1.25.9, worktree at ecf7af0: `Run() with MaxPages=2 -> page cap 2 reached (queue still had 4) (captured 2 pages, the rest dropped with the job)` and `Run() with MaxPages=0 -> nil, 5 pages captured`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b1-claims-page-cap-aborts-render.go"
+    },
+    {
+      "file": ".github/workflows/pr-preview-publish.yml",
+      "line": 77,
+      "angle": "claims",
+      "summary": "the privileged job pastes the fork-controlled head branch into its API query unencoded, against the comment that says the payload is fork-proof",
+      "failure_scenario": "Line 65 states the pull request is resolved \"from the workflow_run payload, which the fork does not control\". github.event.workflow_run.head_branch is the branch name in the fork, which the fork chooses, and it lands in `repos/$REPO/pulls?state=open&per_page=100&head=$HEAD_OWNER:$HEAD_BRANCH` with no encoding. A branch named `zzz&head=<victim-owner>%3A<victim-branch>` is a valid git ref and appends a second head= that the API honours over the first, so $prs holds another pull request's number and head sha; the head-SHA equality below is then the only remaining guard on the cross-pull-request write round 1 closed, and it is met by pushing that pull request's own tip to the attacker's branch — the victim's sticky comment is then PATCHed with a body whose links point at pr-<attacker>/, which is never published. Without any injection the same line is a plain bug: a branch name carrying & or + truncates or corrupts the filter, n=0, and an open pull request is told \"closed while rendering; nothing to publish\" and never gets a preview.",
+      "verify_by": "bash tests/b1-claims-head-branch-query-injection.sh: `git check-ref-format --branch 'zzz&head=gnolang%3Amaster'` accepts the ref, and `gh api \"repos/gnolang/gno/pulls?state=open&per_page=100&head=nobody-xyz:zzz&head=<owner>%3A<branch>\"` returns the unrelated pull request while the same query without the injected parameter returns 0",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "VALID zzz&head=gnolang%3Amaster; state=open&state=closed -> [\"closed\",\"closed\",\"closed\"] (last parameter wins); head=nobody-xyz:zzz -> 0, head=nobody-xyz:zzz&head=gnolang%3Afix/loader-context-from-patterns -> `6210 12a55043f2f31ed9ae43599e52333487e672ff2d`",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b1-claims-head-branch-query-injection.sh"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 147,
+      "angle": "claims",
+      "summary": "a pull request that changes gnoweb and a realm gets none of the four chrome screenshots the description promises for a gnoweb change",
+      "failure_scenario": "The description's first table says a gnoweb change \"embeds screenshots of the four views that carry most of gnoweb's chrome\", and pr-preview.yml:88 says \"Screenshots are only taken for gnoweb changes\". render() takes the before/after branch whenever len(plan.ChangedRealms) > 0 and only then falls through to Screenshot(), so a gnoweb pull request that also touches one realm — a CSS change plus its test realm, say — silently loses the chrome sample and shows a two-realm diff instead. README.md documents the two as alternatives; the description and the workflow comment do not.",
+      "verify_by": "read misc/gnopreview/main.go:147-152: the `else if plan.Gnoweb` branch is unreachable whenever plan.ChangedRealms is non-empty, and BuildPlan sets both for a diff touching gno.land/pkg/gnoweb and examples/gno.land/r",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": ".github/workflows/pr-preview-publish.yml",
+      "line": 120,
+      "angle": "claims",
+      "summary": "the 40 MiB per-preview cap does not bound the shared 1 GB site the comment beside it says it bounds",
+      "failure_scenario": "The comment above the cap reads \"The size cap bounds the shared 1 GB site the same way\", and the description says the site \"would reach the 1 GB cap at roughly 78 concurrent previews\". At the enforced 40 MiB, 26 previews fill the 1 GB site, against the ADR's own estimate of ~78 live previews (36% of ~218 open pull requests); at the measured 6.2-8.8 MB the same 78 previews are 0.5-0.7 GB, not 1 GB. Neither number is what the cap enforces, and the only thing actually holding the site under its quota is evict.yml in gnolang/gno-previews, a repository this pull request does not touch.",
+      "verify_by": "1024 / 40 = 25.6 previews at the cap; 78 x 8.8 MB = 686 MB; compare against the cap in the env block and the eviction budget quoted in the ADR (700 MiB, in the other repository)",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": ".github/workflows/pr-preview-cleanup.yml",
+      "line": 22,
+      "angle": "claims",
+      "summary": "the cleanup's concurrency key is not the publish job's whenever the head repository is gone, so the close does not serialize behind the publish",
+      "failure_scenario": "The comment above it claims \"Same key as pr-preview-publish.yml, so a close that races a publish for the same pull request serializes behind it instead of re-adding a deleted preview.\" The publish job keys on github.event.workflow_run.head_repository.full_name; this one keys on github.event.pull_request.head.repo.full_name, which GitHub leaves null once the fork or its branch is deleted — a common way a pull request gets closed. The group then differs, the two runs proceed in parallel, and the publish's replay loop can re-add pr-<N>/ after the cleanup removed it, leaving a preview for a closed pull request until the previews repository's own daily sweep catches it.",
+      "verify_by": "gh api repos/gnolang/gno/pulls/<a closed PR whose fork was deleted> --jq '.head.repo' returns null; compare the two concurrency expressions at pr-preview-cleanup.yml:22 and pr-preview-publish.yml:34",
+      "band": "Nit",
+      "checked": false,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/README.md",
+      "line": 96,
+      "angle": "claims",
+      "summary": "\"a .nojekyll marker is mandatory wherever it is published\", and nothing in this repository writes one",
+      "settled_by": "gh api repos/gnolang/gno-previews/contents/.nojekyll --jq '.name + \" \" + (.size|tostring)' -> `.nojekyll 0`: the marker is already at the root of the publishing repository, so _t/, _a/ and _shots/ are served"
+    },
+    {
+      "file": "gno.land/adr/pr6194_gnoweb_pr_previews.md",
+      "line": 533,
+      "angle": "claims",
+      "summary": "\"gno-previews evicts daily: closed pull requests, then previews quiet for 21 days, then a 700 MiB budget\" names a workflow in another repository",
+      "settled_by": "gh api repos/gnolang/gno-previews/contents/.github/workflows --jq '.[].name' -> `evict.yml`, `reindex.yml`"
+    },
+    {
+      "file": "gno.land/adr/pr6194_gnoweb_pr_previews.md",
+      "line": 556,
+      "angle": "claims",
+      "summary": "\"Every page is noindex, nofollow\" — the generated landing page is not a captured page and could have missed the rewrite",
+      "settled_by": "misc/gnopreview/comment.go:181 emits `<meta name=\"robots\" content=\"noindex, nofollow\">` in Index()'s literal, and crawl.go:371 replaces gnoweb's own robots meta on every captured page"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 158,
+      "angle": "claims",
+      "summary": "the explosiveArgs comment says \"The top-level $state page is still captured\", while the README, the ADR and the description all say $state is skipped",
+      "settled_by": "Seeds() (crawl.go:75-105) emits only u, u$source, u$help and the directory pages, and inScope() drops any discovered link whose query key is in explosiveArgs, which holds \"state\" — the code matches the docs and only the comment is stale, so the fix is a comment's wording"
+    },
+    {
+      "file": ".github/workflows/pr-preview.yml",
+      "line": 88,
+      "angle": "claims",
+      "summary": "\"Screenshots are only taken for gnoweb changes\" is false — a realm change photographs before/after pairs",
+      "settled_by": "misc/gnopreview/main.go:147 takes ScreenshotPairs whenever plan.ChangedRealms is non-empty; comment wording only, and the behaviour it misstates is carried as the Suggestion on main.go:147"
+    },
+    {
+      "file": "misc/gnopreview/README.md",
+      "line": 78,
+      "angle": "claims",
+      "summary": "\"preview.json — the plan that was executed, for the CI to read\", and no workflow reads it",
+      "settled_by": "none of pr-preview.yml, pr-preview-publish.yml or pr-preview-cleanup.yml mentions preview.json (the publish job reads _preview/comment.md alone, pr-preview-publish.yml:96); a doc's wording, so it ships SKIP"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 314,
+      "angle": "claims",
+      "summary": "\"warns loudly if that string ever disappears\" is tested as n == 0 over every .js and .css, not as the /public/js/controller- prefix in js/index.js",
+      "settled_by": "grep -o '/public/' gno.land/pkg/gnoweb/public/js/index.js | wc -l -> 1, and index.js is the only file under public/ carrying \"/public/\" at all, so today n == 0 fires exactly when the prefix disappears"
+    },
+    {
+      "file": "misc/gnopreview/README.md",
+      "line": 641,
+      "angle": "claims",
+      "summary": "\"At most 25 realms are rendered (-max-realms)\" and \"A -max-pages cap (400)\"",
+      "settled_by": "misc/gnopreview/main.go:29-30 defaultMaxRealms = 25, defaultMaxPages = 400, and neither flag is passed by pr-preview.yml, so the defaults are what CI runs (the cap's behaviour at the boundary is the Warning on crawl.go:127)"
+    },
+    {
+      "file": "gno.land/adr/pr6194_gnoweb_pr_previews.md",
+      "line": 158,
+      "angle": "claims",
+      "summary": "\"actionlint, zizmor --persona=regular ... all clean\"",
+      "settled_by": "not run: `which actionlint zizmor` -> `actionlint not found`, `zizmor not found` on this machine, so nothing is banded on the claim either way"
+    }
+  ]
+}

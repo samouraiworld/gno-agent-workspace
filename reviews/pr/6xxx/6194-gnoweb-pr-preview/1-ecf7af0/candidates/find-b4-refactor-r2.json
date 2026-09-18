@@ -1,0 +1,93 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 38,
+      "angle": "refactor",
+      "summary": "ShotPair.URL re-derives urlOf(Realm) through the crawler's output tree; dropping the field and calling urlOf(p.Realm) at pairGrid's two sites is byte-identical output, shots.go 213 -> 212 lines",
+      "failure_scenario": "ScreenshotPairs sets URL = path.Dir(head.FileOf(urlOf(r))) + \"/\", while comment.go's link() and tabs() already spell the same realm link as urlOf(r). Two derivations of one string, one of them routed through urlToFile's slugging rules: change how a render page is filed (a listing suffix, a new _a/ segment) and the image href silently stops agreeing with the realm link directly under it, with no test tying them together. plan_test.go's own fixtures already hand-write URL: \"r/x/leaf/\", which is exactly urlOf trimmed plus a slash.",
+      "verify_by": "go test -run TestPairURLIsUrlOf ./... over every realm-path shape, then delete the field, swap pairGrid's two %s/%s + p.URL for %s%s/ + urlOf(p.Realm), drop URL: from plan_test.go's three fixtures and run go vet ./... && go test ./... with the two href assertions added to TestCommentBeforeAfter",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "TestPairURLIsUrlOf passes at head over 6 realm shapes: '--- PASS: TestPairURLIsUrlOf (0.00s)'. Rewrite applied in a scratch worktree at ecf7af0: 'AFTER shots.go=208 comment.go=196' (with the Abs and findChrome rewrites folded in; the URL removal alone is -1), 'ok github.com/gnolang/gno/misc/gnopreview 0.005s' with the added assertions `<a href=\"https://example.test/pr-5/r/x/leaf/\">` and `<a href=\"https://example.test/pr-5/r/x/fresh/\">`, which also pass unmodified at head.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-r2-shots-redundancy.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 167,
+      "angle": "refactor",
+      "summary": "chromeShot's filepath.Abs(dst) block is 4 lines that change nothing: Chrome inherits the Go process cwd, so a relative --screenshot= resolves the same way os.Stat(dst) does",
+      "failure_scenario": "Nothing in misc/gnopreview calls os.Chdir or sets cmd.Dir, so the browser's cwd is the Go process's. filepath.Abs then only Cleans the path, and its error branch fires only when os.Getwd fails, at which point the caller's os.MkdirAll has already failed. The block buys a reader the impression that dst might be resolved against something else, and buys the code an error return that cannot be reached.",
+      "verify_by": "go test -run TestChromeShotRelativeDst ./... with the block present and with it deleted, comparing the file location and size; grep -rn 'os.Chdir|cmd.Dir|\\.Dir =' misc/gnopreview/*.go for a chdir anywhere in the package",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "grep for os.Chdir / cmd.Dir / '.Dir =' over misc/gnopreview/*.go returns nothing. TestChromeShotRelativeDst, run from a t.TempDir cwd against real google-chrome-stable: head 'relative dst landed at /tmp/TestChromeShotRelativeDst2227622357/001/zz-rel.png, 5654 bytes'; block deleted 'relative dst landed at /tmp/TestChromeShotRelativeDst64372584/001/zz-rel.png, 5654 bytes'. Same location, same byte count. Full go vet ./... && go test ./... green with the block removed.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b4-refactor-r2-shots-redundancy.go"
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 107,
+      "angle": "refactor",
+      "summary": "shotPlan re-types three of the four gnowebSeedRealms paths as raw URLs, at the wrong depth: the shot sample and the crawl sample are one decision spelled in two files with no shared symbol",
+      "failure_scenario": "plan.go:37 lists the four realms a gnoweb-only PR renders; shots.go:107 lists the pages to photograph as literal URLs, three of which are those realms' paths retyped (/r/gnoland/home, /r/gnoland/boards2/v0, /r/docs/security_patterns), and a fourth seed (gno.land/r/gnoland/blog) that no shot covers. Rename or drop a seed realm in plan.go and Screenshot's `if !ok { continue }` silently publishes a three-image grid; nothing in the build, the tests or the comment says a planned shot went missing. The deeper form is shotPlan naming its realms through gnowebSeedRealms indices or constants, so one edit moves both.",
+      "verify_by": "grep -n 'gnoland/home|security_patterns|boards2/v0' misc/gnopreview/plan.go misc/gnopreview/shots.go and confirm no symbol is shared; then edit one gnowebSeedRealms entry and run the gnoweb-mode path, expecting a compile or test failure and observing a silently shorter shot grid",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:38-41 holds four realm paths; shots.go:108-111 holds four URLs covering three of them (home twice, boards2, security_patterns) and never gno.land/r/gnoland/blog. The only linkage is string equality after urlOf; grep shows no shared identifier between the two lists.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 196,
+      "angle": "refactor",
+      "summary": "findChrome builds its candidate list in two statements, a literal then an append that mutates it; one composite literal is the same behaviour, 5 lines -> 4",
+      "failure_scenario": "candidates := []string{explicit, os.Getenv(\"CHROME\")} followed by candidates = append(candidates, ...) reads as if the second group were conditional or appended elsewhere. It is neither: the slice is built, never grown again, and immediately ranged over. The split costs a reader a second look to confirm nothing sits between the two statements.",
+      "verify_by": "fold both statements into one []string literal, gofmt -l . for stability, then go vet ./... && go test ./... and go build ./... in misc/gnopreview",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "Applied in the scratch worktree at ecf7af0 alongside the other two rewrites: gofmt -l reports nothing, 'ok github.com/gnolang/gno/misc/gnopreview 0.005s'. The 4-line form keeps explicit and os.Getenv(\"CHROME\") on the opening line and is gofmt-stable.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 27,
+      "angle": "refactor",
+      "summary": "beforeDir is declared in shots.go, the screenshot file, and read only at main.go:265 as the base crawler's output Prefix; it belongs beside the crawl it names",
+      "failure_scenario": "A reader looking for what produces the _before/ tree opens crawl.go and main.go and finds the const in neither; a reader editing shots.go sees a const no line of that file uses. The Prefix field it feeds is documented on Crawler in crawl.go:52, which is where the other half of the same fact already lives.",
+      "verify_by": "grep -rn 'beforeDir' misc/gnopreview/*.go and confirm shots.go declares it and never reads it",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn 'beforeDir' misc/gnopreview/*.go returns exactly two lines: 'main.go:265:\\t\\tPrefix:     beforeDir,' and 'shots.go:27:const beforeDir = \"_before\"'. No reader in shots.go.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 76,
+      "angle": "refactor",
+      "summary": "slug() is fed a slashed realm path here while shotPlan uses hand-written names, so two naming schemes share _shots/ and could collide",
+      "settled_by": "main.go:147-152 is an if/else, so ScreenshotPairs and Screenshot never both run; and slug appends a sha256 prefix whenever the collapsed form differs from its input, so gno.land/r/gnoland/home becomes r-gnoland-home-<8hex>-after.png, which cannot meet shotPlan's home.png. crawl.go:520-534 read in full."
+    },
+    {
+      "file": "misc/gnopreview/shots.go",
+      "line": 50,
+      "angle": "refactor",
+      "summary": "the newRealms map[string]bool parameter duplicates what base.FileOf already answers, so ScreenshotPairs could drop a parameter",
+      "settled_by": "shots.go:85-87's comment is correct and the code follows it: a base pass that ran and failed on one realm gives the same FileOf miss as a realm that does not exist at the base, and pairGrid (comment.go:107-110) prints 'New in this PR - nothing to compare against.' off ShotPair.New. Deriving New from the miss would publish that sentence for a render failure."
+    }
+  ],
+  "blocks_rewritten": [
+    "shots.go:50-147 collapsed into a shooter struct (bin, origin, dir, srv) with newShooter(outDir, chrome, what) and a shoot(file, name) method, removing both 15-line prologues, both double-spellings of each shot path, and giving serve's Closer one owner: measured line-neutral, 169 -> 169 non-comment lines (213 -> 223 raw, the growth being the new type's godocs), go vet and go test green. The dedupe is worth it for the single owner, not for the count; the count argument for a prologue helper does not hold.",
+    "ScreenshotPairs's pair := ShotPair{...} moved below both chromeShot calls so the struct is built once instead of built then mutated twice: line-neutral, and the before branch then needs its own string local, so the mutation is cheaper than the local.",
+    "Shot/shotGrid merged with ShotPair/pairGrid into one type and one renderer: rejected, shotGrid emits a two-per-row table of captioned thumbnails and pairGrid emits a per-realm before/after table with a lone-image fallback, so the merged renderer needs a mode flag and grows.",
+    "ScreenshotPairs and Screenshot merged into one function over a []struct{url, name, label}: rejected, the pair loop's maxPairs cap, its base *Crawler second shot and its New flag have no analogue in the plan loop, so the merged body is two branches under one signature.",
+    "maxPairs moved from capture time (shots.go:68) to pairGrid, so preview.json would record every pair and the comment would cap the display: rejected, each shot is a Chrome launch, so capping at capture is the cheaper place and the author's tradeoff is deliberate.",
+    "chromeShot's Chrome flag slice hoisted to a package-level var: rejected, the three interpolated flags (--screenshot=, the url) would have to be appended per call, which is the two-statement shape flagged at line 196."
+  ]
+}

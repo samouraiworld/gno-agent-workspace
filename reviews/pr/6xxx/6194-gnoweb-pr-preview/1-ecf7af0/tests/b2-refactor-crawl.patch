@@ -1,0 +1,177 @@
+# Five behaviour-preserving rewrites of misc/gnopreview/crawl.go at ecf7af0 (611 -> 590 lines).
+# Apply from the repo root: patch -p1 < b2-refactor-crawl.patch
+# Then: cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+# Equivalence is pinned by b2-refactor-crawl-equivalence_test.go beside this file.
+--- a/misc/gnopreview/crawl.go
++++ b/misc/gnopreview/crawl.go
+@@ -73,35 +73,22 @@
+ // Seeds returns the entry points for the selected realms, plus the directory
+ // pages above them. Everything else is reached by following links.
+ func (c *Crawler) Seeds() []string {
+-	seen := map[string]bool{}
+ 	var out []string
+-	add := func(u string) {
+-		if !seen[u] {
+-			seen[u] = true
+-			out = append(out, u)
+-		}
+-	}
+ 	dirs := map[string]bool{}
+ 	for _, r := range c.Realms {
+ 		u := urlOf(r)
+-		add(u)
++		out = append(out, u)
+ 		if c.RenderOnly {
+ 			continue
+ 		}
+-		add(u + "$source")
+-		add(u + "$help")
++		out = append(out, u+"$source", u+"$help")
+ 		// Walk up to the directory pages, but stop above "/r": gnoweb answers a
+ 		// single-segment path with 400, so seeding it only buys a logged error.
+ 		for d := path.Dir(u); strings.Count(d, "/") >= 2; d = path.Dir(d) {
+ 			dirs[d] = true
+ 		}
+ 	}
+-	if !c.RenderOnly {
+-		for _, d := range sortedKeys(dirs) {
+-			add(d)
+-		}
+-	}
+-	return out
++	return append(out, sortedKeys(dirs)...)
+ }
+ 
+ // Run crawls from the seeds, following only links that stay inside the selected
+@@ -191,13 +178,7 @@
+ 	if strings.HasSuffix(base, "/") {
+ 		return false
+ 	}
+-	realm := ""
+-	for _, r := range c.Realms {
+-		if base == urlOf(r) {
+-			realm = r
+-			break
+-		}
+-	}
++	realm := c.realmOf(base)
+ 	if realm == "" {
+ 		return false
+ 	}
+@@ -234,32 +215,41 @@
+ // chargeFile spends one budget slot, and reports whether the page may be kept.
+ func (c *Crawler) chargeFile(u string) bool {
+ 	base, _, query := splitURL(u)
+-	name := ""
+-	for part := range strings.SplitSeq(query, "&") {
+-		if k, v, _ := strings.Cut(part, "="); k == "file" {
+-			name = v
+-		}
++	realm, name := c.realmOf(base), fileArg(query)
++	if name == "" || realm == "" {
++		return true // not a per-file page of a selected realm
+ 	}
+-	if name == "" {
+-		return true // not a per-file page
++	if _, listed := c.ChangedFiles[realm]; listed {
++		return true // gated by the changed set, not the budget
+ 	}
++	if c.fileBudget == nil {
++		c.fileBudget = map[string]int{}
++	}
++	if c.fileBudget[realm] >= c.FileBudget {
++		return false
++	}
++	c.fileBudget[realm]++
++	return true
++}
++
++// realmOf returns the selected realm a gnoweb base path belongs to, or "".
++func (c *Crawler) realmOf(base string) string {
+ 	for _, r := range c.Realms {
+-		if base != urlOf(r) {
+-			continue
+-		}
+-		if _, listed := c.ChangedFiles[r]; listed {
+-			return true // gated by the changed set, not the budget
+-		}
+-		if c.fileBudget == nil {
+-			c.fileBudget = map[string]int{}
++		if base == urlOf(r) {
++			return r
+ 		}
+-		if c.fileBudget[r] >= c.FileBudget {
+-			return false
++	}
++	return ""
++}
++
++// fileArg returns the "file=" value of a gnoweb web query, or "".
++func fileArg(query string) string {
++	for part := range strings.SplitSeq(query, "&") {
++		if k, v, _ := strings.Cut(part, "="); k == "file" {
++			return v
+ 		}
+-		c.fileBudget[r]++
+-		return true
+ 	}
+-	return true
++	return ""
+ }
+ 
+ // splitURL breaks a gnoweb path into its three components. gnoweb puts them all
+@@ -379,7 +369,7 @@
+ 
+ // mapURL is the single place that decides where a link points in the snapshot.
+ func (c *Crawler) mapURL(raw, up string) string {
+-	if raw == "" || !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
++	if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
+ 		return raw // fragment, relative, mailto:, external — leave alone
+ 	}
+ 	target, frag, _ := strings.Cut(raw, "#")
+@@ -409,17 +399,13 @@
+ 
+ // getRetry backs off on 429: gnoweb rate-limits the $state view per IP, and a
+ // crawl is exactly the traffic shape that limiter is there to stop.
+-func (c *Crawler) getRetry(p string) (string, int, error) {
+-	var body string
+-	var code int
+-	var err error
++func (c *Crawler) getRetry(p string) (body string, code int, err error) {
+ 	for attempt := range 3 {
+ 		if attempt > 0 {
+ 			time.Sleep(time.Duration(attempt) * 2 * time.Second)
+ 		}
+-		body, code, err = c.get(p)
+-		if err != nil || code != http.StatusTooManyRequests {
+-			return body, code, err
++		if body, code, err = c.get(p); err != nil || code != http.StatusTooManyRequests {
++			break
+ 		}
+ 	}
+ 	return body, code, err
+@@ -448,22 +434,15 @@
+ // links extracts the absolute in-site paths a page points at.
+ func links(body string) []string {
+ 	seen := map[string]bool{}
+-	var out []string
+ 	for _, m := range attrRe.FindAllStringSubmatch(body, -1) {
+ 		raw := html.UnescapeString(m[2])
+ 		if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") || strings.HasPrefix(raw, "/public/") {
+ 			continue
+ 		}
+ 		p, _, _ := strings.Cut(raw, "#")
+-		p = canonicalURL(p)
+-		if p == "" || seen[p] {
+-			continue
+-		}
+-		seen[p] = true
+-		out = append(out, p)
++		seen[canonicalURL(p)] = true
+ 	}
+-	sort.Strings(out)
+-	return out
++	return sortedKeys(seen)
+ }
+ 
+ // urlOf maps a package path to its gnoweb path: gno.land/r/x/y -> /r/x/y.

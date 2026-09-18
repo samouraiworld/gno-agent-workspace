@@ -1,0 +1,92 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 69,
+      "angle": "lines",
+      "summary": "isSeed() hides a realm the changed package actually reaches, so the affected realm never appears in the comment",
+      "failure_scenario": "A PR touching gnoweb (gno.land/pkg/gnoweb/) and a package a seed realm imports — gno.land/p/nt/ufmt/v0, gno.land/p/gnoland/blog/v0 and gno.land/p/moul/dynreplacer/v0 are all imported by the seed realms r/gnoland/home and r/gnoland/blog. BuildPlan puts the realm in Plan.Realms because the changed package reaches it, gnodev renders it and Index lists it, but Comment's indirect loop drops it as a seed. With no changed realm the comment then carries no realm link at all: heading, homepage link, footer. The reviewer is told the PR affects realm sources and is shown nothing to look at.",
+      "verify_by": "cd misc/gnopreview && go test -run TestCommentDropsAffectedSeedRealm (artifact below): BuildPlan on a fixture where r/gnoland/home imports the changed p/x/base/v0 plus a gnoweb file yields Mode=both, Realms=[gno.land/r/gnoland/home], and Comment() output contains no /r/gnoland/home link",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "Mode=both Gnoweb=true ChangedPkgs=[gno.land/p/x/base/v0] Realms=[gno.land/r/gnoland/home]; \"comment never mentions gno.land/r/gnoland/home, which the plan renders\"; the whole emitted comment is the marker, \"### 🖼️ gnoweb preview\", \"This PR changes **gnoweb** and realm sources. **[Open the preview homepage](https://example.test/pr-2/)**\" and the <sub> footer",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-lines-comment-lists-unrendered-realms_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 62,
+      "angle": "lines",
+      "summary": "every changed realm is linked, but BuildPlan caps Plan.Realms and not Plan.ChangedRealms, so the ones past the cap link to pages that were never rendered",
+      "failure_scenario": "A sweep over examples (a gofmt run, a gnomod.toml bump, a stdlib rename) changes more than -max-realms realms, default 25 (main.go:29). plan.go:256 truncates Realms and counts the rest in Dropped; ChangedRealms keeps all of them. Comment's loop at :62 emits a link per ChangedRealm, so realm 26 onward get https://<pages>/r/.../ URLs the crawler never wrote: the reviewer clicks a 404. The footer at :86 tells them the opposite — \"%d more affected realm(s) were **not** rendered (cap reached) — the changed realms are always kept\".",
+      "verify_by": "cd misc/gnopreview && go test -run TestCommentLinksUnrenderedChangedRealms (artifact below): BuildPlan with three changed realms and maxRealms=2, then check each ChangedRealm absent from Realms against the comment text",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "ChangedRealms=[gno.land/r/x/a1 gno.land/r/x/a2 gno.land/r/x/a3] Realms=[gno.land/r/x/a1 gno.land/r/x/a2] Dropped=1; \"comment links https://example.test/pr-1/r/x/a3/, but gno.land/r/x/a3 was dropped from Plan.Realms and never rendered: that URL 404s\"; \"footer claims the changed realms are always kept, yet 1 of 3 changed realms were dropped\"",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b5-lines-comment-lists-unrendered-realms_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 17,
+      "angle": "lines",
+      "summary": "Comment links what the plan intended while Index links what the crawl produced, and only Index takes the Crawler that knows",
+      "failure_scenario": "crawl.go:134 skips a page on any non-200 and keeps going, so a realm that 500s at render (a panicking init) or that gnodev never loaded (plan.go reads draft from gnomod.toml at plan.go:142 and then filters on Ignore alone, never on Draft) leaves c.pages without an entry. Index(p, c) at comment.go:170 filters on exactly that and omits the realm; Comment has no Crawler parameter and links it anyway, plus the /_t/source/ and /_t/help/ tabs at :148. The reviewer gets a list whose links 404 and an index that silently disagrees with it. The deeper fix is one source of truth: pass the Crawler to Comment and gate every link on FileOf, which also covers the cap case above.",
+      "verify_by": "read comment.go:17 against comment.go:166-176 and crawl.go:129-137; grep -n 'Draft' misc/gnopreview/*.go shows the field is set at plan.go:142 and read nowhere",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'Draft' over misc/gnopreview: plan.go:58 (field), plan.go:142 (assignment) only — no filter reads it; crawl.go:134-137 prints \"! %s: HTTP %d\" and continues",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 19,
+      "angle": "lines",
+      "summary": "the marker and heading are written before the p.Empty() bail, and the bail itself cannot be reached from render()",
+      "failure_scenario": "Comment writes CommentMarker and the heading into b at :19-20, then returns \"\" at :25 and throws both away. The guard has no live caller either: render() returns at main.go:111-114 when plan.Empty(), so comment.md is never written for an empty plan and the only thing exercising :24 is TestCommentEmptyIsSilent. A reader adding a branch after :20 has to notice the discarded prefix first.",
+      "verify_by": "read main.go:105-158 for the early return at :111, then comment.go:17-26",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "main.go:111 'if plan.Empty() { fmt.Println(\"nothing to preview\"); return writeJSON(...) }' precedes the Comment call at main.go:156",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 44,
+      "angle": "lines",
+      "summary": "the gnoweb branch lists realms without the source and help links the other branch attaches",
+      "failure_scenario": "In gnoweb mode every realm in the list is a seed whose $source and $help pages the crawler always seeds (crawl.go:91-92), yet :44 writes link(urlOf(r), r) alone while the default branch writes link(...) + tabs(base, r) at :63 and :80. The pages exist and the reviewer has no link to them, which is the mode where gnoweb's own source and help rendering is what changed.",
+      "verify_by": "read comment.go:43-45 against :63 and :80, and crawl.go:85-93 for the $source/$help seeds",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "Seeds() adds u+\"$source\" and u+\"$help\" for every realm at crawl.go:91-92; comment.go:44 emits no tabs() call",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 141,
+      "angle": "lines",
+      "summary": "suspected off-by-one in shotGrid's row wrap, opening a new <tr> on the wrong cell",
+      "settled_by": "read comment.go:139-148: 'if i > 0 && i%2 == 0' fires at i=2 and i=4, so each row closes after exactly two <td>; TestCommentGnowebHasShots passes with the img assertion under go test ./..."
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 173,
+      "angle": "lines",
+      "summary": "suspected argument-count mismatch in Index's <li> Sprintf, which repeats the directory three times",
+      "settled_by": "cd misc/gnopreview && go test ./... — compiles and passes vet's printf check (run by default under go test); no diagnostic on comment.go:173, and the four verbs take dir, u, dir, dir"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 30,
+      "angle": "lines",
+      "summary": "suspected broken output when baseURL is empty, link() falling back to a bare code span",
+      "settled_by": "read comment.go:28-34 with :39, :100 and :148: pairGrid, shotGrid and tabs all return \"\" on base == \"\", so an empty base degrades the whole comment to text consistently rather than emitting half-built links"
+    }
+  ]
+}

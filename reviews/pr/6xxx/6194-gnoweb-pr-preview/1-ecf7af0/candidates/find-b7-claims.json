@@ -1,0 +1,129 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 256,
+      "angle": "claims",
+      "summary": "the cap drops directly changed realms, while the comment it feeds still links every one of them and says they are always kept",
+      "failure_scenario": "A sweep pull request that edits more than -max-realms realms directly (a tree-wide `gno = \"0.9\"` bump touches every gnomod.toml, and renderRelevant treats gnomod.toml as render-relevant; examples/gno.land/r holds 58 realm packages against a default cap of 25) leaves ChangedRealms longer than Realms. comment.go:62 links every ChangedRealms entry and comment.go:86 prints \"the changed realms are always kept\", so the posted PR comment offers 33 preview links that 404 on the published snapshot and tells the reviewer nothing was dropped. Run with 3 changed realms and maxRealms=1: Realms=[gno.land/r/x/a], the comment links r/x/b and r/x/c anyway.",
+      "verify_by": "cp tests/b7-claims-cap-bounds_test.go misc/gnopreview/zz_b7_claims_test.go && cd misc/gnopreview && go test -run TestB7CapDropsChangedRealms -v ./...",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "ChangedRealms=[gno.land/r/x/a gno.land/r/x/b gno.land/r/x/c] Realms=[gno.land/r/x/a] Dropped=2; \"changed realm gno.land/r/x/b   rendered=false linked in comment=true\"; \"comment asserts the changed realms are always kept while 2 of them were dropped\". find examples/gno.land/r -name gnomod.toml | wc -l = 58.",
+      "repro_path": "tests/b7-claims-cap-bounds_test.go"
+    }
+  ],
+  "low_band": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 263,
+      "angle": "claims",
+      "summary": "the gnoweb seed realms are appended after the cap, so Realms can hold maxRealms+4",
+      "failure_scenario": "plan.go:71 says Realms is \"capped at MaxRealms\", plan.go:192 says \"maxRealms caps how many realms are rendered\" and the README says \"At most 25 realms are rendered\". The four gnowebSeedRealms are appended after the truncation, so a PR that touches gnoweb and 25+ realms boots gnodev on 29 packages and crawls them. Measured with maxRealms=1: len(Realms)=5.",
+      "verify_by": "cd misc/gnopreview && go test -run TestB7SeedsBypassCap -v ./... (from tests/b7-claims-cap-bounds_test.go)",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "maxRealms=1 -> len(Realms)=5 [gno.land/r/docs/security_patterns gno.land/r/gnoland/blog gno.land/r/gnoland/boards2/v0 gno.land/r/gnoland/home gno.land/r/x/a] Dropped=1",
+      "repro_path": "tests/b7-claims-cap-bounds_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 91,
+      "angle": "claims",
+      "summary": "Empty reports a gnoweb-only plan with no realms as worth previewing, and render then indexes Realms[0]",
+      "failure_scenario": "Empty is !Gnoweb && len(Realms)==0, so a gnoweb-only change whose four seed realms are all absent from the tree (a rename or a move of gnoland/home, docs/security_patterns, gnoland/boards2/v0 and gnoland/blog) returns Empty()==false with Realms empty. main.go:131 then evaluates urlOf(plan.Realms[0]) and the render job panics with index out of range instead of printing \"nothing to preview\". plan_test.go's \"gnoweb alone\" case pins exactly that state as non-empty.",
+      "verify_by": "cd misc/gnopreview && go test -run TestB7GnowebWithNoRealmsIsNotEmpty -v ./... (from tests/b7-claims-cap-bounds_test.go)",
+      "band": "Suggestion",
+      "checked": true,
+      "run": true,
+      "evidence": "Gnoweb=true Realms=[] Empty()=false -> main.go:131 evaluates plan.Realms[0]",
+      "repro_path": "tests/b7-claims-cap-bounds_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 142,
+      "angle": "claims",
+      "summary": "modFlags says it reads \"the two booleans we care about\"; nothing ever reads Pkg.Draft",
+      "failure_scenario": "Pkg.Draft is parsed for every package on every run and consulted nowhere: `grep -rn \"Draft\" misc/gnopreview` returns only the field declaration at plan.go:58 and the assignment at plan.go:142. examples/gno.land/r/demo/draftrealm is the one draft package in the walked tree, and it is previewed like any other. Either the field and half of modFlags are dead and go, or draft realms were meant to be filtered and are not.",
+      "verify_by": "grep -rn \"Draft\" misc/gnopreview — expect a reader, observe only the declaration and the assignment",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "plan.go:58 (field), plan.go:142 (assignment) are the only hits; grep -rln '^[[:space:]]*draft[[:space:]]*=[[:space:]]*true' examples --include=gnomod.toml = examples/gno.land/r/demo/draftrealm/gnomod.toml",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 140,
+      "angle": "claims",
+      "summary": "Realm is documented as \"lives under gno.land/r/\" but matches \"/r/\" anywhere in the path",
+      "failure_scenario": "strings.Contains(rel, \"/r/\") over the repo-relative dir also matches a package under examples/gno.land/p/ whose own path carries an /r/ segment, which would be classified as a realm, entered into Realms, and crawled at gnoweb's realm URL. No such package exists today (find examples/gno.land -type d -path '*/r/*' ! -path 'examples/gno.land/r/*' returns 0), so this is latent: the first p/ package with an /r/ path segment breaks the classification silently.",
+      "verify_by": "find examples/gno.land -type d -path '*/r/*' ! -path 'examples/gno.land/r/*' | wc -l — 0 today; add one such dir with a gnomod.toml and a .gno file and BuildPlan reports it as a realm",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "find returned 0 matching dirs at ecf7af0f2; the guard is prefix-free, so correctness rests on the tree never growing one",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 27,
+      "angle": "claims",
+      "summary": "pkgRoot's comment says examples/quarantined must never be previewed",
+      "settled_by": "LoadPkgs walks filepath.Join(root, \"examples/gno.land\") only, so quarantined packages never enter pkgs; ls examples = gno.land, quarantined, gnowork.toml, Makefile, README.md, and plan_test.go's \"quarantined packages never appear\" case covers it"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 47,
+      "angle": "claims",
+      "summary": "indirectExclude's comment claims a PR editing gno.land/r/tests/ directly is still previewed",
+      "settled_by": "plan.go:244 guards with !changedPkgs[p] before the prefix test; go test -run TestBuildPlan passes its \"a changed test realm is still previewed\" case"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 37,
+      "angle": "claims",
+      "summary": "gnowebSeedRealms and gnowebPaths name trees that must exist",
+      "settled_by": "all four seed realm dirs and all three gnoweb paths exist at ecf7af0f2: examples/gno.land/r/{gnoland/home,docs/security_patterns,gnoland/boards2/v0,gnoland/blog}, gno.land/pkg/gnoweb, gno.land/cmd/gnoweb, contribs/gnodev"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 155,
+      "angle": "claims",
+      "summary": "modFlags claims draft/ignore are always plain top-level `key = true` lines",
+      "settled_by": "grep -rhn '^[[:space:]]*(draft|ignore)[[:space:]]*=' examples --include=gnomod.toml returns 3 hits, all on line 3 and all plain: 2x 'ignore = true', 1x 'draft = true'"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 83,
+      "angle": "claims",
+      "summary": "ChangedFiles' comment says per-file $source pages are 60% of a wide preview's bytes",
+      "settled_by": "README.md:33 gives the measurement behind it, 13.3 MB of 22.2 MB and 133 of 243 pages on a change to p/nt/avl/v0, which is 59.9%; internally consistent, and re-measuring needs a full gnodev crawl"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 106,
+      "angle": "claims",
+      "summary": "LoadPkgs' godoc says it walks examples/ while it walks examples/gno.land",
+      "settled_by": "the narrowing is deliberate and documented at plan.go:27 (quarantined must never be previewed); wording alone, so not a candidate per the finder contract"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 94,
+      "angle": "claims",
+      "summary": "Mode's godoc calls it the one-word summary used by the PR comment",
+      "settled_by": "comment.go:36 switches on p.Mode()"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 86,
+      "angle": "claims",
+      "summary": "Shots' comment says it is only populated for gnoweb changes",
+      "settled_by": "main.go:147-152: Shots is assigned only in the else-if branch guarded by plan.Gnoweb, and only when len(plan.ChangedRealms)==0"
+    }
+  ]
+}

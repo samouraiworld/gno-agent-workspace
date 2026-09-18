@@ -1,0 +1,119 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 105,
+      "angle": "reach",
+      "summary": "no test and no CI job executes render, startGnodev, renderBase, waitReady, findRoot or readLines: the package's tests name no main.go symbol, and pr-preview.yml's plan gate skips every render step on this PR's own diff",
+      "failure_scenario": "grep crawl_test.go and plan_test.go for render(, startGnodev, renderBase, findRoot, readLines, fileBudget(, envOr(: no hit, so the package's 20 tests cover only the pure helpers in plan.go, crawl.go and comment.go. Build gnopreview and feed it this PR's own 16 changed paths (misc/gnopreview/**, .github/workflows/**, .gitignore, an adr): plan prints {\"gnoweb\":false,...,\"realms\":[]} and pr-preview.yml's gate, jq 'if .gnoweb or (.realms|length>0)', answers no, which sets skip=true and skips Build gnodev, Render the snapshot and upload-artifact. So every line of main.go past flag parsing ships unexecuted by anything: the plan.Realms[0] index at line 131, the SIGTERM-and-wait in stop(), the two-node renderBase, the readiness probe. The green check on this PR attests to the helpers, not to the program.",
+      "verify_by": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-reach-r2-ci-never-renders.sh, from a clone at ecf7af0: step 1 prints NONE, step 2 prints realms [] and then no",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "grep over both test files: NONE. $S/gnopreview plan -changed <16 changed paths> -root $S -> {\"gnoweb\":false,\"changed_realms\":null,\"changed_pkgs\":null,\"realms\":[],\"dropped\":0,\"dirs\":null}; jq gate -> no (skip=true).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b3-reach-r2-ci-never-renders.sh"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 177,
+      "angle": "reach",
+      "summary": "-home is relative to the output dir but gnodev's -C chdirs before it is resolved, so the node home lands in <root>/examples/_preview/.gnodev-<port> and the workflow's rm -rf _preview/.gnodev-* deletes nothing",
+      "failure_scenario": "render runs from the repo root with -out _preview. startGnodev passes -home _preview/.gnodev-8899 together with -C <root>/examples, and gnodev's execLocalApp calls os.Chdir(cfg.chdir) as its first statement (contribs/gnodev/command_local.go:87-89), before any use of -home. The datadir, genesis and keybase are therefore created at <root>/examples/_preview/.gnodev-8899, inside the checked-out source tree; the base pass leaves a second one at <base-root>/examples/_preview/.gnodev-8900. pr-preview.yml's cleanup, rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*, and its du -sh _preview both look at <root>/_preview and see neither, so the line that is supposed to keep the node home out of the published snapshot is a no-op and the homes accumulate on any reused runner or local checkout.",
+      "verify_by": "read contribs/gnodev/command_local.go:87-89, os.Chdir(cfg.chdir) before the config is consumed; then run gnopreview render -out _preview from a gno root and ls <root>/examples/_preview",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 147,
+      "angle": "reach",
+      "summary": "a PR that changes only a p/ package renders its dependent realms and gets no picture at all: the pairs branch needs ChangedRealms and the sample branch needs Gnoweb",
+      "failure_scenario": "changed.txt holds examples/gno.land/p/demo/x/x.gno alone. BuildPlan files that package under ChangedPkgs, leaves ChangedRealms empty, sets Gnoweb false, and fills Realms with every realm importing it. render's `if len(plan.ChangedRealms) > 0 { pairs } else if plan.Gnoweb { shots }` takes neither branch, so preview.json carries no pairs and no shots and the comment is a list of links. That is the mode where the render delta is indirect, spread over up to 25 realms and hardest to eyeball, and it is also the mode where the workflow has already paid for the base worktree and passed -base-root for nothing.",
+      "verify_by": "printf 'examples/gno.land/p/demo/avl/tree.gno\\n' | gnopreview plan -changed - : changed_realms null with realms non-empty; then render and observe preview.json with neither pairs nor shots",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 275,
+      "angle": "reach",
+      "summary": "the _before pages are written with no assets of their own, so when a PR changes gnoweb and a realm together the before screenshot is rendered with the new CSS and JS",
+      "failure_scenario": "A PR touches gno.land/pkg/gnoweb/frontend and one realm: plan.Gnoweb is true and ChangedRealms is non-empty, so render takes the pairs branch. c.Write(cfg.out, assets) copies the head tree's gno.land/pkg/gnoweb/public into <out>/public, and base.Write(cfg.out, \"\") writes only the _before pages (crawl.go:303-306), whose rewritten /public/ links resolve, through the ../ depth computed from _before/..., to that same head asset tree. Chrome then shoots _before/r/foo/index.html with the new stylesheet and script, and the image labelled before shows a page that never existed; a gnoweb regression that only shows through CSS is invisible in the very comparison the pair exists for.",
+      "verify_by": "read crawl.go:303-306 and crawl.go:348-362, then render a branch carrying both a gnoweb css change and a realm change and diff <out>/_shots/*-before.png against the base rendered with its own assets",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 262,
+      "angle": "reach",
+      "summary": "the base crawl's page cap is exactly its seed count, and the cap is a hard error renderBase swallows to stderr, so one extra queued page deletes every before/after silently",
+      "failure_scenario": "base := &Crawler{MaxPages: len(realms), RenderOnly: true} has zero headroom: Seeds() yields exactly one URL per realm while RenderOnly is set, and Run checks len(c.pages) >= MaxPages before each fetch, so the cap is unreachable only as long as that stays true. Give the base pass one more page -- a $source view of the changed file, a seed reached twice under a different spelling, a retry that records a page -- and Run returns \"page cap N reached\"; renderBase prints \"  ! base render:\" to stderr and returns nil, ScreenshotPairs then emits after-only pairs, and the comment shows no comparison while the job stays green. The head crawl gets 400 pages for the same work.",
+      "verify_by": "build with MaxPages: len(realms)-1 and run renderBase: base.Run() returns the cap error and renderBase returns (nil, newRealms), leaving every pair without a Before",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 241,
+      "angle": "reach",
+      "summary": "plan.Dirs[i] indexed by a plan.Realms index could run past the end, since plan.go appends the four gnoweb seed realms to Realms after the cap",
+      "settled_by": "plan.go:271-276 builds Dirs by ranging over plan.Realms after the seeds are appended, so the two slices are parallel by construction: `for _, r := range plan.Realms { plan.Dirs = append(plan.Dirs, pkgs[r].Dir) }`"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 129,
+      "angle": "reach",
+      "summary": "FileBudget is 0 for every non-gnoweb plan, and chargeFile is called for every page, so a zero budget could drop the whole crawl",
+      "settled_by": "crawl.go:243-245, chargeFile returns true before any budget test when the URL carries no file= argument: `if name == \"\" { return true }`; only $source&file= pages are charged"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 151,
+      "angle": "reach",
+      "summary": "shotPlan's four fixed URLs may name realms the gnoweb seed list does not load, so a gnoweb-only PR would silently get fewer screenshots",
+      "settled_by": "plan.go:34-40 gnowebSeedRealms holds gno.land/r/gnoland/home, /r/docs/security_patterns, /r/gnoland/boards2/v0 and /r/gnoland/blog, which covers all three realms shots.go:107-112 names; Seeds() adds the $source and $help variants"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 137,
+      "angle": "reach",
+      "summary": "the gnoweb asset tree may be a build product absent from a fresh checkout, which would make c.Write fail or publish an unstyled snapshot",
+      "settled_by": "git ls-files gno.land/pkg/gnoweb/public lists main.css, js/*.js, fonts and imgs as tracked, and git check-ignore reports no ignore rule for them"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 170,
+      "angle": "reach",
+      "summary": "the gnodev command line may name flags this head's gnodev does not have, which would kill every render at startup",
+      "settled_by": "grep over contribs/gnodev: command_local.go:55 \"local\", command_local.go:77 \"C\", app_config.go:64 \"home\", :99 \"web-listener\", :167 \"node-rpc-listener\", :222 \"no-watch\" all exist"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 141,
+      "angle": "reach",
+      "summary": "index.html is written before the screenshots are taken, so the landing page would always show zero images",
+      "settled_by": "comment.go:166 Index(p *Plan, c *Crawler) never reads p.Shots or p.Pairs; grep shows Shots and Pairs used only in Comment at comment.go:42, 53 and 55, which is written at main.go:156, after the shots"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 275,
+      "angle": "reach",
+      "summary": "the _before pages sit one directory deeper than the head pages, so their rewritten asset paths could be one ../ short and render unstyled",
+      "settled_by": "crawl.go:350 computes the depth from p.File, which already carries the _before prefix: `depth := len(strings.Split(strings.Trim(path.Dir(p.File), \"/\"), \"/\"))`"
+    },
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 98,
+      "angle": "reach",
+      "summary": "the plan subcommand pipes JSON into jq, so any progress line BuildPlan prints to stdout would break the workflow's gate",
+      "settled_by": "grep 'fmt.Print' plan.go comment.go: no hit; every progress line in the tool is in crawl.go and shots.go, on the render path"
+    }
+  ]
+}

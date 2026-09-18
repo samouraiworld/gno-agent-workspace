@@ -1,0 +1,106 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 152,
+      "angle": "refactor",
+      "summary": "rewrite: the Empty() assertion restates the Mode() assertion three lines above it, so the block is dead weight — 278 lines to 275, tests green",
+      "failure_scenario": "Empty() is `!Gnoweb && len(Realms)==0` and Mode() returns \"none\" on exactly that state, so `got.Empty() != (tc.wantMode == \"none\")` cannot be true once the Mode assertion has passed. A 16-cell enumeration over every combination of Gnoweb, ChangedRealms, ChangedPkgs and Realms shows Empty() == (Mode()==\"none\") in all of them, and rewriting Empty() as `return p.Mode() == \"none\"` leaves the package green: the three lines cost a reader a check of Empty's definition and pin nothing the line above does not.",
+      "verify_by": "cd misc/gnopreview && go test ./... after (a) deleting plan_test.go:152-154 and (b) replacing Empty's body with `return p.Mode() == \"none\"`; both green",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "deletion of the three lines: `ok github.com/gnolang/gno/misc/gnopreview 0.005s`, plan_test.go 278 -> 275. Empty() rewritten as `return p.Mode() == \"none\"`: `ok github.com/gnolang/gno/misc/gnopreview 0.004s`. 16-cell enumeration: `--- PASS: TestB10EmptyRestatesMode (0.00s)`.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-refactor-r2-empty-restates-mode_test.go"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 212,
+      "angle": "refactor",
+      "summary": "rewrite: the gnowebPaths loop is hasPrefixAny, defined in the same file and called 32 lines below — plan.go 345 to 343, tests green",
+      "failure_scenario": "BuildPlan open-codes `for _, gw := range gnowebPaths { if strings.HasPrefix(f, gw) { plan.Gnoweb = true } }` while plan.go:326 already defines `hasPrefixAny(s, prefixes)` and BuildPlan itself calls it at plan.go:244 for indirectExclude. The open-coded copy also has no break, so it keeps scanning every remaining prefix after the match. `if hasPrefixAny(f, gnowebPaths) { plan.Gnoweb = true }` is the same behaviour in three lines, and leaves one place to change when the gnoweb path list grows a pattern (a suffix, a regexp) instead of two.",
+      "verify_by": "apply the substitution, then cd misc/gnopreview && go vet ./... && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "`ok github.com/gnolang/gno/misc/gnopreview 0.004s`, go vet silent, plan.go 345 -> 343.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-refactor-r2-rewrites.sh"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 144,
+      "angle": "refactor",
+      "summary": "the Realms assertion is reflect.DeepEqual but its message is %v, so the one difference DeepEqual catches that slices.Equal would not prints as `Realms = []; want []`",
+      "failure_scenario": "The table pins `wantRealms: []string{}` in four cases, so the assertion's whole job beyond element equality is the nil-vs-empty distinction — which is real, since Plan is marshalled to preview.json and a nil Realms serialises as `\"realms\":null` rather than `[]`. When that is the failure, `t.Errorf(\"Realms = %v; want %v\", ...)` prints both sides identically: replacing sortedKeys with slices.Sorted(maps.Keys(m)) makes four subtests fail with `plan_test.go:144: Realms = []; want []`, which tells the author nothing about what changed. %#v, or an explicit `got.Realms == nil` clause in the message, costs one character and names the difference.",
+      "verify_by": "cd misc/gnopreview && replace sortedKeys' body with `return slices.Sorted(maps.Keys(m))`, go test ./... and read the failure lines",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "`--- FAIL: TestBuildPlan/nothing_relevant (0.00s)` / `plan_test.go:144: Realms = []; want []`, same line for gnoweb_alone, quarantined_packages_never_appear and tests_and_filetests_do_not_trigger_a_preview.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-refactor-r2-rewrites.sh"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 175,
+      "angle": "refactor",
+      "summary": "rewrite: Index computes `strings.TrimPrefix(path.Dir(urlToFile(u)), \"/\")` three times inside one Sprintf — hoisting it is 4 lines to 4 with one call",
+      "failure_scenario": "The three arguments of the row template are the identical expression, spread over two wrapped lines, so a reader has to diff them character by character to see they are the same and an edit to one (a trailing slash, a different root) silently desynchronises the three links of a row. `dir := strings.TrimPrefix(path.Dir(urlToFile(u)), \"/\")` beside the existing `u := urlOf(r)` makes the Sprintf one short line and the sameness structural.",
+      "verify_by": "read comment.go:166-177; then cd misc/gnopreview && go test ./... on the hoisted form",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 335,
+      "angle": "refactor",
+      "summary": "rewrite: contains() is slices.Contains under another name; inlining it at its three call sites drops the helper — 880 lines to 878, tests green",
+      "failure_scenario": "`func contains(s []string, v string) bool { return slices.Contains(s, v) }` adds a project-local name for a stdlib call, and its three callers (plan.go:265, comment.go:161, main.go:238) read as if the package had its own membership rule. A reader of comment.go:161 has to open plan.go to learn it does not. Calling slices.Contains directly costs two import lines and removes four.",
+      "verify_by": "apply the substitution at the three call sites, then cd misc/gnopreview && gofmt -l . && go test ./...",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "with the plan.go:212 rewrite: `rewritten green, 876 lines` against `baseline green, 880 lines`; contains alone: 880 -> 878, `ok github.com/gnolang/gno/misc/gnopreview 0.004s`.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-refactor-r2-rewrites.sh"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 23,
+      "angle": "refactor",
+      "summary": "altitude: BuildPlan calls LoadPkgs itself, so testing the derivation needs a 38-line on-disk monorepo and ten full tree walks; the fix is a pure `plan(pkgs, changed, max)` under it",
+      "failure_scenario": "Every question the table asks (is this realm a dependent, does the cap keep the changed one, do seed realms get appended) is about a package graph, not about the filesystem, but BuildPlan's first statement is `LoadPkgs(root)`, so each case has to be expressed as files under t.TempDir() and each subtest re-walks and re-parses the whole fixture tree. The cost shows in what the table cannot say: a case needing a draft package, a cycle, an unparseable .gno or a realm above the cap is a new set of files rather than a new literal, which is why maxRealms is exercised with one realm and a cap of one. Splitting the graph derivation into a function over `map[string]*Pkg` leaves BuildPlan as loader plus call, lets the table hold Pkg literals, and keeps the one fakeRepo case for LoadPkgs itself.",
+      "verify_by": "extract the body of BuildPlan after LoadPkgs into `func planFrom(pkgs map[string]*Pkg, changed []string, maxRealms int) *Plan`, have BuildPlan call it, and run cd misc/gnopreview && go test ./...",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 317,
+      "angle": "refactor",
+      "summary": "sortedKeys' eight-line body is slices.Sorted(maps.Keys(m)), one line, at six call sites",
+      "settled_by": "applied and ran `cd misc/gnopreview && go test ./...`: four subtests go red, `plan_test.go:144: Realms = []; want []`. slices.Sorted returns nil for an empty map where sortedKeys returns a non-nil empty slice, which flips preview.json's `\"realms\":[]` to `\"realms\":null` for a PR with nothing to render. The rewrite is not equivalent; the current form stays."
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 143,
+      "angle": "refactor",
+      "summary": "reflect.DeepEqual over []string is slices.Equal, which would drop the reflect import and the four `[]string{}` literals",
+      "settled_by": "same run as above: DeepEqual is exactly what makes those four cases pin a non-nil empty Realms, and that is the field that reaches preview.json. slices.Equal treats nil and empty alike, so the swap would delete the only guard on `\"realms\":null`."
+    }
+  ],
+  "blocks_rewritten": [
+    "sortedKeys -> slices.Sorted(maps.Keys(m)): 8 lines to 1, rejected — nil vs non-nil empty, four subtests red, preview.json changes",
+    "reflect.DeepEqual -> slices.Equal in TestBuildPlan: rejected — DeepEqual is the assertion pinning the non-nil empty Realms",
+    "the five Comment tests folded into one table with want/notWant: rejected — the fold is the mustContain helper already flagged at plan_test.go:132, and the five names are what say which comment shape each case is about",
+    "fakeRepo's pkg closure given draft/ignore parameters so the ignored package stops being two raw write() calls: rejected — a parameter for one caller is shallower than the two explicit lines",
+    "TestRenderRelevant's table: rejected — six literals and a three-line loop, nothing to fold",
+    "hoisting fakeRepo out of TestBuildPlan into a package-level sync.OnceValue so ten subtests stop re-walking the tree: rejected — t.TempDir's cleanup is tied to the test, and the walk is 0.004s"
+  ]
+}

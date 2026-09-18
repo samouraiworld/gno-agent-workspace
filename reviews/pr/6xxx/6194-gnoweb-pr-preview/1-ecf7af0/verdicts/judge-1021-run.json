@@ -1,0 +1,46 @@
+{
+  "verdicts": [
+    {
+      "index": 125,
+      "angle": "refactor + tests + lines",
+      "verify_by": "grep -n 'wantFile' misc/gnopreview/*.go: the only call site is inScope at crawl.go:209, and crawl_test.go's TestWantFile body calls c.inScope and c.chargeFile and never c.wantFile | `grep -n 'wantFile' misc/gnopreview/crawl_test.go` — expect a call, observe none | perl -0pi -e 's{\\t\\tif _, listed := c\\.ChangedFiles\\[r\\]; listed \\{\\n\\t\\t\\treturn true[^\\n]*\\n\\t\\t\\}\\n}{}' misc/gnopreview/crawl.go && cd misc/gnopreview && go test -vet=off -count=1 .",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 196,
+      "tldr": "TestWantFile names a function it never calls, and the changed-set exemption next to it is pinned by no test",
+      "details": "crawl_test.go:196-227 calls c.inScope and c.chargeFile; wantFile appears nowhere in crawl_test.go, so the test name points at a function it never invokes. The decision itself is not unpinned, though: neutering wantFile's changed-set branch (ok && false) reddens the test at crawl_test.go:214, which refutes the scenario's 'the decision it claims to cover is no longer exercised'. What no test holds is chargeFile's sibling exemption at crawl.go:250-252, and since fileBudget(plan) returns 0 for a realms-only PR (main.go:216-221), losing those three lines would drop the $source page of every file the PR changed while the suite stayed green. Fix: call c.wantFile directly for the listed/unlisted pair and add one chargeFile case keeping three changed files under FileBudget 0, as tests/judge-125-chargefile-changed-set_test.go does (+40 lines added, 0 removed).",
+      "evidence": "Detached worktree at ecf7af0f2. Head plus the judge artifact: ok github.com/gnolang/gno/misc/gnopreview 0.005s. Mutation `ok && false` on wantFile's ChangedFiles branch, shipped suite alone: --- FAIL: TestWantFile / crawl_test.go:214: inScope(\"/r/x/touched$source&file=b.gno\") = true; want false. Mutation deleting chargeFile's exemption, shipped suite alone: ok github.com/gnolang/gno/misc/gnopreview 0.004s; same tree with the judge artifact: --- FAIL: TestChangedFilesEscapeTheBudget / chargeFile(\"/r/x/touched$source&file=a.gno\") refused a changed file under a zero budget (a.gno, b.gno, c.gno all three). Merge base bbd9b2f has no misc/gnopreview directory, so nothing to run there.",
+      "repro_path": "tests/judge-125-chargefile-changed-set_test.go",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 126,
+      "angle": "tests + refactor",
+      "verify_by": "in a worktree at ecf7af0f2, replace plan.go:263-270 with `if false { _ = gnowebSeedRealms }`, then `cd misc/gnopreview && go test ./...` | cd misc/gnopreview && go test -coverprofile=/tmp/cov.out ./... && awk -F'[:, ]' '$NF==0' /tmp/cov.out | grep plan.go:265",
+      "state": "CONFIRMED",
+      "band": "Missing test",
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 111,
+      "tldr": "the seed-realm injection that gives a gnoweb-only PR anything to preview can be deleted with the suite still green",
+      "details": "plan.go:263-270 is the only place a gnoweb-only PR acquires realms to render, and fakeRepo (plan_test.go:14-51) writes none of the four gnowebSeedRealms, so `pkgs[r] != nil` is false in every case; the `gnoweb alone` case pins wantRealms as empty and says so in its own comment. Replacing the whole block with `if false { _ = gnowebSeedRealms }` leaves the shipped suite green. With that block gone a PR touching only gno.land/pkg/gnoweb gets Realms and Dirs empty, so gnodev is started on nothing and the preview comment lists no pages, on exactly the PRs the seeds exist for. Fix: ship the finder's TestGnowebSeedRealmsAreSeeded, whose fixture writes examples/gno.land/r/gnoland/home, or add that realm to fakeRepo and assert it in the `gnoweb alone` case.",
+      "evidence": "Detached worktree at ecf7af0f2, plan.go:263-270 replaced by `if false { _ = gnowebSeedRealms }`. Shipped suite alone: ok github.com/gnolang/gno/misc/gnopreview 0.004s. Same tree plus tests/b10-tests-untested-guards_test.go: --- FAIL: TestGnowebSeedRealmsAreSeeded / zz_untested_guards_test.go:105: Realms = []; want the seed realm present in the repo / :108: Dirs = []; want the seed realm's dir. The artifact passes on the unmutated head: ok ... 0.005s. Merge base bbd9b2f has no misc/gnopreview directory.",
+      "repro_path": "tests/b10-tests-untested-guards_test.go",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 127,
+      "angle": "tests",
+      "verify_by": "in a worktree at ecf7af0f2, move `b.WriteString(shotGrid(p.Shots, base))` out of the `if p.Gnoweb` block of Comment's default branch, then `cd misc/gnopreview && go test ./...`",
+      "state": "CONFIRMED",
+      "band": "Missing test",
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 211,
+      "tldr": "the two assertions that a realm-only comment carries no gnoweb sample hold on Plans that have no Shots at all",
+      "details": "TestCommentRealms (plan_test.go:186-213) builds a Plan with ChangedRealms, ChangedPkgs, Realms and Dropped and no Shots and no Pairs, and shotGrid returns \"\" for an empty slice (comment.go:130-133), so `<table>` cannot appear however comment.go gates the grid. Hoisting `b.WriteString(shotGrid(p.Shots, base))` above `if p.Gnoweb {` in Comment's default branch — the edit that would paste the four-page gnoweb sample onto every realm-only PR's comment — leaves the shipped suite green. The `Home — rendered markdown` negative at plan_test.go:258 has the same hole: that Plan carries Pairs but again no Shots. Fix: give both Plans one Shot before asserting the sample's absence, as the finder's TestRealmsModeDropsGnowebSample does.",
+      "evidence": "Detached worktree at ecf7af0f2, `b.WriteString(shotGrid(p.Shots, base))` moved from comment.go:53 to directly under `default:`. Shipped suite alone: ok github.com/gnolang/gno/misc/gnopreview 0.004s. Same tree plus tests/b10-tests-untested-guards_test.go: --- FAIL: TestRealmsModeDropsGnowebSample. Read of plan_test.go:186-192 confirms the Plan literal sets no Shots and no Pairs. Merge base bbd9b2f has no misc/gnopreview directory.",
+      "repro_path": "tests/b10-tests-untested-guards_test.go",
+      "base_behaves_the_same": false
+    }
+  ]
+}

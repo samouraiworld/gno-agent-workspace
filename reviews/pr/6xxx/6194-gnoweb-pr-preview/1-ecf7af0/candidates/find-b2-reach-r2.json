@@ -1,0 +1,87 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 354,
+      "angle": "reach",
+      "summary": "the rewrite covers href and src only, so every $help page ships with the crawler's own http://127.0.0.1:8899 origin baked into its form action and its copy-link button",
+      "failure_scenario": "Seeds() adds u+\"$help\" for every realm (crawl.go:92), so a $help page is captured for each one and shotPlan screenshots /r/gnoland/boards2/v0$help as \"Help / actions forms\". gnoweb builds those URLs from the request origin: handler_http.go:390 sets gnourl.Origin = requestOrigin(r), requestOrigin reads r.Host (handler_http.go:933), and view_action.go:73 writes data.Origin + pkgPath + \"$help&func=\" + fn.Name into both views/action.html:104 (form action=) and views/action.html:84 (data-copy-text-value=). The crawler fetches over Crawler.Base = http://127.0.0.1:8899 (main.go:124), so r.Host is 127.0.0.1:8899. rewrite() at crawl.go:354 only walks attrRe = \\b(href|src)=\"...\", and mapURL returns raw for anything not starting with a single \"/\" (crawl.go:382), so neither attribute is touched. A reviewer opening the published preview and pressing the anchor-link button on any exported function copies http://127.0.0.1:8899/r/gnoland/boards2/v0$help&func=CreateBoard, which resolves to nothing on their machine, and the function form posts to the same dead loopback origin. README.md:99 states \"Every absolute URL is rewritten\".",
+      "verify_by": "go test ./... -run TestHelpPageKeepsCrawlerOrigin -v in misc/gnopreview with the artifact test copied in: feed rewrite() the two attribute shapes action.html emits with the crawl origin expanded and count the surviving occurrences of http://127.0.0.1:8899; the sibling test pins that href= in the same body IS rewritten, so a failure is the attribute set and not the fixture",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "FAIL: rewrite() left 2 reference(s) to the crawler's own gnodev (http://127.0.0.1:8899) in the published page. Rewritten body: '<button data-copy-text-value=\"http://127.0.0.1:8899/r/gnoland/boards2/v0$help&amp;func=CreateBoard\">copy</button>' and '<form class=\"params\" id=\"form-CreateBoard\" method=\"GET\" action=\"http://127.0.0.1:8899/r/gnoland/boards2/v0$help&amp;func=CreateBoard\"></form>', while the same body's <a href=\"/r/gnoland/boards2/v0$source\"> was rewritten to https://gno.land/... (TestHrefIsRewrittenSoTheHarnessIsHonest PASS). Source side: grep gave 'handler_http.go:390: gnourl.Origin = requestOrigin(r)', 'handler_http.go:933: host := r.Host', 'view_action.go:73: url.WriteString(data.Origin + pkgPath + \"$help&func=\" + fn.Name)', 'views/action.html:104: <form class=\"params\" ... action=\"{{ buildHelpURL $data . }}\"' and 'views/action.html:84: data-copy-text-value=\"{{ buildHelpURL $data . }}\"'.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-reach-r2-help-origin_test.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 547,
+      "angle": "reach",
+      "summary": "copyTree has no test at all, and it is the one mechanism README.md:101 stakes \"every interactive control\" on",
+      "failure_scenario": "copyTree rewrites every literal /public/ in a copied .js or .css to a per-file relative prefix, computed as strings.Repeat(\"../\", len(strings.Split(d, \"/\"))) from filepath.Dir(rel). The whole of gnoweb's interactivity rides on one occurrence, the hardcoded \"/public/js/controller-\" prefix in public/js/index.js from which every controller is dynamically imported. grep -hn '^func Test' crawl_test.go plan_test.go lists 21 tests and none names copyTree; grep -c 'copyTree|c.rewrite|setNoindex|mapURL' crawl_test.go returns 3, all of them rewrite/mapURL. So the depth arithmetic, the n==0 warning path in Write, the .js/.css extension gate, and the byte-for-byte passthrough of fonts and images are all unexercised: a regression that emits \"..//\" or the wrong depth ships green and every interactive control on every preview page 404s, with the only signal being a warning line that fires solely when the count reaches zero.",
+      "verify_by": "grep -hn '^func Test' misc/gnopreview/crawl_test.go misc/gnopreview/plan_test.go and confirm no copyTree case; then write one that copies a fixture tree containing public/js/index.js with the \"/public/js/controller-\" prefix and public/main.css, and assert the rewritten prefixes are \"../js/controller-\" and \"./\" respectively",
+      "band": "Missing test",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 444,
+      "angle": "reach",
+      "summary": "no byte cap on a response and every captured body stays resident, so the README's Bounds section bounds page count and nothing else",
+      "failure_scenario": "get() does io.ReadAll(resp.Body) with no limit (grep for LimitReader, MaxBytes, maxBody or ContentLength across crawl.go and main.go returns nothing), Run stores the whole string in c.pages[u].Body, and nothing frees it before Write. README.md:106 titles a Bounds section whose only quantitative lever is \"-max-pages cap (400)\"; the shapes it excludes are excluded by weight, $state at \"~1.3 MB of HTML per realm\". A realm whose Render returns a large document, or a $source&file= on a large .gno, is read whole into memory, held for the life of the crawl alongside up to 399 others, written out, and uploaded as the workflow artifact. The runner has no per-page or total-bytes stop before it hits its own memory or artifact limit, and the crawl that hits it fails whole rather than truncating.",
+      "verify_by": "grep -n 'LimitReader\\|MaxBytes\\|maxBody\\|ContentLength' misc/gnopreview/crawl.go misc/gnopreview/main.go (empty), and grep -n -i 'cap\\|size\\|limit' misc/gnopreview/README.md to read what Bounds claims",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 139,
+      "angle": "reach",
+      "summary": "the per-file budget drop is printed to stdout while every other page loss goes to stderr",
+      "failure_scenario": "Run reports a fetch error (line 131) and a non-200 (line 135) on stderr with a '!' marker, but the budget drop at line 139 uses fmt.Printf with a '-' marker on stdout, alongside the '\\u2713' success lines. A CI step that keeps stderr as the job's problem log, or a reader scanning the red half of the output, sees every page the crawl lost except the ones the budget dropped, which are the ones a reviewer is most likely to go looking for when a file they changed is missing from the preview.",
+      "verify_by": "read crawl.go:129-141: the two Fprintf(os.Stderr, ...) calls against the one Printf",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/main.go",
+      "line": 241,
+      "angle": "reach",
+      "summary": "plan.Dirs[i] indexed by the position in plan.Realms could desync, since plan.Realms is sorted after the realm list is built",
+      "settled_by": "sed -n '195,285p' misc/gnopreview/plan.go: 'sort.Strings(plan.Realms)' at line 269 runs before the loop at 271, 'for _, r := range plan.Realms { plan.Dirs = append(plan.Dirs, pkgs[r].Dir) ... }', so Dirs is built from the final sorted order and the two stay parallel"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 354,
+      "angle": "reach",
+      "summary": "the <link rel=\"canonical\"> in gnoweb's head could carry the crawl origin into every preview page",
+      "settled_by": "grep -rn 'Canonical' gno.land/pkg/gnoweb/ | grep -v _test: the field is declared at components/layout_index.go:47 and assigned nowhere, so head.html:17's '{{ if .Canonical }}' never renders the tag"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 287,
+      "angle": "reach",
+      "summary": "canonicalURL sorts the $-query parts, so the crawler requests /r/x/y$file=a.gno&source, a shape no browser ever emits, and gnoweb might not serve it",
+      "settled_by": "grep -rn 'WebQuery.Has\\|WebQuery.Get' gno.land/pkg/gnoweb/handler_http.go: dispatch is 'gnourl.WebQuery.Has(\"source\")' at :435 and 'WebQuery.Get(\"file\")' at :741 on a url.Values, which is order-independent"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 229,
+      "angle": "reach",
+      "summary": "wantFile compares the raw percent-encoded file= value against git's raw filename, so a .gno name gnoweb has to encode never matches its changed-file entry",
+      "settled_by": "find examples -name '*.gno' -printf '%f\\n' | grep -vE '^[A-Za-z0-9_.-]+$' returned nothing: no .gno filename in the tree needs percent-encoding, so the mismatch has no input"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 437,
+      "angle": "reach",
+      "summary": "get disables redirect following, so a seed that gnoweb's RedirectMiddleware answers with 302 is silently dropped",
+      "settled_by": "sed -n '1,60p' gno.land/pkg/gnoweb/redirect.go: the Redirects map holds /blog, /gor, /game-of-realms, /grants, /language, /getting-started, /newsletter and /r/demo/boards:gnolang/6; none is a realm render path Seeds() produces (urlOf(r), +$source, +$help, or path.Dir of those)"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 86,
+      "angle": "lines",
+      "summary": "the realm cap truncates directly changed realms too, so the comment links to realms that were never rendered while its footer says changed realms are always kept",
+      "failure_scenario": "a sweep PR touching more than -max-realms (default 25) realm directories -- 58 realm packages exist under examples/gno.land/r at this head, so a gnomod.toml or API migration across examples hits it. BuildPlan sorts changed realms first but then does realms = realms[:maxRealms] unconditionally (plan.go:256-259), so changed realms past the cap are dropped from plan.Realms and from plan.Dirs and gnodev is never asked to load them. Comment still lists every p.ChangedRealms entry with page, source and help links (comment.go:60-66) and then prints '1 more affected realm(s) were **not** rendered (cap reached) -- the changed realms are always kept.' The reviewer clicks three 404s per dropped realm and is told nothing was lost.",
+      "verify_by": "go test ./misc/gnopreview -run TestCapDropsChangedRealms with 2 changed realms and maxRealms=1: expect every ChangedRealms entry in Realms, observe one dropped and still linked",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "ChangedRealms=[gno.land/r/x/leaf gno.land/r/x/other] Realms=[gno.land/r/x/leaf] Dirs=[examples/gno.land/r/x/leaf] Dropped=1; comment body carries '- [`gno.land/r/x/other`](https://example.test/pr-1/r/x/other/) · [source](...) · [help](...)' and then 'WARNING 1 more affected realm(s) were **not** rendered (cap reached) - the changed realms are always kept.'; find examples/gno.land/r -name gnomod.toml | wc -l = 58 against a default cap of 25",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-lines-r2-cap-drops-changed-realms.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 47,
+      "angle": "lines",
+      "summary": "Comment's mode \"both\" branch is executed by no test: no fixture sets Gnoweb true together with a changed realm",
+      "failure_scenario": "BuildPlan has a \"gnoweb and a realm\" case (plan_test.go:115-120) asserting Mode()==\"both\", but every Comment fixture is either Gnoweb-only (plan_test.go:218) or realm-only. comment.go:47-54 -- the 'This PR changes **gnoweb** and realm sources.' sentence, the homepage link and the shotGrid call that puts the gnoweb sample screenshots in a mixed PR -- can be deleted whole and every test stays green. A gnoweb change that also touches a realm is the common shape, and it is the one nothing pins.",
+      "verify_by": "grep -n 'and realm sources' misc/gnopreview/*_test.go: expect a hit, observe none; then delete comment.go:47-54 and run go test ./misc/gnopreview",
+      "band": "Missing test",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 132,
+      "angle": "lines",
+      "summary": "the table rewrites maxRealms 0 into defaultMaxRealms, so the documented no-cap mode is unreachable from any case",
+      "failure_scenario": "main.go:73 documents -max-realms as 'cap on rendered realms; 0 for no cap' and BuildPlan implements it as the guard maxRealms > 0 (plan.go:256). The subtest body turns limit==0 into defaultMaxRealms, so no case passes 0 or a negative and the guard is mutation-green: change it to maxRealms >= 0 and every case still passes, while a -max-realms 0 run then caps at zero realms and renders nothing on the PR that asked for everything.",
+      "verify_by": "flip plan.go:256 to `if maxRealms >= 0 && len(realms) > maxRealms` and run go test ./misc/gnopreview: expect red, observe green",
+      "band": "Missing test",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 166,
+      "angle": "lines",
+      "summary": "Index(), the landing page every preview visitor opens first, is called by no test",
+      "failure_scenario": "Index builds the preview's index.html and hand-builds each row's three hrefs from path.Dir(urlToFile(u)) repeated three times in one Sprintf (comment.go:173-176). urlToFile's file layout is pinned hard by crawl_test.go (collision, traversal, slug length), but nothing pins that Index's links still resolve against it: change urlToFile to stop appending index.html and every crawl_test case can be updated while the index page's links silently start pointing one directory up. plan_test.go spends 101 lines on comment.go and stops at Comment.",
+      "verify_by": "grep -n 'Index(' misc/gnopreview/*_test.go: expect a hit, observe none",
+      "band": "Missing test",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 265,
+      "angle": "lines",
+      "summary": "a renamed seed realm is skipped in silence, and that skip is all that stands between render and an index panic",
+      "failure_scenario": "the four gnowebSeedRealms are hardcoded pkgpaths injected only `if pkgs[r] != nil`. A realm that moves (the boards2/v0 -> v1 shape gno already uses for versioned realms) silently stops seeding the gnoweb preview: nobody is told, the comment just gets shorter. All four gone and a gnoweb-only PR reaches render with Gnoweb true and Realms empty, which Empty() (plan.go:91) passes, and main.go:131 then indexes plan.Realms[0]. All four exist at this head, so the panic is latent; the silent skip is live on the first rename.",
+      "verify_by": "ls examples/gno.land/r/{gnoland/home,docs/security_patterns,gnoland/boards2/v0,gnoland/blog} -- all four present today; then remove one from the tree and diff the comment: no warning on any surface",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 19,
+      "angle": "lines",
+      "summary": "the marker and the heading are written into the builder before the Empty() early return, so both writes are dead on that path",
+      "failure_scenario": "Comment writes CommentMarker and '### gnoweb preview' at comment.go:19-20, then returns \"\" at comment.go:24-26 when the plan is empty, discarding both. TestCommentEmptyIsSilent passes because the return decides, not the builder, so the next author moving the Empty() check has no signal that the two writes have to move with it.",
+      "verify_by": "read comment.go:17-27 against TestCommentEmptyIsSilent (plan_test.go:178-184)",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 245,
+      "angle": "lines",
+      "summary": "the before/after fixture's ChangedRealms is unsorted, a shape BuildPlan never produces",
+      "failure_scenario": "BuildPlan fills ChangedRealms from sortedKeys(changedPkgs) (plan.go:229-234), so it is always sorted; the fixture passes [leaf, fresh] with Realms [fresh, leaf]. Comment iterates ChangedRealms in the given order, so the test pins the comment's bullet ordering against an input the producer cannot emit, and a later sort inside Comment would read as a behaviour change here while changing nothing in production.",
+      "verify_by": "read plan.go:229-234 against plan_test.go:236-243",
+      "band": "Nit",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 100,
+      "angle": "lines",
+      "summary": "an empty -base-url silently drops every screenshot and degrades every realm link to a backticked name, and no test covers base == \"\"",
+      "settled_by": "grep -rn BASE_URL .github/workflows/ -> pr-preview.yml:43 `if: vars.GNOWEB_PREVIEW_BASE_URL != ''` and pr-preview.yml:47 `BASE_URL: ${{ vars.GNOWEB_PREVIEW_BASE_URL }}/pr-${{ github.event.pull_request.number }}`: the job is gated on the variable being non-empty, so the empty-base path is unreachable in CI"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 174,
+      "angle": "lines",
+      "summary": "Index repeats path.Dir(urlToFile(u)) three times in one Sprintf, suspected of pointing source and help at the realm page",
+      "settled_by": "crawl.go:503 `return path.Join(append(parts, \"index.html\")...)` -- urlToFile(\"/r/x/leaf\") is \"r/x/leaf/index.html\", so path.Dir is \"r/x/leaf\" and the three hrefs come out \"r/x/leaf/\", \"r/x/leaf/_t/source/\", \"r/x/leaf/_t/help/\", which match urlToFile(\"/r/x/leaf$source\") = \"r/x/leaf/_t/source/index.html\""
+    }
+  ]
+}

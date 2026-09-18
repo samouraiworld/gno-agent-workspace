@@ -1,0 +1,46 @@
+{
+ "verdicts": [
+  {
+   "index": 230,
+   "angle": "refactor",
+   "verify_by": "go test -run TestDotDirGuardStillDescends -v ./misc/gnopreview with the artifact copied in: asserts gno.land/r/.hidden/deep loads and gno.land/r/.self does not",
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "file": "misc/gnopreview/plan.go",
+   "line": 114,
+   "tldr": "the dotted-directory guard drops that directory's own package and still walks into every child",
+   "details": "plan.go:114 is `if !d.IsDir() || strings.HasPrefix(d.Name(), \".\") { return nil }`. Returning nil from a filepath.WalkDir callback on a directory means continue; only fs.SkipDir prunes the subtree, so the guard skips the dotted directory as a package and descends into it anyway. I reran the finder's artifact in a scratch worktree at ecf7af0: a package at examples/gno.land/r/.hidden/deep is loaded while examples/gno.land/r/.self is dropped, which is the inconsistency in one run. Nothing renders wrong today, since `find examples/gno.land -type d -name '.*'` is empty at this head, so what it costs is a package under a future dotted directory being previewed and booted in gnodev against the guard's stated intent. Fix: return fs.SkipDir instead of nil on the dotted-directory branch, split from the `!d.IsDir()` branch, which still returns nil.",
+   "evidence": "head, scratch worktree at ecf7af0, `go test -run TestDotDirGuardStillDescends -v .` in misc/gnopreview: `--- PASS: TestDotDirGuardStillDescends`, `zz_b7_test.go:83: LOADED gno.land/r/.hidden/deep: the walk descended past the dotted directory`, `zz_b7_test.go:88: SKIPPED gno.land/r/.self: the dotted directory's own package is dropped`. Merge base: `ls .../gno-review-6194-base/misc/gnopreview` -> No such file or directory, so the whole behaviour arrives with this diff.",
+   "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b7-refactor-r2-plan-shape_test.go",
+   "base_behaves_the_same": false
+  },
+  {
+   "index": 231,
+   "angle": "refactor",
+   "verify_by": "add `var zzDirs, zzEntries int`, `zzEntries++` at the top of the WalkDir callback and `zzDirs++` before os.ReadDir(p), then a test calling LoadPkgs(\"../..\") printing both counters (recipe in the artifact header)",
+   "state": "CONFIRMED",
+   "band": "Nit",
+   "file": "misc/gnopreview/plan.go",
+   "line": 117,
+   "tldr": "examples/gno.land is enumerated end to end twice on every plan build",
+   "details": "The finder's artifact ships no such test, so I built it: the counter patch its header describes, plus a test calling LoadPkgs(\"../..\"). filepath.WalkDir reads all 304 directories under examples/gno.land to produce the 1530 entries it hands the callback; the callback acts only on d.IsDir(), discards those entries, and issues os.ReadDir(p) on the very directory the walk just read, 304 times. Handling entries as the walk delivers them (gnomod.toml into one set, non-test .gno files keyed by filepath.Dir(p)) removes the second pass and the hasMod/ents bookkeeping with it. What it costs the user is a doubled directory scan in a CI job that then boots gnodev and screenshots, so milliseconds, not seconds. Fix: drop the os.ReadDir(p) call and accumulate per-directory state from the callback's own d as the walk delivers files.",
+   "evidence": "head, scratch worktree at ecf7af0, counter patch applied, `go test -run TestZZCountsDirectoryReads -v .`: `packages=145 walk-callback-entries=1531 callback ReadDir calls=304`, PASS. Independent cross-check with no patch, os.walk over examples/gno.land: `directories (incl. base) = 304  total entries = 1530  callback invocations = 1+entries = 1531` \u2014 the 304 ReadDir calls re-read exactly what the walk had already read. plan.go restored to 345 lines after the run. Merge base has no misc/gnopreview.",
+   "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-231-plan-double-enumeration_test.go",
+   "base_behaves_the_same": false
+  },
+  {
+   "index": 232,
+   "angle": "refactor",
+   "verify_by": "apply edit list B from the artifact header, then cd misc/gnopreview && go test ./...",
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "file": "misc/gnopreview/plan.go",
+   "line": 206,
+   "tldr": "changedFiles is a map of maps deduping base names that cannot collide",
+   "details": "changedFiles at plan.go:206 is map[string]map[string]bool, costing a nil check, an inner map allocation per changed package and a sortedKeys call to get back to the []string the Plan field holds. Its keys are path.Base(f) for f in one package directory, which collide only when the same path appears twice in the changed-file list. I applied edit list B in a scratch worktree and pinned the output for a list carrying a duplicate entry, two .gno files, a gnomod.toml and a _test.gno: byte-identical both ways, and the package suite stays green. plan.go goes 345 -> 343 lines and loses one allocation per changed package. Fix: changedFiles := map[string][]string{}, append path.Base(f), and sort.Strings(f) then slices.Compact(f) where sortedKeys(f) is called at plan.go:274.",
+   "evidence": "head, scratch worktree at ecf7af0, misc/gnopreview. Before (map of maps): `ChangedFiles={\"gno.land/r/demo/a\":[\"b.gno\",\"gnomod.toml\",\"z.gno\"]}` PASS. After edit list B: `wc -l plan.go` -> `343 plan.go`, same line `ChangedFiles={\"gno.land/r/demo/a\":[\"b.gno\",\"gnomod.toml\",\"z.gno\"]}` PASS, and `go test ./...` -> `ok  github.com/gnolang/gno/misc/gnopreview  0.004s`. plan.go restored to 345 lines afterwards. Merge base has no misc/gnopreview.",
+   "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/judge-232-changedfiles-slice-equivalence_test.go",
+   "base_behaves_the_same": false
+  }
+ ]
+}

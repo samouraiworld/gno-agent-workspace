@@ -1,0 +1,127 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 33,
+      "angle": "claims",
+      "summary": "the sticky PR comment links every realm in the plan, including ones the crawl never captured",
+      "failure_scenario": "A PR adds or edits a realm whose deploy tx fails in gnodev (no type check before genesis), so gnoweb answers 404 for it. Run() logs \"! /r/x/broken: HTTP 404\" and carries on; Index(plan, c) drops the realm (comment.go:170 skips a realm absent from c.pages), but Comment(plan, baseURL, pr) takes no Crawler and emits \"- [`gno.land/r/x/broken`](<base>/r/x/broken/) · [source](<base>/r/x/broken/_t/source/) · [help](<base>/r/x/broken/_t/help/)\". The reviewer gets three 404s on the published site and no hint that the realm failed to render — the one signal the preview could have given.",
+      "verify_by": "go test -run TestCommentLinksRealms in misc/gnopreview with a fake gnoweb 404ing one realm: Index omits it, Comment still links it three times",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS. Crawl log: \"! /r/x/broken: HTTP 404\" for render, $source and $help. index.html omits the realm; the comment line is \"- [`gno.land/r/x/broken`](https://gnolang.github.io/gno-previews/pr-1/r/x/broken/) · [source](.../r/x/broken/_t/source/) · [help](.../r/x/broken/_t/help/)\". Comment() never receives the Crawler (comment.go:17), while Index() does and filters on c.pages (comment.go:170).",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-claims-comment-links-unrendered.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 127,
+      "angle": "claims",
+      "summary": "the page cap aborts the whole render instead of backstopping it, so a link-rich PR gets a red check and no preview",
+      "failure_scenario": "README.md:118 says \"A `-max-pages` cap (400) backstops the rest\" and the PR body says \"At most 25 realms and 400 pages\", but Run() returns an error at the cap, render() propagates it and main exits 1 (main.go:52). A realm that links one render-argument page per post (blog, docs, boards2) pushes a 25-realm plan past 400: every page already captured is thrown away, no snapshot, no comment, and the pr-preview job goes red on a PR whose only sin is touching a widely imported package. The realm cap is the opposite: plan.go:256 truncates and comment.go:86 reports \"N more affected realm(s) were not rendered\".",
+      "verify_by": "go test -run TestPageCapAborts in misc/gnopreview: a fake gnoweb with 40 argument links, MaxPages 5, Run() returns an error with pages already captured",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS. \"Run() error: page cap 5 reached (queue still had 158)\"; \"pages captured before the abort: 5\". main.go:50-53 prints and os.Exit(1); pr-preview.yml sets no continue-on-error on the render job.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-claims-page-cap-aborts.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 405,
+      "angle": "claims",
+      "summary": "in-realm links the crawl deliberately drops are sent to gno.land, where a realm this PR adds does not exist",
+      "failure_scenario": "README.md:99 says an uncaptured link \"lands on the live site rather than a 404\". For a realm the PR adds that is false: every action button on the overview is `<pkgpath>$help&func=X` (components/overview_symbols.go:54), explosiveArgs[\"func\"] keeps it out of the snapshot, and mapURL falls through to `c.Live + target`, so the reviewer clicking an action on the preview of a brand-new realm lands on a 404 at gno.land — and on a changed realm, on master's version of it, presented as the preview. The captured `$help` page is right there in c.pages and is the honest target.",
+      "verify_by": "grep -n 'ActionURL' gno.land/pkg/gnoweb/components/overview_symbols.go against explosiveArgs[\"func\"] and mapURL's fallback; then curl any moul/gno-preview-lab preview action link",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "overview_symbols.go:54 `entry.ActionURL = pkgPath + \"$help&func=\" + fn.Name`; crawl.go:166 drops key \"func\"; crawl.go:405 returns c.Live + target.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 490,
+      "angle": "claims",
+      "summary": "the _dir listing branch of urlToFile cannot run: no crawled URL ever ends in a slash",
+      "failure_scenario": "Round 1's answer says \"urlToFile puts a listing under _dir/\", and TestURLToFile pins \"/r/\" -> \"r/_dir/index.html\". But inScope returns false for a base ending in \"/\" (crawl.go:191) and no seed carries one (Seeds uses path.Dir), so Run never captures a listing and the branch is dead outside its test. A later reader who trusts the test will assume listings are snapshotted.",
+      "verify_by": "go test -run TestListingBranchNeverRuns: a fake gnoweb linking \"/r/x/y/\" on every page, then assert no captured URL ends in \"/\" and no File contains \"/_dir/\"",
+      "band": "Nit",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS. \"7 pages captured, none of them a listing\"; inScope(\"/r/x/y/\") = false.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b2-claims-page-cap-aborts.go"
+    },
+    {
+      "file": "misc/gnopreview/crawl_test.go",
+      "line": 51,
+      "angle": "claims",
+      "summary": "TestURLToFile's header claims an invariant the test never asserts, and urlToFile does not enforce it on the base",
+      "failure_scenario": "The header reads \"No output path may contain $, : or &\", but the test only compares seven exact strings. urlToFile slugs args and query and leaves base untouched, so urlToFile(\"/r/x&y\") returns \"r/x&y/index.html\" — today unreachable only because inScope requires base to equal a selected realm's path. A later change that widens the crawl (a user page, a /g/ path, an encoded segment) breaks the documented invariant with every test still green.",
+      "verify_by": "add {\"/r/x&y\", ...} to TestURLToFile's table and grep the output for \"&\"; the existing assertions do not look at the characters at all",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:487-505: base is only Trim'd of \"/\", never passed through slug(); crawl_test.go:53-67 asserts equality against literals only.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 158,
+      "angle": "claims",
+      "summary": "explosiveArgs' doc says \"The top-level $state page is still captured\" while the map carries \"state\": true",
+      "settled_by": "read of crawl.go:160-171 with the PR body's \"the crawl skips ... $state (~1.3 MB per realm)\": the code does what the body says, only the map's header sentence is stale, so the fix is a comment's wording"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 58,
+      "angle": "claims",
+      "summary": "the ChangedFiles doc names unchangedFileBudget, which does not exist",
+      "settled_by": "grep -rn 'unchangedFileBudget' misc/gnopreview/ returns only crawl.go:58; the constant is GnowebFileBudget (crawl.go:218) and the field FileBudget, both correct in the code"
+    },
+    {
+      "file": "misc/gnopreview/README.md",
+      "line": 88,
+      "angle": "claims",
+      "summary": "the documented output layout predates the collision digest",
+      "settled_by": "crawl_test.go:58-59 pins r/gnoland/home/_t/file-home.gno-source-2ca84ba4/ and _a/p-hello-13cc55eb/, while README.md:88-89 still shows _t/file-home.gno-source/ and _a/p-hello/; doc wording only"
+    },
+    {
+      "file": "misc/gnopreview/README.md",
+      "line": 96,
+      "angle": "claims",
+      "summary": "README calls a .nojekyll marker mandatory and nothing in the diff writes one, so every _t/_a/_shots path would 404",
+      "settled_by": "gh api repos/gnolang/gno-previews/contents/.nojekyll -> \".nojekyll 0\"; the publish target already carries it at its root, which covers the whole site"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 314,
+      "angle": "claims",
+      "summary": "the 'warns if /public/js/controller- disappears' guard actually counts any /public/ in any asset",
+      "settled_by": "grep -rc '/public/' gno.land/pkg/gnoweb/public --include='*.js' --include='*.css' -> js/index.js only, and grep -o shows one occurrence, so n == 0 is exactly that prefix disappearing"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 346,
+      "angle": "claims",
+      "summary": "rewrite claims to map every absolute URL while attrRe only matches double-quoted href/src",
+      "settled_by": "grep -rnoE '(action|data-[a-z-]+|content|srcset|poster|formaction)=\"/[^\"]*\"' over gno.land/pkg/gnoweb/components returns nothing, and no single-quoted href/src exists, so href/src covers every absolute URL the templates emit"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 370,
+      "angle": "claims",
+      "summary": "setNoindex claims to replace gnoweb's own robots meta rather than adding a second",
+      "settled_by": "gno.land/pkg/gnoweb/components/layouts/head.html:38 is `<meta name=\"robots\" content=\"index, follow\" />`, which robotsRe matches, and TestRewriteAddsNoindex asserts exactly one robots meta over that exact string"
+    },
+    {
+      "file": "misc/gnopreview/crawl.go",
+      "line": 182,
+      "angle": "claims",
+      "summary": "inScope drops \":args$source\" as byte-identical to the argument-free tab, which would strand the tab links of an argument page",
+      "settled_by": "grep of the templates: every $source/$help href is built from the package path (components/views/source.html:11, overview.html:122, view_source.go:79), never from the current URL, so an \":args$source\" link is never emitted"
+    }
+  ]
+}

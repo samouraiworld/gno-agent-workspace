@@ -1,0 +1,35 @@
+# Candidate #25: readLines reads the "-" case through the /dev/stdin device node
+# instead of the os.Stdin file it already has. Same line count in the function,
+# one added import; fixes the socket-stdin failure judge-25-stdin-socket.py shows.
+#
+# From a plain clone:
+#
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin pull/6194/head && git checkout ecf7af0f29abe4737a52803d672bc5a33c17cc60
+#   git apply <this file>
+#   cd misc/gnopreview && gofmt -l . && go vet ./... && go test ./...
+#   go build -o /tmp/gnopreview . && python3 <judge-25-stdin-socket.py> /tmp/gnopreview ../..
+#
+# Observed at ecf7af0f2 with go1.25.9: gofmt silent, vet silent, tests ok,
+# both the pipe and the socket case of the repro pass (RESULT: PASS).
+
+diff --git a/misc/gnopreview/main.go b/misc/gnopreview/main.go
+--- a/misc/gnopreview/main.go
++++ b/misc/gnopreview/main.go
+@@ -16,6 +16,7 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -310,7 +311,7 @@ func readLines(p string) ([]string, error) {
+ 	var b []byte
+ 	var err error
+ 	if p == "-" {
+-		b, err = os.ReadFile("/dev/stdin")
++		b, err = io.ReadAll(os.Stdin)
+ 	} else {
+ 		b, err = os.ReadFile(p)
+ 	}

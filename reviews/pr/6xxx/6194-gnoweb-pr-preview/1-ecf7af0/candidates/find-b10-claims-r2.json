@@ -1,0 +1,106 @@
+{
+  "candidates": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 256,
+      "angle": "claims",
+      "summary": "the realm cap truncates directly changed realms, so the comment links realms the snapshot never rendered and prints \"the changed realms are always kept\" while dropping one",
+      "failure_scenario": "A sweep over examples/ touching 26 realms (a gnomod.toml field migration, a formatting pass; 58 realm modules exist at this head) runs with the default -max-realms=25. plan.Realms is cut to 25 and plan.Dropped=1, but plan.ChangedRealms keeps all 26, so Comment prints \"**Changed realms (26)**\" and links the 26th with its `source` and `help` shortcuts — three URLs that 404 on the published Pages snapshot — then closes with \"1 more affected realm(s) were **not** rendered (cap reached) — the changed realms are always kept\". The reviewer clicking the realm the PR is about gets a 404 and a comment telling them that cannot happen.",
+      "verify_by": "copy tests/b10-claims-r2-cap-drops-changed-realm_test.go into misc/gnopreview and run `go test ./... -run TestCapDropsAChangedRealm -v`: two changed realms, cap 1; expect every listed realm to be rendered, observe gno.land/r/x/other listed and unrendered",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "go test at ecf7af0f2 (go1.25.9): \"ChangedRealms = [gno.land/r/x/leaf gno.land/r/x/other]\", \"Realms (rendered) = [gno.land/r/x/leaf]\", \"Dropped = 1\", \"changed realm gno.land/r/x/other   listed in comment=true rendered=false\", \"comment links gno.land/r/x/other, which the snapshot never rendered\"; the rendered comment carries \"- [`gno.land/r/x/other`](https://example.test/pr-1/r/x/other/) · [source](...) · [help](...)\" and \"⚠️ 1 more affected realm(s) were **not** rendered (cap reached) — the changed realms are always kept.\" The same claim is written at plan.go:251, comment.go:86 and README.md:29.",
+      "repro_path": "reviews/pr/6xxx/6194-gnoweb-pr-preview/1-ecf7af0/tests/b10-claims-r2-cap-drops-changed-realm_test.go"
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 47,
+      "angle": "claims",
+      "summary": "no test renders a comment in Mode()==\"both\": the gnoweb+realms header, the homepage link and the shot grid can all be deleted and the suite stays green",
+      "failure_scenario": "plan_test.go's table produces wantMode \"both\" but never calls Comment; the four Comment tests are Gnoweb=false or Mode \"gnoweb\". So the branch every gnoweb+realm PR renders — the only place that mode gives the reviewer the preview homepage URL, and the only path where shotGrid runs for a plan that also carries realm links — is unexecuted. A regression there ships silently.",
+      "verify_by": "delete comment.go:47-54 (the `if p.Gnoweb` block inside the default branch) and run `go test ./...` in misc/gnopreview: expect red, observe ok",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "mutation at ecf7af0f2: after `sed -i '47,54d' comment.go`, `go test ./...` -> \"ok  github.com/gnolang/gno/misc/gnopreview  0.005s\" (baseline also ok)",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 30,
+      "angle": "claims",
+      "summary": "Comment's godoc promises that an empty baseURL still lists what was rendered, and no test ever passes an empty baseURL",
+      "failure_scenario": "`-base-url` defaults to \"\" (main.go:71), so a local `gnopreview render` with no base URL — and a workflow edit that drops the flag — takes the base==\"\" path through link(), tabs(), pairGrid() and shotGrid(). Nothing pins it: link() can return the empty string and every test still passes, which would write a comment.md whose realm list is blank bullets.",
+      "verify_by": "in comment.go:30-32 make the base==\"\" branch `return \"\"` instead of \"`\"+label+\"`\" and run `go test ./...` in misc/gnopreview: expect red, observe ok",
+      "band": "Missing test",
+      "checked": true,
+      "run": true,
+      "evidence": "mutation at ecf7af0f2: link()'s empty-base branch returning \"\" -> `go test ./...` prints \"ok  github.com/gnolang/gno/misc/gnopreview  0.004s\"",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 142,
+      "angle": "claims",
+      "summary": "modFlags' godoc calls draft and ignore \"the two booleans we care about\", but Pkg.Draft is written and never read",
+      "failure_scenario": "Nothing consumes Pkg.Draft: BuildPlan gates on p.Ignore at plan.go:220 and 241 only. examples/gno.land/r/demo/draftrealm carries draft = true and is planned, rendered and linked like any production realm, and the field plus half of modFlags' parse exist to support a filter that was never written. A reader of plan.go:58 and 153 believes draft is handled.",
+      "verify_by": "grep -n 'Draft' misc/gnopreview/*.go: expect a read site, observe only the declaration (plan.go:58) and the assignment (plan.go:142)",
+      "band": "Nit",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn 'Draft\\b' misc/gnopreview -> plan.go:58 (field doc), plan.go:142 (assignment). No other hit in the package.",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/gnopreview/comment.go",
+      "line": 69,
+      "angle": "claims",
+      "summary": "in Mode()==\"both\" the four gnoweb seed realms are booted, crawled and published but appear nowhere in the comment",
+      "failure_scenario": "BuildPlan appends gnowebSeedRealms whenever plan.Gnoweb (plan.go:263-270), so a PR touching gnoweb and one realm renders r/gnoland/home, r/docs/security_patterns, r/gnoland/boards2/v0 and r/gnoland/blog too. The default comment branch lists only ChangedRealms and the indirect set, and isSeed strips the seeds from the indirect set, so those four realms cost gnodev boot time, crawl budget and snapshot bytes while the reviewer is never shown a link to any of them — against the Plan.Realms doc, \"what actually gets rendered\".",
+      "verify_by": "read comment.go:56-82 with isSeed at 157-162: the only listings in the default branch are ChangedRealms and indirect, and indirect excludes every member of gnowebSeedRealms when p.Gnoweb",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "comment.go:69 `if !direct[r] && !isSeed(r, p)`; isSeed returns contains(gnowebSeedRealms, pkgPath) whenever p.Gnoweb; the \"both\" branch (comment.go:47-54) writes a header and shotGrid and no realm list.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 225,
+      "angle": "claims",
+      "summary": "suspected: a file the PR deletes is recorded in ChangedFiles, so the crawler would chase a $source page that no longer exists",
+      "settled_by": "grep -n 'ChangedFiles' misc/gnopreview/crawl.go -> crawl.go:228 `if changed, ok := c.ChangedFiles[realm]; ok`, a whitelist filtering links already discovered on the page, so a name that no longer exists never matches anything"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 49,
+      "angle": "claims",
+      "summary": "suspected: indirectExclude's \"gno.land/r/tests/\" matches nothing in the real tree, making the crowd-out guard dead in production",
+      "settled_by": "find examples/gno.land/r/tests -name gnomod.toml | wc -l -> 19, against 58 realm modules in examples/gno.land/r"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 12,
+      "angle": "claims",
+      "summary": "suspected: fakeRepo's header claims examples/quarantined mirrors the layout, a tree that may not exist",
+      "settled_by": "ls examples -> gno.land, gnowork.toml, Makefile, quarantined, README.md; grep -rl 'ignore' --include=gnomod.toml examples -> examples/quarantined/gno.land/r/moul/outfmt, examples/quarantined/gno.land/r/jaekwon/dao"
+    },
+    {
+      "file": "misc/gnopreview/plan_test.go",
+      "line": 262,
+      "angle": "claims",
+      "summary": "suspected: TestCommentNoBaseMakesNoClaim pins a state production never builds (Before empty with New false)",
+      "settled_by": "read of main.go:231-233 — renderBase returns (nil, nil) when cfg.baseRoot == \"\" — and shots.go:88 `if base != nil`, so every pair from a run with no base checkout has Before empty and New false"
+    },
+    {
+      "file": "misc/gnopreview/plan.go",
+      "line": 265,
+      "angle": "claims",
+      "summary": "suspected: the `pkgs[r] != nil` guard on the seed loop is unpinned, the \"gnoweb alone\" case asserting an empty realm list",
+      "settled_by": "read of plan.go:271-272 — the Dirs loop dereferences pkgs[r].Dir for every plan.Realms entry, so dropping the guard makes the \"gnoweb alone\" row panic rather than pass"
+    }
+  ]
+}
