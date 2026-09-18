@@ -1,0 +1,48 @@
+{
+ "candidates": [
+  {
+   "file": "tm2/pkg/bft/rpc/core/pipe.go",
+   "line": 25,
+   "angle": "removed",
+   "summary": "the pagination validator the page says no endpoint has is still in the package, called by nothing",
+   "failure_scenario": "the diff deletes tm2/pkg/bft/rpc/core/README.md, which documented ?page / ?per_page, and rewrites the constants' comment to tie them to unconfirmed_txs alone; validatePage(page, perPage, totalCount) at pipe.go:123 stays, and grep over tm2 finds no caller outside pipe_test.go, so a maintainer reading pipe.go still finds a paginator for an interface the new reference says does not paginate",
+   "verify_by": "grep -rn validatePage tm2 | grep -v _test: one hit, the definition at pipe.go:123",
+   "band": "Suggestion",
+   "checked": true,
+   "run": false
+  },
+  {
+   "file": "docs/resources/rpc-endpoints.md",
+   "line": 245,
+   "angle": "removed",
+   "summary": "the generated config.toml still advertises the gRPC server and dial_seeds the page lists as absent",
+   "failure_scenario": "an operator reads grpc_laddr in their own config.toml, where the generated comment says TCP or UNIX socket address for the gRPC server to listen on, NOTE: This server only supports /broadcast_tx_commit, and unsafe says it activates /dial_seeds; both come from comment: struct tags at tm2/pkg/bft/rpc/config/config.go:38 and :48, which the sweep that produced this table did not reach",
+   "verify_by": "grep -rn GRPCListenAddress over tm2 and gno.land: config plumbing, a wal generator and config get/set tests, no server start; Routes at routes.go has no dial_seeds",
+   "band": "Nit",
+   "checked": true,
+   "run": false
+  },
+  {
+   "file": "tm2/pkg/bft/rpc/lib/server/handlers.go",
+   "line": 242,
+   "angle": "reach",
+   "summary": "omitting params rather than sending {} reaches reflect with too few arguments",
+   "failure_scenario": "processRequest appends no argument when len(req.Params) == 0 and then calls rpcFunc.f.Call(args), so a spec-conformant client that omits params on an endpoint declaring one, block for instance, is answered from the panic recovery rather than with a block; the new page documents the workaround, send params:{}, and the behaviour predates the branch",
+   "verify_by": "a request with no params key against the JSON-RPC handler for block: expect 500 with a JSON-RPC error body",
+   "band": "Nit",
+   "checked": false,
+   "run": false
+  },
+  {
+   "file": "docs/resources/rpc-endpoints.md",
+   "line": 52,
+   "angle": "claims",
+   "summary": "the genesis endpoint is said not to complete on a genesis the size of gno.land's",
+   "failure_scenario": "the paragraph tells an integrator the endpoint is unusable on mainnet; the deadlines it names are in the source, 30s at http_server.go:47 and 10s at handlers.go:492, and the streaming path is ResultGenesis.StreamJSON, but whether the body outruns 30 seconds on gno.land's own genesis is a property of that genesis and only a node settles it",
+   "verify_by": "curl -s -o /dev/null -w '%{http_code} %{size_download}' https://rpc.gno.land:443/genesis against a mainnet node",
+   "band": "Nit",
+   "checked": false,
+   "run": false
+  }
+ ]
+}

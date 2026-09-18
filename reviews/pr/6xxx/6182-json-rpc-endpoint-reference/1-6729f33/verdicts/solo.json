@@ -1,0 +1,60 @@
+{
+ "verdicts": [
+  {
+   "index": 1,
+   "angle": "removed",
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "file": "tm2/pkg/bft/rpc/core/pipe.go",
+   "line": 25,
+   "tldr": "validatePage has no caller outside its own test",
+   "details": "pipe.go:123 defines validatePage(page, perPage, totalCount); the only other mention in tm2 is pipe_test.go:45. The live consumer of both constants is validatePerPage, called once, at mempool.go:123 for the unconfirmed_txs limit, which is what the new comment describes. Removing validatePage touches pipe.go:123 and the page cases in pipe_test.go.",
+   "evidence": "grep -rn validatePage tm2 | grep -v _test -> tm2/pkg/bft/rpc/core/pipe.go:123:func validatePage(page, perPage, totalCount int) (int, error)",
+   "verify_by": "grep -rn validatePage tm2 | grep -v _test",
+   "repro_path": "",
+   "base_behaves_the_same": true
+  },
+  {
+   "index": 2,
+   "angle": "removed",
+   "state": "CONFIRMED",
+   "band": "Nit",
+   "file": "docs/resources/rpc-endpoints.md",
+   "line": 245,
+   "tldr": "two config.toml comments still assert the gRPC server and dial_seeds",
+   "details": "config.go:38 documents grpc_laddr as the address for the gRPC server to listen on and adds NOTE: This server only supports /broadcast_tx_commit; config.go:48 documents unsafe as activating unsafe RPC commands like /dial_seeds and /unsafe_flush_mempool. Both are comment: struct tags, so both are written into every generated config.toml. No Go file reads GRPCListenAddress to start a server, and Routes registers no dial_seeds, so the page's rows are right and the config file is the sibling the sweep missed.",
+   "evidence": "grep -rn GRPCListenAddress tm2 gno.land --include=*.go -> config.go:38,101,123, consensus/wal_generator.go:38, config_set_test.go:634, config_get_test.go:734,742; no listener",
+   "verify_by": "grep -rn GRPCListenAddress; grep dial_seeds routes.go",
+   "repro_path": "",
+   "base_behaves_the_same": true
+  },
+  {
+   "index": 3,
+   "angle": "reach",
+   "state": "PLAUSIBLE",
+   "band": "Nit",
+   "file": "tm2/pkg/bft/rpc/lib/server/handlers.go",
+   "line": 242,
+   "tldr": "the arity mismatch is in the read, the 500 was not run",
+   "details": "handlers.go:242 gates the argument conversion on len(req.Params) > 0 and line 253 calls rpcFunc.f.Call(args) regardless, so an endpoint declaring a parameter is called with the context alone. The response a caller sees was not exercised in this round, and the behaviour is the merge base's as much as the branch's: the branch only documents the workaround.",
+   "evidence": "handlers.go:242-253 read; no run",
+   "verify_by": "POST {\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"block\"} to a node's / and read the status",
+   "repro_path": "",
+   "base_behaves_the_same": true
+  },
+  {
+   "index": 4,
+   "angle": "claims",
+   "state": "PLAUSIBLE",
+   "band": "Nit",
+   "file": "docs/resources/rpc-endpoints.md",
+   "line": 52,
+   "tldr": "the deadlines are in the source; the truncation needs a node",
+   "details": "WriteTimeout is 30s at tm2/pkg/bft/rpc/lib/server/http_server.go:47 and defaultWSWriteWait is 10s at handlers.go:492, both set once per body, and ResultGenesis implements StreamJSON, so the response is streamed and a batch is refused at handlers.go:164. Whether gno.land's genesis outruns the 30 seconds is not decidable from this tree.",
+   "evidence": "http_server.go:47 WriteTimeout: 30 * time.Second; handlers.go:492 defaultWSWriteWait = 10 * time.Second; handlers.go:164 streaming results are not supported in batch JSON-RPC requests",
+   "verify_by": "time a /genesis request against rpc.gno.land",
+   "repro_path": "",
+   "base_behaves_the_same": true
+  }
+ ]
+}
