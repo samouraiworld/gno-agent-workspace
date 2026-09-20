@@ -51,6 +51,21 @@ Claimed and dropped after the check: that the page quotes an error string the no
 emits. The tree has `Could not find tx result for hash #%X` at `state/errors.go:85`, which
 the page quotes lowercased, so the claim holds.
 
+Run live against a mainnet node after the round, one request per claim a reader meets first, the
+chain tip at 196163:
+
+| Claim on the page | Request | Observed |
+| --- | --- | --- |
+| `heightGte` answers 409 on the URI transport | `GET /status?heightGte=1196163` | 409; the same call at `heightGte=1` returns 200 |
+| over JSON-RPC the same case is 200 with an error object | `POST /` `status`, `heightGte` `"1196163"` | 200, `-32603`, `data` reading `409: latest height is 196163, which is less than 1196163` |
+| `blockchain` caps at 20, cuts the low end, marks nothing | `GET /blockchain?minHeight=196000&maxHeight=196100` | 20 entries, 196100 down to 196081, and the result carries `block_metas` and `last_height` alone |
+| `params` omitted fails where `"params":{}` succeeds | `POST /` `status`, with the key and without | omitted: `-32603` off a reflect error; `{}`: 200 with the status result |
+| the positional array needs every declared parameter | `POST /` `blockchain`, `params` `["196000"]` | `-32602`, `expected 2 parameters ([minHeight maxHeight]), got 1` |
+| `?page` and `?per_page` are accepted and ignored | the `blockchain` range plus `page=5&per_page=1` | 200, still 20 entries, the same window |
+
+Six claims, six confirmed, none refuted. The last row is also the second reading of candidate 1:
+pagination arguments reach no handler at runtime, not only in the call graph.
+
 Settled after the round by a mainnet request: gno.land's genesis outruns the 30-second write
 deadline, 122,681,708 bytes and a stream reset at 31.0 seconds, so the page is right and the
 candidate is refuted. Not settled here: the response a client sees when it omits `params`,
