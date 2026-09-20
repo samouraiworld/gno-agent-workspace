@@ -1,5 +1,5 @@
 # PR [#6182](https://github.com/gnolang/gno/pull/6182): docs: add a JSON-RPC endpoint reference, drop the parts that were false
-Verdict: APPROVE, on five low-band findings and no Warning: a pagination validator no handler calls, two config comments describing what this page lists as absent, and a reference whose four endpoint groups open with no line saying what they hold.
+Verdict: APPROVE, on two low-band findings and no Warning: a pagination validator no handler calls, and two config comments describing what this page lists as absent. The page's readability findings are already raised on the target and ship SKIP.
 Event: APPROVE
 Model: claude-opus-5, standard review
 Commit: 6729f335f
@@ -33,13 +33,17 @@ Deleting it touches `pipe.go:123` and the `validatePage` cases in `pipe_test.go`
 
 </details>
 
-## docs/resources/rpc-endpoints.md:131 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L131) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L131) · Nit
+## SKIP docs/resources/rpc-endpoints.md:131 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L131) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L131) · Nit
 
-Nit: `tx` takes `hash`, `abci_query` takes `data`, and the wire form of both is set out under *Passing byte arguments*. Neither endpoint links there, so a reader landing on one meets neither the `%2B` rule nor the `0x` one.
+Already raised: https://github.com/gnolang/gno/pull/6182#discussion_r4057657792
 
-## docs/resources/rpc-endpoints.md:38 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L38) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L38) · Suggestion
+Nit: neither `tx` nor `abci_query` links to *Passing byte arguments*, so a reader landing on either meets neither the `%2B` rule nor the `0x` one.
 
-Suggestion: half the page's sections open with a sentence saying what they hold. The endpoint groups open on a method heading instead, so what each one covers is left to the headings under it.
+## SKIP docs/resources/rpc-endpoints.md:38 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L38) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L38) · Suggestion
+
+Already raised: https://github.com/gnolang/gno/pull/6182#pullrequestreview-5261279085
+
+Suggestion: the four endpoint groups open on a method heading, where the page's other sections each open with a sentence saying what they hold.
 
 <details>
 
@@ -64,9 +68,11 @@ prose  ## See also
 
 </details>
 
-## docs/resources/rpc-endpoints.md:206 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L206) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L206) · Suggestion
+## SKIP docs/resources/rpc-endpoints.md:206 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L206) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L206) · Suggestion
 
-Suggestion: no complete payload appears on the page. Amino's conventions reach a reader as inline fragments, `"height": "51942"` beside `"index": 0`, so nobody can check a parser against a real `tx` response.
+Already raised: https://github.com/gnolang/gno/pull/6182#pullrequestreview-5261279085
+
+Suggestion: the page shows no complete payload, so nobody can check a parser against a real `tx` response.
 
 ## SKIP docs/resources/rpc-endpoints.md:45 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L45) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L45) · Nit
 

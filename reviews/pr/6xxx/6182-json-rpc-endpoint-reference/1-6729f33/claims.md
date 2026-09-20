@@ -17,8 +17,11 @@ Round shape: solo round, one agent, every Critical and Warning run, the rest rea
 | 9 | CONFIRMED | Nit | docs/resources/rpc-endpoints.md:84 | read each endpoint's second paragraph | behaviour a caller cannot infer, unmarked and in the same prose as the description: blockchain's 20-entry cut, validators' default, broadcast_tx_async on a rejected transaction, genesis truncating at the write deadline |  | cold |
 | 10 | CONFIRMED | Nit | docs/resources/rpc-endpoints.md:240 | read the header row of every table on the page | 3 of 4 headed, `Transport \| Form`, `Field \| Contents`, `Value \| On the wire`; Not available at line 240 is `\| \| \|` |  | cold |
 
-Rows 5 to 10 came from a readability pass over the page, run after the round closed: rows 5, 6 and 7 post,
-rows 8, 9 and 10 ship SKIP as a pass over the whole page rather than an edit to a line.
+Rows 5 to 10 came from a readability pass over the page, run after the round closed. None of them posts.
+The review already on the target, davd-gzl at pullrequestreview-5261279085, asks for sub-section
+descriptions, an example and cross-references, which is rows 6, 7 and 5 in that order, and its inline
+comment at discussion_r4057657792 raises the placement of *Passing byte arguments* that row 5 is about.
+Rows 8, 9 and 10 stay SKIP as a pass over the whole page rather than an edit to a line.
 
 Rows 1 and 2 ship in the Body and carry no anchor: the line each asks to edit, `pipe.go:123` and
 `config/config.go:38`, sits outside the diff, and an inline comment there is refused at submit.
