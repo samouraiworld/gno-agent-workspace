@@ -10,11 +10,11 @@ Round: 1. No finder stage: one pass found, ran and judged, booting gnoweb from s
 
 ## Body
 
-Versioning stops at the page head, and the stylesheet it loads names two of the same files again in its own [`@font-face` rules](https://github.com/gnolang/gno/blob/7e6bc5514/gno.land/pkg/gnoweb/frontend/css/04-elements.css#L12-L23), where the build emits them unstamped.
+One defect, on the line it sits on.
 
 ## gno.land/pkg/gnoweb/components/layouts/head.html:9-10 [gh](https://github.com/gnolang/gno/blob/7e6bc5514/gno.land/pkg/gnoweb/components/layouts/head.html#L9-L10) · [↗](../../../../../.worktrees/gno-review-6220/gno.land/pkg/gnoweb/components/layouts/head.html#L9) · Warning
 
-These two preload hrefs carry `?v={{ .BuildTime }}` and [the bundle's own font URLs](https://github.com/gnolang/gno/blob/7e6bc5514/gno.land/pkg/gnoweb/public/main.css#L1) carry none, so neither preload is matched and `Intervar.woff2` is fetched twice on a cold load. Writing the stamp where the stylesheet names the file covers the preload match and the cache key together; taking `?v=` off these two lines restores only the match.
+A preload is matched by URL: these two carry `?v={{ .BuildTime }}` and [the `@font-face` rules naming the same files](https://github.com/gnolang/gno/blob/7e6bc5514/gno.land/pkg/gnoweb/frontend/css/04-elements.css#L12-L23) carry none, so `Intervar.woff2` downloads twice on a cold load. The stamp belongs in the stylesheet, where it fixes the match and keeps the cache key.
 
 <details>
 <summary>repro</summary>
