@@ -70,20 +70,30 @@ Suggestion: no complete payload appears on the page. Amino's conventions reach a
 
 ## SKIP docs/resources/rpc-endpoints.md:45 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L45) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L45) · Nit
 
-Nit: `status` names its return in a table, every other endpoint in a sentence. Not posted: reshaping every section belongs to the generated layer, not to this branch.
+Nit: `status` names its return in a table, every other endpoint in a sentence.
+
+Not posted: reshaping every section belongs to the generated layer, not to this branch.
 
 ## SKIP docs/resources/rpc-endpoints.md:84 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L84) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L84) · Nit
 
-Nit: the behaviour a caller cannot infer sits in each endpoint's second paragraph, unmarked, so a reader scanning first paragraphs misses it. Not posted: a marker holding for every endpoint is a pass over the page, not an edit to a line.
+Nit: the behaviour a caller cannot infer sits in each endpoint's second paragraph, unmarked, so a reader scanning first paragraphs misses it.
+
+Not posted: a marker holding for every endpoint is a pass over the page, not an edit to a line.
 
 ## SKIP docs/resources/rpc-endpoints.md:240 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L240) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L240) · Nit
 
-Nit: the `Not available` table's header row is `| | |`, where the page's other tables are headed, so it renders an empty band above the rows. Not posted: cosmetic, and no enabled linter reads markdown tables.
+Nit: the `Not available` table's header row is `| | |`, where the page's other tables are headed, so it renders an empty band above the rows.
+
+Not posted: cosmetic, and no enabled linter reads markdown tables.
 
 ## SKIP tm2/pkg/bft/rpc/lib/server/handlers.go:242 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/lib/server/handlers.go#L242) · [↗](../../../../../.worktrees/gno-review-6182/tm2/pkg/bft/rpc/lib/server/handlers.go#L242) · Nit
 
-Nit: the argument conversion runs only when `len(req.Params) > 0`, so a client omitting `params` on a method that declares one is answered from the panic recovery. Not posted: no run confirmed it, and it predates the branch.
+Nit: the argument conversion runs only when `len(req.Params) > 0`, so a client omitting `params` on a method that declares one is answered from the panic recovery.
+
+Not posted: no run confirmed it, and it predates the branch.
 
 ## SKIP docs/resources/rpc-endpoints.md:52 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L52) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L52) · Nit
 
-Nit: both write deadlines are in the source, 30 seconds at [`http_server.go:47`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/lib/server/http_server.go#L47) and 10 at [`handlers.go:492`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/lib/server/handlers.go#L492). Not posted: a mainnet request confirms the page, 122,681,708 bytes and a connection reset at 31 seconds.
+Nit: both write deadlines are in the source, 30 seconds at [`http_server.go:47`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/lib/server/http_server.go#L47) and 10 at [`handlers.go:492`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/lib/server/handlers.go#L492).
+
+Not posted: a mainnet request confirms the page, 122,681,708 bytes and a connection reset at 31 seconds.
