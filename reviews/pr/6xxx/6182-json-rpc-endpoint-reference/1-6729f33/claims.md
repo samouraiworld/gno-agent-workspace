@@ -10,6 +10,15 @@ Round shape: solo round, one agent, every Critical and Warning run, the rest rea
 | 2 | CONFIRMED | Nit | tm2/pkg/bft/rpc/config/config.go:38 | grep -rn GRPCListenAddress over tm2 and gno.land: config plumbing, a wal generator and config get/set tests, no server start; Routes at routes.go has no dial_seeds | grep -rn GRPCListenAddress tm2 gno.land --include=*.go -> config.go:38,101,123, consensus/wal_generator.go:38, config_set_test.go:634, config_get_test.go:734,742; no listener |  |  |
 | 3 | PLAUSIBLE | Nit | tm2/pkg/bft/rpc/lib/server/handlers.go:242 | a request with no params key against the JSON-RPC handler for block: expect 500 with a JSON-RPC error body | handlers.go:242-253 read; no run |  |  |
 | 4 | REFUTED | Nit | docs/resources/rpc-endpoints.md:52 | curl -sS -o /tmp/genesis.out -w '%{http_code} %{size_download} %{time_total}' --max-time 60 https://rpc.gno.land:443/genesis | 200, 122681708 bytes, 30.99s, then `curl: (92) HTTP/2 stream 1 reset by server`: the page's sentence holds, the body outruns the 30s WriteTimeout at http_server.go:47 |  | cold |
+| 5 | CONFIRMED | Nit | docs/resources/rpc-endpoints.md:131 | grep the endpoint sections for a link into Passing byte arguments | no link from any endpoint section to line 222; `tx`, `abci_query` and the three broadcast endpoints name their byte arguments and stop |  | cold |
+| 6 | CONFIRMED | Suggestion | docs/resources/rpc-endpoints.md:38 | per ## section, is the next non-blank line a ### or prose | prose for Calling an endpoint, Reading a response, Not available and See also; ### for Node and network, Blocks, Transactions and Application, 4 of 8 |  | cold |
+| 7 | CONFIRMED | Suggestion | docs/resources/rpc-endpoints.md:206 | count complete payloads in the page | 0; the two curl blocks at line 21 show requests only, and Reading a response carries two inline fragments |  | cold |
+| 8 | CONFIRMED | Nit | docs/resources/rpc-endpoints.md:45 | count endpoints returning a field table against endpoints returning prose | 1 of 24, `status` at line 49 |  | cold |
+| 9 | CONFIRMED | Nit | docs/resources/rpc-endpoints.md:84 | read each endpoint's second paragraph | behaviour a caller cannot infer, unmarked and in the same prose as the description: blockchain's 20-entry cut, validators' default, broadcast_tx_async on a rejected transaction, genesis truncating at the write deadline |  | cold |
+| 10 | CONFIRMED | Nit | docs/resources/rpc-endpoints.md:240 | read the header row of every table on the page | 3 of 4 headed, `Transport \| Form`, `Field \| Contents`, `Value \| On the wire`; Not available at line 240 is `\| \| \|` |  | cold |
+
+Rows 5 to 10 came from a readability pass over the page, run after the round closed: rows 5, 6 and 7 post,
+rows 8, 9 and 10 ship SKIP as a pass over the whole page rather than an edit to a line.
 
 Rows 1 and 2 ship in the Body and carry no anchor: the line each asks to edit, `pipe.go:123` and
 `config/config.go:38`, sits outside the diff, and an inline comment there is refused at submit.

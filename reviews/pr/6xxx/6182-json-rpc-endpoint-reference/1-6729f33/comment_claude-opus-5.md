@@ -1,12 +1,12 @@
 # PR [#6182](https://github.com/gnolang/gno/pull/6182): docs: add a JSON-RPC endpoint reference, drop the parts that were false
-Verdict: APPROVE, on two low-band findings and no Warning: a pagination validator no handler calls, and two config comments describing what this page lists as absent.
+Verdict: APPROVE, on five low-band findings and no Warning: a pagination validator no handler calls, two config comments describing what this page lists as absent, and a reference whose four endpoint groups open with no line saying what they hold.
 Event: APPROVE
 Model: claude-opus-5, standard review
 Commit: 6729f335f
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6182 6729f335f`
-Round: 1. One pass over 457 changed lines as finder, judge and writer, every finding run from the head worktree. Neither finding anchors: both edits land outside the diff, so both ship in the Body.
+Round: 1. One pass over 457 changed lines as finder, judge and writer, every finding run from the head worktree. The two findings on Go files ship in the Body: the line each asks to edit sits outside the diff.
 
 ## Body
 
@@ -32,6 +32,53 @@ tm2/pkg/bft/rpc/core/pipe.go:123:func validatePage(page, perPage, totalCount int
 Deleting it touches `pipe.go:123` and the `validatePage` cases in `pipe_test.go`. The two constants above it stay: `validatePerPage` reads both, and `mempool.go` calls that one for the `unconfirmed_txs` limit.
 
 </details>
+
+## docs/resources/rpc-endpoints.md:131 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L131) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L131) · Nit
+
+Nit: `tx` takes `hash`, `abci_query` takes `data`, and the wire form of both is set out under *Passing byte arguments*. Neither endpoint links there, so a reader landing on one meets neither the `%2B` rule nor the `0x` one.
+
+## docs/resources/rpc-endpoints.md:38 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L38) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L38) · Suggestion
+
+Suggestion: half the page's sections open with a sentence saying what they hold. The endpoint groups open on a method heading instead, so what each one covers is left to the headings under it.
+
+<details>
+
+<summary>Sweep</summary>
+
+```bash
+# from a local clone of gnolang/gno:
+gh pr checkout 6182 -R gnolang/gno
+awk '/^## /{h=$0; getline; while($0=="") getline; print (/^### /?"###  ":"prose") "  " h}' docs/resources/rpc-endpoints.md
+```
+
+```text
+prose  ## Calling an endpoint
+###    ## Node and network
+###    ## Blocks
+###    ## Transactions
+###    ## Application
+prose  ## Reading a response
+prose  ## Not available
+prose  ## See also
+```
+
+</details>
+
+## docs/resources/rpc-endpoints.md:206 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L206) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L206) · Suggestion
+
+Suggestion: no complete payload appears on the page. Amino's conventions reach a reader as inline fragments, `"height": "51942"` beside `"index": 0`, so nobody can check a parser against a real `tx` response.
+
+## SKIP docs/resources/rpc-endpoints.md:45 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L45) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L45) · Nit
+
+Nit: `status` names its return in a table, every other endpoint in a sentence. Not posted: reshaping every section belongs to the generated layer, not to this branch.
+
+## SKIP docs/resources/rpc-endpoints.md:84 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L84) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L84) · Nit
+
+Nit: the behaviour a caller cannot infer sits in each endpoint's second paragraph, unmarked, so a reader scanning first paragraphs misses it. Not posted: a marker holding for every endpoint is a pass over the page, not an edit to a line.
+
+## SKIP docs/resources/rpc-endpoints.md:240 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L240) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L240) · Nit
+
+Nit: the `Not available` table's header row is `| | |`, where the page's other tables are headed, so it renders an empty band above the rows. Not posted: cosmetic, and no enabled linter reads markdown tables.
 
 ## SKIP tm2/pkg/bft/rpc/lib/server/handlers.go:242 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/lib/server/handlers.go#L242) · [↗](../../../../../.worktrees/gno-review-6182/tm2/pkg/bft/rpc/lib/server/handlers.go#L242) · Nit
 
