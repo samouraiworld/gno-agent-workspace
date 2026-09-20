@@ -46,5 +46,5 @@ Loading that page in Chromium records three font requests where the merge base r
 | head | `Intervar.woff2?v=20260920235649`, `roboto-mono-normal.woff2?v=20260920235649`, `Intervar.woff2` |
 | merge base | `Intervar.woff2`, `roboto-mono-normal.woff2` |
 
-Both spellings serve the same file, 73,080 bytes each, so the third request is the duplicate. Roboto shows once at either end because this page uses no monospace face, which leaves its preload unclaimed on both.
+Both spellings serve the same file, 73,080 bytes each, so the third request is the duplicate. The roboto file is [declared as `Roboto` at weight 900](https://github.com/gnolang/gno/blob/7e6bc5514/gno.land/pkg/gnoweb/frontend/css/04-elements.css#L7-L15) and no rule on this page asks for that weight, so its preload goes unclaimed at both ends and the count stays at one.
 </details>
