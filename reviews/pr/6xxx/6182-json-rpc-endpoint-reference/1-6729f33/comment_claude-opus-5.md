@@ -1,23 +1,21 @@
 # PR [#6182](https://github.com/gnolang/gno/pull/6182): docs: add a JSON-RPC endpoint reference, drop the parts that were false
-Verdict: APPROVE. Two low-band findings, no Warning: the page's claims about parameters, defaults, caps and absences hold against the route map and the handlers.
+Verdict: APPROVE, on two low-band findings and no Warning: a pagination validator no handler calls, and two config comments describing what this page lists as absent.
 Event: APPROVE
-Model: claude-opus-5, standard review, solo shape from the triage
+Model: claude-opus-5, standard review
 Commit: 6729f335f
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6182 6729f335f`
-Round: 1. One agent as finder, judge and writer over 457 changed lines, 4 candidates, 2 confirmed by a run from the head worktree and 2 shipped SKIP.
+Round: 1. One pass over 457 changed lines as finder, judge and writer, every finding run from the head worktree.
 
 ## Body
-Comment-only in Go: `doc.go`, `mempool.go` and `pipe.go` change no statement.
 
-## tm2/pkg/bft/rpc/core/pipe.go:25 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/core/pipe.go#L25) · [↗](../../../../../.worktrees/gno-review-6182/tm2/pkg/bft/rpc/core/pipe.go#L25) · Suggestion
-
-Suggestion: nothing outside [`pipe_test.go`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/core/pipe_test.go#L45) calls [`validatePage`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/core/pipe.go#L123), which implements `?page` and `?per_page` pagination no handler reads, so it can be deleted.
+- `?page` and `?per_page` reach no handler, which the page records under Not available, and [`validatePage`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/core/pipe.go#L123) is the code implementing them: nothing outside [`pipe_test.go`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/core/pipe_test.go#L45) calls it, so it can be deleted.
+- [`config.go`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/config/config.go#L38) describes `grpc_laddr` as the address of a gRPC server and [`unsafe`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/config/config.go#L48) as activating `/dial_seeds`, both in `comment:` tags, so every generated `config.toml` carries two claims this page lists as absent.
 
 <details>
 
-<summary>Sweep</summary>
+<summary>Sweep: the pagination validator</summary>
 
 ```bash
 git checkout 6729f335f6214da9c8f96058fa82dbeb6bef130b
@@ -30,17 +28,13 @@ One hit, the definition:
 tm2/pkg/bft/rpc/core/pipe.go:123:func validatePage(page, perPage, totalCount int) (int, error) {
 ```
 
-Removing it touches `pipe.go:123` and the `validatePage` cases in `pipe_test.go`.
+Deleting it touches `pipe.go:123` and the `validatePage` cases in `pipe_test.go`. The two constants above it stay: `validatePerPage` reads both, and `mempool.go` calls that one for the `unconfirmed_txs` limit.
 
 </details>
 
-## docs/resources/rpc-endpoints.md:245 [gh](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/docs/resources/rpc-endpoints.md#L245) · [↗](../../../../../.worktrees/gno-review-6182/docs/resources/rpc-endpoints.md#L245) · Nit
-
-Related nit: [`config.go`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/config/config.go#L38) still describes `grpc_laddr` as the address of a gRPC server and [`unsafe`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/config/config.go#L48) as activating `/dial_seeds`, so every generated `config.toml` carries both claims.
-
 <details>
 
-<summary>Sweep</summary>
+<summary>Sweep: the gRPC address</summary>
 
 ```bash
 git checkout 6729f335f6214da9c8f96058fa82dbeb6bef130b
