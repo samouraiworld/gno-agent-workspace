@@ -6,10 +6,13 @@ Round shape: solo round, one agent, every Critical and Warning run, the rest rea
 
 | # | State | Band | file:line | Check | Observed | Artifact | Tier |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | CONFIRMED | Suggestion | tm2/pkg/bft/rpc/core/pipe.go:25 | grep -rn validatePage tm2 \| grep -v _test: one hit, the definition at pipe.go:123 | grep -rn validatePage tm2 \| grep -v _test -> tm2/pkg/bft/rpc/core/pipe.go:123:func validatePage(page, perPage, totalCount int) (int, error) |  |  |
-| 2 | CONFIRMED | Nit | docs/resources/rpc-endpoints.md:245 | grep -rn GRPCListenAddress over tm2 and gno.land: config plumbing, a wal generator and config get/set tests, no server start; Routes at routes.go has no dial_seeds | grep -rn GRPCListenAddress tm2 gno.land --include=*.go -> config.go:38,101,123, consensus/wal_generator.go:38, config_set_test.go:634, config_get_test.go:734,742; no listener |  |  |
+| 1 | CONFIRMED | Suggestion | tm2/pkg/bft/rpc/core/pipe.go:123 | grep -rn validatePage tm2 \| grep -v _test: one hit, the definition at pipe.go:123 | grep -rn validatePage tm2 \| grep -v _test -> tm2/pkg/bft/rpc/core/pipe.go:123:func validatePage(page, perPage, totalCount int) (int, error) |  |  |
+| 2 | CONFIRMED | Nit | tm2/pkg/bft/rpc/config/config.go:38 | grep -rn GRPCListenAddress over tm2 and gno.land: config plumbing, a wal generator and config get/set tests, no server start; Routes at routes.go has no dial_seeds | grep -rn GRPCListenAddress tm2 gno.land --include=*.go -> config.go:38,101,123, consensus/wal_generator.go:38, config_set_test.go:634, config_get_test.go:734,742; no listener |  |  |
 | 3 | PLAUSIBLE | Nit | tm2/pkg/bft/rpc/lib/server/handlers.go:242 | a request with no params key against the JSON-RPC handler for block: expect 500 with a JSON-RPC error body | handlers.go:242-253 read; no run |  |  |
 | 4 | REFUTED | Nit | docs/resources/rpc-endpoints.md:52 | curl -sS -o /tmp/genesis.out -w '%{http_code} %{size_download} %{time_total}' --max-time 60 https://rpc.gno.land:443/genesis | 200, 122681708 bytes, 30.99s, then `curl: (92) HTTP/2 stream 1 reset by server`: the page's sentence holds, the body outruns the 30s WriteTimeout at http_server.go:47 |  | cold |
+
+Rows 1 and 2 ship in the Body and carry no anchor: the line each asks to edit, `pipe.go:123` and
+`config/config.go:38`, sits outside the diff, and an inline comment there is refused at submit.
 
 ## Completeness
 

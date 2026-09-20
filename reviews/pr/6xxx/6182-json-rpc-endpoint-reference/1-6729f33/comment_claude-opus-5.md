@@ -6,19 +6,20 @@ Commit: 6729f335f
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6182 6729f335f`
-Round: 1. One pass over 457 changed lines as finder, judge and writer, every finding run from the head worktree.
+Round: 1. One pass over 457 changed lines as finder, judge and writer, every finding run from the head worktree. Neither finding anchors: both edits land outside the diff, so both ship in the Body.
 
 ## Body
 
-- `?page` and `?per_page` reach no handler, which the page records under Not available, and [`validatePage`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/core/pipe.go#L123) is the code implementing them: nothing outside [`pipe_test.go`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/core/pipe_test.go#L45) calls it, so it can be deleted.
-- [`config.go`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/config/config.go#L38) describes `grpc_laddr` as the address of a gRPC server and [`unsafe`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/config/config.go#L48) as activating `/dial_seeds`, both in `comment:` tags, so every generated `config.toml` carries two claims this page lists as absent.
+- Related suggestion: nothing outside [`pipe_test.go`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/core/pipe_test.go#L45) calls [`validatePage`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/core/pipe.go#L123), the code behind the `?page` and `?per_page` this page lists as absent, so it can be deleted.
+- Related nit: [`config.go`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/config/config.go#L38) describes `grpc_laddr` as the address of a gRPC server and [`unsafe`](https://github.com/gnolang/gno/blob/6729f335f6214da9c8f96058fa82dbeb6bef130b/tm2/pkg/bft/rpc/config/config.go#L48) as activating `/dial_seeds`, both in `comment:` tags, so every generated `config.toml` carries two claims this page lists as absent.
 
 <details>
 
-<summary>Sweep: the pagination validator</summary>
+<summary>Sweep</summary>
 
 ```bash
-git checkout 6729f335f6214da9c8f96058fa82dbeb6bef130b
+# from a local clone of gnolang/gno:
+gh pr checkout 6182 -R gnolang/gno
 grep -rn validatePage tm2 | grep -v _test
 ```
 
@@ -29,28 +30,6 @@ tm2/pkg/bft/rpc/core/pipe.go:123:func validatePage(page, perPage, totalCount int
 ```
 
 Deleting it touches `pipe.go:123` and the `validatePage` cases in `pipe_test.go`. The two constants above it stay: `validatePerPage` reads both, and `mempool.go` calls that one for the `unconfirmed_txs` limit.
-
-</details>
-
-<details>
-
-<summary>Sweep: the gRPC address</summary>
-
-```bash
-git checkout 6729f335f6214da9c8f96058fa82dbeb6bef130b
-grep -rn GRPCListenAddress tm2 gno.land --include='*.go'
-```
-
-Config plumbing, a WAL generator and the config get and set tests. Nothing starts a listener:
-
-```text
-tm2/pkg/bft/rpc/config/config.go:38,101,123
-tm2/pkg/bft/consensus/wal_generator.go:38
-gno.land/cmd/gnoland/config_set_test.go:634
-gno.land/cmd/gnoland/config_get_test.go:734,742
-```
-
-Both strings are `comment:` struct tags, so both are written into every generated `config.toml`.
 
 </details>
 
