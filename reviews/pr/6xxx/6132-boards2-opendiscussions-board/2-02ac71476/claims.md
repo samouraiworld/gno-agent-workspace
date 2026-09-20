@@ -30,3 +30,12 @@ Every falsifiable claim, the check that would prove it false, and what the check
 | C24 | both callers draw the ID from `gBoardsSequence.Next()` | `git grep` | `boards.gno:69`, `public.gno:143` into `:149` | yes |
 | C25 | the patch drops `boards.New` from both call sites and the suite stays green | `git apply tests/addboard-id-param.patch`, `gno lint`, suite | one `boards.New(id)` left at `public.gno:157`; lint silent; `ok 30.38s` | yes |
 | C26 | all four anchors sit in the diff | `post-pr-review.py --dry-run` | 4 comments accepted | yes |
+
+## Outcomes
+
+| Section | Band | Outcome | Replies | Author replied |
+| --- | --- | --- | --- | --- |
+| examples/gno.land/r/gnoland/boards2/v1/boards.gno:69 | Warning | fixed | 1 | yes |
+| examples/gno.land/r/gnoland/boards2/v1/filetests/z_ui_home_02_filetest.gno:17 | Nit | fixed | 1 | yes |
+| examples/gno.land/r/gnoland/boards2/v1/boards.gno:68 | Warning | gone | | |
+| examples/gno.land/r/gnoland/boards2/v1/public.gno:157 | Suggestion | fixed | 1 | yes |

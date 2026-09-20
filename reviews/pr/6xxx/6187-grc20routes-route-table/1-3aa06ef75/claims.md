@@ -180,3 +180,15 @@ in one message. Estimate at 2.5 calls per turn: 984 turns to about 400, cache
 read 52.6M to about 21M, output flat at 910k, wall clock down with the turns,
 finding rate unchanged. Estimate until an outcome table measures it. The line is
 in the workspace `TODO.md`.
+
+## Outcomes
+
+| Section | Band | Outcome | Replies | Author replied |
+| --- | --- | --- | --- | --- |
+| examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:408-413 | Warning | open | 0 | no |
+| examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:444 | Warning | open | 0 | no |
+| examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:416 | Warning | open | 0 | no |
+| examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:443 | Warning | open | 0 | no |
+| examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:500 | Warning | open | 0 | no |
+| examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:519 | Warning | open | 0 | no |
+| examples/gno.land/r/nt/grc20routes/v0/grc20routes.gno:737 | Warning | open | 0 | no |

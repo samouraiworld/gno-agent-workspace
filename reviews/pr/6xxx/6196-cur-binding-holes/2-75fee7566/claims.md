@@ -250,3 +250,15 @@ dereference when applied.
 
 Posted as COMMENT, six inline comments:
 https://github.com/gnolang/gno/pull/6196#pullrequestreview-5238487667
+
+## Outcomes
+
+| Section | Band | Outcome | Replies | Author replied |
+| --- | --- | --- | --- | --- |
+| SKIP gnovm/pkg/gnolang/preprocess.go:6116-6119 | Warning | fixed | 1 | yes |
+| gnovm/pkg/gnolang/op_call.go:560 | Nit | open | 0 | no |
+| gnovm/pkg/gnolang/op_call.go:573 | Suggestion | open | 0 | no |
+| gnovm/pkg/gnolang/op_call_test.go:87 | Nit | open | 0 | no |
+| gnovm/tests/stdlibs/testing/cur_subtest_test.gno:12-14 | Nit | open | 0 | no |
+| gnovm/pkg/gnolang/op_call.go:521-523 | Warning | open | 0 | no |
+| gnovm/pkg/gnolang/preprocess.go:3145 | Suggestion | open | 0 | no |
