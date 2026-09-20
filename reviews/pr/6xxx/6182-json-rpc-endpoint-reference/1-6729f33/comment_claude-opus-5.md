@@ -1,4 +1,5 @@
 # PR [#6182](https://github.com/gnolang/gno/pull/6182): docs: add a JSON-RPC endpoint reference, drop the parts that were false
+Posted: https://github.com/gnolang/gno/pull/6182#pullrequestreview-5261326046
 Verdict: APPROVE, on two low-band findings and no Warning: a pagination validator no handler calls, and two config comments describing what this page lists as absent. The page's readability findings are already raised on the target and ship SKIP.
 Event: APPROVE
 Model: claude-opus-5, standard review
