@@ -8,10 +8,6 @@ Open the code: [github.dev](https://github.dev/gnolang/gno/blob/7e6bc551447b8012
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6220 7e6bc5514`
 Round: 1. No finder stage: one pass found, ran and judged, booting gnoweb from source at both the head and the merge base and comparing the two in a browser.
 
-## Body
-
-One defect, on the line it sits on.
-
 ## gno.land/pkg/gnoweb/components/layouts/head.html:9-10 [gh](https://github.com/gnolang/gno/blob/7e6bc5514/gno.land/pkg/gnoweb/components/layouts/head.html#L9-L10) · [↗](../../../../../.worktrees/gno-review-6220/gno.land/pkg/gnoweb/components/layouts/head.html#L9) · Warning
 
 A preload is matched by URL: these two carry `?v={{ .BuildTime }}` and [the `@font-face` rules naming the same files](https://github.com/gnolang/gno/blob/7e6bc5514/gno.land/pkg/gnoweb/frontend/css/04-elements.css#L12-L23) carry none, so `Intervar.woff2` downloads twice on a cold load. The stamp belongs in the stylesheet, where it fixes the match and keeps the cache key.
