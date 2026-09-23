@@ -1,0 +1,46 @@
+{
+  "verdicts": [
+    {
+      "index": 1,
+      "state": "CONFIRMED",
+      "band": "Warning",
+      "file": "docs/resources/effective-gno.md",
+      "line": 748,
+      "tldr": "the registration example calls `otherrealm.Register(mySafeObject)` while the local declared on the line above is `mySafeObj`, so the copied block does not compile",
+      "details": "At head 7f309e625, effective-gno.md:747 declares `mySafeObj := NewSafeStruct(cur)` and line 748 passes `mySafeObject`; type-checked as a package with the preceding `MySafeStruct`/`NewSafeStruct` definitions, `gno test` reports `undefined: mySafeObject` and `declared and not used: mySafeObj`. The mismatched line predates the branch: diff.md:389 shows `otherrealm.Register(mySafeObject)` as an unchanged context line, and base effective-gno.md:762-763 carries the same `mySafeObj` declaration against the same `mySafeObject` use, so the base block fails identically for this defect. The branch's edit touches the block (`init()` -> `init(cur realm)`, `NewSafeStruct()` -> `NewSafeStruct(cur)`) but never renames either symbol, so the example the PR rewrote still does not compile; base behaves the same for it. Fix: change the use to `mySafeObj` (or the declaration to `mySafeObject`); the rest of the block is consistent with the surrounding object.",
+      "evidence": "head `gno test ./gno.land/r/docprobe` (after adding a one-line `_test.gno` driver): `probe.gno:15:22: undefined: mySafeObject (code=gnoTypeCheckError)`, `probe.gno:14:2: declared and not used: mySafeObj (code=gnoTypeCheckError)`, `FAIL`; the finder's fixture additionally omitted the doc's `import \"gno.land/r/otherrealm\"` so its run also printed `undefined: otherrealm`, which is fixture noise, not the cited defect. Base text (base-probe, `runtime.*` block) shows the same declaration/use mismatch.",
+      "repro_path": "reviews/pr/6xxx/6230-fix-realm-payment-imports/1-7f309e625/tests/find-b1-safeobj-undefined-symbol.md",
+      "base_behaves_the_same": true,
+      "angle": "claims",
+      "verify_by": "Extract effective-gno.md:743-749 into a /r/ package and run `gno test`; expect a clean type-check, observe `undefined: mySafeObject`."
+    },
+    {
+      "index": 2,
+      "state": "CONFIRMED",
+      "band": "Warning",
+      "file": "docs/resources/gno-interrealm-v2.md",
+      "line": 737,
+      "tldr": "the MsgRun example calls `realmA.PublicCrossing(cross)`, passing the function-valued `cross` builtin where a realm is required, so the block does not compile",
+      "details": "gno-interrealm-v2.md:737 reads `realmA.PublicCrossing(cross)`; staged as an /e/ package with a stub `func PublicCrossing(cur realm)`, `gno test` reports `cannot use cross (value of type func(rlm realm) realm) as realma.realm value ... does not implement gno0p9.realm`. The call is an unchanged context line (diff.md:232); base gno-interrealm-v2.md:737-738 carries the same bare `cross`, and running the base text reproduces the identical cross error alongside the base's `undefined: runtime` errors, so the branch did not introduce it. The branch does edit this block (adds `import \"chain/runtime/unsafe\"`, swaps `runtime.*` for `unsafe.*`), presenting it as a runnable sample while it still fails to type-check; base behaves the same for the cross error. Fix: pass a realm value, `realmA.PublicCrossing(cross(cur))` (or `cur` inside a crossing function), matching the 2776 `cross(cur)` uses in examples.",
+      "evidence": "head `gno test -v ./gno.land/e/g1user/run`: `run.gno:13:24: cannot use cross (value of type func(rlm realm) realm) as realma.realm value in argument to realma.PublicCrossing: func(rlm realm) realm does not implement gno0p9.realm (missing method Address) (code=gnoTypeCheckError)`, `FAIL`. Base text same probe: `run2.gno:9:25: cannot use cross ... as realma2.realm ...`, `FAIL`. grep of examples: 4 bare `(cross)` hits, all inside comments; 2776 `cross(cur`.",
+      "repro_path": "reviews/pr/6xxx/6230-fix-realm-payment-imports/1-7f309e625/tests/find-b1-interrealm-v2-bare-cross.md",
+      "base_behaves_the_same": true,
+      "angle": "claims",
+      "verify_by": "Build the block as an /e/ package with a stub `realma.PublicCrossing(cur realm)` and run `gno test`; expect it to compile, observe `cannot use cross (value of type func(rlm realm) realm) as realma.realm value in argument to realma.PublicCrossing`."
+    },
+    {
+      "index": 3,
+      "state": "CONFIRMED",
+      "band": "Warning",
+      "file": "docs/resources/gno-interrealm.md",
+      "line": 932,
+      "tldr": "the MsgCall example calls `AnotherPublic(cross)` with the bare `cross` builtin and `AnotherPublic(cur)` with an undeclared `cur` (the parameter is `_ realm`), so neither line compiles",
+      "details": "gno-interrealm.md:932 passes `cross` where `AnotherPublic` requires a realm, and line 935 passes `cur`, which is never declared because the enclosing `func Public(_ realm)` discards its parameter; extracted and type-checked, `gno test` reports both. Both lines are unchanged context in the diff (diff.md:431 and 434); base gno-interrealm.md:938-939 is identical, and the base-text run reproduces both cited errors (plus `undefined: runtime`), so the branch did not introduce them. The branch does edit the block (adds `import \"chain/runtime/unsafe\"`, swaps `runtime.*` for `unsafe.*`), so the sample is staged as runnable yet fails; base behaves the same for the two cited errors, and the same bare-`cross` shape sits at lines 227 and 972. Fix: name the parameter `func Public(cur realm)` and use `AnotherPublic(cross(cur))` for the crossing call and `AnotherPublic(cur)` for the non-crossing one.",
+      "evidence": "head `gno test -v ./gno.land/r/msgcallprobe`: `probe.gno:8:16: cannot use cross (value of type func(rlm realm) realm) as realm value in argument to AnotherPublic ... (code=gnoTypeCheckError)`, `probe.gno:9:16: undefined: cur (code=gnoTypeCheckError)`, `FAIL`. Base text same probe: `probe2.gno:6:16: cannot use cross ... as realm ...`, `probe2.gno:7:16: undefined: cur`, `FAIL`.",
+      "repro_path": "reviews/pr/6xxx/6230-fix-realm-payment-imports/1-7f309e625/tests/find-b1-interrealm-bare-cross.md",
+      "base_behaves_the_same": true,
+      "angle": "claims",
+      "verify_by": "Extract gno-interrealm.md:925-936 into a /r/ package and run `gno test`; expect a clean type-check, observe `cannot use cross ...` at line 8 and `undefined: cur` at line 9."
+    }
+  ]
+}

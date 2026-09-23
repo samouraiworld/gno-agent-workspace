@@ -1,0 +1,178 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "docs/resources/effective-gno.md",
+      "line": 748,
+      "angle": "claims",
+      "summary": "the rewritten registration example calls `otherrealm.Register(mySafeObject)`, a symbol that does not exist (the local is `mySafeObj`)",
+      "failure_scenario": "A reader copies the 'Construct safe objects' registration block (effective-gno.md:743-749) into a realm; `gno test` fails with `undefined: mySafeObject` and `declared and not used: mySafeObj`, so the example the PR rewrote still does not compile.",
+      "verify_by": "Extract effective-gno.md:743-749 into a /r/ package and run `gno test`; expect a clean type-check, observe `undefined: mySafeObject`.",
+      "fix_kind": "code",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "gno.land/r/finder6230/safereg/safereg.gno:17:22: undefined: mySafeObject (code=gnoTypeCheckError)\ngno.land/r/finder6230/safereg/safereg.gno:16:2: declared and not used: mySafeObj (code=gnoTypeCheckError)\nFAIL",
+      "repro_path": "reviews/pr/6xxx/6230-fix-realm-payment-imports/1-7f309e625/tests/find-b1-safeobj-undefined-symbol.md"
+    },
+    {
+      "index": 2,
+      "file": "docs/resources/gno-interrealm-v2.md",
+      "line": 737,
+      "angle": "claims",
+      "summary": "the MsgRun example calls `realmA.PublicCrossing(cross)` with the bare `cross` builtin, which is not a `realm` value and does not compile",
+      "failure_scenario": "The diff stages this block as a runnable MsgRun sample (it adds `import \"chain/runtime/unsafe\"` and swaps `runtime.*` for `unsafe.*`), but `realmA.PublicCrossing(cross)` passes the function-valued `cross` builtin where a realm is required; `gno test` refuses it, so the example does not compile.",
+      "verify_by": "Build the block as an /e/ package with a stub `realma.PublicCrossing(cur realm)` and run `gno test`; expect it to compile, observe `cannot use cross (value of type func(rlm realm) realm) as realma.realm value in argument to realma.PublicCrossing`.",
+      "fix_kind": "code",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "gno.land/e/finder6230/run/run.gno:14:24: cannot use cross (value of type func(rlm realm) realm) as realma.realm value in argument to realma.PublicCrossing: func(rlm realm) realm does not implement gno0p9.realm (missing method Address) (code=gnoTypeCheckError)\nFAIL",
+      "repro_path": "reviews/pr/6xxx/6230-fix-realm-payment-imports/1-7f309e625/tests/find-b1-interrealm-v2-bare-cross.md"
+    },
+    {
+      "index": 3,
+      "file": "docs/resources/gno-interrealm.md",
+      "line": 932,
+      "angle": "claims",
+      "summary": "the MsgCall example calls `AnotherPublic(cross)` (bare `cross`, not a realm) and `AnotherPublic(cur)` (undeclared `cur`); neither compiles",
+      "failure_scenario": "The diff adds `import \"chain/runtime/unsafe\"` and swaps `runtime.*` for `unsafe.*` in this MsgCall sample, but `AnotherPublic(cross)` passes the `cross` builtin where a realm is required and `AnotherPublic(cur)` names an identifier that is never declared (the parameter is `_ realm`); `gno test` fails on both. The same bare-`cross` shape sits at gno-interrealm.md:227 (`SendMail(cross, ...)`) and gno-interrealm.md:972 (`realmA.PublicCrossing(cross)`).",
+      "verify_by": "Extract gno-interrealm.md:925-936 into a /r/ package and run `gno test`; expect a clean type-check, observe `cannot use cross ...` at line 8 and `undefined: cur` at line 9.",
+      "fix_kind": "code",
+      "band": "Warning",
+      "checked": true,
+      "run": true,
+      "evidence": "gno.land/r/finder6230/msgcall/msgcall.gno:8:16: cannot use cross (value of type func(rlm realm) realm) as realm value in argument to AnotherPublic: func(rlm realm) realm does not implement gno0p9.realm (missing method Address) (code=gnoTypeCheckError)\ngno.land/r/finder6230/msgcall/msgcall.gno:9:16: undefined: cur (code=gnoTypeCheckError)\nFAIL",
+      "repro_path": "reviews/pr/6xxx/6230-fix-realm-payment-imports/1-7f309e625/tests/find-b1-interrealm-bare-cross.md"
+    },
+    {
+      "index": 4,
+      "file": "docs/resources/gno-stdlibs.md",
+      "line": 752,
+      "angle": "claims",
+      "summary": "the rewritten `NewBanker` parameter list still documents `BankerTypeReadonly` as a value of `bt`, but `NewBanker` panics on it",
+      "failure_scenario": "A reader follows the parameter list (`- `bt` **BankerType** - type of Banker to get:` with `BankerTypeReadonly - read-only access to coin balances`) and calls `banker.NewBanker(banker.BankerTypeReadonly, cur)`; the call panics `use NewReadonlyBanker for BankerTypeReadonly` instead of returning a banker.",
+      "verify_by": "sed -n '747,757p' docs/resources/gno-stdlibs.md and sed -n '104,124p' gnovm/stdlibs/chain/banker/banker.gno at head; the source rejects BankerTypeReadonly in NewBanker and directs to NewReadonlyBanker.",
+      "fix_kind": "comment",
+      "band": "Suggestion",
+      "checked": true,
+      "run": false,
+      "evidence": "docs: `- `bt` **BankerType** - type of Banker to get:` / `- `BankerTypeReadonly` - read-only access to coin balances`\nsource banker.gno:117-120: `func NewBanker(bt BankerType, rlm realm) Banker { if bt == BankerTypeReadonly { panic(\"use NewReadonlyBanker for BankerTypeReadonly\") }`",
+      "repro_path": "reviews/pr/6xxx/6230-fix-realm-payment-imports/1-7f309e625/tests/find-b1-stdlibs-newbanker-readonly.md"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "docs/resources/gno-stdlibs.md",
+      "line": 749,
+      "angle": "claims",
+      "summary": "`NewBanker` signature is `func NewBanker(bt BankerType, rlm realm) Banker`",
+      "settled_by": "grep -n 'func NewBanker' gnovm/stdlibs/chain/banker/banker.gno -> 117:func NewBanker(bt BankerType, rlm realm) Banker {"
+    },
+    {
+      "file": "docs/resources/gno-stdlibs.md",
+      "line": 713,
+      "angle": "claims",
+      "summary": "`OriginSend()` lives in `chain/runtime/unsafe` and returns `chain.Coins`",
+      "settled_by": "grep -n 'func OriginSend' gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno -> 64:func OriginSend() chain.Coins {; no `func OriginSend` under gnovm/stdlibs/chain/banker/"
+    },
+    {
+      "file": "docs/resources/gno-stdlibs.md",
+      "line": 676,
+      "angle": "claims",
+      "summary": "`OriginCaller()`, `CurrentRealm()`, `PreviousRealm()` live in `chain/runtime/unsafe`",
+      "settled_by": "gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno defines OriginCaller (51), CurrentRealm (38), PreviousRealm (26); the chain/runtime directory has no such functions"
+    },
+    {
+      "file": "docs/resources/effective-gno.md",
+      "line": 844,
+      "angle": "claims",
+      "summary": "`runtime.AssertOriginCall()` remains in `chain/runtime`",
+      "settled_by": "gnovm/stdlibs/chain/runtime/native.gno:8 -> func AssertOriginCall() // injected"
+    },
+    {
+      "file": "docs/resources/gno-interrealm-v2.md",
+      "line": 775,
+      "angle": "claims",
+      "summary": "`unsafe.CurrentRealm()`/`PreviousRealm()` are implemented in `gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno`",
+      "settled_by": "ls gnovm/stdlibs/chain/runtime/unsafe/ -> unsafe.gno present; git ls-tree confirms the path at head"
+    },
+    {
+      "file": "docs/resources/gno-interrealm-v2.md",
+      "line": 777,
+      "angle": "claims",
+      "summary": "`cur realm` capability validation (`IsCurrent()`, HIV pointer identity) lives in `gnovm/pkg/gnolang/uverse.go`",
+      "settled_by": "gnovm/pkg/gnolang/uverse.go:595 realmIsCurrentOnMachine uses realmHIV/topmostCrossingFrameCurHIV; file exists at head"
+    },
+    {
+      "file": "docs/resources/realms.md",
+      "line": 33,
+      "angle": "claims",
+      "summary": "`Realm` has field `addr address` (not `addr Address`)",
+      "settled_by": "gnovm/stdlibs/chain/runtime/frame.gno:8-11 -> type Realm struct { addr address; pkgPath string }"
+    },
+    {
+      "file": "docs/resources/effective-gno.md",
+      "line": 850,
+      "angle": "claims",
+      "summary": "`banker.NewBanker(banker.BankerTypeOriginSend, cur)` is a valid call and requires `cur.Previous().PkgPath() == \"\"`",
+      "settled_by": "banker.gno:117 signature matches; banker.gno:144 `if bt == BankerTypeOriginSend && !rlm.Previous().IsUserCall() { panic }` and frame.gno:105 IsUserCall == (pkgPath == \"\")"
+    },
+    {
+      "file": "docs/resources/effective-gno.md",
+      "line": 832,
+      "angle": "claims",
+      "summary": "`IsUserCall()` is a method of the `realm` interface and equals `cur.Previous().PkgPath() == \"\"`",
+      "settled_by": "gnovm/pkg/gnolang/uverse.go:153 declares IsUserCall on the realm interface; frame.gno:105 IsUserCall() { return r.pkgPath == \"\" }"
+    },
+    {
+      "file": "docs/resources/effective-gno.md",
+      "line": 896,
+      "angle": "claims",
+      "summary": "the GRC20 example (`NewToken(..., cur)`, `CallerTeller()`, `userTeller.Transfer(0, cur, to, amount)`, `Token.BalanceOf`) compiles",
+      "settled_by": "extracted into examples/gno.land/r/finder6230/grc20ex and ran `gno test ./gno.land/r/finder6230/grc20ex` -> `ok`; signatures at examples/gno.land/p/nt/grc20/v0/token.gno:43 and tellers.gno:24,163"
+    },
+    {
+      "file": "docs/resources/effective-gno.md",
+      "line": 166,
+      "angle": "claims",
+      "summary": "the `init(cur realm)` examples (admin capture, events/ChangeOwner, NewSafeStruct) compile and `cur.Previous()` is valid in init",
+      "settled_by": "extracted into examples/gno.land/r/finder6230/{admininit,events,safeobj} and ran `gno test` -> all `ok`; gnovm/tests/files/zrealm_initctx.gno and zrealm_cur_parity.gno confirm cur.Previous() parity in init"
+    },
+    {
+      "file": "docs/resources/gno-interrealm-v2.md",
+      "line": 708,
+      "angle": "claims",
+      "summary": "the MsgCall `cur.Previous().PkgPath()` / `cur.PkgPath()` example compiles",
+      "settled_by": "extracted into examples/gno.land/r/finder6230/msgcall2 and ran `gno test` -> `ok`"
+    },
+    {
+      "file": "docs/resources/gno-interrealm.md",
+      "line": 1018,
+      "angle": "claims",
+      "summary": "the MsgAddPackage example (`import \"chain/runtime/unsafe\"`, `unsafe.PreviousRealm()`, `var _ = unsafe.PreviousRealm()`) compiles",
+      "settled_by": "extracted into examples/gno.land/r/finder6230/msgaddpkg and ran `gno test` -> `ok`"
+    },
+    {
+      "file": "docs/resources/gno-interrealm-v2.md",
+      "line": 437,
+      "angle": "claims",
+      "summary": "`sub.Address()` equals `chain.PackageAddress(sub.PkgPath())` for a synthesized `host#subpath`",
+      "settled_by": "gnovm/stdlibs/chain/address.gno:28-31 DerivePkgSubAddr returns PackageAddress(pkgpath + \"#\" + subpath), so PackageAddress on the synthesized path is the same address"
+    },
+    {
+      "file": "docs/resources/effective-gno.md",
+      "line": 856,
+      "angle": "claims",
+      "summary": "`banker.SendCoins(from, to, amt)` requires `from == pkgAddr`",
+      "settled_by": "gnovm/stdlibs/chain/banker/banker.gno:233-238 -> if b.pkgAddr != from { panic(\"can only send coins from realm that created banker ...\") }"
+    },
+    {
+      "file": "docs/resources/gno-stdlibs.md",
+      "line": 973,
+      "angle": "claims",
+      "summary": "lines 973-974 still name `CurrentRealm()`/`PreviousRealm()` without the `unsafe.` prefix after the functions moved",
+      "settled_by": "the anchors #currentrealm/#previousrealm still resolve to the chain/runtime/unsafe sections, and the same functions are reached as unsafe.CurrentRealm()/unsafe.PreviousRealm(); no wrong symbol, only an unqualified name, so not returned"
+    }
+  ]
+}

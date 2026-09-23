@@ -1,0 +1,18 @@
+{
+  "verdicts": [
+    {
+      "index": 4,
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "docs/resources/gno-stdlibs.md",
+      "line": 752,
+      "tldr": "the NewBanker parameter list offers BankerTypeReadonly as a value of bt, but NewBanker panics on that value",
+      "details": "At head docs/resources/gno-stdlibs.md:752-753 the rewritten header `- `bt` **BankerType** - type of Banker to get:` is followed by `- `BankerTypeReadonly` - read-only access to coin balances`, and 753 is unchanged but the branch rewrote the line that scopes the whole sub-list to the `bt` argument (base read `- `BankerType` - type of Banker to get:`). gnovm/stdlibs/chain/banker/banker.gno:117-120 rejects it: `func NewBanker(bt BankerType, rlm realm) Banker { if bt == BankerTypeReadonly { panic(\"use NewReadonlyBanker for BankerTypeReadonly\") }`, so a reader who copies the documented call `banker.NewBanker(banker.BankerTypeReadonly, cur)` gets a panic; `NewReadonlyBanker` is named nowhere in the page. The panic predates the branch (identical at the merge base), so the branch did not invent the stale entry but did re-confirm it by rewriting the list header and adding the signature. Fix: drop the `BankerTypeReadonly` sub-bullet from NewBanker's parameters and add a sentence pointing at `banker.NewReadonlyBanker()` for readonly access.",
+      "evidence": "head docs/resources/gno-stdlibs.md:752 `- `bt` **BankerType** - type of Banker to get:` and :753 `    - `BankerTypeReadonly` - read-only access to coin balances`; head gnovm/stdlibs/chain/banker/banker.gno:118-120 `if bt == BankerTypeReadonly { panic(\"use NewReadonlyBanker for BankerTypeReadonly\") }`; grep of the head page for `NewReadonlyBanker` returns no match (only lines 122, 732, 753 mention BankerTypeReadonly).",
+      "repro_path": "",
+      "base_behaves_the_same": true,
+      "angle": "docs claim vs source: a parameter list that names a value the function refuses",
+      "verify_by": "sed -n '747,757p' docs/resources/gno-stdlibs.md and sed -n '104,124p' gnovm/stdlibs/chain/banker/banker.gno at head 7f309e625"
+    }
+  ]
+}
