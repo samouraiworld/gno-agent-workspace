@@ -1,0 +1,40 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 5605,
+   "angle": "removed",
+   "summary": "the dot-import branch of tryPredefine is unreachable, so its reworded message is covered by no test",
+   "failure_scenario": "every tryPredefine call sits behind initStaticBlocks over the same file (PredefineFileSet preprocess.go:43, Preprocess preprocess.go:750), and initStaticBlocks2 panics on nn == \".\" at preprocess.go:491 first; the new import2.gno filetest therefore passes with a sentinel in the tryPredefine branch and with the merge base's capitalised message, so the alignment the PR body claims changes no output and nothing would catch the two messages drifting again",
+   "verify_by": "tests/solo-trypredefine-unreachable.sh: sentinel at preprocess.go:5606 keeps TestFiles/import2.gno green, sentinel at :491 turns it red, base preprocess.go passes",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "repro_path": "tests/solo-trypredefine-unreachable.sh"
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gnovm/tests/backup/import2.gno",
+   "line": 1,
+   "angle": "reach",
+   "summary": "deleting gnovm/tests/backup/import2.gno could drop a test some runner reads",
+   "settled_by": "files_test.go:69 dir := \"../../tests/files\" is the only filetest root; gno fmt reads gnovm/tests/files (fmt.go:243); grep for tests/backup over *.go, Makefiles and .github: 0 hits"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 5606,
+   "angle": "removed",
+   "summary": "a test or golden still asserts the old capitalised 'dot imports not allowed in Gno'",
+   "settled_by": "grep -rni 'dot imports\\? not allowed' at the head: preprocess.go:491, :5605, :5606 and tests/files/import2.gno:10, all lowercase 'gno'; no hit for the capitalised form"
+  },
+  {
+   "file": "docs/resources/go-gno-compatibility.md",
+   "line": 51,
+   "angle": "claims",
+   "summary": "the doc's rejection claim or the golden's message might not match what the VM prints",
+   "settled_by": "go test ./gnovm/pkg/gnolang -run 'TestFiles/^import2.gno$' at b512ada64: ok, golden main/import2.gno:3:8-19: dot imports not allowed in gno; grep 'import \\. ' over every .gno: only tests/files/import2.gno"
+  }
+ ]
+}

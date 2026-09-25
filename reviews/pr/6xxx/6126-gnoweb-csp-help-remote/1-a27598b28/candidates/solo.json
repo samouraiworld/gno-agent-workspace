@@ -1,0 +1,55 @@
+{
+ "candidates": [
+  {
+   "file": "gno.land/cmd/gnoweb/main_test.go",
+   "line": 134,
+   "angle": "lines",
+   "summary": "the new test calls the one-line wrapper directly, so reverting setupWeb's call to NodeRemote keeps every test green",
+   "failure_scenario": "TestSecureHeadersMiddlewareUsesRemoteHelp builds its own AppConfig and calls newSecureHeadersMiddleware; setupWeb's call at main.go:283 is the line the fix changed and no test reaches it (TestSetupWeb discards the handler). Put main.go:283 back to SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote) and the Actions Result panel is blocked by CSP again on any deployment where -help-remote differs from -remote, with the suite green",
+   "verify_by": "tests/solo-test-misses-wiring.sh: revert main.go:283 to NodeRemote, go test ./cmd/gnoweb -run 'TestSecureHeadersMiddleware|TestSetupWeb': expect FAIL, observe ok",
+   "band": "Warning",
+   "fix_kind": "test",
+   "checked": true,
+   "run": true,
+   "evidence": "--- PASS: TestSecureHeadersMiddlewareUsesRemoteHelp (0.00s) / ok github.com/gnolang/gno/gno.land/cmd/gnoweb 0.022s, with main.go:283 reverted",
+   "repro_path": "tests/solo-test-misses-wiring.sh"
+  },
+  {
+   "file": "gno.land/cmd/gnoweb/main.go",
+   "line": 389,
+   "angle": "reach",
+   "summary": "connect-src no longer lists NodeRemote, which another browser fetch could still need",
+   "failure_scenario": "with -help-remote set to a host other than -remote, a page script that fetches NodeRemote from the browser would now be blocked by CSP",
+   "verify_by": "grep every fetch in gno.land/pkg/gnoweb/frontend/js and every .Remote in components",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false
+  },
+  {
+   "file": "gno.land/cmd/gnoweb/main.go",
+   "line": 236,
+   "angle": "reach",
+   "summary": "an unset -help-remote leaves connect-src with an empty host",
+   "failure_scenario": "-help-remote defaults to empty; if RemoteHelp stayed empty the policy would read connect-src 'self' /abci_query and the Result fetch would fail",
+   "verify_by": "read defaultWebOptions and setupWeb's fallback",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false
+  },
+  {
+   "file": "gno.land/cmd/gnoweb/main.go",
+   "line": 341,
+   "angle": "removed",
+   "summary": "another caller of SecureHeadersMiddleware still passes NodeRemote",
+   "failure_scenario": "a second construction site, gnodev's web setup for one, would keep the old connect-src host",
+   "verify_by": "grep -rn SecureHeadersMiddleware over the whole tree",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false
+  }
+ ],
+ "dropped": []
+}

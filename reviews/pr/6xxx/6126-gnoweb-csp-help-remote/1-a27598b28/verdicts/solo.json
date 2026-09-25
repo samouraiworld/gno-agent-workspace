@@ -1,0 +1,63 @@
+{
+ "verdicts": [
+  {
+   "index": 1,
+   "angle": "lines",
+   "state": "CONFIRMED",
+   "band": "Warning",
+   "file": "gno.land/cmd/gnoweb/main_test.go",
+   "line": 134,
+   "tldr": "the added test stays green with the fix reverted in setupWeb",
+   "details": "The test calls newSecureHeadersMiddleware with an AppConfig it builds itself, so it pins that the wrapper reads cfg.RemoteHelp and nothing about setupWeb. TestSetupWeb calls setupWeb but drops the server and its handler. With main.go:283 reverted to appcfg.NodeRemote the four tests pass. The merge base has neither the wrapper nor the test, so there is no base run to compare; the gap is the branch's own test.",
+   "evidence": "bash tests/solo-test-misses-wiring.sh in a scratch worktree at a27598b28: main.go 1 insertion 1 deletion; --- PASS: TestSecureHeadersMiddlewareUsesRemoteHelp (0.00s); ok github.com/gnolang/gno/gno.land/cmd/gnoweb 0.022s",
+   "verify_by": "tests/solo-test-misses-wiring.sh",
+   "repro_path": "tests/solo-test-misses-wiring.sh",
+   "base_behaves_the_same": false
+  },
+  {
+   "index": 2,
+   "angle": "reach",
+   "state": "REFUTED",
+   "band": "Warning",
+   "file": "gno.land/cmd/gnoweb/main.go",
+   "line": 389,
+   "tldr": "no browser code fetches NodeRemote; the one cross-origin fetch uses RemoteHelp",
+   "details": "controller-action-function.ts:233 fetches `${remote}/abci_query` where remote is the text of the remote target, rendered from $.Remote in views/action.html:163; every Remote handler_http.go sets (216, 413, 476, 574, 688, 707, 1056) is h.Static.RemoteHelp. controller-copy.ts:110 refuses any cross-origin URL and controller-searchbar.ts:130 fetches the same-origin SEARCH_ENDPOINT. NodeRemote is read only server side, by client.NewHTTPClient at app.go:107.",
+   "evidence": "grep -rn RemoteHelp|NodeRemote|abci_query over the tree; grep fetch( over frontend/js",
+   "verify_by": "grep every fetch in gno.land/pkg/gnoweb/frontend/js and every .Remote in components",
+   "repro_path": "",
+   "base_behaves_the_same": true,
+   "refuted_by": "handler_http.go:688 Remote: h.Static.RemoteHelp; controller-copy.ts:110 if (target.origin !== location.origin)"
+  },
+  {
+   "index": 3,
+   "angle": "reach",
+   "state": "REFUTED",
+   "band": "Warning",
+   "file": "gno.land/cmd/gnoweb/main.go",
+   "line": 236,
+   "tldr": "an empty -help-remote falls back to NodeRemote, so the policy matches the base",
+   "details": "defaultWebOptions leaves remoteHelp empty; normalizeRemoteURL returns \"\" for an empty or blank string (TrimSpace first), and setupWeb then copies NodeRemote into RemoteHelp before the middleware is built. Unset, blank, or equal to -remote, connect-src is byte for byte the base policy.",
+   "evidence": "main.go:235-237 read at head",
+   "verify_by": "read defaultWebOptions and setupWeb's fallback",
+   "repro_path": "",
+   "base_behaves_the_same": true,
+   "refuted_by": "main.go:236 if appcfg.RemoteHelp == \"\" { appcfg.RemoteHelp = appcfg.NodeRemote }"
+  },
+  {
+   "index": 4,
+   "angle": "removed",
+   "state": "REFUTED",
+   "band": "Warning",
+   "file": "gno.land/cmd/gnoweb/main.go",
+   "line": 341,
+   "tldr": "SecureHeadersMiddleware has one production caller, the new wrapper",
+   "details": "It lives in package main, so nothing outside gno.land/cmd/gnoweb can import it. The tree has main.go:389 and the two older tests at main_test.go:87 and :150. gnodev's setup_web.go builds the gnoweb router with no security-header middleware at all.",
+   "evidence": "grep -rn SecureHeadersMiddleware over the tree: main.go:341, main.go:389, main_test.go:87, main_test.go:150, SIMPLEANALYTICS.md:165 (prose)",
+   "verify_by": "grep -rn SecureHeadersMiddleware over the whole tree",
+   "repro_path": "",
+   "base_behaves_the_same": true,
+   "refuted_by": "main.go:389 return SecureHeadersMiddleware(next, strict, cfg.RemoteHelp) is the only non-test call"
+  }
+ ]
+}

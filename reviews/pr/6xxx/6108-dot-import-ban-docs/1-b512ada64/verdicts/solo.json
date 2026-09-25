@@ -1,0 +1,18 @@
+{
+ "verdicts": [
+  {
+   "index": 1,
+   "angle": "removed",
+   "state": "CONFIRMED",
+   "band": "Nit",
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 5605,
+   "tldr": "tryPredefine's dot-import branch is never reached, so its reworded message is untested",
+   "details": "initStaticBlocks (preprocess.go:250) runs initStaticBlocks1 then initStaticBlocks2, and both callers of the predefine walk run it first: PredefineFileSet at :43 before predefining imports, Preprocess at :750 before the file's decls reach predefineRecursively (:876, :1220-1270). initStaticBlocks2 panics on nn == \".\" at :491. The branch is pre-existing; the diff edits its message and comment, which is why it is in scope. Keeping it as a guard is defensible; the loss is only that the aligned message is not pinned.",
+   "evidence": "sentinel at :5606 -> ok; sentinel at :491 -> +main/import2.gno:3:8-19: SENTINEL-isb2, FAIL; merge-base preprocess.go with the new filetest -> ok",
+   "verify_by": "bash tests/solo-trypredefine-unreachable.sh",
+   "repro_path": "tests/solo-trypredefine-unreachable.sh",
+   "base_behaves_the_same": true
+  }
+ ]
+}
