@@ -12,9 +12,9 @@ Round: 1. One finder, then one agent as reflector, judge and writer, 4 candidate
 
 ## Body
 
-> AI review, claude-opus-5-5, quick review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6129-package-init-panic/overview.md) · Status: REQUEST CHANGES · not manually verified, posted to help reviewer
+> AI review, claude-opus-5-5, quick review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6129-package-init-panic/overview.md) · Status: REQUEST CHANGES · not manually verified, posted to help reviewers
 
-## gnovm/pkg/gnolang/machine.go:3275 [gh](https://github.com/gnolang/gno/blob/51b1e76fb3c69b6ff52e27d950fdd7392d20da2b/gnovm/pkg/gnolang/machine.go#L3275) · Warning
+## gnovm/pkg/gnolang/machine.go:3275 [gh](https://github.com/gnolang/gno/blob/51b1e76fb3c69b6ff52e27d950fdd7392d20da2b/gnovm/pkg/gnolang/machine.go#L3275) · Warning [posted](https://github.com/gnolang/gno/pull/6129#discussion_r4106572617)
 
 `m.Exception = ex` is never cleared, so after `b := a[0]` panics in `gno repl`, which [reuses its Machine](https://github.com/gnolang/gno/blob/51b1e76fb3c69b6ff52e27d950fdd7392d20da2b/gnovm/pkg/repl/repl.go#L134-L138), every later function with a `defer` fails with that index error.
 
@@ -75,7 +75,7 @@ With `machine.go` from the merge base, step 6 prints `out="d\n4\n" err=""`: the 
 
 </details>
 
-## gnovm/adr/pr6129_package_init_panic.md:41 [gh](https://github.com/gnolang/gno/blob/51b1e76fb3c69b6ff52e27d950fdd7392d20da2b/gnovm/adr/pr6129_package_init_panic.md#L41) · Nit
+## gnovm/adr/pr6129_package_init_panic.md:41 [gh](https://github.com/gnolang/gno/blob/51b1e76fb3c69b6ff52e27d950fdd7392d20da2b/gnovm/adr/pr6129_package_init_panic.md#L41) · Nit [posted](https://github.com/gnolang/gno/pull/6129#discussion_r4106572638)
 
 Nit: this list leaves out the consensus change, a failed transaction recording the runtime message where it recorded `<error: runtime.errorString>`. The new text moves `LastResultsHash` for every block carrying such a transaction, so old and new binaries disagree on that block.
 

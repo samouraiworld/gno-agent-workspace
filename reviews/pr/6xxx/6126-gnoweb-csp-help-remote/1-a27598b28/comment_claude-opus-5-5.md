@@ -12,9 +12,9 @@ Round: 1. One agent as finder, judge and writer, no reflector (one bundle), 4 ca
 
 ## Body
 
-> AI review, claude-opus-5-5, quick review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6126-gnoweb-csp-help-remote/overview.md) · Status: REQUEST CHANGES · not manually verified, posted to help reviewer
+> AI review, claude-opus-5-5, quick review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6126-gnoweb-csp-help-remote/overview.md) · Status: REQUEST CHANGES · not manually verified, posted to help reviewers
 
-## gno.land/cmd/gnoweb/main_test.go:134 [gh](https://github.com/gnolang/gno/blob/a27598b2867c226470b01c23f48ccdf5089c4e87/gno.land/cmd/gnoweb/main_test.go#L134) · [↗](../../../../../.worktrees/gno-review-6126/gno.land/cmd/gnoweb/main_test.go#L134) · Warning
+## gno.land/cmd/gnoweb/main_test.go:134 [gh](https://github.com/gnolang/gno/blob/a27598b2867c226470b01c23f48ccdf5089c4e87/gno.land/cmd/gnoweb/main_test.go#L134) · [↗](../../../../../.worktrees/gno-review-6126/gno.land/cmd/gnoweb/main_test.go#L134) · Warning [posted](https://github.com/gnolang/gno/pull/6126#discussion_r4106573268)
 
 Test: `newSecureHeadersMiddleware` gets a config the test builds itself, so the test never reaches [`setupWeb`](https://github.com/gnolang/gno/blob/a27598b2867c226470b01c23f48ccdf5089c4e87/gno.land/cmd/gnoweb/main.go#L283) and stays green with `appcfg.NodeRemote` put back there.
 
