@@ -1,6 +1,6 @@
 # PR [#6108](https://github.com/gnolang/gno/pull/6108): docs(gnovm): document and pin the ban on dot imports
 Verdict: APPROVE, on one Nit and no Warning: the doc and the new filetest match what the VM prints, the deleted backup file was read by no runner, and the only finding is that the reworded `tryPredefine` case can never run and can go.
-Event: APPROVE
+Event: COMMENT
 Model: claude-opus-5-5 at high effort, quick review, solo shape
 Commit: b512ada64
 Overview: [overview](../overview.md)
@@ -8,7 +8,12 @@ Open the code: [github.dev](https://github.dev/gnolang/gno/blob/b512ada646e13254
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6108 b512ada64`
 Round: 1. One agent over 38 changed lines as finder, judge and writer, no reflector, four candidates, three settled by a read or a grep and the Nit run with sentinels at the head and at the merge base.
 
-## gnovm/pkg/gnolang/preprocess.go:5605 [gh](https://github.com/gnolang/gno/blob/b512ada646e132543f32d48631c8e1bf40a4d1d9/gnovm/pkg/gnolang/preprocess.go#L5605) · Nit
+
+## Body
+
+> AI review, claude-opus-5-5, quick review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6108-dot-import-ban-docs/overview.md) · Status: APPROVE · not manually verified, posted to help reviewers
+
+## gnovm/pkg/gnolang/preprocess.go:5605 [gh](https://github.com/gnolang/gno/blob/b512ada646e132543f32d48631c8e1bf40a4d1d9/gnovm/pkg/gnolang/preprocess.go#L5605) · Nit [posted](https://github.com/gnolang/gno/pull/6108#discussion_r4106610162)
 
 Nit: this `case "."` can go with its message, since [`initStaticBlocks2`](https://github.com/gnolang/gno/blob/b512ada646e132543f32d48631c8e1bf40a4d1d9/gnovm/pkg/gnolang/preprocess.go#L491) rejects every dot import before any predefine walk and [`import2.gno`](https://github.com/gnolang/gno/blob/b512ada646e132543f32d48631c8e1bf40a4d1d9/gnovm/tests/files/import2.gno) passes whatever the message says.
 

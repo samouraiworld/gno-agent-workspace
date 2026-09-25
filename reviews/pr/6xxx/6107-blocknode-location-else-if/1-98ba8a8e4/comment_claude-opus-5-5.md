@@ -1,14 +1,19 @@
 # PR [#6107](https://github.com/gnolang/gno/pull/6107): fix(gnovm): keep BlockNode.Location unique across else-if
 
 Verdict: APPROVE, no Warning: the change removes all 254 duplicate BlockNode Locations across examples, stdlibs and the filetests, and moves no Location that stored state refers to; three Suggestions ask to remove code that cannot fire.
-Event: APPROVE
+Event: COMMENT
 Model: claude-opus-5-5 at high effort, quick review, solo shape
 Commit: 98ba8a8e4
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e)
 Round: 1. One finder, no separate reflector, 2 candidates, both Suggestions run from scratch by an agent that was not their finder.
 
-## gnovm/pkg/gnolang/go2gno.go:597-603 [gh](https://github.com/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e/gnovm/pkg/gnolang/go2gno.go#L597-L603) · Suggestion
+
+## Body
+
+> AI review, claude-opus-5-5, quick review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6107-blocknode-location-else-if/overview.md) · Status: APPROVE · not manually verified, posted to help reviewers
+
+## gnovm/pkg/gnolang/go2gno.go:597-603 [gh](https://github.com/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e/gnovm/pkg/gnolang/go2gno.go#L597-L603) · Suggestion [posted](https://github.com/gnolang/gno/pull/6107#discussion_r4106608861)
 
 Suggestion: this `sp.Num = 1` branch can go, since the [counter in `setNodeLocations`](https://github.com/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e/gnovm/pkg/gnolang/preprocess.go#L6458) already gives the else-if wrapper and the nested `IfStmt` distinct Nums.
 
@@ -32,11 +37,11 @@ head, go2gno.go at base:     files=4253 blocknodes=66204 duplicate_locations=0
 Without the branch, `TestBlockNodeLocationUniqueElseIf`, `TestBlockNodeLocationUniqueEmptyElse` and `go test ./gnovm/pkg/gnolang -run TestFiles` all pass, and the wrapper keeps its merge-base Location.
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:43 [gh](https://github.com/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e/gnovm/pkg/gnolang/preprocess.go#L43) · Suggestion
+## gnovm/pkg/gnolang/preprocess.go:43 [gh](https://github.com/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e/gnovm/pkg/gnolang/preprocess.go#L43) · Suggestion [posted](https://github.com/gnolang/gno/pull/6107#discussion_r4106608873)
 
 Suggestion: this call re-checks Locations stamped on the line above from the same `pn.PkgPath` and `fn.FileName`, so it cannot fail and can go.
 
-## gnovm/pkg/gnolang/preprocess.go:6490-6497 [gh](https://github.com/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e/gnovm/pkg/gnolang/preprocess.go#L6490-L6497) · Suggestion
+## gnovm/pkg/gnolang/preprocess.go:6490-6497 [gh](https://github.com/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e/gnovm/pkg/gnolang/preprocess.go#L6490-L6497) · Suggestion [posted](https://github.com/gnolang/gno/pull/6107#discussion_r4106608884)
 
 Suggestion: these two path checks never fire, because [`PredefineFileSet`](https://github.com/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e/gnovm/pkg/gnolang/preprocess.go#L42) and [`preprocess1`](https://github.com/gnolang/gno/blob/98ba8a8e4a1981b9aad23c5487387300d6eda15e/gnovm/pkg/gnolang/preprocess.go#L812-L816) stamp the same `pkgPath` and `fileName` they compare against, so only the uniqueness check needs to stay.
 

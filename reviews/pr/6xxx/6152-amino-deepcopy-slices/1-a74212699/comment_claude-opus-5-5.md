@@ -1,7 +1,7 @@
 # PR [#6152](https://github.com/gnolang/gno/pull/6152): fix(amino): deep-copy slices instead of sharing backing array
 
 Verdict: APPROVE. The slice fix is correct and the new guard keeps a nil slice nil; the two Suggestions predate this branch, reach no current caller and block nothing.
-Event: APPROVE
+Event: COMMENT
 Model: claude-opus-5-5 at high effort, quick review, solo shape
 Commit: a74212699
 Overview: [overview](../overview.md)
@@ -9,6 +9,8 @@ Open the code: [github.dev](https://github.dev/gnolang/gno/blob/a742126999443305
 Round: 1. One finder, no separate reflector stage, 4 candidates: 3 run from scratch at the head and the merge base by an agent that was not their finder, 1 Nit left on the finder's read.
 
 ## Body
+
+> AI review, claude-opus-5-5, quick review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6152-amino-deepcopy-slices/overview.md) · Status: APPROVE · not manually verified, posted to help reviewers
 
 - Related suggestion: the [`Map` case](https://github.com/gnolang/gno/blob/a74212699/tm2/pkg/amino/deep_copy.go#L136-L137) hands `SetMapIndex` the source value itself, so a copied map of slices still shares each slice with its source.
 
@@ -51,7 +53,7 @@ The merge base prints the same line. With the three lines below in place of `cpy
 ```
 </details>
 
-## tm2/pkg/amino/deep_copy.go:87-90 [gh](https://github.com/gnolang/gno/blob/a74212699/tm2/pkg/amino/deep_copy.go#L87-L90) · Suggestion
+## tm2/pkg/amino/deep_copy.go:87-90 [gh](https://github.com/gnolang/gno/blob/a74212699/tm2/pkg/amino/deep_copy.go#L87-L90) · Suggestion [posted](https://github.com/gnolang/gno/pull/6152#discussion_r4106609544)
 
 Suggestion: this guard covers a nil slice alone, while the [`Pointer` case](https://github.com/gnolang/gno/blob/a74212699/tm2/pkg/amino/deep_copy.go#L55-L59) skips the [`isNil` check](https://github.com/gnolang/gno/blob/a74212699/tm2/pkg/amino/deep_copy.go#L41-L43) for a nil map, pointer or interface, so `DeepCopy(&p)` panics. One `if isNil(src) { return }` at the top of `_deepCopy`, in place of this guard, copies each of them as nil.
 
