@@ -32,3 +32,9 @@ No workflow ran, so `./scripts/review-retro.py` has no directory to read and the
 - What worked: booting both ends from source. The template diff reads as obviously correct, and only the pair of running servers showed that the preload and the stylesheet had stopped naming the same URL. The browser's own network log settled it in one load.
 - Hit rate per tier: warm 2 of 5 confirmed, cold 0 of 1. One tier above the other, which is the direction `round risk` intends, on a sample too small to weigh.
 - One upgrade: size the agent count from what one agent can hold before the preset's table is read. Landed this round as a rule in `skills/review.md` *Launch*, with the estimate beside it: on this target 2 agents against 9 and about $4 against $17, output 64k against 234k, cache read 2M against 12M, 8 minutes against 32, finding rate unchanged at one Warning. Estimate until an outcome table measures it.
+
+## Outcomes
+
+| Section | Band | Outcome | Replies | Author replied |
+| --- | --- | --- | --- | --- |
+| gno.land/pkg/gnoweb/components/layouts/head.html:9-10 | Warning | fixed | 1 | yes |

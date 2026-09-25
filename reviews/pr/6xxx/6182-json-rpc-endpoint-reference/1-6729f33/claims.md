@@ -107,3 +107,9 @@ prose asserting what the code does carries a round's whole risk while changing n
 Estimate against this round: 17 agents, 493k output, 39M cache read, 39 minutes, so about
 10x, and the direction of the finding rate is unknown until a second shape runs the same
 head. Both numbers are estimates until the outcome table measures them.
+
+## Outcomes
+
+| Section | Band | Outcome | Replies | Author replied |
+| --- | --- | --- | --- | --- |
+| SKIP docs/resources/rpc-endpoints.md:131 | Warning | fixed | 1 | yes |
