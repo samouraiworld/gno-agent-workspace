@@ -1,0 +1,62 @@
+{
+ "verdicts": [
+  {
+   "index": 1,
+   "angle": "lines",
+   "state": "CONFIRMED",
+   "band": "Warning",
+   "file": "gnovm/pkg/gnolang/machine.go",
+   "line": 3275,
+   "tldr": "the frameless path go-panics with m.Exception still set, so a gno repl session fails every later deferred call with the old panic",
+   "details": "machine.go:3275 sets m.Exception and 3285 panics UnhandledPanicError; RunStatements recovers at repl.go:137 and keeps r.m with the exception set. After `a := \"\"` and `b := a[0]`, `println(k())` with a deferred println prints d and then the old index error, `d := 1/z` reports the index error chained ahead of the division, and `x := recover()` hits a host nil deref at machine.go:3309 because Recover passes its m.Exception == nil guard with no containing frame. At the merge base the nil deref on fr.LastException fired before the assignment, so m.Exception stayed nil and the same session printed d and 4, with the wrong message for b := a[0]. The function-level path (doOpPanic2) already leaves m.Exception set at both versions (viafunc chains `first` into the later division error), so the REPL reuse was fragile before; the diff adds the package-level path. Keeper machines are Released, machine.go:272 `*m = Machine{`, so no node path sees the leftover. Fix run: `r.m.Exception = nil` in the RunStatements recover gives d then 4, a bare division error in both sequences, and go test ./gnovm/pkg/repl ok.",
+   "evidence": "head: STEP plain 6 \"println(k())\" out=\"d\\n\" err=\"runtime error: index out of range [0] with length 0\\n\"; merge-base machine.go: out=\"d\\n4\\n\" err=\"\"; head JSTEP direct 2 \"x := recover()\" err=\"runtime error: invalid memory address or nil pointer dereference\", base err=\"\"; with the repl.go fix: STEP plain 6 out=\"d\\n4\\n\", STEP direct 3 err=\"runtime error: division by zero\\n\", ok gnovm/pkg/repl 0.992s",
+   "verify_by": "go test ./gnovm/pkg/repl -run TestSoloFinderStale -count=1 -v | grep 'STEP plain 6', at head and again after git checkout 1fc4c140e -- gnovm/pkg/gnolang/machine.go",
+   "repro_path": "tests/solo-finder-repl-stale-exception.go",
+   "base_behaves_the_same": false
+  },
+  {
+   "index": 2,
+   "angle": "reach",
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "file": "gnovm/cmd/gno/run.go",
+   "line": 299,
+   "tldr": "gno run still exits through a Go panic on the #6051 repro, exactly as it does at base and for any init() panic",
+   "details": "run.go:299 m.RunFiles has no recover. At head the var-initializer repro prints the right Gno message, then a goroutine dump, exit 2; at the merge base it prints the host nil deref, exit 2; a func init() panic exits 2 with a goroutine dump at both. The diff fixes the message #6051 reported and does not change how gno run exits on an init-time panic. The gap predates the diff and sits outside it, and none of the three scope cases applies, so the draft carries it as SKIP.",
+   "evidence": "head: 'panic: runtime error: index out of range [0] with length 0', 'goroutine 1 [running]:', pushPanic machine.go:3285, var exit=2; base: 'panic: runtime error: invalid memory address or nil pointer dereference', var exit=2; init() control: '[recovered, repanicked]' at both",
+   "verify_by": "go build -o /tmp/gno-head ./gnovm/cmd/gno at head; sh tests/solo-finder-gno-run-host-panic.sh /tmp/gno-head: expect a Gno error and exit 1, observe `goroutine 1 [running]:` and exit 2",
+   "repro_path": "tests/solo-finder-gno-run-host-panic.sh",
+   "base_behaves_the_same": true
+  },
+  {
+   "index": 3,
+   "angle": "tests",
+   "state": "REFUTED",
+   "band": "Warning",
+   "file": "gnovm/tests/files/var_init_panic_nilderef.gno",
+   "line": 9,
+   "tldr": "all three added filetests fail with the merge-base pushPanic",
+   "details": "With machine.go at 1fc4c140e the three var_init_panic_ filetests fail and at head they pass, so each pins the fix.",
+   "evidence": "base: --- FAIL: TestFiles/var_init_panic_nilderef.gno, --- FAIL: TestFiles/var_init_panic_divzero.gno, --- FAIL: TestFiles/var_init_panic_index.gno; head: all three --- PASS",
+   "verify_by": "git checkout 1fc4c140e -- gnovm/pkg/gnolang/machine.go; go test ./gnovm/pkg/gnolang -run 'TestFiles/^var_init_panic_' -count=1 -v: expect FAIL for all three",
+   "repro_path": "",
+   "base_behaves_the_same": false,
+   "refuted_by": "go test ./gnovm/pkg/gnolang -run 'TestFiles/^var_init_panic_' at merge-base machine.go: FAIL for all three"
+  },
+  {
+   "index": 4,
+   "angle": "lines",
+   "state": "REFUTED",
+   "band": "Warning",
+   "file": "gnovm/pkg/gnolang/machine.go",
+   "line": 3309,
+   "tldr": "a fresh Machine returns from Recover before the frame read; only the leftover exception of candidate 1 reaches it",
+   "details": "`x := recover()` on a fresh REPL returns undefined at head and base: Recover returns at its m.Exception == nil guard before PeekCallFrame(2). The nil deref at 3309 fires only after `b := a[0]` left m.Exception set, at head alone, which is a symptom of candidate 1 and folds into it.",
+   "evidence": "JSTEP fresh 1 \"println(x)\" out=\"undefined\\n\" at head and base; JSTEP direct 2 \"x := recover()\" err=nil deref at head, err=\"\" at base",
+   "verify_by": "tests/judge-4-recover-sibling.go copied into gnovm/pkg/repl: go test ./gnovm/pkg/repl -run TestJudgeRecoverSibling -v | grep JSTEP, at head and with merge-base machine.go",
+   "repro_path": "tests/judge-4-recover-sibling.go",
+   "base_behaves_the_same": false,
+   "refuted_by": "machine.go:3299 `if m.Exception == nil { return nil }` returns before the PeekCallFrame(2) read at 3309 on any Machine without a leftover exception"
+  }
+ ]
+}

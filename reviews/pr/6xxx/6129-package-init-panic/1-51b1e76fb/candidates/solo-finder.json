@@ -1,0 +1,69 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/pkg/gnolang/machine.go",
+   "line": 3275,
+   "angle": "lines",
+   "summary": "the frameless path sets m.Exception and go-panics without clearing it, so a reused Machine re-raises the old panic on later normal calls",
+   "failure_scenario": "In `gno repl` (RunStatements recovers and keeps r.m): `a := \"\"`, then `b := a[0]` prints the right error but leaves r.m.Exception set. A later `func k() int { defer println(\"d\"); return 4 }` then `println(k())` prints `d` and fails with `runtime error: index out of range [0] with length 0` instead of printing 4, and the next unrelated panic (`z := 0`, `d := 1/z`) reports the old index error chained ahead of the division by zero. At the merge base the nil deref aborted before m.Exception was assigned, so the same session printed `d` then `4`. Keeper paths are unaffected: each Machine is Released per call and Release zeroes *m. The REPL was already broken after a function-level unhandled panic (doOpPanic2 path, different symptom at base and head), so the fix belongs where the REPL recovers: reset the machine's exception state there.",
+   "verify_by": "go test ./gnovm/pkg/repl -run TestSoloFinderStale -count=1 -v | grep 'STEP plain 6', at head and again after git checkout 1fc4c140e -- gnovm/pkg/gnolang/machine.go",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head: STEP plain 6 \"println(k())\" out=\"d\\n\" err=\"runtime error: index out of range [0] with length 0\\n\"; base VM: STEP plain 6 \"println(k())\" out=\"d\\n4\\n\" err=\"\". head: STEP direct 3 \"d := 1/z\" err=\"runtime error: index out of range [0] with length 0\\n\\truntime error: division by zero\\n\"",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6129-package-init-panic/1-51b1e76fb/tests/solo-finder-repl-stale-exception.go"
+  },
+  {
+   "file": "gnovm/cmd/gno/run.go",
+   "line": 299,
+   "angle": "reach",
+   "summary": "`gno run` on the #6051 repro still exits through a Go panic with a goroutine dump",
+   "failure_scenario": "`gno run main.gno` with `var a = \"\"; var A = a[0]` at head prints `panic: runtime error: index out of range [0] with length 0`, then `goroutine 1 [running]:` and a host stack into machine.go:3285, exit 2. m.RunFiles at run.go:299 has no recover, unlike runExpr below it, which turns an UnhandledPanicError into an error. The message is now right, but the issue's own repro still crashes the host, which the PR body says it no longer does. A `func init()` panic takes the same Go-panic exit at base and head, so the gap predates the diff.",
+   "verify_by": "go build -o /tmp/gno-head ./gnovm/cmd/gno at head; sh tests/solo-finder-gno-run-host-panic.sh /tmp/gno-head: expect a Gno error and exit 1, observe `goroutine 1 [running]:` and exit 2",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head gno run var-init: 'panic: runtime error: index out of range [0] with length 0' / 'goroutine 1 [running]:' / '(*Machine).pushPanic ... machine.go:3285' / exit=2; init() control: 'panic: runtime error: index out of range [0] with length 0 [recovered, repanicked]'",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6129-package-init-panic/1-51b1e76fb/tests/solo-finder-gno-run-host-panic.sh"
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gnovm/pkg/gnolang/machine.go",
+   "line": 3285,
+   "angle": "reach",
+   "summary": "the new Go panic crashes a node on AddPackage, MsgRun or genesis load",
+   "settled_by": "go test ./gno.land/pkg/sdk/vm -run TestSoloFinderInitPanic: escaped=\"\" for every AddPackage and MsgRun case at head and with merge-base machine.go; doRecover (keeper.go:1420) catches both the old host nil deref and the new UnhandledPanicError, and genesis txs go through baseApp.Deliver to the same keeper (app.go:1000). gno test: `gno.land/p/demo/tpkg:0: runtime error: index out of range [0] with length 0 (code=gnoUnknownError)`, FAIL, exit 1"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/machine.go",
+   "line": 3285,
+   "angle": "catalog",
+   "summary": "the unhandled-panic render on the frameless path charges gas differently from base or from other init panics",
+   "settled_by": "TestSoloFinderInitPanic gas per case identical at head and merge-base VM: addpkg_index_direct 98864, addpkg_divzero_direct 99379, addpkg_nilderef_direct 96327, run_index_direct 119248; the keeper sets BoundedPanicRender, and the via-function paths (138258, 158641) match across versions too"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/machine.go",
+   "line": 3285,
+   "angle": "catalog",
+   "summary": "consensus: DeliverTx outcome of a tx whose package initializer panics directly",
+   "settled_by": "It is a consensus-visible change, and the only follow-up is ADR wording, which a finder does not return. TestSoloFinderInitPanic addpkg_index_direct: base DeliverTx Error StringError \"<error: runtime.errorString>\", ABCIResults hash 46342025520d; head StringError \"runtime error: index out of range [0] with length 0\", hash 24ed25b35878, equal to the via-function path at both versions. The tx fails at both versions, and gas and state are unchanged, but LastResultsHash differs between binaries for a block carrying such a tx, so a mixed-version validator set forks on it. The ADR's Consequences name gas and API but not the result change"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/machine.go",
+   "line": 3281,
+   "angle": "lines",
+   "summary": "pushPanic reaches fr == nil with m.Exception already set on a fresh Machine",
+   "settled_by": "read op_call.go:806-816: doOpPanic2 panics unhandled when PopUntilLastCallFrame returns nil, so a frameless state with m.Exception set is already terminal on a fresh run; Release (machine.go:235) zeroes *m for pooled machines. Only a reused Machine (the REPL) reaches it, which is the Warning above"
+  },
+  {
+   "file": "gnovm/tests/files/var_init_panic_index.gno",
+   "line": 10,
+   "angle": "catalog",
+   "summary": "VM-fault class asks for a recover() filetest, not an // Error: directive",
+   "settled_by": "read machine.go:2940 PopUntilLastCallFrame: nil only when no call frame exists, and a package-level initializer runs with none (runDeclaration pushes no frame), so no deferred recover can run there; the // Error: directive is the only assertion the shape allows"
+  }
+ ]
+}

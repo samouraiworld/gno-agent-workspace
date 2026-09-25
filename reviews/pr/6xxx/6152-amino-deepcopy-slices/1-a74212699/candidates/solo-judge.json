@@ -1,0 +1,49 @@
+{
+ "candidates": [
+  {
+   "file": "tm2/pkg/amino/deep_copy.go",
+   "line": 87,
+   "angle": "removed",
+   "summary": "The nil guard fixes only the Slice kind on the Pointer case's direct _deepCopy path; Map, Pointer and Interface on that same path still mis-copy a nil",
+   "failure_scenario": "The Pointer case (line 57) calls _deepCopy directly, skipping deepCopy's isNil check at line 41; the diff adds a guard for Slice only. On that path DeepCopy(&m) with m a nil map returns a non-nil empty map, DeepCopy(&p) with p a nil *int panics 'unsupported type invalid', and DeepCopy(&i) with i a nil any panics 'reflect: call of reflect.Value.Type on zero Value', which is what sdk.Context{}.BlockHeader() hits through DeepCopy(&c.header). All identical at the merge base, so this predates the diff; it is in scope because the diff patches one kind of this class and misses three. No production path with a nil header found: every setCheckState/setDeliverState call in tm2/pkg/sdk/baseapp.go passes a non-nil header (218 behind lastHeaderBz != nil, 365-366 initHeader, 604 req.Header, 1032), so the panic is latent. One guard at the top of _deepCopy, or in the Pointer case before recursing, covers all four kinds and replaces the Slice-only guard.",
+   "verify_by": "copy tests/solo-finder-deepcopy-probe.go to tm2/pkg/bft/consensus/types/zz_solofinder_test.go; go test ./tm2/pkg/bft/consensus/types -run TestSoloSiblings -v -count=1; expect every nil to copy as nil, observe the map line and the two PANIC lines",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head a74212699: '*[]int nil: copy nil=true', '*map nil: copy nil=false', '**int nil: PANIC unsupported type invalid', '*any nil: PANIC reflect: call of reflect.Value.Type on zero Value', 'sdk.Context{}.BlockHeader(): PANIC reflect: call of reflect.Value.Type on zero Value'; merge base 7916d1dd6: the same five lines",
+   "repro_path": "tests/solo-finder-deepcopy-probe.go",
+   "index": 1
+  },
+  {
+   "file": "tm2/pkg/amino/deep_copy.go",
+   "line": 137,
+   "angle": "removed",
+   "summary": "The Map case still copies values shallowly, so DeepCopy keeps the aliasing this PR removes for slices whenever a map holds a slice or pointer",
+   "failure_scenario": "src := struct{ M map[string][]byte }{M: {\"a\": {1}}}; cpy := amino.DeepCopy(src); src.M[\"a\"][0] = 9: the copy reads 9, because cpy.SetMapIndex(key, val) stores the source value as is. This is the same write-through the PR fixes for slices, left in the sibling container kind. It predates the diff. No current caller type reaches a map: the type walk over RoundState, Header, ConsensusParams and ConsensusConfig prints no MAP line, so nothing is affected today.",
+   "verify_by": "go test ./tm2/pkg/bft/consensus/types -run 'TestSoloSiblings|TestSoloTypeWalk' -v -count=1 with the probe copied in; expect 'map value aliased: false', observe true",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head and merge base: 'map value aliased: true'; TestSoloTypeWalk at head prints no MAP line for any caller root",
+   "repro_path": "tests/solo-finder-deepcopy-probe.go",
+   "index": 2
+  },
+  {
+   "file": "tm2/pkg/amino/deep_copy.go",
+   "line": 111,
+   "angle": "reach",
+   "summary": "A slice of structs with unexported fields now comes back with those fields silently zeroed, where the merge base returned them intact",
+   "failure_scenario": "type U struct{ X int; y int }; DeepCopy([]U{{X: 1, y: 2}}) returns y=0 at head and y=2 at the merge base: the base handed back the source slice, while the head returns element copies built by the Struct case, which skips unexported fields (line 123 `continue`), with no error or panic. A caller deep-copying a []big.Int or a slice of structs that keep a cache in an unexported field gets zeroed values that look valid. The type walk from every current caller finds no struct with unexported fields under a slice (Commit, PartSet, VoteSet and HeightVoteSet sit behind pointers), so no caller loses data today.",
+   "verify_by": "go test ./tm2/pkg/bft/consensus/types -run 'TestSoloSiblings|TestSoloTypeWalk' -v -count=1 at head and at 7916d1dd6; compare 'unexported field in slice element kept' and look for any UNEXP-UNDER-SLICE line",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head: 'unexported field in slice element kept: y=0'; merge base: 'y=2'; TestSoloTypeWalk at head: no UNEXP-UNDER-SLICE line across RoundState, Header, ConsensusParams, ConsensusConfig, DuplicateVoteEvidence, PubKeyMultisigThreshold",
+   "repro_path": "tests/solo-finder-deepcopy-probe.go",
+   "index": 3
+  }
+ ]
+}

@@ -1,0 +1,29 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/tests/files/var_init_panic_nilderef.gno",
+   "line": 9,
+   "angle": "tests",
+   "index": 3,
+   "summary": "the three added filetests stay green with the merge-base pushPanic, so they pin nothing",
+   "failure_scenario": "The filetest runner may recover the host nil deref and match it against the // Error: line, in which case reverting machine.go leaves var_init_panic_{index,divzero,nilderef}.gno passing.",
+   "verify_by": "git checkout 1fc4c140e -- gnovm/pkg/gnolang/machine.go; go test ./gnovm/pkg/gnolang -run 'TestFiles/^var_init_panic_' -count=1 -v: expect FAIL for all three",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true
+  },
+  {
+   "file": "gnovm/pkg/gnolang/machine.go",
+   "line": 3309,
+   "angle": "lines",
+   "index": 4,
+   "summary": "Recover() dereferences PeekCallFrame(2) with no nil check, the same shape the diff guards in pushPanic, reachable frameless",
+   "failure_scenario": "`var x = recover()` at package level, or `x := recover()` at the REPL prompt, runs Recover with only the recover call's own frame, so fr at 3309 is nil and fr.IsDefer is a host nil deref.",
+   "verify_by": "tests/judge-4-recover-sibling.go copied into gnovm/pkg/repl: go test ./gnovm/pkg/repl -run TestJudgeRecoverSibling -v | grep JSTEP, at head and with merge-base machine.go",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true
+  }
+ ],
+ "dropped": []
+}

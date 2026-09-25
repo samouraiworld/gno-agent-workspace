@@ -1,0 +1,34 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/pkg/gnolang/machine.go",
+   "line": 3275,
+   "angle": "lines",
+   "summary": "the frameless path sets m.Exception and go-panics without clearing it, so a reused Machine re-raises the old panic on later normal calls",
+   "failure_scenario": "In `gno repl`, RunStatements recovers the panic and keeps using r.m. Typing `a := \"\"` and then `b := a[0]` prints the right error but leaves r.m.Exception set. Defining `func k() int { defer println(\"d\"); return 4 }` and then running `println(k())` prints `d` and fails with `runtime error: index out of range [0] with length 0` instead of printing 4. The next unrelated panic (`z := 0`, `d := 1/z`) also reports the old index error, chained ahead of the division by zero. At the merge base the nil deref aborted before m.Exception was assigned, so the same session printed `d` then `4`. Keeper paths are not affected: each Machine is Released after its call, and Release zeroes *m. The REPL was already broken after a function-level unhandled panic (the doOpPanic2 path, with a different symptom at base and head), so the fix belongs where the REPL recovers: reset the machine's exception state there.",
+   "verify_by": "go test ./gnovm/pkg/repl -run TestSoloFinderStale -count=1 -v | grep 'STEP plain 6', at head and again after git checkout 1fc4c140e -- gnovm/pkg/gnolang/machine.go",
+   "band": "Warning",
+   "checked": true,
+   "run": true,
+   "evidence": "head: STEP plain 6 \"println(k())\" out=\"d\\n\" err=\"runtime error: index out of range [0] with length 0\\n\"; base VM: STEP plain 6 \"println(k())\" out=\"d\\n4\\n\" err=\"\". head: STEP direct 3 \"d := 1/z\" err=\"runtime error: index out of range [0] with length 0\\n\\truntime error: division by zero\\n\"",
+   "fix_kind": "code",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6129-package-init-panic/1-51b1e76fb/tests/solo-finder-repl-stale-exception.go",
+   "index": 1
+  },
+  {
+   "file": "gnovm/cmd/gno/run.go",
+   "line": 299,
+   "angle": "reach",
+   "summary": "`gno run` on the #6051 repro still exits through a Go panic with a goroutine dump",
+   "failure_scenario": "At head, `gno run main.gno` with `var a = \"\"; var A = a[0]` prints `panic: runtime error: index out of range [0] with length 0`, then `goroutine 1 [running]:` and a host stack into machine.go:3285, and exits with code 2. m.RunFiles at run.go:299 has no recover. runExpr, below it, does recover and turns an UnhandledPanicError into an error. The message is now correct, but the issue's own repro still crashes the host, which the PR body says no longer happens. A `func init()` panic takes the same Go-panic exit at both base and head, so this gap predates the diff.",
+   "verify_by": "go build -o /tmp/gno-head ./gnovm/cmd/gno at head; sh tests/solo-finder-gno-run-host-panic.sh /tmp/gno-head: expect a Gno error and exit 1, observe `goroutine 1 [running]:` and exit 2",
+   "band": "Suggestion",
+   "checked": true,
+   "run": true,
+   "evidence": "head gno run var-init: 'panic: runtime error: index out of range [0] with length 0' / 'goroutine 1 [running]:' / '(*Machine).pushPanic ... machine.go:3285' / exit=2; init() control: 'panic: runtime error: index out of range [0] with length 0 [recovered, repanicked]'",
+   "fix_kind": "code",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6129-package-init-panic/1-51b1e76fb/tests/solo-finder-gno-run-host-panic.sh",
+   "index": 2
+  }
+ ]
+}

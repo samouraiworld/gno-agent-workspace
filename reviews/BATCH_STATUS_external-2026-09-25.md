@@ -49,12 +49,11 @@ round that died.
 
 | PR | Workflow run | State |
 |---|---|---|
-| 6107 | `wf_83c80f11-1e5` | running when committed; relaunch if the session died |
-| 6129 | `wf_76033866-f10` | running when committed; relaunch if the session died |
-| 6152 | `wf_705d4ae0-b51` | running when committed; relaunch if the session died |
+| 6107 | `wf_83c80f11-1e5` | done: APPROVE, three Suggestions to remove code that cannot fire |
+| 6129 | `wf_76033866-f10` | done: REQUEST CHANGES, one Warning on the REPL, one Nit on the results hash |
+| 6152 | `wf_705d4ae0-b51` | done: APPROVE, two Suggestions predating the branch |
 | 6126 | `wf_410cefc1-822` | done: REQUEST CHANGES, one Warning on the test |
 | 6108 | `wf_3b0dc6e1-b87` | done: APPROVE, one Nit |
 
-A workflow run resumes only inside the session that started it, so a round the laptop shutdown killed
-is relaunched from its `args.json` in `.worktrees/rounds/gno-<n>/`, after clearing whatever the
-dead run left in its round directory.
+The laptop shutdown killed 6107, 6129 and 6152 after their finders; each resumed in the same
+session, the finder replayed from cache and the judge rerun from a cleared round directory.

@@ -1,0 +1,31 @@
+[
+ {
+  "file": "gnovm/pkg/gnolang/preprocess.go",
+  "line": 6458,
+  "angle": "lines",
+  "summary": "max(nextNum[key], span.Num) moves every else-if's own IfStmt from Num 0 to Num 2, so the Go2Gno Num=1 wrapper mark (go2gno.go:599) never leaves the nested IfStmt on the span it 'already owns' and adds nothing to uniqueness",
+  "failure_scenario": "`if a {} else if b {}`: the wrapper IfCaseStmt enters first with Num 1, so nextNum becomes 2; the nested IfStmt (Num 0) gets max(2,0)=2 and its empty else (Num 1 from setNodeLines) gets 3. The counter alone already yields distinct Nums per (Pos,End) whatever Go2Gno sets, so the go2gno hunk is redundant, and no node keeps Location S#0, which at base resolved to the nested IfStmt. Measured over examples/, gnovm/stdlibs and gnovm/tests/files: 254 IfStmt 0->2, 254 wrappers 0->1, 136 empty elses 1->3, in 52 example files. No FuncDecl/FuncLitExpr/FileNode moves, so today's TypeIDs and persisted FuncValue sources are unaffected; the cost is two mechanisms for one invariant, one of them inert, and a gratuitous Location shift for every deployed else-if IfStmt that any future Location keying (#6060) inherits. Fix: drop the go2gno hunk, or bump Num only when the node's own (Pos,End,Num) is already taken so the IfStmt keeps Num 0.",
+  "verify_by": "run tests/solo-finder-location-delta.go at head and merge base per its header; then revert go2gno.go:596-603 at head and rerun: expect duplicate_locations=0 still",
+  "band": "Suggestion",
+  "fix_kind": "code",
+  "checked": true,
+  "run": true,
+  "evidence": "head: files=4253 blocknodes=66204 duplicate_locations=0; base: duplicate_locations=254; diff by type: '254 *gnolang.IfStmt base=0 head=2', '254 *gnolang.IfCaseStmt base=0 head=1', '136 *gnolang.IfCaseStmt base=1 head=3'; zero rows for FuncDecl/FuncLitExpr/FileNode",
+  "repro_path": "tests/solo-finder-location-delta.go",
+  "index": 1
+ },
+ {
+  "file": "gnovm/pkg/gnolang/preprocess.go",
+  "line": 43,
+  "angle": "reach",
+  "summary": "the new checkNodeLinesLocations call in PredefineFileSet cannot fail, and the pkgPath/fileName branches (6490, 6494) cannot fire from either caller even with real names",
+  "failure_scenario": "PredefineFileSet calls the check directly after setNodeLocations(pn.PkgPath, fn.FileName, fn), whose per-key counter makes every Location unique and stamps exactly the pkgPath/fileName the check compares; the Preprocess call site compares packageOf(ctx).PkgPath and fn.FileName, the values preprocess1 (preprocess.go:816) just stamped. Every AddPackage and every node start (PreprocessAllFilesAndSaveBlockNodes over each stored package) pays an extra full-file Transcribe plus a map for an assertion true by construction, and the two path branches are dead code. Distinct from the placeholder thread: the branches are dead with real names too. Fix: drop line 43 and the two path branches, keep the one uniqueness check after preprocess1, the only place a duplicate could appear.",
+  "verify_by": "read preprocess.go:41-43 and 812-817 against 6436-6500: same arguments stamped then compared; plant panic in the two path branches and run go test ./gnovm/pkg/gnolang -run TestFiles -parallel 2: expect no hit",
+  "band": "Suggestion",
+  "fix_kind": "code",
+  "checked": true,
+  "run": false,
+  "evidence": "grep: preprocess.go:42 setNodeLocations(pn.PkgPath, fn.FileName, fn) / :43 checkNodeLinesLocations(pn.PkgPath, fn.FileName, fn); :816 setNodeLocations(pkgPath, fileName, fn) with pkgPath := ctx.(*PackageNode).PkgPath",
+  "index": 2
+ }
+]

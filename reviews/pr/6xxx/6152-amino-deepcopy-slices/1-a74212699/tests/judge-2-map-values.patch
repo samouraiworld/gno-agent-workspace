@@ -1,0 +1,14 @@
+diff --git a/tm2/pkg/amino/deep_copy.go b/tm2/pkg/amino/deep_copy.go
+index 669722be4..bcb2756cd 100644
+--- a/tm2/pkg/amino/deep_copy.go
++++ b/tm2/pkg/amino/deep_copy.go
+@@ -133,7 +133,8 @@ func _deepCopy(src, dst reflect.Value) {
+ 		cpy := reflect.MakeMapWithSize(src.Type(), src.Len())
+ 		keys := src.MapKeys()
+ 		for _, key := range keys {
+-			val := src.MapIndex(key)
++			val := reflect.New(src.Type().Elem()).Elem()
++			deepCopy(src.MapIndex(key), val)
+ 			cpy.SetMapIndex(key, val)
+ 		}
+ 		dst.Set(cpy)
