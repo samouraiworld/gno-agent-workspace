@@ -1,13 +1,18 @@
 # PR [#6129](https://github.com/gnolang/gno/pull/6129): fix(gnovm): handle panics during package initialization
 
 Verdict: REQUEST CHANGES, because the new frameless path leaves `m.Exception` set, so a `gno repl` session fails its later deferred calls with the old panic, a regression this branch introduces; node paths now fail with the Gno error at unchanged gas.
-Event: REQUEST_CHANGES
+Event: COMMENT
 Model: claude-opus-5-5 at high effort, quick review, solo shape
 Commit: 51b1e76fb
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/51b1e76fb3c69b6ff52e27d950fdd7392d20da2b) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/51b1e76fb3c69b6ff52e27d950fdd7392d20da2b)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6129 51b1e76fb`
 Round: 1. One finder, then one agent as reflector, judge and writer, 4 candidates: the finder's 2 rerun from scratch by an agent that was not their finder, and 2 added by the reflector, both refuted by run.
+
+
+## Body
+
+> AI review, claude-opus-5-5, quick review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6129-package-init-panic/overview.md) · Status: REQUEST CHANGES · not manually verified, posted to help reviewer
 
 ## gnovm/pkg/gnolang/machine.go:3275 [gh](https://github.com/gnolang/gno/blob/51b1e76fb3c69b6ff52e27d950fdd7392d20da2b/gnovm/pkg/gnolang/machine.go#L3275) · Warning
 

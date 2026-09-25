@@ -1,13 +1,18 @@
 # PR [#6126](https://github.com/gnolang/gno/pull/6126): fix(gnoweb): use help remote for CSP connect-src
 
 Verdict: REQUEST CHANGES, because the added test stays green when `setupWeb` passes `NodeRemote` again; the one-line fix itself is right and matches the fetch the Actions panel makes.
-Event: REQUEST_CHANGES
+Event: COMMENT
 Model: claude-opus-5-5 at high effort, quick review, solo shape
 Commit: a27598b28
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/a27598b2867c226470b01c23f48ccdf5089c4e87) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/a27598b2867c226470b01c23f48ccdf5089c4e87)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6126 a27598b28`
 Round: 1. One agent as finder, judge and writer, no reflector (one bundle), 4 candidates: the Warning run in a scratch worktree by the agent that found it, 3 refuted by read.
+
+
+## Body
+
+> AI review, claude-opus-5-5, quick review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6126-gnoweb-csp-help-remote/overview.md) · Status: REQUEST CHANGES · not manually verified, posted to help reviewer
 
 ## gno.land/cmd/gnoweb/main_test.go:134 [gh](https://github.com/gnolang/gno/blob/a27598b2867c226470b01c23f48ccdf5089c4e87/gno.land/cmd/gnoweb/main_test.go#L134) · [↗](../../../../../.worktrees/gno-review-6126/gno.land/cmd/gnoweb/main_test.go#L134) · Warning
 
