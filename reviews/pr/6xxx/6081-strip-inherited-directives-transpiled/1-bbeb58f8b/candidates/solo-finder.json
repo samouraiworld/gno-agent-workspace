@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/pkg/transpiler/transpiler.go",
+      "line": 194,
+      "angle": "claims",
+      "summary": "A multi-line /*line ...*/ block in doc position is blanked to an empty interior that formatDocComment collapses, so every later position moves up, further than the unneutralized directive moved it",
+      "failure_scenario": "A .gno file with a parenthesized import block and a doc-position `/*line a\\nb\\nc\\nd\\nf.gno:9:1*/` before a func: the 12-line source transpiles to a 9-line body (unneutralized: 14), so `go build` on the .gen.go reports every error after that comment 3 lines above its real .gno line. The ADR's table names this exact shape as restored to parity, and the go:generate path keeps a marker line for this reason while this path writes \"/*\" + \"\\n\"*(n-1) + \"*/\"",
+      "verify_by": "cp tests/solo-finder-blockline-doc-drift_test.go gnovm/pkg/transpiler/ && go test -count=1 -run TestBlockLineDocDrift -v ./gnovm/pkg/transpiler: head FAIL on doc-6, merge base PASS via -overlay",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head bbeb58f8b: \"doc-4: src=10 neutralized=9 unneutralized=12\", \"doc-6: src=12 neutralized=9 unneutralized=14\", \"doc-6: neutralizing moved positions further than the directive did (-3 vs +2 lines)\"; float-6 13/13/13 and doc-6-noimp 10/10/12 keep parity. Merge base c563c6ba5 (overlay, tree untouched): \"doc-6: src=12 neutralized=14 unneutralized=14\", PASS",
+      "repro_path": "tests/solo-finder-blockline-doc-drift_test.go"
+    },
+    {
+      "file": "gnovm/pkg/transpiler/directives_test.go",
+      "line": 332,
+      "angle": "tests",
+      "summary": "TestMixedDocGroupMatchesInertEquivalent compares the transpiler with itself: the marker in the 'inert' source is a directive too, maps to itself, and the import block's re-parse erases the only other difference, so it stays green whatever the marker is",
+      "failure_scenario": "Set directiveMarker to \"//\" (the empty blanking the test header says loses a line) or to the prose marker (the classification change it says it guards): the test passes both times; only TestTranspilePreservesLineCount and TestNeutralizingPreservesClassification go red. Its stated property, a directive in a mixed doc group printing as the original directive would, is never compared against unneutralized output",
+      "verify_by": "bash tests/solo-finder-mixed-doc-tautology.sh from the repo root: TestMixedDocGroupMatchesInertEquivalent PASS under both mutants",
+      "band": "Warning",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "mutant marker=[//]: \"--- FAIL: TestNeutralizingPreservesClassification\", \"--- PASS: TestMixedDocGroupMatchesInertEquivalent\", \"--- FAIL: TestTranspilePreservesLineCount\"; mutant marker=[// removed directive]: \"--- FAIL: TestNeutralizingPreservesClassification\", \"--- PASS: TestTranspilePreservesLineCount\", \"--- PASS: TestMixedDocGroupMatchesInertEquivalent\". The scripted re-run of the same loop hit ENOSPC on the host; the quoted output is the first run's",
+      "repro_path": "tests/solo-finder-mixed-doc-tautology.sh"
+    },
+    {
+      "file": "gnovm/pkg/transpiler/transpiler.go",
+      "line": 213,
+      "angle": "tests",
+      "summary": "The tab-separated //go:generate branch inside block comments is pinned by no test: deleting it leaves the whole added suite green",
+      "failure_scenario": "A later refactor drops the `//go:generate\\t` check; a contract block comment `/*\\n//go:generate\\techo PWNED\\n*/` in doc position then reaches column 1 of the .gen.go, and `go generate` runs it (isGoGenerate accepts the tab form); no test in directives_test.go has a tab body, so CI stays green",
+      "verify_by": "bash tests/solo-finder-generate-tab-unpinned.sh: added suite ok under the mutant, TestTabGenerateReachesColumnOne FAIL",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "grep -n 'generate\\\\t' directives_test.go: no hit. Under the mutant the added suite printed \"ok  github.com/gnolang/gno/gnovm/pkg/transpiler 0.220s\"; the column-1 probe under the mutant did not complete (ENOSPC on the host), but the same source through the unneutralized path printed \"//go:generate\\techo X\" at column 1, and GOROOT generate.go:361 accepts \"//go:generate\\t\"",
+      "repro_path": "tests/solo-finder-generate-tab-unpinned.sh"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/directives.go",
+      "line": 30,
+      "angle": "reach",
+      "summary": "#6078 declares its own isDirectiveText in the same package (gnovm/pkg/gnolang/mempackage.go), so landing both breaks the gnolang build and the go/ast mirror lives twice",
+      "failure_scenario": "Both open PRs merge, each green against its own base: package gnolang then has two `func isDirectiveText(c string) bool`, a redeclaration compile error on master, and the rule the ADR says #6078 enforces for submitted packages is a separate copy from the exported IsDirectiveComment this PR adds for it",
+      "verify_by": "gh pr diff 6078 -R gnolang/gno | grep -n 'func isDirectiveText' (hit inside the mempackage.go hunk); apply that hunk on head and go vet ./gnovm/pkg/gnolang: expect 'isDirectiveText redeclared'",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "gh pr diff 6078: diff line 873 \"+func isDirectiveText(c string) bool {\" within the gnovm/pkg/gnolang/mempackage.go hunk (diff lines 606-898)",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/transpiler/transpiler.go",
+      "line": 179,
+      "angle": "removed",
+      "summary": "gosec's `#nosec` suppression is left live while //nolint, the same class, is neutralized",
+      "failure_scenario": "A /p/ helper carries `x := ... // #nosec G404`; its .gen.go keeps the comment, and `gosec ./...` over the transpiled package (-exclude-generated defaults to false, unlike golangci-lint's generated-file skip the ADR relies on) drops the finding, which is the 'contract hides diagnostics from whoever lints it' case the diff neutralizes //nolint for",
+      "verify_by": "read gosec v2 cmd/gosec/main.go:125 (exclude-generated default false) and analyzer.go ignore(); transpile a file with `// #nosec` and grep the output for #nosec",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "gosec main.go:125 `flagExcludeGenerated = flag.Bool(\"exclude-generated\", false, \"Exclude generated files\")`; neutralizeDirective only matches IsDirectiveComment, isNolintComment and IsPlusBuild",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/adr/pr6081_transpile_strip_directives.md",
+      "line": 156,
+      "angle": "claims",
+      "summary": "ADR says a //go:noinline inside a block comment ships in strings/builder.gno and reaches the output unchanged",
+      "settled_by": "grep -n 'nocheckptr\\|nosplit' gnovm/stdlibs/strings/builder.gno -> \"26://go:nosplit\", \"27://go:nocheckptr\": line comments the diff does neutralize; only the ADR wording is wrong"
+    },
+    {
+      "file": "gnovm/pkg/transpiler/transpiler.go",
+      "line": 138,
+      "angle": "reach",
+      "summary": "Result.File carries comments whose Text changed but whose positions did not, so End() disagrees with the fset",
+      "settled_by": "grep of transpile-result consumers: gnovm/cmd/gno/tool_transpile.go:264-296 reads only transpileRes.Translated and transpileRes.Imports; .File is read only by directives_test.go"
+    },
+    {
+      "file": "gnovm/pkg/transpiler/transpiler.go",
+      "line": 251,
+      "angle": "lines",
+      "summary": "Doc-comment reformatting could move a //go:generate to column 1 from a line the prefix trim did not match",
+      "settled_by": "GOROOT go/printer: commonPrefix strips only `a[i] <= ' ' || a[i] == '*'`, which trimPrintedCommentPrefix strips in full; formatDocComment emits pr.Comment(d), which only adds indentation or list markers, never removes leading non-space bytes"
+    },
+    {
+      "file": "gnovm/pkg/transpiler/transpiler.go",
+      "line": 267,
+      "angle": "lines",
+      "summary": "isNolintComment might miss a spelling golangci-lint honours",
+      "settled_by": "golangci-lint v2.11.4 pkg/result/processors/nolint_filter.go:83 `regexp.MustCompile(`^nolint( |:|$)`)` after TrimLeft \"/ \"; isNolintComment accepts that set plus a tab"
+    },
+    {
+      "file": "gnovm/pkg/transpiler/transpiler.go",
+      "line": 191,
+      "angle": "catalog",
+      "summary": "//go:build left inside a block comment trips vet's buildtag check",
+      "settled_by": "gnovm/cmd/gno/tool_transpile.go:408 `args := append(make([]string, 0, 5), \"build\")`: -gobuild runs go build, whose parseFileHeader skips /* */ content; no gno path runs go vet on transpiled output"
+    }
+  ]
+}
