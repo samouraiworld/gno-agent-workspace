@@ -1,6 +1,7 @@
 # Review: [#6081](https://github.com/gnolang/gno/pull/6081)
+Posted: https://github.com/gnolang/gno/pull/6081#pullrequestreview-5366156970
 Verdict: REQUEST CHANGES. The Warning at `transpiler.go:194` blocks: a multi-line `/*line ...*/` block used as a doc comment under an `import ( ... )` block loses lines, the shape the ADR says keeps its line count; the rest is one missing test and two Nits.
-Event: REQUEST_CHANGES
+Event: COMMENT
 Model: claude-opus-5-5, deep review; finder xhigh, judge and writer high
 Commit: bbeb58f8b
 Overview: [overview](../overview.md)
@@ -10,7 +11,9 @@ Round: 1. Solo round: one finder, then one judge and writer answering the comple
 
 ## Body
 
-## gnovm/pkg/transpiler/transpiler.go:194 [gh](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/transpiler.go#L194) · [↗](../../../../../.worktrees/gno-review-6081/gnovm/pkg/transpiler/transpiler.go#L194) · Warning
+> AI review, claude-opus-5-5, deep review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6081-strip-inherited-directives-transpiled/overview.md) · Status: REQUEST CHANGES
+
+## gnovm/pkg/transpiler/transpiler.go:194 [gh](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/transpiler.go#L194) · [↗](../../../../../.worktrees/gno-review-6081/gnovm/pkg/transpiler/transpiler.go#L194) · Warning [posted](https://github.com/gnolang/gno/pull/6081#discussion_r4144553282)
 
 The printer drops the blank lines of this emptied block when it is a doc comment below an `import ( ... )` block, so a five-line `/*line ...*/` block prints as two and every later line of the generated file sits three lines above its `.gno` source.
 
@@ -102,7 +105,7 @@ The same test at the merge base passes, with `doc-6: src=12 neutralized=14 unneu
 
 </details>
 
-## gnovm/pkg/transpiler/transpiler.go:213 [gh](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/transpiler.go#L213) · [↗](../../../../../.worktrees/gno-review-6081/gnovm/pkg/transpiler/transpiler.go#L213) · Missing test
+## gnovm/pkg/transpiler/transpiler.go:213 [gh](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/transpiler.go#L213) · [↗](../../../../../.worktrees/gno-review-6081/gnovm/pkg/transpiler/transpiler.go#L213) · Missing test [posted](https://github.com/gnolang/gno/pull/6081#discussion_r4144553293)
 
 Missing test: a tab-separated `//go:generate` inside a block comment; with the `\t` check removed, every added test stays green and the directive prints at column 1.
 
@@ -152,7 +155,7 @@ ok  	github.com/gnolang/gno/gnovm/pkg/transpiler	0.028s
 
 </details>
 
-## gnovm/pkg/transpiler/directives_test.go:332 [gh](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/directives_test.go#L332) · [↗](../../../../../.worktrees/gno-review-6081/gnovm/pkg/transpiler/directives_test.go#L332) · Nit
+## gnovm/pkg/transpiler/directives_test.go:332 [gh](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/directives_test.go#L332) · [↗](../../../../../.worktrees/gno-review-6081/gnovm/pkg/transpiler/directives_test.go#L332) · Nit [posted](https://github.com/gnolang/gno/pull/6081#discussion_r4144553299)
 
 Test: [`TestMixedDocGroupMatchesInertEquivalent`](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/directives_test.go#L309) passes whatever the marker is, because [`neutralizeDirective`](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/transpiler.go#L163) maps the `directiveMarker` substituted here to itself.
 
@@ -187,7 +190,7 @@ The property its header names does hold: compared with the same file printed wit
 
 </details>
 
-## gnovm/pkg/transpiler/transpiler.go:179 [gh](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/transpiler.go#L179) · [↗](../../../../../.worktrees/gno-review-6081/gnovm/pkg/transpiler/transpiler.go#L179) · Nit
+## gnovm/pkg/transpiler/transpiler.go:179 [gh](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/transpiler.go#L179) · [↗](../../../../../.worktrees/gno-review-6081/gnovm/pkg/transpiler/transpiler.go#L179) · Nit [posted](https://github.com/gnolang/gno/pull/6081#discussion_r4144553304)
 
 Nit: `// #nosec` passes this check unchanged, and gosec [scans generated files](https://github.com/securego/gosec/blob/8c77519419e934a3e158dbf1a3fbbc0871b8c691/cmd/gosec/main.go#L133) and [honours `#nosec`](https://github.com/securego/gosec/blob/8c77519419e934a3e158dbf1a3fbbc0871b8c691/cmd/gosec/main.go#L91) by default, so the `.gno` source's suppression still applies to the output.
 
