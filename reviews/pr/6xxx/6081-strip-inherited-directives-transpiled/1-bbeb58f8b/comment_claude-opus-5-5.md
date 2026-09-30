@@ -11,7 +11,7 @@ Round: 1. Solo round: one finder, then one judge and writer answering the comple
 
 ## Body
 
-> AI review, claude-opus-5-5, deep review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6081-strip-inherited-directives-transpiled/overview.md) · Status: REQUEST CHANGES
+> AI review, claude-opus-5-5, deep review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6081-strip-inherited-directives-transpiled/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6081-strip-inherited-directives-transpiled/1-bbeb58f8b/claims.md) · Status: REQUEST CHANGES
 
 ## gnovm/pkg/transpiler/transpiler.go:194 [gh](https://github.com/gnolang/gno/blob/bbeb58f8b83d775a6a1d492d7931827e49ec54c2/gnovm/pkg/transpiler/transpiler.go#L194) · [↗](../../../../../.worktrees/gno-review-6081/gnovm/pkg/transpiler/transpiler.go#L194) · Warning [posted](https://github.com/gnolang/gno/pull/6081#discussion_r4144553282)
 
