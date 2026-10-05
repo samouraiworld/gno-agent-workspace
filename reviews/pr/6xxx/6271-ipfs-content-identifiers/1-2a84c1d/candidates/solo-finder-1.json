@@ -1,0 +1,71 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "examples/gno.land/p/omarsy/cid/v0/cid.gno",
+      "line": 116,
+      "angle": "lines",
+      "summary": "No test pins the CIDv0/CIDv1 discriminators (isV0's b[0] == 0x12, Parse's s[:2] == \"Qm\"), so both survive mutation, against the body's claim that every strictness rule was mutation-checked",
+      "failure_scenario": "Drop `b[0] == 0x12` from isV0 and every test stays green: no fixture is a valid CIDv1 whose second byte is 0x20. Under that edit Decode(NewV1(0x20, sha256 multihash).Bytes()) (36 bytes, 01 20 12 20 ...) rejects a valid CID, and DecodeFirst on the same buffer returns a 34-byte CIDv0 with a nil error, a wrong CID reported as success. Likewise reducing Parse's v0 condition to `len(s) == 46` stays green, since the only 46-character Parse inputs start with Qm; a valid 46-character base32 CIDv1 (28 bytes, e.g. Raw + identity digest of 24 bytes) would then be routed to the base58 decoder and rejected.",
+      "verify_by": "Scratch worktree: change isV0 to `len(b) == 34 && b[1] == 0x20`, run `gno test ./examples/gno.land/p/omarsy/cid/v0`: expect a red test, observe all PASS; repeat with cid.gno:32 reduced to `len(s) == 46`. Fix: a TestDecode case asserting Decode(NewV1(0x20, mh).Bytes()) == that CID, and a Parse round trip of a 46-character base32 CIDv1.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep of multibase_test.gno for Parse|Decode(|DecodeFirst|isV0|NewV1|0x20 returned nothing; the 40-50 character literals in cid_test.gno are two Qm CIDv0s (46), one z CIDv1 (49) and a hex block chunk (48); the NewV1 calls in cid_test.gno use codecs Raw and maxVarint only, so no CIDv1 fixture has 0x20 as its second byte.",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "examples/gno.land/p/omarsy/cid/v0/cid.gno",
+      "line": 32,
+      "angle": "reach",
+      "summary": "The v0 branch's length cap (len(s) == 46) and DecodeFirst's truncation to maxCIDLen change no output, so no test fails when either is removed, against the ADR's 'each length cap has a test that fails when the rule is removed'",
+      "failure_scenario": "Relax cid.gno:32 to `s[:2] == \"Qm\"`: a Qm string of any length then reaches decodeBaseN uncapped, the quadratic path the ADR priced at 561M (37M with limbs) for 512 characters, yet every Parse test still passes because an over-long Qm string is rejected by isV0 afterwards either way. Removing the truncation at cid.gno:66-68 likewise only changes the gas of string(b) over a large CAR buffer. The multibase caps are pinned through TestMultibaseRejects calling decodeMultibase directly; these two have no such seam, so only a filetest with a `// Gas:` directive (gnovm/pkg/test/filetest.go:526 DirectiveGas) can pin them.",
+      "verify_by": "Scratch worktree: drop `len(s) == 46 &&` at cid.gno:32 and the truncation at cid.gno:66-68, run `gno test ./examples/gno.land/p/omarsy/cid/v0`: observe all PASS; then a filetest calling Parse(\"Qm\" + strings.Repeat(\"z\", 1000)) with `// Gas:` shows the cost the cap prevents.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "TestParseRejects' Qm inputs are docsV0[:45], docsV0[:45]+\"0\" and \"Qm\"+44 ones, none longer than 46; TestMaxCID's DecodeFirst buffer is 151 bytes and returns the same CID and n=149 with or without truncation, since a valid CID is at most 149 bytes.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno",
+      "line": 41,
+      "angle": "claims",
+      "summary": "the per-base multibase caps might survive mutation, since Parse rejects every over-cap input through Decode anyway",
+      "settled_by": "grep multibase_test.gno: line 75 `_, err := decodeMultibase(s)` over \"b\"+240, \"z\"+205, \"k\"+232 and line 73 \"f\" + strings.Repeat(\"0\", 300); each decodes without error once the cap is gone, so the test turns red"
+    },
+    {
+      "file": "examples/gno.land/p/omarsy/cid/v0/cid_test.gno",
+      "line": 14,
+      "angle": "claims",
+      "summary": "the test vectors might come from the package itself rather than an independent implementation",
+      "settled_by": "python3 hashlib/base64 re-derivation: b, z, k, f forms of sha2-256(\"hello\"), docsV0 -> docsV1, Sum(DagJSON, \"{}\"), Sum(Raw, nil), identity \"hi\" and the keccak CID's digest all printed True"
+    },
+    {
+      "file": "examples/gno.land/p/omarsy/cid/v0/multihash.gno",
+      "line": 106,
+      "angle": "reach",
+      "summary": "Verify's keccak-256 might be NIST SHA3-256 rather than multicodec 0x1b legacy Keccak",
+      "settled_by": "gnovm/stdlibs/crypto/keccak256/keccak256.go:6 `h := sha3.NewLegacyKeccak256()`"
+    },
+    {
+      "file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno",
+      "line": 71,
+      "angle": "reach",
+      "summary": "a maxEncodedLen cap might be tighter than the longest valid CID in its base",
+      "settled_by": "python3 encoding of 0x01 + 148 x 0xff: maxlen z 203, k 230, b 239, f 298, each within 204/231/239/298; TestMaxCID round-trips the 149-byte CID through all six bases"
+    },
+    {
+      "file": "examples/gno.land/p/omarsy/cid/v0/varint.gno",
+      "line": 25,
+      "angle": "lines",
+      "summary": "uvarint might accept a non-minimal or 10-byte varint, giving one CID two binary forms",
+      "settled_by": "read varint.gno:21-31: the loop stops at 9 bytes and rejects a terminating zero byte after the first; TestUvarint rejects {0x80,0x00}, {0xff,0x80,0x00} and the 10-byte form, and TestParseRejects rejects the non-minimal codec CID"
+    }
+  ]
+}

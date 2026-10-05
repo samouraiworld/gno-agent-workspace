@@ -1,0 +1,20 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "index": 3,
+      "file": "gno.land/adr/pr6271_p_omarsy_cid_v0.md",
+      "line": 60,
+      "angle": "claims",
+      "summary": "The ADR's and README's 'Verify, 256 KiB block (sha2-256): 2.4M' gas figure was measured by neither finder",
+      "failure_scenario": "A Verify over a 256 KiB block costing well above 2.4M would leave a realm sized on the ADR's table out of gas on the largest single-block file it names.",
+      "verify_by": "gno test -v -print-runtime-metrics -run TestRefl with tests/reflector-verify-gas_test.gno copied into the package: Verify's cost is TestReflVerify256K minus TestReflParseAndBlock",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true,
+      "run": true,
+      "evidence": "TestReflParseAndBlock GAS 1374584, TestReflVerify256K GAS 3701825: Verify costs 2327241, about 2.3M",
+      "repro_path": "tests/reflector-verify-gas_test.gno"
+    }
+  ]
+}

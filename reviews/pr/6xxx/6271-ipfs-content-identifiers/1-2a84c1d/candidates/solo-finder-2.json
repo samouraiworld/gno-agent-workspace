@@ -1,0 +1,32 @@
+{
+  "candidates": [],
+  "dropped": [
+    {"file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno", "line": 231, "angle": "catalog",
+     "summary": "decodeBaseN godoc claims canonical by construction; base32/base16 claim one accepted encoding per byte string: two strings in one base could parse to one CID",
+     "settled_by": "TestCanonicalRoundTrip in tests/solo-finder-2-multibase-claims.gno (random strings of every length up to each cap, re-encode every accepted one): 'z accepted=615 mismatches=0 / k 696 / b 286 / B 283 / f 450 / F 450, all mismatches=0', --- PASS"},
+    {"file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno", "line": 131, "angle": "claims",
+     "summary": "ADR line 66-67: each strictness rule and each length cap has a test that fails when the rule is removed",
+     "settled_by": "15 sed/perl mutations of multibase.gno in a scratch worktree, each run with gno test -run 'TestMultibase|TestDigits|TestMaxCID|TestParse|TestCID|TestDecode': all killed, e.g. 'M1-no-length-check: killed: --- FAIL: TestMultibaseRejects', 'M3-no-hex-parity: killed: panic: runtime error: slice index out of bounds', 'M9-capz-2: killed: --- FAIL: TestMaxCID'"},
+    {"file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno", "line": 41, "angle": "claims",
+     "summary": "PR body and ADR: per-base length caps are checked before decoding, worst rejected input about 9M gas",
+     "settled_by": "gno test -v -run TestGas (tests/solo-finder-2-multibase-claims.gno): Parse(\"z\"+205 chars) 889761 against 887643 for building the input alone, so rejected before any decode; worst under the cap \"z\"+204 = 9535347-887643 = 8.65M, \"k\"+231 = 7.77M, \"b\"+239 = 2.78M, \"f\"+298 = 3.11M: base58btc is the worst, as claimed"},
+    {"file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno", "line": 52, "angle": "claims",
+     "summary": "ADR table and README line 47: Parse costs 0.74M base32 CIDv1, 1.3M base58btc CIDv1, 1.2M CIDv0",
+     "settled_by": "gno test -v -run TestGas, minus TestGasEmpty 592478: ParseB32 1331650 (0.74M), ParseB58v1 1852229 (1.26M), ParseV0 1757544 (1.17M)"},
+    {"file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno", "line": 71, "angle": "claims",
+     "summary": "maxEncodedLen godoc calls 204 (z) and 231 (k) the longest body a CID can have; a CIDv1 leads with byte 0x01, so the longest valid body is 203 and 230: the caps are loose by one, which only admits one more char that the CID layer then rejects; no user loss, fix is wording",
+     "settled_by": "python3 independent encoder on the longest valid CIDv1 (0x01, two 9-byte varints, 0x80 0x01, 128 x 0xff): '149 b 239 z 203 k 230 f 298'; 149 x 0xff: 'z 204 k 231'; TestMaxCID round-trips that CID through bBzkfF"},
+    {"file": "examples/gno.land/p/omarsy/cid/v0/multibase_test.gno", "line": 14, "angle": "claims",
+     "summary": "test header: vectors are the multibase spec's basic.csv, leading_zero.csv and two_leading_zeros.csv",
+     "settled_by": "python3 base64.b32encode / hex / plain base58btc and base36 on the three inputs printed exactly the test's strings: 'f796573206d616e692021 bpfsxgidnmfxgsibb k2lcpzo5yikidynfl z7paNL19xttacUY' and the 1- and 2-leading-zero rows"},
+    {"file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno", "line": 174, "angle": "catalog",
+     "summary": "Gas/overflow class: limb products in encodeBaseN/decodeBaseN could overflow int64 on max-digit input",
+     "settled_by": "TestMaxCID (149 bytes of 0xff digest, every base) and TestBaseNLimbs pass in test.out ('--- PASS: TestBaseNLimbs'); bound by read: limbs < 58^5 < 2^29.3 times mul <= 2^32, and limbs < 2^32 times mul <= 58^5, both < 2^62; Parse(\"z\"+204 x 'z'), all max digits, returns an error without panic in TestGasWorstZ204"},
+    {"file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno", "line": 115, "angle": "claims",
+     "summary": "decoders reject mixed-case base16/base32/base36 that the multibase spec's case_insensitivity vectors accept; deliberate, recorded as a decision",
+     "settled_by": "sed -n 33p gno.land/adr/pr6271_p_omarsy_cid_v0.md: 'base encodings must be canonical: no padding, whitespace, case mixing'; test header (multibase_test.gno:11-13) names only basic.csv, leading_zero.csv and two_leading_zeros.csv; a design choice, not a defect"},
+    {"file": "examples/gno.land/p/omarsy/cid/v0/multibase.gno", "line": 18, "angle": "claims",
+     "summary": "comment: encoding/hex and encoding/base32 are not strict, so the codecs are hand-written",
+     "settled_by": "grep gnovm/stdlibs/encoding/base32/base32.gno:311 'stripped of all supported whitespace (\\r and \\n)'; encoding/binary/varint.gno:36 'MaxVarintLen64 = 10': the strictness half holds, and the gas half's only fix would be wording"}
+  ]
+}

@@ -1,0 +1,17 @@
+# Findings in posting order, from round assemble: 2 to post, 0 SKIP, 1 refuted kept out
+
+## examples/gno.land/p/omarsy/cid/v0/cid.gno:32 [gh](https://github.com/gnolang/gno/blob/2a84c1dcdbd91a15a18923f56180b6367de97e21/examples/gno.land/p/omarsy/cid/v0/cid.gno#L32) · Missing test
+State: CONFIRMED, band: Missing test, angle: reach
+TL;DR: no test fails when Parse's `len(s) == 46` cap is relaxed to `len(s) >= 2` or DecodeFirst's maxCIDLen truncation is removed, though the first raises Parse("Qm"+510 characters) from 0.95M to 37.6M gas
+Check: Scratch worktree: drop `len(s) == 46 &&` at cid.gno:32 and the truncation at cid.gno:66-68, run `gno test ./examples/gno.land/p/omarsy/cid/v0`: observe all PASS; then measure Parse("Qm" + 510 characters) gas with and without the cap.
+Details: The finder's exact mutation, dropping `len(s) == 46 &&`, is killed: TestParseRejects' "" input panics on s[:2]. The cap's bound is still unpinned: `len(s) >= 2 &&` keeps every test green, and Parse("Qm" + 510 'z') then costs 37606151 gas against 948665 at the head, where it is rejected before decoding. Removing `if len(b) > maxCIDLen { b = b[:maxCIDLen] }` also keeps every test green: it bounds only the string(b) copy, so only gas sees it. Package absent at the merge base, so no base comparison applies.
+Evidence: gno test . in a scratch worktree: M2a (drop len(s) == 46 &&) 'panic: runtime error: slice bounds out of range [0:2] with string length 0 --- FAIL: TestParseRejects'; M2b (len(s) >= 2) 'ok . 3.42s'; M3 (truncation removed) 'ok . 3.48s'; gno test -v -print-runtime-metrics -run TestJudge: TestJudgeQm512 GAS 948665 at head, 37606151 under M2b; TestJudgeQmRepeatOnly 963762 both; tests/judge-2-caps_filetest.gno (Parse of a 512-character Qm string and DecodeFirst of 64 KiB, Gas golden 760183): head 'ok . 3.57s', M2b '--- FAIL: ./z_caps_filetest.gno (gas: 37477045) Gas diff', M3 '--- FAIL: ./z_caps_filetest.gno (gas: 1027783) Gas diff'; no filetest under examples/ carries a // Gas: directive yet (grep -rl count 0)
+Artifact: tests/judge-2-caps_filetest.gno
+
+## examples/gno.land/p/omarsy/cid/v0/cid.gno:116 [gh](https://github.com/gnolang/gno/blob/2a84c1dcdbd91a15a18923f56180b6367de97e21/examples/gno.land/p/omarsy/cid/v0/cid.gno#L116) · Missing test
+State: CONFIRMED, band: Missing test, angle: lines
+TL;DR: no test fails when isV0 drops `b[0] == 0x12` or Parse's v0 branch drops `s[:2] == "Qm"`
+Check: Scratch worktree: change isV0 to `len(b) == 34 && b[1] == 0x20`, run `gno test ./examples/gno.land/p/omarsy/cid/v0`: expect a red test, observe all PASS; repeat with cid.gno:32 reduced to `len(s) == 46`.
+Details: With isV0 reduced to `len(b) == 34 && b[1] == 0x20`, a CIDv1 whose codec is 0x20 (01 20 12 20 + 32 bytes) is taken for a CIDv0: Decode rejects it and DecodeFirst returns its first 34 bytes with a nil error. With Parse's branch reduced to `len(s) == 46`, a 46-character base32 CIDv1 (Raw, 24-byte identity digest) goes to the base58 decoder and is rejected. The package suite stays green under both; tests/judge-1-discriminators_test.gno passes at the head and fails under each.
+Evidence: gno test . in a scratch worktree: M1 (isV0 without b[0]) 'ok . 3.70s', M1 + judge test '--- FAIL: TestJudgeCodec0x20'; M1b (len(s) == 46 alone) 'ok . 3.65s', M1b + judge test '--- FAIL: TestJudgeBase32Len46'; head + judge test 'ok . 3.60s'
+Artifact: tests/judge-1-discriminators_test.gno
