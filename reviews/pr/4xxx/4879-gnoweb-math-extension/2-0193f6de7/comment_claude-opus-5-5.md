@@ -1,4 +1,5 @@
 # Review: [#4879](https://github.com/gnolang/gno/pull/4879)
+Posted: https://github.com/gnolang/gno/pull/4879#pullrequestreview-5416357299
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. Three Warnings the branch introduces block it: an unclosed `$$` line swallows every block up to a later `$$`, unclosed inline `$` openers render in quadratic time, and the 8 KiB cap leaves a page of `&` cells rendering at 107x its size.
 Model: claude-opus-5-5, standard review, solo wider: finders xhigh, judge and writer high
@@ -9,7 +10,7 @@ Round: 2. Two finders, one reflector pass, 12 candidates: 5 from the finders and
 
 ## Body
 
-## gno.land/pkg/gnoweb/markdown/ext_math.go:284 [gh](https://github.com/gnolang/gno/blob/0193f6de7fc5823e3c01d4a5e580e377cde98659/gno.land/pkg/gnoweb/markdown/ext_math.go#L284) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L284) · Warning
+## gno.land/pkg/gnoweb/markdown/ext_math.go:284 [gh](https://github.com/gnolang/gno/blob/0193f6de7fc5823e3c01d4a5e580e377cde98659/gno.land/pkg/gnoweb/markdown/ext_math.go#L284) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L284) · Warning [posted](https://github.com/gnolang/gno/pull/4879#discussion_r4185312540)
 `bytes.Contains(line, closeTag)` accepts any later line holding `$$`, so an unclosed `$$` line followed by an inline `$$y$$` renders every block between them as math.
 
 <details><summary>repro</summary>
@@ -63,7 +64,7 @@ swallow_repro_test.go:21: want "<p>last paragraph</p>", got:
 Inside a blockquote or a list item the container's end closes the block, so only that container's own text becomes math. With no later `$$` the page renders as plain text.
 </details>
 
-## gno.land/pkg/gnoweb/markdown/ext_math.go:169 [gh](https://github.com/gnolang/gno/blob/0193f6de7fc5823e3c01d4a5e580e377cde98659/gno.land/pkg/gnoweb/markdown/ext_math.go#L169) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L169) · Warning
+## gno.land/pkg/gnoweb/markdown/ext_math.go:169 [gh](https://github.com/gnolang/gno/blob/0193f6de7fc5823e3c01d4a5e580e377cde98659/gno.land/pkg/gnoweb/markdown/ext_math.go#L169) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L169) · Warning [posted](https://github.com/gnolang/gno/pull/4879#discussion_r4185312550)
 `findDollarClose` skips every `$` after a space, so each unclosed `$a ` opener rescans the rest of its line, and a 1 MiB line of openers renders in 56 s.
 
 <details><summary>repro</summary>
@@ -110,7 +111,7 @@ quad_repro_test.go:19: n=349525  input=1048575  time=55.632560958s
 The same file at the merge base, where `$` is plain text, prints 1.1 ms, 2.0 ms, 3.8 ms and 41 ms. Unclosed `\\(a ` openers rescan the same way, through the [`bytes.Index`](https://github.com/gnolang/gno/blob/0193f6de7fc5823e3c01d4a5e580e377cde98659/gno.land/pkg/gnoweb/markdown/ext_math.go#L129) call that looks for the closing `\\)`.
 </details>
 
-## gno.land/pkg/gnoweb/markdown/ext_math.go:356 [gh](https://github.com/gnolang/gno/blob/0193f6de7fc5823e3c01d4a5e580e377cde98659/gno.land/pkg/gnoweb/markdown/ext_math.go#L356) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L356) · Warning
+## gno.land/pkg/gnoweb/markdown/ext_math.go:356 [gh](https://github.com/gnolang/gno/blob/0193f6de7fc5823e3c01d4a5e580e377cde98659/gno.land/pkg/gnoweb/markdown/ext_math.go#L356) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/ext_math.go#L356) · Warning [posted](https://github.com/gnolang/gno/pull/4879#discussion_r4185312557)
 `MaxMathInputLen` bounds one expression and not a page, so a 1 MiB page of `aligned` environments of bare `&` renders to 112 MB of HTML.
 
 <details><summary>repro</summary>
@@ -167,7 +168,7 @@ amp_repro_test.go:20: blockquote-base  in=1044990  out=28200960   ratio=27   all
 Each `&` emits an `<mtd>` carrying `text-align` and `padding` CSS at a 32-space indent. A `pmatrix` of bare `&` renders at 54 times its input.
 </details>
 
-## gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go:32 [gh](https://github.com/gnolang/gno/blob/0193f6de7fc5823e3c01d4a5e580e377cde98659/gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go#L32) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go#L32) · Nit
+## gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go:32 [gh](https://github.com/gnolang/gno/blob/0193f6de7fc5823e3c01d4a5e580e377cde98659/gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go#L32) · [↗](../../../../../.worktrees/gno-review-4879/gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go#L32) · Nit [posted](https://github.com/gnolang/gno/pull/4879#discussion_r4185312570)
 Nit: `writeEscaped` passes an entity reference the author typed through unescaped, so `$\text{&lt;b&gt;}$` displays `<b>` and the x-tex annotation decodes to `\text{<b>}`.
 
 <details><summary>output</summary>
