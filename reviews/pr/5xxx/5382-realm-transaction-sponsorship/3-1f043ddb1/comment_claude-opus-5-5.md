@@ -1,4 +1,5 @@
 # Review: [#5382](https://github.com/gnolang/gno/pull/5382)
+Posted: https://github.com/gnolang/gno/pull/5382#pullrequestreview-5414064931
 Event: COMMENT
 Verdict: REQUEST CHANGES. The branch lets `gnogenesis verify` pass a zero-fee genesis tx that a default node panics on, on chains that never enable sponsorship, and reports a sponsor-paid storage deposit as the signer's cost once the window opens.
 Model: claude-opus-5-5, standard review: finders at xhigh, triage high, judges and reflector medium, writer and text pass low
@@ -11,7 +12,9 @@ Round: 3. 6 finders, one reflector, 13 candidates, the Criticals and Warnings ru
 
 > AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5382-realm-transaction-sponsorship/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/5xxx/5382-realm-transaction-sponsorship/3-1f043ddb1/claims.md) · Status: REQUEST CHANGES
 
-## tm2/pkg/std/tx.go:55 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/std/tx.go#L55) · Warning
+- Nit: [`OutOfGasLog`](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/baseapp.go#L901) receives the credit window as gas wanted, so a sponsored tx stopped by the lower PayGas limit reports a gas used below its stated gas wanted.
+
+## tm2/pkg/std/tx.go:55 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/std/tx.go#L55) · Warning [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657610)
 
 The relaxed fee check in `Tx.ValidateBasic` lets [`gnogenesis verify`](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/contribs/gnogenesis/internal/verify/verify.go#L94) accept a zero-fee genesis tx that [the ante handler rejects](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/auth/ante.go#L166) at the default window of 0. A default node then [panics in `InitChain`](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/gnoland/app.go#L391) on that genesis, since [`--skip-failing-genesis-txs`](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/cmd/gnoland/start.go#L91-L92) defaults to false.
 
@@ -47,7 +50,7 @@ tx2: STORAGE REFUND: 287500ugnot   user1 data: "1000287500ugnot"
 
 Not posted: the [`PayStorage` doc comment](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gnovm/stdlibs/chain/runtime/paystorage.gno#L16-L18) and the PR's Open items already name this limit, that a deposit refunds whoever frees the bytes.
 
-## gno.land/pkg/sdk/vm/keeper.go:2488 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/sdk/vm/keeper.go#L2488) · Warning
+## gno.land/pkg/sdk/vm/keeper.go:2488 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/sdk/vm/keeper.go#L2488) · Warning [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657621)
 
 The `StorageDepositEvent` emitted here carries no payer, so gnokey prints a sponsor-paid deposit as the signer's storage fee and total tx cost.
 
@@ -63,7 +66,7 @@ TOTAL TX COST:  288500ugnot
 
 </details>
 
-## gno.land/pkg/integration/testdata/paygas_credit_exhausted.txtar:12 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/integration/testdata/paygas_credit_exhausted.txtar#L12) · Missing test
+## gno.land/pkg/integration/testdata/paygas_credit_exhausted.txtar:12 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/integration/testdata/paygas_credit_exhausted.txtar#L12) · Missing test [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657630)
 
 Missing test: this fixture asks for exactly the credit window and checks only `out of gas`. It stays green when the ante meter follows `tx.Fee.GasWanted` instead of `MaxGasCreditPerTx`.
 
@@ -80,7 +83,7 @@ GAS USED:   919232627
 
 </details>
 
-## gno.land/pkg/integration/testdata/paygas_normal_fee_unaffected.txtar:18 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/integration/testdata/paygas_normal_fee_unaffected.txtar#L18) · Missing test
+## gno.land/pkg/integration/testdata/paygas_normal_fee_unaffected.txtar:18 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/integration/testdata/paygas_normal_fee_unaffected.txtar#L18) · Missing test [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657635)
 
 Missing test: the fixture funds the realm and never queries its balance. It passes when `X_payGas` debits the realm on a fee-paying tx.
 
@@ -95,31 +98,31 @@ With the gate dropped, the realm reads `"9998995ugnot"` and this assertion fails
 
 </details>
 
-## gno.land/pkg/sdk/vm/keeper.go:1181 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/sdk/vm/keeper.go#L1181) · Missing test
+## gno.land/pkg/sdk/vm/keeper.go:1181 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/sdk/vm/keeper.go#L1181) · Missing test [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657642)
 
 Missing test: no txtar sends a 0-fee `addpkg` whose `init` calls PayGas or PayStorage, the second entry that `beginPayStorage` opens here.
 
-## tm2/pkg/sdk/baseapp.go:661 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/baseapp.go#L661) · Missing test
+## tm2/pkg/sdk/baseapp.go:661 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/baseapp.go#L661) · Missing test [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657648)
 
 Missing test: the `allow_zero_fee_txs=false` refusal, the validator default, has no test, since every sponsorship test and the integration harness set `AllowZeroFeeTxs` true.
 
-## tm2/pkg/sdk/baseapp.go:1126 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/baseapp.go#L1126) · Missing test
+## tm2/pkg/sdk/baseapp.go:1126 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/baseapp.go#L1126) · Missing test [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657659)
 
 Missing test: nothing asserts that `CheckExecute` discards handler writes from `checkState`. The CheckTx tests stay green when `WriteCheckpoint` here becomes `msCache.MultiWrite()`.
 
-## gno.land/pkg/gnoland/sponsorship_usecase_test.go:316 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/gnoland/sponsorship_usecase_test.go#L316) · Nit
+## gno.land/pkg/gnoland/sponsorship_usecase_test.go:316 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/gnoland/sponsorship_usecase_test.go#L316) · Nit [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657667)
 
 Test: the ADR cites this test for the 6M window floor, but it only logs `gasUsed` at a 30M window, so a cost rise past 6M stays green.
 
-## gno.land/pkg/integration/testdata/paygas_cost_comparison.txtar:32 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/integration/testdata/paygas_cost_comparison.txtar#L32) · Nit
+## gno.land/pkg/integration/testdata/paygas_cost_comparison.txtar:32 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/integration/testdata/paygas_cost_comparison.txtar#L32) · Nit [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657674)
 
 Test: the three calls each assert only `GAS USED:   \d+`, so the PayGas overhead the closing comment describes is never compared and a regression passes.
 
-## gno.land/pkg/integration/testdata/paygas_real_multi_msg.txtar:44 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/integration/testdata/paygas_real_multi_msg.txtar#L44) · Nit
+## gno.land/pkg/integration/testdata/paygas_real_multi_msg.txtar:44 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gno.land/pkg/integration/testdata/paygas_real_multi_msg.txtar#L44) · Nit [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657682)
 
 Test: user1's final balance query has no `cmp` against `user1_balance_before`, so the fixture cannot tell who paid user1's share.
 
-## gnovm/cmd/calibrate/gen_native_table.py:187 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gnovm/cmd/calibrate/gen_native_table.py#L187) · Nit
+## gnovm/cmd/calibrate/gen_native_table.py:187 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/gnovm/cmd/calibrate/gen_native_table.py#L187) · Nit [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657692)
 
 Nit: the payGas and payStorage rows floor the base to the 12-byte sample and then charge those 12 bytes again through the slope, so the shortest path is overcharged.
 
@@ -132,15 +135,11 @@ Base 1097 (ns at N=12); a 12-byte path costs 1097 + 35448*12/1024 = 1512
 
 </details>
 
-## tm2/pkg/sdk/baseapp.go:901 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/baseapp.go#L901) · Nit
-
-Nit: `OutOfGasLog` receives the credit window as gas wanted, so a sponsored tx stopped by the lower PayGas limit reports a gas used below its stated gas wanted.
-
-## tm2/pkg/sdk/auth/ante.go:401 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/auth/ante.go#L401) · Suggestion
+## tm2/pkg/sdk/auth/ante.go:401 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/auth/ante.go#L401) · Suggestion [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657700)
 
 Suggestion: each sponsored tx reserves the whole credit window in block packing, even when PayGas caps it lower. The ADR could state that this caps sponsored txs per block at `MaxGas` over the window.
 
-## tm2/pkg/sdk/baseapp.go:645 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/baseapp.go#L645) · Suggestion
+## tm2/pkg/sdk/baseapp.go:645 [gh](https://github.com/gnolang/gno/blob/1f043ddb131e54e1410aebabd41d04ed49e37e1e/tm2/pkg/sdk/baseapp.go#L645) · Suggestion [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4183657709)
 
 Suggestion: `CheckTx` decodes the tx before the recover in `runTxWithDecoded`. A recover around this decode would turn a future amino decode panic into `ErrTxDecode`.
 
