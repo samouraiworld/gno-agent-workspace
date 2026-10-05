@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoland/sponsorship_usecase_test.go",
+      "line": 316,
+      "angle": "reach",
+      "summary": "TestSponsorshipUseCaseFitsWindow only asserts admission at a 30M window and logs gasUsed, yet the ADR quotes it as the credit-window floor (about 6M); nothing goes red when the cost moves",
+      "failure_scenario": "A gas-table recalibration or a grc20/avl change pushes the GRC20 approve+transferFrom paymaster from 5,247,104 gas past 6M: the test still passes (it only requires IsOK at 30M) while gno.land/adr/pr5382_realm_transaction_sponsorship.md:87 keeps telling operators a ~6M window covers the motivating use case. The avl-ledger case in the same table already measures 6,220,498, above the ADR's figure.",
+      "verify_by": "go test -count=1 -v -run TestSponsorshipUseCaseFitsWindow ./gno.land/pkg/gnoland/ and read the gasUsed log lines; grep -n 'require' around line 315 shows no bound on res.GasUsed",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "paygas-only gasUsed=694916; map ledger gasUsed=1511118; avl ledger gasUsed=6220498; REAL grc20 approve + transferFrom gasUsed=5247104; REAL grc20 transferFrom (approval pre-existing) gasUsed=5437540; only assertion is require.True(t, res.IsOK(), \"should be admitted at a 30M window\")",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 251,
+      "angle": "removed",
+      "summary": "Comment above SetBeginTxHook still says the begin/end hooks create gno tx stores and commit them; the commit moved to SetCommitTxHook and the end hook now settles PayGas",
+      "failure_scenario": "A reader following app.go:250-253 looks for the gno store commit in SetEndTxHook (line 258), finds settlement only, and the EndTxHook now also runs at CheckExecute admission where a commit would mutate the node-level gno store cache; the comment points the next editor at the one hook that must never commit.",
+      "verify_by": "sed -n '250,253p;318,325p' gno.land/pkg/gnoland/app.go",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "app.go:251 \"These are used to create gno transaction stores and commit them when finishing\"; app.go:323-324 baseApp.SetCommitTxHook(func(ctx sdk.Context) { vmk.CommitGnoTransactionStore(ctx) })",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 301,
+      "angle": "lines",
+      "summary": "MaxFee cap and overflow branch in settlement look unreachable given PayGas's SetLimit(maxFee*Gas/Amount)",
+      "settled_by": "PayGas sets the limit only when m.GasMeter.Limit() > 0 (paygas.go:52); ante.go:704 returns an infinite meter under SkipGasMeteringKey, which app.go:982 sets during genesis replay, so gasUsed is unbounded there and the cap is reachable"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/sponsorship_load_test.go",
+      "line": 251,
+      "angle": "lines",
+      "summary": "require.Less(recheck*2, admit) is a wall-clock assertion in a t.Parallel test that CI runs without -short",
+      "settled_by": "go test -count=1 -v -run TestSponsorshipRecheckLoad: admission 2.793635ms/tx, recheck 204.194us/tx, ratio: 0.07x; the 0.5 threshold needs a 7x skew"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/sponsorship_load_test.go",
+      "line": 160,
+      "angle": "catalog",
+      "summary": "new t.Parallel tests build apps concurrently and run the VM in CheckExecute; possible shared-state race",
+      "settled_by": "go test -race -count=1 -run 'TestSponsorshipUseCaseFitsWindow|TestSponsorshipRecheckLoad|TestSponsorshipLoadInvalidFlood' ./gno.land/pkg/gnoland/ -> ok github.com/gnolang/gno/gno.land/pkg/gnoland 18.660s"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 258,
+      "angle": "removed",
+      "summary": "removed `if result.IsOK() { CommitGnoTransactionStore }` from the end hook; commit-only-on-success may be lost",
+      "settled_by": "head baseapp.go:1131-1137 calls commitTxHook then msCache.MultiWrite only when result.IsOK() in Deliver, after endTxHook; base baseapp.go:968-977 returned before endTxHook for every non-Deliver mode, so modes and the success gate match"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 258,
+      "angle": "reach",
+      "summary": "EndTxHook signature change may leave another SetEndTxHook caller (contribs, misc) on the old signature",
+      "settled_by": "grep -rn 'SetEndTxHook|SetCommitTxHook' --include='*.go' over the whole head tree, contribs included, minus tests: only gno.land/pkg/gnoland/app.go:258 and :323"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 297,
+      "angle": "removed",
+      "summary": "ceil settlement amount possibly pinned by no test, so a floor regression would pass",
+      "settled_by": "paygas_cross_realm_sponsors.txtar:42 stdout '9959700ugnot' and :52 stdout '5997890ugnot' assert exact post-settlement sponsor balances"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 309,
+      "angle": "reach",
+      "summary": "CheckExecute dry-run debit is discarded by WriteCheckpoint, so N pending txs on one sponsor each pass admission though the sponsor can settle only some",
+      "settled_by": "cache/store.go:357-364 WriteCheckpoint restores the post-ante clone, confirming the gap; PR body Open items already names it: 'a one-shot allowance several pending txs all pass ... a tx burns up to the credit window at delivery, paid by nobody'"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 165,
+      "angle": "reach",
+      "summary": "fee-paying simulate could have lost its infinite gas meter in the ante path app.go wraps",
+      "settled_by": "base tm2/pkg/sdk/auth/ante.go:630-651 SetGasMeter(ctx, gasLimit) is identical to head ante.go:687-710 (infinite only at height 0 or SkipGasMeteringKey)"
+    }
+  ]
+}

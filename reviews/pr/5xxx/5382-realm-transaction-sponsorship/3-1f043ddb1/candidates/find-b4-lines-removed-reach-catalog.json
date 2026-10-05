@@ -1,0 +1,104 @@
+{
+  "candidates": [
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 1126,
+      "angle": "reach",
+      "summary": "No test checks that CheckExecute throws away handler and settlement writes from checkState. The only CheckExecute persistence test cannot tell WriteCheckpoint from MultiWrite.",
+      "failure_scenario": "Swap `cp.WriteCheckpoint()` at baseapp.go:1126 for `msCache.MultiWrite()`. Every admitted sponsored tx then leaves its realm writes and its dry-run settlement debit in checkState, so the next CheckExecute sees a realm state that was never delivered and a sponsor already debited. TestCheckTxSponsoredSequencePersists stays green: its counter is incremented by the ante (anteHandlerTxTest, baseapp_test.go:458) and its handler only sets pgi.MaxFee (baseapp_test.go:701), so nothing the handler writes is there to be discarded. The only gno.land CheckTx-level tests (sponsorship_usecase_test.go:314, sponsorship_load_test.go:175/231) assert admission and sequence, never that realm or bank keys are absent from checkState.",
+      "verify_by": "Apply the mutation at baseapp.go:1126 (WriteCheckpoint -> msCache.MultiWrite()) and run `go test -count=1 -run 'TestCheckTxSponsoredSequencePersists|TestZeroFeeTxWithoutPayGasRejectedAtCheckExecute|TestCheckTx' ./tm2/pkg/sdk/`. Expect red, observe green. The fix is a handler in that test that writes a second key, plus an assertion that the key is absent from app.checkState after CheckTx while the ante counter is present.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep: anteHandlerTxTest calls incrementingCounter (baseapp_test.go:458); the handler of TestCheckTxSponsoredSequencePersists only sets `pgi.MaxFee = 1` (baseapp_test.go:701); no other *_test.go under tm2/pkg/sdk or gno.land/pkg reads checkState after a sponsored CheckTx.",
+      "repro_path": ""
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 901,
+      "angle": "lines",
+      "summary": "A sponsored tx that runs out of gas gets a log naming the credit window as its gas wanted, not the limit PayGas set, so the message says gas used exceeds a larger gas wanted. The ante's own recover (ante.go:140,143) reports tx.Fee.GasWanted, a field the zero-fee meter ignores.",
+      "failure_scenario": "paygas_oog_after_paygas.txtar: the window is 10_000_000 (testscript_gnoland.go:293) and PayGas(3000) lowers the meter limit to about 3M through SetLimit. The work then runs out of gas, and baseapp.go:901 calls OutOfGasLog(gasUsed~3M, gasWanted=10_000_000, maxGas=30B). The user reads 'gas used (3000xxx) exceeds tx's gas wanted (10000000) ... simulate with consensus maximum', which contradicts itself and hides the PayGas cap. In ante.go:140/143 an OOG during a zero-fee tx's ante (signature or txSize gas over a small window) logs the user's tx.Fee.GasWanted, for example 0, and sets res.GasWanted to it, where the success path at ante.go:401 reports the credit.",
+      "verify_by": "Add `stderr 'exceeds tx.s gas wanted \\(10000000\\)'` after line 23 of gno.land/pkg/integration/testdata/paygas_oog_after_paygas.txtar and run `go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/paygas_oog_after_paygas$'`: it passes, which shows the 10M figure. The fix passes ctx.GasMeter().Limit() (basicGasMeter.Limit, gas.go:199) at baseapp.go:901 and newCtx.GasMeter().Limit() at ante.go:140/143.",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "baseapp.go:901 `log := store.OutOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor, true)` with gasWanted taken from the ante result (ante.go:399-403, the credit for a zero-fee tx); ante.go:140 `store.OutOfGasLog(gasUsed, tx.Fee.GasWanted, ...)`, 143 `res.GasWanted = tx.Fee.GasWanted`; OutOfGasLog format at gas.go:139-147.",
+      "repro_path": ""
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 645,
+      "angle": "removed",
+      "summary": "CheckTx now decodes the tx before runTx's recover is entered, so it brings back on the mempool path the shape behind #5399's chain halt: a codec panic raised before the recover.",
+      "failure_scenario": "On master the only CheckTx decode ran inside runTx after its deferred recover, so any amino panic became an ErrInternal result. 8b8e1f8e7 (#5399) describes typeURLtoFullname panicking 'before runTx's recover block was entered' and halting the chain. In head, a future decode panic in CheckTx's amino.Unmarshal escapes BaseApp. It unwinds through localClient (deferred unlock) into the RPC handler's recover (http_server.go:202) or the p2p MConnection _recover (connection.go:423). The sender gets an internal RPC error and a gossiping peer is disconnected, where master would answer ErrTxDecode. The tx also stays in the mempool cache, because no response callback runs. No input that panics today is known.",
+      "verify_by": "Re-introduce a decode panic (for example, restore the panic in amino typeURLtoFullname that 8b8e1f8e7 removed) and run `go test -count=1 -run TestCheckTxMalformedTypeURL ./tm2/pkg/sdk/` in head and at the merge base: head panics and base returns !IsOK. The fix wraps the CheckTx decode in a recover returning ErrTxDecode.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "baseapp.go:645 `if err := amino.Unmarshal(req.Tx, &tx); err != nil {` sits in CheckTx ahead of runTxWithDecoded's defer; git log -S'unmarshalTx' on baseapp.go is empty, so the recover-wrapped helper 8b8e1f8e7 promised never landed and runTx's recover was the only cover.",
+      "repro_path": ""
+    },
+    {
+      "file": "tm2/pkg/sdk/auth/ante.go",
+      "line": 401,
+      "angle": "reach",
+      "summary": "An admitted sponsored tx reports the whole credit window as GasWanted, even after PayGas capped its limit lower, and the mempool reap reserves that whole window per tx.",
+      "failure_scenario": "Take a 10M window and a realm calling PayGas(3000), which caps the tx at about 3M through SetLimit. CheckExecute returns GasWanted = MaxGasCreditPerTx (ante.go:399-403, copied into result.GasWanted by runTx). ReapMaxBytesMaxGas (clist_mempool.go:498-500) sums gasWanted and stops at the first tx that would overflow maxGas. With MaxGas = k x window, at most k sponsored txs enter a block whatever they actually spend, and every fee-paying tx queued behind them waits for a later block.",
+      "verify_by": "Read the code. A unit test in which the handler of a sponsored CheckTx calls ctx.GasMeter().SetLimit(3_000_000) shows res.GasWanted == MaxGasCreditPerTx. The fix reports min(credit, ctx.GasMeter().Limit()) from CheckExecute.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "ante.go:399-403 `reportedGasWanted = consParams.Block.MaxGasCreditPerTx`; clist_mempool.go:498 `newTotalGas := totalGas + memTx.gasWanted` / 499-500 `if maxGas > -1 && newTotalGas > maxGas { return txs }`.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/sdk/auth/ante.go",
+      "line": 168,
+      "angle": "catalog",
+      "summary": "With the window closed, DeliverTx now rejects a 0-amount fee that master delivered for free, so replaying a historical block that carries one would diverge.",
+      "settled_by": "`grep -rlE '\"gas_fee\": ?\"0ugnot\"'` over the merge-base tree's json/jsonl/txtar returns nothing. Coin.String() (coin.go:67-69) encodes every zero coin as \"\", so only a hand-built \"0ugnot\" string decodes to a valid zero coin. PR body line 13 states the closed-window rejection applies in every mode, and head is strictly tighter than master's free-delivery path."
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 1092,
+      "angle": "removed",
+      "summary": "EndTxHook now runs only on success, and in Deliver and CheckExecute only, which changes fee-paying tx handling.",
+      "settled_by": "Base gno.land/pkg/gnoland/app.go:255-258 already gated its only hook on `if result.IsOK() { vmk.CommitGnoTransactionStore(ctx) }`. Head moves that commit to SetCommitTxHook (app.go:323), and baseapp.go:1135 calls it only on Deliver success. A grep for SetEndTxHook in non-test code finds gno.land app.go alone."
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 1038,
+      "angle": "removed",
+      "summary": "The per-tx event logger moved from runMsgs to before beginTxHook, so beginTxHook events, or a logger the hook replaces, would change what is reported.",
+      "settled_by": "The only BeginTxHook is gno.land app.go:254 -> vmk.MakeGnoTransactionStore, and keeper.go:396-403 only adds ctx values (typeCheckCache, store, PayStorageInfo). It neither emits events nor replaces the logger."
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 665,
+      "angle": "reach",
+      "summary": "If the mempool never set CheckTxTypeRecheck, every recheck would rerun the VM.",
+      "settled_by": "clist_mempool.go:616 `Type: abci.CheckTxTypeRecheck,` in recheckTxs."
+    },
+    {
+      "file": "tm2/pkg/sdk/auth/ante.go",
+      "line": 91,
+      "angle": "removed",
+      "summary": "The MaxGas >= GasWanted guard is skipped for a zero-fee tx, so a sponsored meter could exceed block MaxGas.",
+      "settled_by": "params.go:137 rejects `MaxGasCreditPerTx > MaxGas` when MaxGas != -1, and the zero-fee meter is SetGasMeter(ctx, MaxGasCreditPerTx) (ante.go diff)."
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 1125,
+      "angle": "catalog",
+      "summary": "CheckExecute runs the end hook, which could commit the gno transaction store into the keeper's global type and node caches while the IAVL writes are discarded.",
+      "settled_by": "app.go:258-321 EndTxHook only settles PayGas through bankk on settleCtx. CommitGnoTransactionStore (keeper.go:418-420) is called only from SetCommitTxHook (app.go:323), which baseapp.go:1135 invokes only on Deliver success."
+    }
+  ]
+}

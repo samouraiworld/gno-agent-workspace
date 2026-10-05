@@ -1,0 +1,53 @@
+# A 0-fee MsgAddPackage whose init sponsors itself with PayGas and PayStorage.
+#
+# The PR body and the ADR name "its init in MsgAddPackage" as a PayStorage
+# entry, and keeper.go wires beginPayStorage into AddPackage, but no txtar and
+# no Go test sends a 0-fee addpkg. This probe runs that path: the realm address
+# is pre-funded, the deployer sends 0 fee, and the deployer's balance must not
+# move while the realm's does.
+#
+# Repro from a plain clone of gnolang/gno:
+#   git fetch origin pull/5382/head && git checkout 1f043ddb131e54e1410aebabd41d04ed49e37e1e
+#   cp <this file> gno.land/pkg/integration/testdata/b5_addpkg_init_sponsored.txtar
+#   go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/b5_addpkg_init_sponsored$'
+
+gnoland start
+
+## pre-fund the address gno.land/r/test/sponsor will have
+gnokey maketx send -send 10000000ugnot -to g1nkx5uhlfhdh74wd09npra8d2n0sq9zsfjdxazn -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query bank/balances/$test1_user_addr
+cp stdout deployer_before
+
+## 0-fee deploy; init calls PayGas and PayStorage
+gnokey maketx addpkg -pkgdir $WORK/sponsor -pkgpath gno.land/r/test/sponsor -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## the realm paid gas and its own deposit
+gnokey query bank/balances/g1nkx5uhlfhdh74wd09npra8d2n0sq9zsfjdxazn
+! stdout '"10000000ugnot"'
+
+## the deployer paid nothing
+gnokey query bank/balances/$test1_user_addr
+cp stdout deployer_after
+cmp deployer_before deployer_after
+
+-- sponsor/gnomod.toml --
+module = "gno.land/r/test/sponsor"
+gno = "0.9"
+
+-- sponsor/sponsor.gno --
+package sponsor
+
+import "chain/runtime"
+
+var data []string
+
+func init(cur realm) {
+	runtime.PayGas(1000000, cur)
+	runtime.PayStorage(1000000, cur)
+	data = append(data, "state the init writes, so the deposit is non-zero")
+}
+
+func Get(cur realm) int { return len(data) }

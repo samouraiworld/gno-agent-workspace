@@ -1,0 +1,79 @@
+# Repro, from a plain clone of gnolang/gno at 1f043ddb131e54e1410aebabd41d04ed49e37e1e:
+#   cp b3-lines-removed-reach-catalog-paystorage_cross_tx_drain.txtar \
+#      gno.land/pkg/integration/testdata/paystorage_cross_tx_drain.txtar
+#   go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ \
+#      -run 'TestTestdata/paystorage_cross_tx_drain$'
+#
+# paystorage_sponsor_grow_free_no_drain.txtar pins that a sponsored grow and a
+# free in the SAME tx leave the signer's balance unchanged. This script splits
+# them over two 0-fee txs, and the realm exposes no delete: one setter, SetN,
+# sponsored by Pay. tx1 = Pay + SetN(24) (the sponsor locks the deposit),
+# tx2 = Pay + SetN(0) (the same setter shrinks the value). In tx2 the
+# sponsor's SpentDeposit is 0, so sponsorShare is 0 and processStorageDeposit
+# refunds the whole released deposit to the signer. The script PASSES when the
+# signer, who paid nothing in either tx, ends with MORE ugnot than it started
+# with: the sponsor realm's balance moved into the signer's account.
+
+loadpkg gno.land/r/test/ss_payer $WORK/payer
+
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+gnoland start
+
+gnokey maketx send -send 10000000ugnot -to g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_before
+
+## tx1: 0-fee, Pay + SetN(24). The sponsor pays gas and the deposit.
+gnokey sign -tx-path $WORK/grow.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence 0 user1
+stdout 'Tx successfully signed and saved to '
+gnokey broadcast $WORK/grow.tx -quiet=false
+stdout OK!
+
+gnokey query bank/balances/$user1_user_addr
+cmp stdout user1_balance_before
+
+## tx2: 0-fee, Pay + SetN(0). The sponsor pays gas; the released deposit goes to user1.
+gnokey sign -tx-path $WORK/free.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence 1 user1
+stdout 'Tx successfully signed and saved to '
+gnokey broadcast $WORK/free.tx -quiet=false
+stdout OK!
+
+## THE ASSERTION: user1 paid nothing in either tx, and now holds more ugnot.
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_after
+! cmp user1_balance_before user1_balance_after
+
+gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
+
+-- payer/gnomod.toml --
+module = "ss_payer"
+gno = "0.9"
+
+-- payer/payer.gno --
+package ss_payer
+
+import "chain/runtime"
+
+var data []string
+
+func Pay(cur realm) string {
+	runtime.PayGas(5000000, cur)
+	runtime.PayStorage(1000000, cur)
+	return "paid"
+}
+
+func SetN(cur realm, n int) {
+	data = nil
+	for i := 0; i < n; i++ {
+		data = append(data, "padding that the sponsor pays the deposit for")
+	}
+}
+
+-- grow.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Pay","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"SetN","args":["24"]}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}
+
+-- free.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Pay","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"SetN","args":["0"]}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}

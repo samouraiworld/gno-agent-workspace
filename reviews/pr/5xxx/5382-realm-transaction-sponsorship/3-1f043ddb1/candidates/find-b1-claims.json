@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "tm2/pkg/std/tx.go",
+      "line": 55,
+      "angle": "claims",
+      "summary": "relaxing Tx.ValidateBasic to accept an empty fee makes `gnogenesis verify` pass a zero-fee genesis tx that a node on the default closed credit window rejects at InitChain",
+      "failure_scenario": "The tm2 ADR says the ante rejects a 0-fee tx right after ValidateBasic unless the window is open; that holds for the ante only. contribs/gnogenesis/internal/verify/verify.go:94 relied on tx.Tx.ValidateBasic() to refuse a zero fee. A genesis.json carrying a tx with an empty fee now passes `gnogenesis verify` (master refused it), then `gnoland start` with the default MaxGasCreditPerTx 0 delivers it through the ante, which returns InsufficientFee 'zero-fee transactions require a non-zero Block.MaxGasCreditPerTx', and NewApp's default PanicOnFailingTxResultHandler (gno.land/pkg/gnoland/app.go:391) panics InitChain; with SkipFailingTxs the tx is dropped silently. The verifier reports success on a genesis the chain cannot boot from.",
+      "verify_by": "cp tests/b1-claims-zero-fee-genesis-verify_test.go contribs/gnogenesis/internal/verify/ && (cd contribs/gnogenesis && go test -count=1 -run TestB1ClaimsVerifyAcceptsZeroFeeGenesisTx ./internal/verify/): PASS at head, FAIL at 3cc494ec4; then go test -count=1 -run TestAnteHandlerRejectsZeroFeeWhenCreditWindowDisabled ./tm2/pkg/sdk/auth/ for the node-side rejection in DeliverTx",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head 1f043ddb1: 'tx.ValidateBasic() = <nil>', 'gnogenesis verify error = <nil>', '--- PASS: TestB1ClaimsVerifyAcceptsZeroFeeGenesisTx'; '--- PASS: TestAnteHandlerRejectsZeroFeeWhenCreditWindowDisabled' (DeliverTx and CheckTx both InsufficientFeeError with the window closed); app.go:391 'GenesisTxResultHandler: PanicOnFailingTxResultHandler'. Base tx.go: 'if !tx.Fee.GasFee.IsValid()' rejects Coin{} (empty denom fails validate).",
+      "repro_path": "tests/b1-claims-zero-fee-genesis-verify_test.go"
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 293,
+      "angle": "claims",
+      "summary": "every txtar runs with the credit window open and the validator opted in, so the shipped configuration (window closed) has no end-to-end test",
+      "failure_scenario": "SetupGnolandTestscript sets MaxGasCreditPerTx = 10_000_000 for every txtar (the comment says for the paygas_*/paystorage_* ones) and TestingNodeConfig sets AllowZeroFeeTxs true (node_testing.go:103); -max-gas only caps the window, never closes it. The body and both ADRs claim that with the window closed a 0-fee tx is rejected in every mode with master's error and fee-paying txs are unchanged; that rests on ante unit tests alone, and no txtar sends a 0-fee gnokey tx to a closed-window node through CheckTx and DeliverTx. A regression in the closed-window path (the one every chain runs today) passes the whole integration suite.",
+      "verify_by": "grep the integration runner for any way to leave MaxGasCreditPerTx at 0 and grep testdata for a 0-fee tx expected to fail with 'insufficient fee' on a closed window: none; add a runner switch and a txtar sending -gas-fee 0ugnot with the window closed, expecting InsufficientFee at CheckTx",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "testscript_gnoland.go:293 'bp.MaxGasCreditPerTx = 10_000_000' unconditional; node_testing.go:103 'AllowZeroFeeTxs: true'; grep -rln MaxGasCreditPerTx testdata/ returns only paygas_credit_exhausted.txtar",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/cmd/calibrate/sponsorship_bench_m1pro_arm64.txt",
+      "line": 16,
+      "angle": "claims",
+      "summary": "documented fit command may not reproduce the committed payGas/payStorage rows",
+      "settled_by": "python3 gen_native_table.py sponsorship_bench_m1pro_arm64.txt --md-out /dev/null --go-out /dev/null --no-plot printed '{Pkg: \"chain/runtime\", Fn: \"payGas\", Base: 1097, Slope: 35448 ...}' and 'payStorage Base: 1091, Slope: 35576', matching native_gas.go:169-170; packageAddress 594/15806 vs M2 552/15201 is the stated 4-8%"
+    },
+    {
+      "file": "gno.land/adr/pr5382_realm_transaction_sponsorship.md",
+      "line": 88,
+      "angle": "claims",
+      "summary": "1.9K at 24 bytes and 10K at 256 bytes",
+      "settled_by": "1097+35448*24/1024=1928, 1097+35448*256/1024=9959; uverse.go:508 'Sub: synthesized pkgpath too long (max 256 bytes)'"
+    },
+    {
+      "file": "tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md",
+      "line": 82,
+      "angle": "claims",
+      "summary": "storage over the sponsor's budget may not fail during CheckExecute",
+      "settled_by": "tm2/pkg/sdk/context.go:60 'func (c Context) IsCheckTx() bool { return c.mode == RunTxModeCheck }', so keeper.go processStorageDeposit's IsCheckTx early return does not fire in CheckExecute"
+    },
+    {
+      "file": "tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md",
+      "line": 93,
+      "angle": "claims",
+      "summary": "infinite meter Limit() may not be 0",
+      "settled_by": "tm2/pkg/store/types/gas.go:289-290 'func (g *infiniteGasMeter) Limit() Gas { return 0'; paygas.go only SetLimit when curLimit > 0"
+    },
+    {
+      "file": "tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md",
+      "line": 36,
+      "angle": "claims",
+      "summary": "MaxGasCreditPerTx may be updatable without a chain upgrade",
+      "settled_by": "grep 'setConsensusParams(' tm2/pkg/sdk/baseapp.go: only :210 (load) and :352 (InitChain)"
+    },
+    {
+      "file": "tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md",
+      "line": 43,
+      "angle": "claims",
+      "summary": "allow_zero_fee_txs may not reach gnoland start",
+      "settled_by": "gno.land/pkg/gnoland/app.go:398 'AllowZeroFeeTxs: appCfg.AllowZeroFeeTxs' in NewApp, called from gno.land/cmd/gnoland/start.go:272; app.go:165 SetAllowZeroFeeTxs"
+    },
+    {
+      "file": "tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md",
+      "line": 87,
+      "angle": "claims",
+      "summary": "gno store commit may run outside a successful delivery or after MultiWrite",
+      "settled_by": "baseapp.go:1124-1137: non-Deliver modes return first; 'if result.IsOK() { if app.commitTxHook != nil { app.commitTxHook(runMsgCtx) } msCache.MultiWrite()'"
+    },
+    {
+      "file": "gno.land/adr/pr5382_realm_transaction_sponsorship.md",
+      "line": 44,
+      "angle": "claims",
+      "summary": "MsgRun might reach PayStorage sponsorship",
+      "settled_by": "keeper.go:1685 'processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params, \"\")' and Run's ExecContext (keeper.go:1619-1620) sets PayGasInfo and GasPrice only, so PayStorage sees psi nil"
+    },
+    {
+      "file": "gno.land/adr/pr5382_realm_transaction_sponsorship.md",
+      "line": 57,
+      "angle": "claims",
+      "summary": "settlement might still read the realm's whole balance",
+      "settled_by": "tm2/pkg/sdk/bank/keeper.go:286 'spendable := max(bank.GetCoin(ctx, addr, coin.Denom)-lockedAmt, 0)': per-denom reads"
+    },
+    {
+      "file": "tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md",
+      "line": 52,
+      "angle": "claims",
+      "summary": "closed-window rejection of a wire-decoded 0-fee tx might differ from master in recorded result",
+      "settled_by": "ante.go:154-169 order ValidateSigCount, ValidateBasic, zero-fee check, matching base order up to ValidateBasic; both errors are InsufficientFeeError; bft/types/results.go:38-43 hashes Error, Data, Events, not Log"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/runtime/paystorage.gno",
+      "line": 18,
+      "angle": "claims",
+      "summary": "ADR says PayStorage's doc comment warns against running uncontrolled code",
+      "settled_by": "paystorage.gno: 'a sponsored function should not run code it does not control, nor let callers free what it sponsored'"
+    }
+  ]
+}

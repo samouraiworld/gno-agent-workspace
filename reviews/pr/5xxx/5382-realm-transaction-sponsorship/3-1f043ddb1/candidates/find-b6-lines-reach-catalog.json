@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 661,
+      "angle": "reach",
+      "summary": "The allow_zero_fee_txs=false CheckTx refusal, the shipped validator default, has no test at any level: every sponsorship test and the integration harness set AllowZeroFeeTxs true",
+      "failure_scenario": "Replace `if !app.allowZeroFeeTxs {` at baseapp.go:661 with `if false {`. A validator left on the default allow_zero_fee_txs=false, on a chain whose governance opened MaxGasCreditPerTx, then admits every 0-fee tx to its mempool and runs CheckExecute (the VM under the CheckTx mutex) for it although its operator never opted in. No test turns red: baseapp_test.go:653 and :706, sponsorship_bench_test.go:129, sponsorship_load_test.go:73 and sponsorship_usecase_test.go:246 all set it true, and node_testing.go:103 sets it true for every node the txtar `gnoland start` launches through RunNode/TestingMinimalNodeConfig.",
+      "verify_by": "grep -rn 'not accepted by this validator\\|SetAllowZeroFeeTxs(false)\\|AllowZeroFeeTxs: *false' --include='*_test.go' . in the head worktree (0 hits); then mutate baseapp.go:661 to `if false {` and run go test -count=1 -run 'ZeroFee|Sponsored|CheckTx' ./tm2/pkg/sdk/ and go test -count=1 -run 'Sponsorship' ./gno.land/pkg/gnoland/: expect a red test, observe all green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep over *_test.go for the refusal text, SetAllowZeroFeeTxs(false) or AllowZeroFeeTxs false: 0 hits. Only setters found: baseapp_test.go:653 and :706 `bapp.SetAllowZeroFeeTxs(true)`, sponsorship_bench_test.go:129, sponsorship_load_test.go:73, sponsorship_usecase_test.go:246 `opts.AllowZeroFeeTxs = true`, node_testing.go:103 `AllowZeroFeeTxs: true`. The gate's only use is baseapp.go:661, inside CheckTx.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 293,
+      "angle": "reach",
+      "summary": "`gnoland start` opens the credit window (MaxGasCreditPerTx 10M) on every txtar node and offers no flag to close it, so no txtar can run a 0-fee tx on the shipped closed-window config",
+      "failure_scenario": "A regression that lets a 0-fee tx execute on a chain that never opted in (MaxGasCreditPerTx 0) passes every txtar, because the harness forces the window open for all of them. Since Tx.ValidateBasic was relaxed, the ante check is the only thing stopping that tx, as the PR's own comment on TestAnteHandlerRejectsZeroFeeWhenCreditWindowDisabled says. That unit test covers the ante on its own; no node-level test covers the gnokey -> CheckTx -> ante path. The window size can also only be changed through -max-gas, which lowers block MaxGas too, so paygas_credit_exhausted.txtar has to burn the full hard-coded 10M.",
+      "verify_by": "Read the start flags at testscript_gnoland.go:268-271: non-validator, lock-transfer, no-parallel, max-gas, none for the credit. Run grep -rlE 'gas-fee +0' gno.land/pkg/integration/testdata: every hit is a new paygas_/paystorage_ txtar on the open window, and the base tree has 0 hits. To check the fix, add a `-max-gas-credit` flag (0 closes the window) and a txtar running `gnoland start -max-gas-credit 0` then `gnokey maketx call -gas-fee 0ugnot ...`, expecting stderr 'zero-fee transactions require a non-zero Block.MaxGasCreditPerTx'",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "Head start flags: lines 268-271, fs.Bool non-validator, lock-transfer, no-parallel and fs.Int64 max-gas only. Line 293: `bp.MaxGasCreditPerTx = 10_000_000`, unconditional. `grep -rlE 'gas-fee +0'` gives 0 hits in base testdata and 18 hits in head, all new paygas_/paystorage_ txtars.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/cmd/calibrate/gen_native_table.py",
+      "line": 187,
+      "angle": "lines",
+      "summary": "fit_linear floors Base to the N=12 measurement, then the LenString slope charges those 12 bytes again, so every payGas/payStorage call is overcharged by about 415 gas",
+      "failure_scenario": "At the shortest realm path, `gno.land/r/a` (12 bytes), the measured cost is 1097 ns but the row charges 1097 + 35448*12/1024 = 1512 gas, 38% over. A typical 19-byte path is charged 1755 against about 1339 measured. The rows ship as consensus gas, so fixing them later is itself a gas change.",
+      "verify_by": "python3 gen_native_table.py sponsorship_bench_m1pro_arm64.txt --no-plot --md-out /dev/null --go-out /dev/null prints Base 1097 = ns at N=12 (fit_linear: base = max(coeffs[0], ns[0])); nativeSizeOf at gnovm/pkg/gnolang/native_gas.go:357 charges the full tv.GetLength(). Fix: floor to ns[0] - slope*sizes[0]",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "The generator rerun printed `{Pkg: \"chain/runtime\", Fn: \"payGas\", Base: 1097, Slope: 35448, SlopeIdx: 0, SlopeKind: SizeLenString}`, the same row as native_gas.go:169. The bench data has PayGas_12 at 1097 ns/op. In native_gas.go, nativeSizeOf's default case returns int64(tv.GetLength()).",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/cmd/calibrate/native_machine_bench_test.go",
+      "line": 929,
+      "angle": "reach",
+      "summary": "benchRealmPath's '/a' shape might not be the costliest 256-byte realm path for IsRealmPath, so the payGas slope could undercharge another shape",
+      "settled_by": "Ran tests/b6-lines-reach-catalog-paygas-path-shape_test.go in a scratch worktree with go test -bench PayGasShape -benchtime 20000x -count 5. SlashA (the committed shape) took 8674-8963 ns/op. The other shapes were all cheaper: SlashAB1 8024-8603, Underscore 7257-7677, Dash 6917-7444, OneUser 5598-5957, OneRepo 5510-6003, Digits 5331-5745."
+    },
+    {
+      "file": "gnovm/cmd/calibrate/native_machine_bench_test.go",
+      "line": 1034,
+      "angle": "reach",
+      "summary": "Bench sizes stop at 256 bytes; a longer realm path would be priced by extrapolation",
+      "settled_by": "tm2/pkg/std/memfile.go:19 sets `pkgPathLimit  = 256`, and MemPackage.ValidateBasic rejects longer paths. uverse.go:508 caps synthesized sub-realm paths at 256 bytes."
+    },
+    {
+      "file": "gnovm/cmd/calibrate/native_machine_bench_test.go",
+      "line": 941,
+      "angle": "lines",
+      "summary": "The new benches might Fatal at run time (the realm-path check, the commit check, the sub-realm refusal assert), which CI never runs",
+      "settled_by": "go test -count=1 -run '^$' -bench 'Runtime_Pay' -benchtime 2000x ./gnovm/cmd/calibrate/ on head printed every PayGas_*, PayGasSubRealm_256 and PayStorage_* line, then `PASS` and `ok github.com/gnolang/gno/gnovm/cmd/calibrate 0.185s`."
+    },
+    {
+      "file": "gnovm/cmd/calibrate/gen_native_table.py",
+      "line": 187,
+      "angle": "lines",
+      "summary": "The native_gas.go payGas/payStorage rows might not come from the new specs and the committed data",
+      "settled_by": "Rerunning python3 gen_native_table.py sponsorship_bench_m1pro_arm64.txt --no-plot printed `Fn: \"payGas\", Base: 1097, Slope: 35448, SlopeIdx: 0, SlopeKind: SizeLenString` and `Fn: \"payStorage\", Base: 1091, Slope: 35576`, the same as native_gas.go:169-170."
+    },
+    {
+      "file": "gnovm/cmd/calibrate/gen_native_table.py",
+      "line": 187,
+      "angle": "catalog",
+      "summary": "Rows measured on an M1 Pro might undercharge compared with the M2 reference the other rows use",
+      "settled_by": "The PackageAddress anchor reads 568.0 ns/op at N=1 on the M1 Pro (sponsorship_bench_m1pro_arm64.txt) against 526.9-527.9 on the M2 (native_bench_output.txt:53-55). The M1 Pro is slower, so its rows overcharge. The PR body already lists this."
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 292,
+      "angle": "catalog",
+      "summary": "bp may alias a shared BlockParams, so parallel txtars would race on MaxGasCreditPerTx",
+      "settled_by": "node_testing.go DefaultTestingGenesisConfig builds `Block: &abci.BlockParams{MaxTxBytes: 1_000_000, ... MaxGas: 30_000_000_000 ...}` fresh on every call, through TestingMinimalNodeConfig."
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 294,
+      "angle": "lines",
+      "summary": "The credit clamp might disagree with consensus-param validation and fail genesis under -max-gas",
+      "settled_by": "params.go:137 rejects only `MaxGas != -1 && MaxGasCreditPerTx > MaxGas`. The harness clamps exactly that case after applying the -max-gas override, which is set only when *maxGas > 0."
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 293,
+      "angle": "reach",
+      "summary": "AllowZeroFeeTxs varying per node might diverge DeliverTx across validators",
+      "settled_by": "grep 'allowZeroFeeTxs' in tm2/pkg/sdk finds one read, baseapp.go:661, inside CheckTx (`if app.isSponsoredTx(tx) { if !app.allowZeroFeeTxs {`). DeliverTx never reads it."
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 306,
+      "angle": "reach",
+      "summary": "With -lock-transfer, the PayGas settlement debit from the realm might be blocked by RestrictedDenoms",
+      "settled_by": "gno.land/pkg/gnoland/app.go:309 settles with `bankk.SendCoinsUnrestricted(settleCtx, pgi.RealmAddr, feeCollectorAddr, costCoins)`, which bypasses RestrictedDenoms."
+    }
+  ]
+}

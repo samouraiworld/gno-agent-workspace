@@ -1,0 +1,15 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/runtime/paygas.gno",
+      "line": 3,
+      "angle": "capability forgery",
+      "band": "Critical",
+      "checked": false,
+      "summary": "PayGas/PayStorage trust rlm.IsCurrent() and rlm.PkgPath() through the uverse `realm` type, which uverse.go:110-113 declares as an InterfaceType. No test passes a user-defined type that satisfies `realm`.",
+      "failure_scenario": "If a user struct can implement realm (IsCurrent() returns true, PkgPath() returns a victim realm's path), any MsgCall or MsgRun in a 0-fee tx calls runtime.PayGas(maxFee, fake). X_payGas then sets pgi.RealmAddr = DerivePkgCryptoAddr(victim), and settlement debits the victim's balance for the caller's gas. PayStorage would do the same for deposits. paygas_realm_capability.txtar tries only cur.Previous() and a sub-realm token.",
+      "verify_by": "Write a txtar with a realm r/fake that declares `type F struct{}` with every method of realm (Address, PkgPath returning \"gno.land/r/victim\", Coins, Send, Previous, Origin, String, IsCurrent returning true) and calls runtime.PayGas(1000000, F{}) in a 0-fee tx while r/victim is funded. Then run go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/<name>$'. A type-check rejection means the realm interface is sealed and closes the candidate. A drop in the victim's balance confirms it. Also compare with chain/banker NewBanker, which accepts the same realm argument."
+    }
+  ]
+}

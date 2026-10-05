@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/sdk/vm/keeper.go",
+      "line": 2547,
+      "angle": "reach",
+      "summary": "the sponsor-first refund only nets frees against deposits locked earlier in the same tx, so a sponsored setter that grows in one 0-fee tx and shrinks in the next moves the sponsor's deposit to the signer at zero cost",
+      "failure_scenario": "Realm ss_payer with Pay(cur){PayGas(5e6,cur); PayStorage(1e6,cur)} and one setter SetN(cur, n) that rebuilds a slice of n strings, no delete function. tx1 (0-fee): Pay + SetN(24): the sponsor locks 288500ugnot, user1 balance unchanged. tx2 (0-fee): Pay + SetN(0): psi.SpentDeposit is 0, so sponsorShare = min(unlocked, 0) = 0 and the else branch refunds the whole 287500ugnot to the signer. user1 goes from 1000000000ugnot to 1000287500ugnot having paid nothing in either tx; the sponsor goes from 10000000 to 9707842ugnot. Any sponsored setter whose value can shrink (a bio, a list, a map entry overwritten with a smaller one) is a free, so the PayStorage doc's 'nor let callers free what it sponsored' rules out every such setter, which the body's Open item does not picture; the loop repeats until the sponsor is empty. Applies while ugnot is unrestricted (restricted refunds go to StorageFeeCollector).",
+      "verify_by": "cp tests/b3-lines-removed-reach-catalog-paystorage_cross_tx_drain.txtar gno.land/pkg/integration/testdata/paystorage_cross_tx_drain.txtar && go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/paystorage_cross_tx_drain$' -v: PASS means user1's balance rose across two 0-fee txs",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS at 1f043ddb1. tx1: 'STORAGE FEE:    288500ugnot', then '> cmp stdout user1_balance_before' passes (user1 still 1000000000ugnot). tx2: 'STORAGE REFUND: 287500ugnot'; user1 'data: \"1000287500ugnot\"'; '> ! cmp user1_balance_before user1_balance_after' passes; sponsor 'data: \"9707842ugnot\"'.",
+      "repro_path": "tests/b3-lines-removed-reach-catalog-paystorage_cross_tx_drain.txtar"
+    },
+    {
+      "file": "gno.land/pkg/sdk/vm/keeper.go",
+      "line": 2488,
+      "angle": "lines",
+      "summary": "StorageDepositEvent (and StorageUnlockEvent) carry no payer, so when the sponsor pays the deposit gnokey tells the signer it paid the storage fee, and a sponsor-first refund is reported as the signer's refund",
+      "failure_scenario": "0-fee tx Pay + SetN(24) on a PayStorage sponsor: lockStorageDeposit debits psi.RealmAddr, but the event emitted at keeper.go:2488 is the same {bytes_delta, fee_delta, pkg_path} as a caller-paid deposit. gno.land/pkg/keyscli/root.go:81-89 sums it into 'STORAGE FEE: 288500ugnot' and 'TOTAL TX COST: 288500ugnot' for user1, whose balance did not move. Indexers and wallets reading the event attribute the deposit to the signer; the same holds for the StorageUnlockEvent of a refund that went to the sponsor via sponsorShare. The signer cannot tell the wrong cost from the right one.",
+      "verify_by": "same txtar run: tx1 prints 'TOTAL TX COST:  288500ugnot' and the next 'cmp stdout user1_balance_before' passes; grep -n 'StorageDepositEvent struct' -A5 gnovm/stdlibs/chain/emit_event.go shows no payer field",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "tx1 output: 'STORAGE DELTA:  2885 bytes' / 'STORAGE FEE:    288500ugnot' / 'TOTAL TX COST:  288500ugnot', followed by '> cmp stdout user1_balance_before' passing with 'data: \"1000000000ugnot\"'. emit_event.go:107-111: StorageDepositEvent{BytesDelta, FeeDelta, PkgPath} only.",
+      "repro_path": "tests/b3-lines-removed-reach-catalog-paystorage_cross_tx_drain.txtar"
+    },
+    {
+      "file": "gno.land/pkg/sdk/vm/keeper.go",
+      "line": 1181,
+      "angle": "reach",
+      "summary": "no test drives PayStorage from a realm's init(cur realm) in a 0-fee MsgAddPackage, the second entry path beginPayStorage(ctx, pkgPath) opens and the PayStorage doc names",
+      "failure_scenario": "Every txtar that deploys a PayStorage realm uses 'maketx addpkg -gas-fee 1000000ugnot', so Eligible is false and PayStorage no-ops; a 0-fee addpkg whose init calls PayGas+PayStorage (deposit paid by the new package address, funded by msg.Send sent just before beginPayStorage) is never run. A refactor moving beginPayStorage after init, or dropping it from AddPackage, reddens nothing.",
+      "verify_by": "grep -ln PayStorage gno.land/pkg/integration/testdata/*.txtar | xargs grep -ln 'func init': no hit; grep addpkg in paystorage_*.txtar: only fee-paying deploys",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/runtime/paygas.go",
+      "line": 57,
+      "angle": "catalog",
+      "summary": "PayGas's commitment (pgi.MaxFee, SetLimit) survives a sponsor call that panics and is caught by a caller realm",
+      "settled_by": "grep ReviveEnabled gnovm/pkg/gnolang/machine.go:44 'true if revive() enabled (only in testing mode for now)'; op_call.go:700-704 a panic crossing a realm boundary with no revive frame panics(makeUnhandledPanicError), aborting the tx; nothing in gno.land sets ReviveEnabled"
+    },
+    {
+      "file": "tm2/pkg/std/tx.go",
+      "line": 55,
+      "angle": "removed",
+      "summary": "relaxed ValidateBasic admits GasFee == Coin{} on a chain that never opens the credit window",
+      "settled_by": "tm2/pkg/sdk/auth/ante.go reads right after tx.ValidateBasic(): 'if tx.Fee.GasFee.IsZero() && !isZeroFeeTx { return ... std.ErrInsufficientFee(...) }', the same error class base returned from ValidateBasic for Coin{}"
+    },
+    {
+      "file": "gno.land/pkg/sdk/vm/keeper.go",
+      "line": 2547,
+      "angle": "removed",
+      "summary": "processStorageDeposit's rewritten refund path changes fee-paying txs",
+      "settled_by": "keeper.go MakeGnoTransactionStore creates PayStorageInfo only under 'if pgi := ctx.PayGasInfo(); pgi != nil && pgi.Eligible'; with psi nil sponsorRealm is false and the else branch is base's refundStorageDeposit(ctx, receiver, rlm, depositUnlocked, released)"
+    },
+    {
+      "file": "gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go",
+      "line": 235,
+      "angle": "reach",
+      "summary": "pinned app hash moved",
+      "settled_by": "comment above the constant: 'the PayGas and PayStorage declarations ... are stdlib .gno source bytes committed into genesis, so the root moves'; routine stdlib bump"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/runtime/paygas.go",
+      "line": 57,
+      "angle": "reach",
+      "summary": "PayGas makes the sponsor pay gas of earlier messages it did not call",
+      "settled_by": "gno.land/adr/pr5382_realm_transaction_sponsorship.md:85 'A PayGas commitment covers the gas of every message in the transaction, including ones the sponsor did not call'; PR body: 'Once per tx; covers every message'"
+    },
+    {
+      "file": "gno.land/adr/pr5382_realm_transaction_sponsorship.md",
+      "line": 67,
+      "angle": "removed",
+      "summary": "a doc or code site still names the removed Fee.SponsorStorage",
+      "settled_by": "grep -rni 'SponsorStorage|sponsor_storage|DeferStorage' over .go/.md/.gno/.txtar/.proto: only the ADR's own section 8 recording the removal"
+    }
+  ]
+}

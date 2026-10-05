@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/integration/testdata/paygas_normal_fee_unaffected.txtar",
+      "line": 18,
+      "angle": "lines",
+      "summary": "paygas_normal_fee_unaffected never reads the realm's balance, so it cannot see the wrong charge its header says it guards against",
+      "failure_scenario": "The header says the realm pays nothing on a fee-paying tx and funds it 'so a wrong charge would show', but no balance query follows the call. If the Eligible gate in X_payGas is dropped (`if pgi == nil || !pgi.Eligible` becomes `if pgi == nil`), PayGas arms on a fee-paying tx and settlement debits the realm 1005ugnot on top of the user's fee (realm ends at 9998995ugnot). The PR's txtar stays green. This is the one test that covers the fee-paying path with PayGas, and that path is what every chain runs, opted in or not. The sibling paystorage_normal_fee_unaffected does carry the balance check.",
+      "verify_by": "Add `gnokey query bank/balances/g1pkhf78w28n9m9cgm4nsn3q3cggjy39nu7m3z0f` + `stdout '\"10000000ugnot\"'` after line 18. Mutate paygas.go to drop `|| !pgi.Eligible`. Run TestTestdata/paygas_normal_fee_unaffected (expect PASS) and the copy with the assertion (expect FAIL).",
+      "band": "Warning",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "Unmutated: b5_normal_fee_unaffected PASS. With the Eligible check removed: b5 copy `data: \"9998995ugnot\"` / `FAIL: testdata/b5_normal_fee_unaffected.txtar:35: no match for \"10000000ugnot\" found in stdout`; the PR's copy `--- PASS: TestTestdata/paygas_normal_fee_unaffected (1.39s)`.",
+      "repro_path": "reviews/pr/5xxx/5382-realm-transaction-sponsorship/3-1f043ddb1/tests/b5-lines-reach-catalog-normal-fee-unaffected.txtar"
+    },
+    {
+      "file": "gno.land/pkg/integration/testdata/paygas_credit_exhausted.txtar",
+      "line": 12,
+      "angle": "reach",
+      "summary": "paygas_credit_exhausted sends gas-wanted equal to the 10M credit window, so it cannot show that the window caps a 0-fee tx asking for more; no other test sends a larger gas-wanted",
+      "failure_scenario": "The harness sets MaxGasCreditPerTx = 10_000_000 (testscript_gnoland.go:293), and the txtar asks for exactly -gas-wanted 10000000. If ante.go builds the 0-fee gas meter from tx.Fee.GasWanted instead of the window, the PR's test still hits OOG at 10M and stays green. In that state, a 0-fee tx asking for 100M ran to 919,232,627 gas: free gas paid by nobody, past the bound the window exists to set. Every 0-fee tx in the PR's txtars asks for at most 10M, and the ante/baseapp unit tests ask for 50000 against a 1M window. None of them pins this direction of the cap.",
+      "verify_by": "Run tests/b5-lines-reach-catalog-credit-above-gas-wanted.txtar (gas-wanted 100M, asserts `GAS USED:   100[0-9]{5}$`): PASS at head. sed ante.go `SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)` -> `SetGasMeter(ctx, tx.Fee.GasWanted)`: the probe FAILs and TestTestdata/paygas_credit_exhausted still PASSes.",
+      "band": "Warning",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "Unmutated: `GAS WANTED: 100000000` / `GAS USED:   10000139` / `--- PASS: TestTestdata/b5_credit_above_gas_wanted`. Mutated: `GAS USED:   919232627` / `FAIL: testdata/b5_credit_above_gas_wanted.txtar:30: no match for GAS USED:   100[0-9]{5}$`; PR copy `--- PASS: TestTestdata/paygas_credit_exhausted (1.85s)`.",
+      "repro_path": "reviews/pr/5xxx/5382-realm-transaction-sponsorship/3-1f043ddb1/tests/b5-lines-reach-catalog-credit-above-gas-wanted.txtar"
+    },
+    {
+      "file": "gno.land/pkg/sdk/vm/keeper.go",
+      "line": 1181,
+      "angle": "reach",
+      "summary": "The MsgAddPackage entry for PayGas/PayStorage (a realm's init sponsoring its own 0-fee deploy) is named in the body and the ADR and wired at keeper.go:1181, but no txtar or Go test sends a 0-fee addpkg",
+      "failure_scenario": "Every addpkg in the 28 txtars is fee-paying, and no *_test.go references PayStorage. A regression in AddPackage's beginPayStorage wiring, or in the entry string passed to processStorageDeposit at keeper.go:1250, would ship unseen on the one path where the whole package's bytes are charged to the sponsor. A probe (pre-funded realm address, 0-fee addpkg, init calling PayGas + PayStorage) passes at head: the deployer's balance is unchanged and the realm's balance drops. The path works but nothing pins it.",
+      "verify_by": "grep -rn 'gas-fee 0ugnot' gno.land/pkg/integration/testdata | grep addpkg (no hits); run tests/b5-lines-reach-catalog-addpkg-init-sponsored.txtar as TestTestdata/b5_addpkg_init_sponsored",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "`--- PASS: TestTestdata/b5_addpkg_init_sponsored (1.34s)`. grep for a 0-fee addpkg across testdata: no hits outside the probe.",
+      "repro_path": "reviews/pr/5xxx/5382-realm-transaction-sponsorship/3-1f043ddb1/tests/b5-lines-reach-catalog-addpkg-init-sponsored.txtar"
+    },
+    {
+      "file": "gno.land/pkg/integration/testdata/paygas_real_multi_msg.txtar",
+      "line": 44,
+      "angle": "lines",
+      "summary": "user1's balance is copied before the tx (line 28) and queried after it (line 44), but neither value is compared or asserted",
+      "failure_scenario": "The comment above line 44 says user1 pays the storage that counter.Increment grows, but the query carries no stdout check and user1_balance_before is never used. If user1 paid the gas, or the payer realm covered mm_counter's storage, the test stays green. The test checks only that the payer's balance moved.",
+      "verify_by": "Read lines 27-44: no `cmp` or `stdout` follows the final `gnokey query bank/balances/$user1_user_addr`, and user1_balance_before has no reader.",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/integration/testdata/paygas_cost_comparison.txtar",
+      "line": 32,
+      "angle": "lines",
+      "summary": "paygas_cost_comparison compares nothing: its three calls each assert only `GAS USED:   \\d+`",
+      "failure_scenario": "The header promises a gas comparison between a direct call and the PayGas-wrapped one (the overhead of PayGas + PayStorage + the cross call). No assertion relates the three figures, so any gas regression in the sponsored path passes. It is a print, not a test.",
+      "verify_by": "Read lines 19-35: the only checks are `stdout OK!` and `stdout 'GAS USED:   \\d+'`.",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/integration/node_testing.go",
+      "line": 103,
+      "angle": "reach",
+      "summary": "AllowZeroFeeTxs: true on TestingMinimalNodeConfig reaches every caller (gnoclient, gnoweb, gnofaucet, process.go nodes), not only the txtars",
+      "settled_by": "grep -n isSponsoredTx tm2/pkg/sdk/baseapp.go -> 796: `return tx.Fee.GasFee.IsZero() && cp != nil && cp.Block != nil && cp.Block.MaxGasCreditPerTx > 0`; the window is set only at testscript_gnoland.go:293, so the flag is inert for every other caller"
+    },
+    {
+      "file": "gno.land/pkg/integration/node_testing.go",
+      "line": 103,
+      "angle": "catalog",
+      "summary": "the txtar harness opens the window for every txtar, so the shipped config (window 0, opt-in off) has no 0-fee rejection coverage",
+      "settled_by": "grep -n '^func Test' tm2/pkg/sdk/auth/ante_test.go tm2/pkg/sdk/baseapp_test.go -> ante_test.go:413 TestAnteHandlerRejectsZeroFeeWhenCreditWindowDisabled, baseapp_test.go:601 TestCheckTxZeroFeeRejectedWhenNotOptedIn"
+    }
+  ]
+}

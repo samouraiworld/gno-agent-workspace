@@ -1,0 +1,49 @@
+# paygas_normal_fee_unaffected, with the assertion its header promises.
+#
+# The PR's paygas_normal_fee_unaffected.txtar says "the realm pays nothing" and
+# funds the realm "so a wrong charge would show", then never reads the realm's
+# balance. This copy adds that read. It passes at 1f043ddb1, and fails once
+# PayGas is made to arm on a fee-paying tx, which the PR's own copy does not.
+#
+# Repro from a plain clone of gnolang/gno:
+#   git fetch origin pull/5382/head && git checkout 1f043ddb131e54e1410aebabd41d04ed49e37e1e
+#   cp <this file> gno.land/pkg/integration/testdata/b5_normal_fee_unaffected.txtar
+#   go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/b5_normal_fee_unaffected$'
+#     -> PASS
+#   # mutation: let PayGas arm on a fee-paying tx
+#   sed -i 's/if pgi == nil || !pgi.Eligible {/if pgi == nil {/' gnovm/stdlibs/chain/runtime/paygas.go
+#   go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/b5_normal_fee_unaffected$'
+#     -> FAIL on the realm balance line
+#   go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/paygas_normal_fee_unaffected$'
+#     -> PASS: the PR's copy stays green under the same mutation
+#   git checkout -- gnovm/stdlibs/chain/runtime/paygas.go
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/normalfee -pkgpath gno.land/r/test/normalfee -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx send -send 10000000ugnot -to g1pkhf78w28n9m9cgm4nsn3q3cggjy39nu7m3z0f -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/normalfee -func DoWork -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '"done" string'
+
+## the line the PR's copy is missing: the realm paid nothing
+gnokey query bank/balances/g1pkhf78w28n9m9cgm4nsn3q3cggjy39nu7m3z0f
+stdout '"10000000ugnot"'
+
+-- normalfee/gnomod.toml --
+module = "normalfee"
+gno = "0.9"
+
+-- normalfee/normalfee.gno --
+package normalfee
+
+import "chain/runtime"
+
+func DoWork(cur realm) string {
+	runtime.PayGas(1000000, cur)
+	return "done"
+}

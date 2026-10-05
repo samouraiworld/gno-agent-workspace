@@ -1,0 +1,48 @@
+# paygas_credit_exhausted, with gas-wanted ABOVE the credit window.
+#
+# The PR's paygas_credit_exhausted.txtar claims a 0-fee tx is cut off at
+# MaxGasCreditPerTx, but sends gas-wanted 10000000, exactly the window the
+# txtar harness sets. A 0-fee meter built from tx.Fee.GasWanted instead of the
+# window passes it unchanged. This copy asks for 100000000 and pins where the
+# meter stopped: at the 10M window, not at gas-wanted.
+#
+# Repro from a plain clone of gnolang/gno:
+#   git fetch origin pull/5382/head && git checkout 1f043ddb131e54e1410aebabd41d04ed49e37e1e
+#   cp <this file> gno.land/pkg/integration/testdata/b5_credit_above_gas_wanted.txtar
+#   go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/b5_credit_above_gas_wanted$'
+#     -> PASS
+#   # mutation: build the 0-fee gas meter from gas-wanted, not the credit window
+#   sed -i 's/newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)/newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)/' tm2/pkg/sdk/auth/ante.go
+#   go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/b5_credit_above_gas_wanted$'
+#     -> FAIL
+#   go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/paygas_credit_exhausted$'
+#     -> PASS: the PR's copy stays green under the same mutation
+#   git checkout -- tm2/pkg/sdk/auth/ante.go
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/exhaust -pkgpath gno.land/r/test/exhaust -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## 0-fee, gas-wanted 10x the window: the window must still be the cap
+! gnokey maketx call -pkgpath gno.land/r/test/exhaust -func HeavyWork -gas-fee 0ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'out of gas'
+stdout 'GAS USED:   100[0-9]{5}$'
+
+-- exhaust/gnomod.toml --
+module = "exhaust"
+gno = "0.9"
+
+-- exhaust/exhaust.gno --
+package exhaust
+
+import "chain/runtime"
+
+func HeavyWork(cur realm) string {
+	s := ""
+	for i := 0; i < 100000; i++ {
+		s += "x"
+	}
+	runtime.PayGas(1000000, cur)
+	return s
+}

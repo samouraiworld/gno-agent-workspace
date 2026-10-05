@@ -1,0 +1,42 @@
+# A user type carrying every exported realm method cannot stand in for realm:
+# addpkg of a realm passing F{} to runtime.PayGas is refused at type-check, so
+# no victim's address can be named as the gas payer. Passes at 1f043ddb1.
+#
+# from a gnolang/gno clone:
+#   gh pr checkout 5382 -R gnolang/gno && git checkout 1f043ddb1
+#   cp judge-13-realm-forgery.txtar gno.land/pkg/integration/testdata/
+#   go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/judge-13-realm-forgery$' -v
+#   rm gno.land/pkg/integration/testdata/judge-13-realm-forgery.txtar
+
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK/forger -pkgpath gno.land/r/test/forger -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'seal'
+
+-- forger/gnomod.toml --
+module = "gno.land/r/test/forger"
+gno = "0.9"
+
+-- forger/forger.gno --
+package forger
+
+import "chain/runtime"
+
+type F struct{}
+
+func (F) Address() address    { return address("g1pkhf78w28n9m9cgm4nsn3q3cggjy39nu7m3z0f") }
+func (F) PkgPath() string     { return "gno.land/r/test/victim" }
+func (F) Previous() realm     { panic("x") }
+func (F) IsCode() bool        { return true }
+func (F) IsUser() bool        { return false }
+func (F) IsUserCall() bool    { return false }
+func (F) IsUserRun() bool     { return false }
+func (F) IsEphemeral() bool   { return false }
+func (F) IsCurrent() bool     { return true }
+func (F) Sub(s string) realm  { panic("x") }
+func (F) Subpath() string     { return "" }
+func (F) String() string      { return "fake" }
+
+func Pay(cur realm) {
+	runtime.PayGas(1000000, F{})
+}
