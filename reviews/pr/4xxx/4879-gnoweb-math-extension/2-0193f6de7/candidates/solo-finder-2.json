@@ -1,0 +1,93 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 169,
+      "angle": "reach",
+      "summary": "Each unclosed inline `$` opener scans the whole rest of its line and the next line for a closer, so a line of openers renders in quadratic time: 1 MiB takes ~57-60 s per page view, against 40 ms at the merge base",
+      "failure_scenario": "A realm's Render returns one 1 MiB line of `$a ` (349,525 openers, which fits under gnoweb's 1 MiB maxMarkdownRenderBytes). findDollarClose skips every `$` that follows a space, so each opener walks to the end of the line and then through the next line. Each page view costs about 57-60 s of gnoweb CPU, and a few concurrent requests occupy every core. The merge base renders the same input in 40.5 ms. Unclosed `\\\\(a ` openers grow 4x per doubling too (they use bytes.Index). The 1 MiB cap was set because ~8 s was already too much.",
+      "verify_by": "cp tests/solo-finder-2-inline-dollar-quadratic.go gno.land/pkg/gnoweb/markdown/zz_quad_repro_test.go && go test -v -count=1 -timeout 600s -run TestInlineDollarQuadratic ./gno.land/pkg/gnoweb/markdown/ at 0193f6de7 and at 87f0357fe: time grows 4x per doubling at head, linearly at base",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head 0193f6de7: n=8192 34.1ms, n=16384 138.1ms, n=32768 556.2ms, n=349525 (1048575 bytes) 56.76s; 512KiB openers + 512KiB next line 37.2s; `\\\\(a ` 16384 -> 57ms, 32768 -> 207ms. Merge base 87f0357fe (overlay, same input): n=8192 1.2ms, n=16384 1.9ms, n=32768 4.0ms, n=349525 40.5ms",
+      "repro_path": "tests/solo-finder-2-inline-dollar-quadratic.go"
+    },
+    {
+      "index": 1002,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 356,
+      "angle": "claims",
+      "summary": "The 8 KiB cap bounds one expression but not a page. Aligned `&` cells render at 107x, which breaks the PR's own FuzzMathRender bound (64x+4096), and a 1 MiB page renders to 112 MB of HTML",
+      "failure_scenario": "A realm returns 1 MiB of markdown made of 128 `$\\begin{aligned}&&&...\\end{aligned}$` expressions, each under 8 KiB. Every `&` emits an <mtd> carrying text-align and padding CSS at a 32-space indent (environnements.go:227-234). One render produces 111,811,584 bytes of HTML and allocates about 2.5 GB in 1.4 s. The worst existing non-math shape at the same 1 MiB is nested blockquotes: 28 MB of output and 225 MB of allocation. With the input as a corpus entry, FuzzMathRender fails with 'output too large: 872458 bytes for 8180 bytes of input', so the 'output size stays linear' bound the fuzz header states does not hold.",
+      "verify_by": "cp tests/solo-finder-2-page-amplification.go gno.land/pkg/gnoweb/markdown/zz_amp_repro_test.go && go test -v -run TestPageAmplification ./gno.land/pkg/gnoweb/markdown/; then add the aligned corpus file from the header and run go test -run FuzzMathRender ./gno.land/pkg/gnoweb/markdown/ (expect FAIL at ext_math_test.go:137)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "aligned-amp in=1048576 out=111811584 ratio=107 alloc=2538MB time=1.38s; pmatrix-amp ratio=54 alloc=1772MB; letters ratio=18; blockquote-base (no math) out=28200960 ratio=27 alloc=225MB time=1.54s. FuzzMathRender with aligned corpus: '--- FAIL: FuzzMathRender ... ext_math_test.go:137: output too large: 872458 bytes for 8180 bytes of input'",
+      "repro_path": "tests/solo-finder-2-page-amplification.go"
+    },
+    {
+      "index": 1003,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 284,
+      "angle": "lines",
+      "summary": "The block lookahead accepts any later line containing `$$` within 8 KiB, past blank lines, headings and code fences. A stray `$$` line therefore still swallows everything up to a later inline `$$x$$` and renders it as math identifiers",
+      "failure_scenario": "In a board or comment realm, one post contains a line that is only `$$`. A later post within 8 KiB uses `$$x$$` inline. hasClosingLine finds that line, the block opens, and Continue appends every line in between, blank lines included. The other posts' headings, paragraphs and fenced code then render as one <math> of <mi> letters with a `?#` merror, and the tail after the inline `$$` is left as a stray `<p>x$$ display.</p>`. Without the later `$$` the same input renders correctly, so the round-1 fix only closed the never-closed case. Pandoc ends `$$` math at a blank line.",
+      "verify_by": "cp tests/solo-finder-2-block-swallow.go gno.land/pkg/gnoweb/markdown/zz_swallow_repro_test.go && go test -v -run TestBlockSwallow ./gno.land/pkg/gnoweb/markdown/: case 1 output has no <h1> or <pre>",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "case 1 OUT: <math class=\"math-displaystyle\" ...> <mi>f</mi> <mi>o</mi> ... <merror title=\"Unexpanded macro argument\">?#</merror> <mi>H</mi> <mi>e</mi> ... <mo>`</mo> ... <annotation encoding=\"application/x-tex\"> forgot to close # Heading A paragraph. ```go code() ``` Later, inline </annotation> </semantics> </math> <p>x$$ display.</p>; case 2 (no later $$) OUT: <p>$$ forgot to close</p> <h1>Heading</h1> <p>A paragraph with no closer.</p>",
+      "repro_path": "tests/solo-finder-2-block-swallow.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 359,
+      "angle": "round-1 race",
+      "summary": "Round-1 Warning: one converter shared across concurrent renders (data race)",
+      "settled_by": "go test -race -run 'TestSharedConverterRace|TestMathConcurrentRender' at head -> 'ok 1.139s'. Mutation converter := f2shared (package-level) -> 'WARNING: DATA RACE ... mathml/mathml.go:192', so ci-race.yml's TestMathConcurrentRender step catches a regression. Closed."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/parse.go",
+      "line": 87,
+      "angle": "round-1 blowup",
+      "summary": "Round-1 Warning: unbounded nested-\\sqrt output expansion",
+      "settled_by": "Round-1 TestAmplification at head: 'depth=8000 input=56003 output=56042 ratio=1x' (it was 2291x). An 18-shape nesting sweep (sqrt, brace, frac, sup, left, matrix, overset, underbrace, color, raisebox, mathbf, binom, stackrel, boxed, hat, cases, array, sqrt[]) converts at depth 63 and falls back at 64 (\\color at 32). Ratio stays at most 50, max time 0.64ms, no exponential path. Closed."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 215,
+      "angle": "round-1 block parser",
+      "summary": "Round-1 Warning: block parser swallows `\\alpha is greek` / `$100 is the price`",
+      "settled_by": "Round-1 TestContentLoss at head: 'OUT: <p>\\alpha is greek</p>' and 'OUT: <p>$100 is the price</p>'. Closed for those shapes; the residual shape is candidate 1003."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 246,
+      "angle": "reach",
+      "summary": "hasClosingLine cache could go quadratic or stale on many unclosed display openers",
+      "settled_by": "Timed `\\\\[` openers at head: ams-para 4096/8192/16384 -> 6.0/11.9/23.6ms, ams-list -> 5.9/17.2/24.4ms, ams-quote -> 2.6/7.2/12.8ms, all linear. Blockquote, list-item and mixed `\\\\[`/`$$` blocks render correctly. A `$$` opener line contains its own close tag, so `$$` openers cannot pile up unclosed."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+      "line": 224,
+      "angle": "concurrency",
+      "summary": "precompiled_commands holds package-level *MMLNode values shared across concurrent renders, so the per-render converter would not cover them",
+      "settled_by": "200 concurrent renders of 12 mutator inputs (\\mathbf{\\varinjlim}, \\varinjlim\\limits_x, \\varliminf\\nolimits_n, ...) under -race -> 'ok 1.153s'. Sequential before/after renders of all four commands -> unchanged=true."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go",
+      "line": 183,
+      "angle": "rollout",
+      "summary": "Two versions at once: escaping and bounds moved to write time could leave old-shape HTML served after rollout",
+      "settled_by": "All escaping and caps run in renderMath and MMLNode.Write on every render. grep -rn -i cache gno.land/pkg/gnoweb/*.go | grep -i 'render|html|page' -> no hits, so no stored HTML outlives the old image."
+    }
+  ]
+}

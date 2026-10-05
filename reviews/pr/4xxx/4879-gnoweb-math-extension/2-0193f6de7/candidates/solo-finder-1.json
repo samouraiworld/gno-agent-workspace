@@ -1,0 +1,45 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 284,
+      "angle": "reach",
+      "summary": "Round-1 'block parser swallows lines' still reproduces: an unclosed $$ (or \\\\[) line opens a display block whenever the delimiter appears on any later line within 8KB, across blank lines, headings, code fences and container ends",
+      "failure_scenario": "A page (or a board realm rendering user posts) with one unclosed '$$' line followed within 8KB by any later '$$', e.g. '$$\\noops forgot to close\\n\\n## Section 2\\n\\nMore text with $$y$$ here.': hasClosingLine finds the inline '$$y$$' two blocks down, the block opens, and the heading and paragraph render as one run of italic math letters ('## Section 2' becomes <merror>?#</merror><mi>S</mi>...), leaving 'y$$ here.' as text. When the later '$$' sits inside a fenced code block, the math swallows the fence opener and the fence's closing ``` opens a new fence that never closes, so everything to the end of the page renders as code. A '$$' inside a blockquote or list item is closed by a '$$' outside its container and takes the quoted/listed text with it. The author's thread reply says the block 'only opens on $$ / \\\\[ when a closing delimiter actually follows'; the delimiter found can belong to a different block, and TestMathDoesNotSwallowText only pins the shape with no later delimiter.",
+      "verify_by": "cp tests/solo-finder-1-unclosed-display-swallows_test.go gno.land/pkg/gnoweb/markdown/finder1_swallow_test.go && go test -run TestFinder1UnclosedDisplaySwallows -v ./gno.land/pkg/gnoweb/markdown/ at head 0193f6de7: expect PASS if closed, observe 4/4 FAIL",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head 0193f6de7: --- FAIL: TestFinder1UnclosedDisplaySwallows (4/4 subtests FAIL). Rendered: '$$\\noops forgot to close\\n\\n## Section 2\\n\\nMore text with $$y$$ here.' -> '<math ...display=block> ... <merror title=\"Unexpanded macro argument\">?#</merror> <merror ...>?#</merror> <mi>S</mi><mi>e</mi>...<mn>2</mn><mi>M</mi><mi>o</mi>... <annotation> oops forgot to close ## Section 2 More text with </annotation> </math> <p>y$$ here.</p>'; '$$\\nunclosed\\n\\n```go\\n$$\\n```\\n\\nlast paragraph' -> '<math>...<mo>`</mo><mo>`</mo><mo>`</mo><mi>g</mi><mi>o</mi>...</math> <pre><code> last paragraph </code></pre>'. Merge base 87f0357fe has no math extension (ls gno.land/pkg/gnoweb/markdown | grep -c math -> 0), so the $$ lines are plain text there. A one-line blank-line stop in the lookahead, tried in the scratch tree, did not fix it and broke TestMathDoesNotSwallowText and TestSanitizeIntegration/block-backslash-parity-explicit, so the fix shape is left to the author.",
+      "repro_path": "tests/solo-finder-1-unclosed-display-swallows_test.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go",
+      "line": 32,
+      "angle": "lines",
+      "summary": "writeEscaped passes every well-formed entity reference through, including ones the page author typed, so \\text{} content and the x-tex annotation no longer show the source as written",
+      "failure_scenario": "Author writes $\\text{&lt;b&gt;}$ (or any &name; in TeX): the mtext shows '<b>' instead of the literal '&lt;b&gt;', and the application/x-tex annotation, meant to carry the TeX source, reads '\\text{<b>}', not what was typed. The pass-through exists for symbol-table strings such as '&OverBrace;' and postProcessChars output, but it is applied to user-sourced text too.",
+      "verify_by": "render $\\text{&lt;b&gt;}$ through NewGnoExtension: observe '<mtext>&lt;b&gt;</mtext>' and '<annotation ...>\\text{&lt;b&gt;}</annotation>' (decoded by the browser as '<b>')",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "IN : $\\text{&lt;b&gt;} \\text{&#34;}$  OUT: ... <mtext>&lt;b&gt;</mtext> <mtext>&amp;34;</mtext> ... <annotation encoding=\"application/x-tex\">\\text{&lt;b&gt;} \\text{&#34;}</annotation>",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {"file": "gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go", "line": 196, "angle": "round-1 carry", "summary": "Round-1 Warning: MMLNode.Write emits text and attribute values unescaped (\\text breakout, \\class attribute injection)", "settled_by": "go test -run TestZZRound1 at head: '$$\\text{</math><script>alert('XSS')</script>}$$' -> '<mtext>&lt;/math&gt;&lt;script&gt;alert('XSS')&lt;/script&gt;</mtext>'; '$\\class{x\" onclick=\"alert(1)}{y}$' -> '<mi>y</mi>'. Sibling attribute sinks also escaped: \\multirow -> 'rowspan=\"2&#34; onclick=&#34;x\"', \\textcolor/\\color -> 'mathcolor=\"red&#34; onclick=&#34;x\"', \\begin{<script>}, \\operatorname{<img ...>}, \\mathrm{</mi><script>} all render as escaped text"},
+    {"file": "gno.land/pkg/gnoweb/markdown/ext_math.go", "line": 370, "angle": "round-1 carry", "summary": "Round-1 Warning: raw-LaTeX fallbacks write tex unescaped", "settled_by": "head: '$\\begin{matrix}</span><script>alert(1)</script>$' -> '<p><span class=\"math-inline\">\\begin{matrix}&lt;/span&gt;&lt;script&gt;alert(1)&lt;/script&gt;</span></p>'"},
+    {"file": "gno.land/pkg/gnoweb/markdown/ext_math.go", "line": 215, "angle": "round-1 carry", "summary": "Round-1 Warning repro: \\alpha and $100 lines swallowed by the block parser", "settled_by": "head: '\\alpha is greek' -> '<p>\\alpha is greek</p>'; '$100 is the price' -> '<p>$100 is the price</p>' (the class survives in a sibling shape, candidate 1)"},
+    {"file": "gno.land/pkg/gnoweb/markdown/ext_math.go", "line": 339, "angle": "round-1 carry", "summary": "Round-1 Warning: one converter shared across renders races; also checked the package-level precompiled_commands nodes for cross-render mutation", "settled_by": "go test -race -run 'TestSharedConverterRace|TestZZPrecompiledRace|TestMathConcurrentRender' at head: PASS, no DATA RACE; TestZZPrecompiled rendered 14 mutating shapes around \\varliminf/\\varinjlim and never logged GLOBAL MUTATED (commands.go:220 wraps the shared node in a fresh mrow)"},
+    {"file": "gno.land/pkg/gnoweb/markdown/mathml/parse.go", "line": 86, "angle": "round-1 carry", "summary": "Round-1 Warning: nested \\sqrt amplifies output 2291x", "settled_by": "head round-1 repro: depth=1000 input=7003 output=7042 ratio=1.0x math=false ... depth=8000 input=56003 output=56042 ratio=1.0x math=false"},
+    {"file": "gno.land/pkg/gnoweb/markdown/mathml/commands_defs.go", "line": 145, "angle": "catalog", "summary": "\\raisebox passes an unvalidated length to mpadded voffset, the same overlay concern the \\class removal cites", "settled_by": "head renders '<mpadded voffset=\"-100vh\">'; gnoweb main.css: '.b-header{position:sticky;top:0}' with 'z-index:var(--g-z-max)' and '.b-sidebar{...position:relative}', subheaders sticky with z-index, and no overflow clip on .c-realm-view: a voffset shift paints non-positioned content under the positioned chrome, so it only overlaps the realm's own article column, which the author already controls"},
+    {"file": "gno.land/pkg/gnoweb/markdown/mathml/mmlnode.go", "line": 33, "angle": "reach", "summary": "entityRef.FindString per '&' on an 8KB annotation could be quadratic (backtracker clears its bitmap per call)", "settled_by": "TestZZTime at head: 'amp matrix 8K in=8178 out=220436 time=5.6ms', 'amp matrix 4K in=4103 time=2.3ms', 'text amp 8K time=2.7ms': linear"},
+    {"file": "gno.land/pkg/gnoweb/markdown/mathml/symbols.go", "line": 2648, "angle": "lines", "summary": "symbol 'sector' carries an unterminated entity '&#x2314' that writeEscaped would now print as text", "settled_by": "symbols.go:2647 sets char \"⌔\", and both emit sites (commands.go:204, commands.go:369) use char before entity"},
+    {"file": "gno.land/pkg/gnoweb/markdown/mathml/mathml.go", "line": 88, "angle": "reach", "summary": "\\newcommand macro expansion could bypass the depth and size bounds", "settled_by": "head: '$\\newcommand{\\x}{\\text{</math><script>}}\\x$' -> '<merror>x</merror>': no macro expansion is performed"}
+  ]
+}
