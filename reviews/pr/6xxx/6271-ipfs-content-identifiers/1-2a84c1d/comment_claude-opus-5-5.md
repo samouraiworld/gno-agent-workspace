@@ -1,4 +1,5 @@
 # Review: [#6271](https://github.com/gnolang/gno/pull/6271)
+Posted: https://github.com/gnolang/gno/pull/6271#pullrequestreview-5416998028
 Event: COMMENT
 Verdict: APPROVE. The code holds every strictness rule and cap it states; two Missing tests leave the CIDv0/CIDv1 discriminators and the gas-only caps in `Parse` and `DecodeFirst` unpinned, and neither blocks.
 Model: claude-opus-5-5, finders xhigh, judge and writer high, standard review, solo wider
@@ -11,7 +12,7 @@ Round: 1. Two finders, one reflector pass, 3 candidates: 2 from the finders, eac
 
 > AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6271-ipfs-content-identifiers/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6271-ipfs-content-identifiers/1-2a84c1d/claims.md) · Status: APPROVE
 
-## examples/gno.land/p/omarsy/cid/v0/cid.gno:32 [gh](https://github.com/gnolang/gno/blob/2a84c1dcdbd91a15a18923f56180b6367de97e21/examples/gno.land/p/omarsy/cid/v0/cid.gno#L32) · [↗](../../../../../.worktrees/gno-review-6271/examples/gno.land/p/omarsy/cid/v0/cid.gno#L32) · Missing test
+## examples/gno.land/p/omarsy/cid/v0/cid.gno:32 [gh](https://github.com/gnolang/gno/blob/2a84c1dcdbd91a15a18923f56180b6367de97e21/examples/gno.land/p/omarsy/cid/v0/cid.gno#L32) · [↗](../../../../../.worktrees/gno-review-6271/examples/gno.land/p/omarsy/cid/v0/cid.gno#L32) · Missing test [posted](https://github.com/gnolang/gno/pull/6271#discussion_r4185805041)
 
 Missing test: no test fails when this `len(s) == 46` bound is relaxed to `len(s) >= 2` or the `maxCIDLen` truncation in [`DecodeFirst`](https://github.com/gnolang/gno/blob/2a84c1dcdbd91a15a18923f56180b6367de97e21/examples/gno.land/p/omarsy/cid/v0/cid.gno#L66-L68) · [↗](../../../../../.worktrees/gno-review-6271/examples/gno.land/p/omarsy/cid/v0/cid.gno#L66) is removed.
 
@@ -93,7 +94,7 @@ truncation removed:
 
 </details>
 
-## examples/gno.land/p/omarsy/cid/v0/cid.gno:116 [gh](https://github.com/gnolang/gno/blob/2a84c1dcdbd91a15a18923f56180b6367de97e21/examples/gno.land/p/omarsy/cid/v0/cid.gno#L116) · [↗](../../../../../.worktrees/gno-review-6271/examples/gno.land/p/omarsy/cid/v0/cid.gno#L116) · Missing test
+## examples/gno.land/p/omarsy/cid/v0/cid.gno:116 [gh](https://github.com/gnolang/gno/blob/2a84c1dcdbd91a15a18923f56180b6367de97e21/examples/gno.land/p/omarsy/cid/v0/cid.gno#L116) · [↗](../../../../../.worktrees/gno-review-6271/examples/gno.land/p/omarsy/cid/v0/cid.gno#L116) · Missing test [posted](https://github.com/gnolang/gno/pull/6271#discussion_r4185805053)
 
 Missing test: no test fails when this `b[0] == 0x12` check is dropped, though `DecodeFirst` then returns the first 34 bytes of a codec-`0x20` CIDv1 as a CIDv0 with no error.
 
