@@ -1,6 +1,7 @@
 # Review: [#6293](https://github.com/gnolang/gno/pull/6293)
+Posted: https://github.com/gnolang/gno/pull/6293#pullrequestreview-5456854200
 
-Event: APPROVE
+Event: COMMENT
 Verdict: APPROVE. Every link on both home files resolves on its network and the two removed redirects pointed at 404s; the one open concern is a Suggestion to map `/newsletter` to the Mailchimp form, which depends on the newsletter question the description leaves open.
 Model: claude-opus-5-5, standard review (finder xhigh, judge and writer high)
 Commit: c2e4e0207310376989b2b8d781b002a738fafcb2
@@ -10,7 +11,9 @@ Round: 1. One finder, one reflector filing no candidate of its own, one candidat
 
 ## Body
 
-## gno.land/pkg/gnoweb/redirect.go:10 [gh](https://github.com/gnolang/gno/blob/c2e4e0207310376989b2b8d781b002a738fafcb2/gno.land/pkg/gnoweb/redirect.go#L10) · [↗](../../../../../.worktrees/gno-review-6293/gno.land/pkg/gnoweb/redirect.go#L10) · Suggestion
+> AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6293-mainnet-home-visitor-routing/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6293-mainnet-home-visitor-routing/1-c2e4e02/claims.md) · Status: APPROVE
+
+## gno.land/pkg/gnoweb/redirect.go:10 [gh](https://github.com/gnolang/gno/blob/c2e4e0207310376989b2b8d781b002a738fafcb2/gno.land/pkg/gnoweb/redirect.go#L10) · [↗](../../../../../.worktrees/gno-review-6293/gno.land/pkg/gnoweb/redirect.go#L10) · Suggestion [posted](https://github.com/gnolang/gno/pull/6293#discussion_r4219148856)
 
 Suggestion: `Redirects` has no `/newsletter` entry, so old `gno.land/newsletter` links answer 404; if the Mailchimp list stays, pointing `/newsletter` at its subscribe URL keeps them working.
 

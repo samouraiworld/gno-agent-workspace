@@ -1,5 +1,6 @@
 # Review: [#6299](https://github.com/gnolang/gno/pull/6299)
-Event: REQUEST_CHANGES
+Posted: https://github.com/gnolang/gno/pull/6299#pullrequestreview-5456859500
+Event: COMMENT
 Verdict: REQUEST CHANGES. One Warning the branch introduces in the new frame parser: an HTML block inside a frame either swallows a card's opening tag or lets a commented-out columns line render live, and both push the grid out of its frame.
 Model: claude-opus-5-5, standard review (finders xhigh, the other stages high)
 Commit: 1f9bf51d8e71902053e3bd92986f92d24431efc2
@@ -9,12 +10,14 @@ Round: 1. 5 finders, one reflector, 7 candidates, the Criticals and Warnings run
 
 ## Body
 
+> AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6299-gnoweb-frame-block/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6299-gnoweb-frame-block/1-1f9bf51/claims.md) · Status: REQUEST CHANGES
+
 - Nit: a raw NUL byte in [`invalid_unicode_lookalikes.md.txtar`](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_unicode_lookalikes.md.txtar#L6) makes git and GitHub show the golden as binary, hiding all three inputs and their output. The sanitize goldens write such bytes as text through [`// INPUT_ESCAPED`](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/sanitize_integration_test.go#L204), which the `ext_frame` golden harness does not read.
 - SKIP Nit: the [`trimSentinel` comment](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/examples/gno.land/p/nt/markdown/foreign/v0/foreign.gno#L223) names `trimForeignLine`, which no function in the tree carries, for the trim the parser performs through `trimTagLine`.
 
   Not posted: the line sits outside the diff, the finding is about a comment's wording, and it rests on the finder's read alone.
 
-## gno.land/pkg/gnoweb/markdown/ext_frame.go:270 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/ext_frame.go#L270) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L270) · Warning
+## gno.land/pkg/gnoweb/markdown/ext_frame.go:270 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/ext_frame.go#L270) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L270) · Warning [posted](https://github.com/gnolang/gno/pull/6299#discussion_r4219153235)
 `frameHTMLBlockParser.Continue` lets an HTML block in a frame swallow a card's `<gno-frame>` or end at a commented-out `<gno-columns>`, and either pushes the grid out of the frame.
 
 > Headless Chromium captured this branch's gnoweb rendering the repro's two failing cases from a stub client, as written on the left and without the HTML block on the right.
@@ -100,19 +103,19 @@ FAIL
 
 </details>
 
-## gno.land/adr/pr6299_gnoweb_frame.md:157-158 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/adr/pr6299_gnoweb_frame.md?plain=1#L157-L158) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/adr/pr6299_gnoweb_frame.md#L157) · Nit
+## gno.land/adr/pr6299_gnoweb_frame.md:157-158 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/adr/pr6299_gnoweb_frame.md?plain=1#L157-L158) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/adr/pr6299_gnoweb_frame.md#L157) · Nit [posted](https://github.com/gnolang/gno/pull/6299#discussion_r4219153252)
 Nit: this branch's [`utils.go`](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/utils.go#L219) adds `trimTagLine` and its `utils_test.go` lacks the [`FuzzScanGnoTag`](https://github.com/gnolang/gno/blob/065ec369b321c207815f82b0c1dbf2b0f9f10b01/gno.land/pkg/gnoweb/markdown/utils_test.go#L48) of #6298, so dropping either copy breaks the build or loses the fuzz test.
 
-## gno.land/pkg/gnoweb/markdown/ext_frame.go:231 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/ext_frame.go#L231) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L231) · Nit
+## gno.land/pkg/gnoweb/markdown/ext_frame.go:231 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/ext_frame.go#L231) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L231) · Nit [posted](https://github.com/gnolang/gno/pull/6299#discussion_r4219153267)
 Nit: a refused card's close, at the depth cap or on an attribute, [ends the outer frame](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_card_at_depth_cap.md.txtar#L18-L20), since only the [inner-frame case](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/ext_frame.go#L225-L227) marks a card open.
 
-## gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-frame-indented.txtar:17 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-frame-indented.txtar#L17) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-frame-indented.txtar#L17) · Nit
+## gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-frame-indented.txtar:17 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-frame-indented.txtar#L17) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-frame-indented.txtar#L17) · Nit [posted](https://github.com/gnolang/gno/pull/6299#discussion_r4219153276)
 Nit: `blockrich-gno-frame-indented` renders an indented frame tag as a lone backslash and stripped HTML instead of the promised [literal text](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno#L391), since [`escapeBlockHazardsImpl`](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gnovm/stdlibs/chain/markdown/markdown.go#L430-L432) writes the backslash before the indent.
 
-## gno.land/pkg/gnoweb/markdown/utils.go:144 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/utils.go#L144) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/utils.go#L144) · Nit
+## gno.land/pkg/gnoweb/markdown/utils.go:144 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/utils.go#L144) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/utils.go#L144) · Nit [posted](https://github.com/gnolang/gno/pull/6299#discussion_r4219153287)
 Nit: `gnoTagLineParser` has no caller on this branch outside [`utils_tagline_test.go`](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/utils_tagline_test.go#L15), so merged alone it ships a parser that no extension registers. Its registrations live in [#6297](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L338) and [#6298](https://github.com/gnolang/gno/blob/065ec369b321c207815f82b0c1dbf2b0f9f10b01/gno.land/pkg/gnoweb/markdown/ext_buttons.go#L190), and the linter's [`unused`](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/.github/golangci.yml#L30) check counts the [test call](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/.github/golangci.yml#L8) as a use.
 
-## gno.land/pkg/gnoweb/markdown/ext_frame.go:167-172 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/ext_frame.go#L167-L172) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L167) · Suggestion
+## gno.land/pkg/gnoweb/markdown/ext_frame.go:167-172 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/ext_frame.go#L167-L172) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L167) · Suggestion [posted](https://github.com/gnolang/gno/pull/6299#discussion_r4219153296)
 Suggestion: the `GnoColumnTagSep` and `GnoColumnTagClose` cases [end the frame](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/golden/ext_frame/columns_sep_outside_grid_in_frame.md.txtar#L8-L12) on a stray `<gno-columns-sep>` or [`</gno-columns>`](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/golden/ext_frame/columns_stray_close_in_frame.md.txtar#L7-L10) with no grid open, and I think such a tag belongs inside the frame.
 
 ## SKIP gno.land/pkg/gnoweb/markdown/ext_frame.go:160 [gh](https://github.com/gnolang/gno/blob/1f9bf51d8e71902053e3bd92986f92d24431efc2/gno.land/pkg/gnoweb/markdown/ext_frame.go#L160) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L160) · Missing test

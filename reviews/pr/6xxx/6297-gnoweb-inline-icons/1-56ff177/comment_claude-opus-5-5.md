@@ -1,6 +1,7 @@
 # Review: [#6297](https://github.com/gnolang/gno/pull/6297)
+Posted: https://github.com/gnolang/gno/pull/6297#pullrequestreview-5456855629
 
-Event: REQUEST_CHANGES
+Event: COMMENT
 Verdict: REQUEST CHANGES. The generated icon table strokes 55 glyphs their source leaves unstroked, and an empty heading next to any icon heading yields a duplicate id; both ship with the branch.
 Model: claude-opus-5-5, standard review (finders xhigh, the other stages high)
 Commit: 56ff1770722eee73f51f207f97554ea1e2ea2b00
@@ -10,13 +11,15 @@ Round: 1. 5 finders, one reflector, 16 candidates, the Criticals and Warnings ru
 
 ## Body
 
+> AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6297-gnoweb-inline-icons/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6297-gnoweb-inline-icons/1-56ff177/claims.md) · Status: REQUEST CHANGES
+
 - Suggestion: a heading holding only a labeled icon gets no TOC entry. [`writeNodeText`](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/utils.go#L197-L208) writes only text nodes, and [`toc.go`](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/toc.go#L91-L96) lets the next heading overwrite an untitled entry. I think the icon's label belongs in the TOC title.
 
   > A realm page holding `## Intro`, `## <gno-icon name="star" label="Top" />` and `## Next`, rendered by gnoweb at this head in headless Chromium from a `MockClient` fixture: Contents lists Intro and Next only.
 
   ![Realm page with three h2 headings, the middle one a star icon; the Contents rail lists Intro and Next](https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6297-gnoweb-inline-icons/1-56ff177/media/icon-heading-toc.png)
 
-## gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go:203 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go#L203) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go#L203) · Warning
+## gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go:203 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go#L203) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go#L203) · Warning [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150106)
 
 The generated table draws a 1.3 outline on fills and dots that 55 source icons leave unstroked, battery and lock among them. `iconHeadStroke` hands `stroke="currentColor"` down, and `addIconSymbols` never writes `stroke="none"` back onto those shapes.
 
@@ -47,7 +50,7 @@ Of 491 generated glyphs, 58 paint a shape unlike their source. The battery bar g
 
 Not posted: the same root cause as the section on line 203, closed by the same generator edit.
 
-## gno.land/pkg/gnoweb/markdown/ext_icons.go:190 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L190) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L190) · Warning
+## gno.land/pkg/gnoweb/markdown/ext_icons.go:190 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L190) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L190) · Warning [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150119)
 
 An empty `##` fails `h.Lines().Len() > 0`, so its id `heading` never enters the fresh `newLinearIDs()`. On a page with an icon heading, the next `heading` slug repeats that id, and its TOC link jumps to the empty one.
 
@@ -120,27 +123,27 @@ Missing test: no case reaches the end-of-line guard after `=` in `scanGnoTag`, s
 
 Not posted: PLAUSIBLE on the finder's read; the mutation deleting lines 93-95 and the two `TestScanGnoTag` cases `<gno-x a=` and `<gno-x a=  \n` were not run.
 
-## gno.land/adr/prxxxx_gnoweb_inline_icons.md:83 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L83) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L83) · Nit
+## gno.land/adr/prxxxx_gnoweb_inline_icons.md:83 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L83) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L83) · Nit [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150133)
 
 Nit: the per-icon size leaves out the label, where [`renderIcon`](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L255-L257) escapes each quote to six bytes. A label of quotes inside the tag bound roughly doubles an icon's output.
 
-## gno.land/adr/prxxxx_gnoweb_inline_icons.md:100 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L100) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L100) · Nit
+## gno.land/adr/prxxxx_gnoweb_inline_icons.md:100 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L100) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L100) · Nit [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150147)
 
 Nit: `<gno-button />` registers no parser in this tree, though this ADR line says it registers the same one. [`newGnoTagLineParser`](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L338) has one caller, and the [`utils.go` comment](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/utils.go#L53) says the same, as in #6298 and #6299.
 
-## gno.land/adr/prxxxx_gnoweb_inline_icons.md:104 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L104) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L104) · Nit
+## gno.land/adr/prxxxx_gnoweb_inline_icons.md:104 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L104) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L104) · Nit [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150168)
 
 Nit: lines 103-104 justify the line parser by a `sanitize.Block` that stopped escaping the `<gno-…>` opener. That change is absent from this tree: `gnovm/stdlibs/chain/markdown` matches master, and [line 216](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/adr/prxxxx_gnoweb_inline_icons.md#L216) calls the sanitizer unchanged.
 
-## gno.land/pkg/gnoweb/markdown/ext_icons.go:105 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L105) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L105) · Nit
+## gno.land/pkg/gnoweb/markdown/ext_icons.go:105 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L105) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L105) · Nit [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150178)
 
 Nit: `bytes.TrimSpace` runs on the raw label, so `label="&#32;"` stays non-empty, renders `role="img"` with a blank `aria-label`, and suppresses the alone-in-link hint.
 
-## gno.land/pkg/gnoweb/markdown/ext_icons.go:236 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L236) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L236) · Nit
+## gno.land/pkg/gnoweb/markdown/ext_icons.go:236 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L236) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L236) · Nit [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150185)
 
 Nit: `<gno-icon name=star/>` reads the name as `star/` and ends on a plain `>`, so the `write it self-closing` comment asks for the `/>` the author already wrote.
 
-## gno.land/pkg/gnoweb/markdown/ext_icons.go:298 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L298) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L298) · Nit
+## gno.land/pkg/gnoweb/markdown/ext_icons.go:298 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L298) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L298) · Nit [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150192)
 
 Nit: the `aloneInNamedParent` walk marks every icon in the heading as `hintDone` but sets `hint` on the first alone. A link icon after it then gets no add-label hint.
 
@@ -163,18 +166,18 @@ Nit: the `if n.hintDone` early return hands a nested link's icon the cached `hin
 
 Not posted: the same defect as the section on line 298, closed by the same edit to the walk.
 
-## gno.land/pkg/gnoweb/markdown/ext_icons_test.go:170 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons_test.go#L170) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons_test.go#L170) · Test
+## gno.land/pkg/gnoweb/markdown/ext_icons_test.go:170 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons_test.go#L170) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons_test.go#L170) · Test [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150203)
 
 Test: the cut span ends with the `aria-label` value, so `label="turn on"` matches `" on"` and `FuzzIconRender` reports an event handler on a safe render.
 
-## gno.land/pkg/gnoweb/markdown/golden/ext_icons/nested_emphasis.md.txtar:7 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/golden/ext_icons/nested_emphasis.md.txtar#L7) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/golden/ext_icons/nested_emphasis.md.txtar#L7) · Test
+## gno.land/pkg/gnoweb/markdown/golden/ext_icons/nested_emphasis.md.txtar:7 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/golden/ext_icons/nested_emphasis.md.txtar#L7) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/golden/ext_icons/nested_emphasis.md.txtar#L7) · Test [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150210)
 
 Test: the golden runner registers no strikethrough extension, so this line pins literal `~~` around the icon; only `TestIconInGFM` covers the `<del>` production renders.
 
-## gno.land/pkg/gnoweb/tools/cmd/iconset/main.go:122 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/tools/cmd/iconset/main.go#L122) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/tools/cmd/iconset/main.go#L122) · Nit
+## gno.land/pkg/gnoweb/tools/cmd/iconset/main.go:122 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/tools/cmd/iconset/main.go#L122) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/tools/cmd/iconset/main.go#L122) · Nit [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150217)
 
 Nit: `http.Get` uses `http.DefaultClient`, which has no timeout, so a stalled connection to codeload hangs `make icons` instead of failing it.
 
-## gno.land/pkg/gnoweb/markdown/ext_icons.go:182 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L182) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L182) · Suggestion
+## gno.land/pkg/gnoweb/markdown/ext_icons.go:182 [gh](https://github.com/gnolang/gno/blob/56ff1770722eee73f51f207f97554ea1e2ea2b00/gno.land/pkg/gnoweb/markdown/ext_icons.go#L182) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L182) · Suggestion [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4219150226)
 
 Suggestion: this fresh `newLinearIDs()` replaces a caller's `parser.WithIDs` generator. The `h.AttributeString("id")` check also overwrites an explicit `{#id}`, though no renderer here combines `parser.WithAttribute` with this extension.

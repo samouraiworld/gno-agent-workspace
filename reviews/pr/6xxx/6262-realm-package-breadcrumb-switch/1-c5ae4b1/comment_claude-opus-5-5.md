@@ -1,5 +1,6 @@
 # Review: [#6262](https://github.com/gnolang/gno/pull/6262)
-Event: REQUEST_CHANGES
+Posted: https://github.com/gnolang/gno/pull/6262#pullrequestreview-5456852671
+Event: COMMENT
 Verdict: REQUEST CHANGES. One Warning the branch ships: an "N matching" link whose directory is itself a realm or package opens that one package instead of a listing.
 Model: claude-opus-5-5, standard review (finders xhigh, the other stages high)
 Commit: c5ae4b13a8883303a382d6b1ae1c61b929fd048c
@@ -9,7 +10,9 @@ Round: 1. Two finders and one judge that also answered the completeness question
 
 ## Body
 
-## gno.land/pkg/gnoweb/counterpart.go:97 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/counterpart.go#L97) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L97) · Warning
+> AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6262-realm-package-breadcrumb-switch/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6262-realm-package-breadcrumb-switch/1-c5ae4b1/claims.md) · Status: REQUEST CHANGES
+
+## gno.land/pkg/gnoweb/counterpart.go:97 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/counterpart.go#L97) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L97) · Warning [posted](https://github.com/gnolang/gno/pull/6262#discussion_r4219147576)
 When the twin's directory is itself a realm or package, `return dir, n` makes the "N matching" link open that one package instead of a listing.
 
 > Headless Chromium 153 via `capture-web.mjs`, this branch's gnoweb on a stub client: the menu on `/p/tests/vm/crossrealm`, then the `/r/tests/vm` realm its "2 matching realms" link opens.
@@ -163,7 +166,7 @@ follow /p/alice/golf: status=200 explorer-mode=false
 
 </details>
 
-## gno.land/pkg/gnoweb/frontend/css/06-blocks.css:3991 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/frontend/css/06-blocks.css#L3991) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/frontend/css/06-blocks.css#L3991) · Nit
+## gno.land/pkg/gnoweb/frontend/css/06-blocks.css:3991 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/frontend/css/06-blocks.css#L3991) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/frontend/css/06-blocks.css#L3991) · Nit [posted](https://github.com/gnolang/gno/pull/6262#discussion_r4219147596)
 Nit: `inset: auto` overrides the `@supports not (top: anchor(bottom))` fallback, so a browser without anchor positioning opens the menu away from the header.
 
 > Headless Chromium 153, `capture-web.mjs` clicking the `r` button on this branch's gnoweb: above, `main.css` as committed; below, with `anchor(` renamed, as without anchor positioning.
@@ -199,10 +202,10 @@ Neither browser here takes that branch on its own: Firefox 156 answers `CSS.supp
 
 </details>
 
-## gno.land/pkg/gnoweb/counterpart.go:90 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/counterpart.go#L90) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L90) · Nit
+## gno.land/pkg/gnoweb/counterpart.go:90 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/counterpart.go#L90) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L90) · Nit [posted](https://github.com/gnolang/gno/pull/6262#discussion_r4219147603)
 Nit: `gopath.Dir(m) == dir` counts only the twin's direct siblings, while the listing the link opens shows every package below that directory.
 
-## gno.land/pkg/gnoweb/counterpart.go:213 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/counterpart.go#L213) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L213) · Suggestion
+## gno.land/pkg/gnoweb/counterpart.go:213 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/counterpart.go#L213) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L213) · Suggestion [posted](https://github.com/gnolang/gno/pull/6262#discussion_r4219147617)
 Suggestion: errors are never cached, so a slowly failing `ListPaths` costs every view of that root the full 300 ms and one more query.
 A short failure entry would cost one lookup per root.
 
@@ -292,7 +295,7 @@ The slow error pays the grace and a `ListPaths` on every request; the slow empty
 
 </details>
 
-## gno.land/pkg/gnoweb/counterpart.go:247 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/counterpart.go#L247) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L247) · Suggestion
+## gno.land/pkg/gnoweb/counterpart.go:247 [gh](https://github.com/gnolang/gno/blob/c5ae4b13a8883303a382d6b1ae1c61b929fd048c/gno.land/pkg/gnoweb/counterpart.go#L247) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L247) · Suggestion [posted](https://github.com/gnolang/gno/pull/6262#discussion_r4219147630)
 Suggestion: a full cache stores no new root until its earliest entry expires, and empty answers for made-up paths fill it as fast as real ones.
 Oldest-first eviction would keep new roots cached.
 
