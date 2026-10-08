@@ -1,0 +1,18 @@
+{
+ "verdicts": [
+  {
+   "index": 5,
+   "angle": "removed + lines",
+   "verify_by": "cp tests/b1-lines-removed-reach-catalog-html-block-hides-card-open_test.go into gno.land/pkg/gnoweb/markdown/ at 1f9bf51d8 and `go test ./gno.land/pkg/gnoweb/markdown/ -run TestProbeFrameHTMLBlockHidesCardOpen -v -count=1`: the html_before/div_before cases fail, the three controls pass; apply the one-condition fix and `go test ./gno.land/pkg/gnoweb/markdown/ -count=1` is ok | render the input above through newGnoMarkdown at 1f9bf51d8 and grep the output for `draft` and `--&gt;`; then guard line 270 with `node.(*ast.HTMLBlock).HTMLBlockType >= ast.HTMLBlockType6` and re-run the markdown package goldens",
+   "state": "CONFIRMED",
+   "band": "Warning",
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 270,
+   "tldr": "an HTML line right above a nested card drops the card and pushes the grid out of its frame; a commented-out columns line inside a frame renders live",
+   "details": "Continue at ext_frame.go:270 returns Close only for a `</gno-frame>` or columns line, so a type-7 line such as `<div></div>` directly above a card's `<gno-frame>` swallows the open and the card text; the card's close then ends the outer frame and the grid renders unframed, the half-framed grid gfanton raised on line 313 in a shape b748d310c did not cover. The same Close applies to every HTML block type, so inside a frame a `<!-- ... -->` comment hiding a `<gno-columns>` line ends there: the grid goes live, closes the frame, and `hidden -->` renders as text, while outside a frame the comment stays hidden. ext_frame.go is new in this PR (absent at the merge base), so both are introduced here. Fix: also return Close when `parseFrameLineTag(tag) == frameTagOpen && frameGrid(pc) && gridOpen(pc)` (whole markdown package ok with it), and limit the cut to HTML block types 6 and 7 so comments and raw blocks keep their lines.",
+   "evidence": "head 1f9bf51d8, finder probe: control_no_html/control_html_before_close/control_blank_after_html holds=true; html_before_card_open and div_before_card_open holds=false, div case output `<section class=\"gno-frame\">\\n<h2>Apps</h2>\\n</section>\\n<div class=\"gno-columns\">` with `card` gone and two `<!-- unexpected/invalid frame tag omitted -->`. With the one-condition fix: `ok github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown 1.155s`, probe included. Judge probe: in_frame output `<section class=\"gno-frame\">\\n<p>intro</p>\\n<!-- raw HTML omitted -->\\n</section>\\n<div class=\"gno-columns\">...<p>hidden\\n--&gt;</p>`; no_frame output two `<!-- raw HTML omitted -->`. Merge base: ls ext_frame.go -> No such file or directory.",
+   "repro_path": "tests/b1-lines-removed-reach-catalog-html-block-hides-card-open_test.go",
+   "base_behaves_the_same": false
+  }
+ ]
+}

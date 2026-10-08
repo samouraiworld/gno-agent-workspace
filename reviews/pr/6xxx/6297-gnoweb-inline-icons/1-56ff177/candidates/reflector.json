@@ -1,0 +1,38 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_test.go",
+      "line": 185,
+      "angle": "requested-change closure",
+      "band": "Nit",
+      "summary": "gfanton's -race timing thread (resolved, outdated) was answered for TestIconHeadingIDsLinear (best-of-5 ratio, line 86-105), but nothing shows TestIconParseLinear, which holds the lines-unterminated shape he timed at 2.2 s, no longer fails under -race",
+      "failure_scenario": "CI or a contributor running go test -race ./gno.land/pkg/gnoweb/markdown/ hits TestIconParseLinear's budget on lines-unterminated (strings.Repeat(\"<gno-icon name=\\\"x\\n\", 2*n)) and gets a red test on correct code",
+      "verify_by": "cd gno.land/pkg/gnoweb/markdown && go test -race -count=3 -run 'TestIconParseLinear|TestIconHeadingIDsLinear' . ; then sed -n 185,215p ext_icons_test.go to see whether it compares n against 4n or an absolute budget",
+      "fix_kind": "test",
+      "checked": false
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/toc.go",
+      "line": 96,
+      "angle": "reach",
+      "band": "Nit",
+      "summary": "an icon-only heading named by label=\"...\" gets an empty TOC title (nodeText skips the Icon node), and toc.go:91-93 reuses an empty-titled entry, so the next same-level heading overwrites it and the labeled heading drops out of the TOC",
+      "failure_scenario": "## <gno-icon name=\"star\" label=\"Favourites\" />\\n\\n## Next: TocInspect gives one item, Next, and the Favourites heading, which has an accessible name and an id, has no TOC entry. Pre-existing for an empty `##`, newly reachable for a named heading through this PR",
+      "verify_by": "Go test in package markdown: parse that input with newProductionLikeMarkdown and NewGnoParserContext, TocInspect(doc, src, TocOptions{MinDepth: 2, MaxDepth: 6}), assert len(toc.Items)==2",
+      "fix_kind": "code",
+      "checked": false
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 54,
+      "angle": "coupled targets",
+      "band": "Nit",
+      "summary": "the claim that utils.go (scanGnoTag, hasGnoTagPrefix, gnoTagLineParser) is byte-for-byte identical across #6297, #6298 and #6299 is unverified; candidates 5 and 8 extend their findings to the siblings on that premise",
+      "failure_scenario": "if the blobs differ, a fix to scanGnoTag or the utils.go:53 comment applied in one PR leaves the others carrying the old line, and the second PR to merge conflicts on utils.go",
+      "verify_by": "for p in 6297 6298 6299; do s=$(gh api repos/gnolang/gno/pulls/$p --jq .head.sha); gh api \"repos/gnolang/gno/contents/gno.land/pkg/gnoweb/markdown/utils.go?ref=$s\" --jq .sha; done : expect one blob sha three times",
+      "fix_kind": "none",
+      "checked": false
+    }
+  ]
+}

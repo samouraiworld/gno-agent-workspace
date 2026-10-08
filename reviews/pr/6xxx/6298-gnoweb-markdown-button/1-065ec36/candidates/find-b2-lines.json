@@ -1,0 +1,41 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 438,
+      "angle": "lines",
+      "summary": "The 4-column branch moves the backslash to byte 0 so it does not show, but the PR's own golden shows it still shows, and the user's tag text is lost as omitted raw HTML",
+      "failure_scenario": "Block(\"text\\n\\n    <gno-card>\") gives '\\\\    <gno-card>'. golden/sanitize/block-ext-delim-four-spaces.txtar renders '<p>\\\\    <!-- raw HTML omitted --></p>', and the tab golden renders '<p>\\\\\\t<!-- raw HTML omitted --></p>'. The backslash shows and the tag text disappears (under gnoweb's UnsafeHTML option the raw <gno-card> is emitted instead). Writing lead+\"\\\\\"+trimmed for every indent keeps the text, as indented code shows '\\\\<gno-card>' and continuation lines escape it. It also drops the branch and indentColumns (lines 438-440, 574-584). The comment at 431-434 claims the opposite of what the golden shows.",
+      "verify_by": "delete lines 438-440 and indentColumns; go test ./gnovm/stdlibs/chain/markdown -run TestEscapeBlockHazards (update ext-delimiter-tab-indented and ext-delimiter-4-spaces) and go test ./gno.land/pkg/gnoweb/markdown -run 'TestSanitizeIntegration/block-ext-delim' -update-golden-tests; expect output.html '<pre><code>\\\\&lt;gno-card&gt;' with the text kept; BlockRich(\"- a\\n\\n    <gno-card>\") still renders escaped",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 603,
+      "angle": "lines",
+      "summary": "escapeGnoButtonTags skips the byte after every backslash, so a backslash that goldmark treats literally (code span, raw HTML attribute) could shield a live <gno-button",
+      "settled_by": "Block probe with '`\\\\`<gno-button .../>', '`x\\\\\\\\`<gno-button .../>' and '<span title=\"\\\\\"><gno-button .../>' through TestSanitizeIntegration -update-golden-tests: output.html '<p><code>\\\\</code>&lt;gno-button href=&quot;/r/x&quot; ...' / '<code>x\\\\\\\\</code>&lt;gno-button ...' / '<!-- raw HTML omitted -->&lt;gno-button ...': all three escaped; go test ./gnovm/stdlibs/chain/markdown -run TestEscapeBlockHazards: ok"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 464,
+      "angle": "lines",
+      "summary": "HTML type 1-5 branch keeps the byte-0 backslash with a 1-3 space lead, the shape the diff fixed for ext delimiters ('\\\\ ' is no escape), so the opener stays live",
+      "settled_by": "Block('  <!-- open\\n\\nuser text') between realm chrome via TestSanitizeIntegration: output.html '<p>before realm chrome</p>\\n<p>\\\\  &lt;!-- open</p>\\n<p>user text</p>\\n<p>after realm chrome</p>': the opener renders as text and swallows nothing"
+    },
+    {
+      "file": "examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno",
+      "line": 437,
+      "angle": "lines",
+      "summary": "The native's new output (\\\\<gno-button, lead-preserving delimiter escape) shifts stored state of example realms on replay (examples tree only; live chain not probed)",
+      "settled_by": "grep -rn 'EscapeBlockHazards|sanitize.Block|sanitize.Blockquote|BlockRich|BlockquoteRich' --include='*.gno' examples (non-test, outside sanitize/v0): only r/nt/commondao/v0/render.gno:441 'res.Write(sanitize.Block(text))' inside a render loop and p/moul/md/v0/md.gno:204 'return sanitize.Blockquote(text)'; nothing stores sanitized output in examples"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/stdlibs/chain/markdown/markdown.gno",
+   "line": 105,
+   "angle": "removed",
+   "summary": "The native's public contract was not updated for the rewritten escapes: no step for the new <gno-button escape, step 4 still describes a line-start backslash, and 'Preserves ... code spans' no longer holds",
+   "failure_scenario": "markdown.go's header points to markdown.gno as the public contract. EscapeBlockHazards there lists seven steps with no <gno-button escape (anywhere on a line, fenced and code-span lines included), says extension-delimiter lines get a backslash 'by prefixing' (the diff now puts it after an indent of under 4 columns), and promises code spans are preserved, while Block on a code span holding <gno-button now shows a backslash; EscapeBlockHazardsRich's list of realm-binding defenses also omits it. Same stale wording: isExtDelimiter godoc markdown.go:541 'the line gets a leading backslash prepended', sanitize.gno:420 'A leading `\\` survives the trim'.",
+   "verify_by": "grep -n 'gno-button' gnovm/stdlibs/chain/markdown/markdown.gno returns nothing; sed -n 99,121p gnovm/stdlibs/chain/markdown/markdown.gno against markdown.go:404-445",
+   "band": "Nit",
+   "fix_kind": "comment",
+   "checked": true,
+   "run": false,
+   "evidence": "tree-wide grep for gno-button lists chain/markdown/markdown.go and markdown_test.go but not markdown.gno; markdown.gno:105-107 reads 'Escape extension-delimiter lines (any line starting with `<gno-…>` or `</gno-…>`) by prefixing with a backslash'",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md",
+   "line": 106,
+   "angle": "removed",
+   "summary": "rewritten Cases counts and the 224 total may not match the corpus",
+   "settled_by": "ls golden/sanitize | sed 's/-.*//' | sort | uniq -c: block 89, blockrich 37, blockquote 11, blockquoterich 2, inline 15, table 3, footnotedefinition 4; ls | wc -l: 224, matching every rewritten row"
+  },
+  {
+   "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+   "line": 559,
+   "angle": "removed",
+   "summary": "BlockRich leaves `> <gno-form>` / `- <gno-form>` live",
+   "settled_by": "already tracked publicly: gh issue view 6300 -R gnolang/gno -> 'sanitize.Block/BlockRich: gno-* tags after a list or quote marker are not neutralized | OPEN'; not re-raised"
+  },
+  {
+   "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+   "line": 413,
+   "angle": "removed",
+   "summary": "BlockRich list-item fence makes the next <gno-form> line skip the escape",
+   "settled_by": "gnolang/gno#6300 body: 'A fenced code block opened inside a list item can also make BlockRich skip the escape on the next line'; not re-raised"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/public/main.css",
+   "line": 1,
+   "angle": "removed",
+   "summary": "regenerated main.css might drop or alter existing rules",
+   "settled_by": "python token diff of base vs head main.css: 'tokens only in base: 0'; the 57 head-only tokens are the .gno-button rules plus the --s-color-bg-note-weak / --s-color-bg-tip-weak / purple tokens they use"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+   "line": 1421,
+   "angle": "removed",
+   "summary": "a custom property the .gno-button block reads might be undefined, voiding the declaration",
+   "settled_by": "every var() in the block has defs_in_main >= 1 in public/main.css (e.g. --cr-space-0-5 1, --s-focus-ring 1, --s-color-border-tip 2)"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+   "line": 1457,
+   "angle": "removed",
+   "summary": "`& > .tooltip` might not match the link-type icon the button carries",
+   "settled_by": "golden ext_buttons/valid_link_types.md.txtar: `<a href=\"/r/other/pkg\" class=\"gno-button\">Internal<span class=\"link-internal tooltip\" ...>`"
+  },
+  {
+   "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+   "line": 413,
+   "angle": "removed",
+   "summary": "gfanton's requested change (escape <gno-button on fenced lines) and his dark outline nit may still be open",
+   "settled_by": "markdown.go:413 `out.WriteString(escapeGnoButtonTags(line))`; main.css token `--gno-button-outline:var(--s-color-text-secondary)`; author reply on the CSS thread names 065ec369b"
+  },
+  {
+   "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+   "line": 559,
+   "angle": "removed",
+   "summary": "moving the ext-delim backslash after the indent might break Block idempotency",
+   "settled_by": "isExtDelimiter: `if len(trim) == 0 || trim[0] != '<' { return false }`, so a second pass over `  \\<gno-x>` or `\\    <gno-x>` matches nothing"
+  }
+ ]
+}

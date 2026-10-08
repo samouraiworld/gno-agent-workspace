@@ -1,0 +1,48 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext.go",
+      "line": 96,
+      "angle": "catalog: determinism / native change",
+      "summary": "Button safety rests on a chain/markdown native that mainnet only gets with a chain upgrade, while gnoweb (a separate binary) enables <gno-button> unconditionally, so sanitized user content on mainnet renders live buttons from gnoweb's deploy until that upgrade",
+      "failure_scenario": "mainnet runs base's native (git diff --quiet chain/mainnet b0656512d -- gnovm/stdlibs/chain/markdown/ exits 0). gnoweb at head is deployed against mainnet before the upgrade. r/nt/commondao/v0 renderBylaws (render.gno:441 at chain/mainnet) writes sanitize.Block(text) for each bylaws document; a document line `hi <gno-button href=\"/r/evil$help&func=Drain\" label=\"Claim\" variant=\"caution\" />` passes the old native unchanged and gnoweb renders <a href=\"/r/evil$help&amp;func=Drain\" class=\"gno-button gno-button-caution\">Claim...</a>, the realm-styled action the body's Safety bullet says sanitized content cannot produce. Content a realm sanitized and stored before the upgrade stays live after it too; no examples realm at chain/mainnet stores Block output (all callers are render paths), user realms unverified. Fix: gate ExtButtons behind a gnoweb option left off until the chain upgrade carrying the native, or ship the native first and state the order in the body.",
+      "verify_by": "bash tests/b2-catalog-mainnet-native-live-button.sh <head clone>: pass 1 head native green; pass 2 swaps in chain/mainnet:gnovm/stdlibs/chain/markdown/markdown.go, regenerates the sanitize goldens and greps output.html for <a ... class=\"gno-button",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "pass 1: `ok github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown 0.771s`; pass 2: `count: 28 of 35` sanitize gno-button goldens carry a live anchor, e.g. block-gno-button-midline-escaped output.html `<p>hi <a href=\"/r/evil$help&amp;func=Drain\" class=\"gno-button gno-button-caution\">Claim<span class=\"link-internal tooltip\" ...` (head native renders `hi &lt;gno-button ...` as text). ext.go:96 `ExtButtons.Extend(m)` sits in GnoExtension.Extend with no option, used by gnoweb/render_config.go:42; gno.land/cmd/gnoweb is its own binary.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b2-catalog-mainnet-native-live-button.sh"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 595,
+      "angle": "catalog: determinism",
+      "summary": "native ASCII-only hasCaseInsensitivePrefix could miss a Unicode spelling gnoweb's bytes.EqualFold accepts as <gno-button",
+      "settled_by": "go run over every rune >= 0x80 checking unicode.SimpleFold orbits against the bytes of \"<gno-button\": `orbit hits: 0`"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 427,
+      "angle": "catalog: gas / native change",
+      "summary": "consensus-affecting output change of a mainnet native not called out",
+      "settled_by": "gh pr view 6298 body line 52: `That is a VM native, so \\`sanitize.Block\\` output changes on chain once this ships.`"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 427,
+      "angle": "catalog: realm state safety",
+      "summary": "examples realms on mainnet store Block/BlockRich output, whose bytes would shift on upgrade or genesis replay",
+      "settled_by": "git grep at chain/mainnet for sanitize.(Block|BlockRich|Blockquote|BlockquoteRich|FootnoteDefinition)( and md.(Blockquote|FootnoteDefinition)( in examples/gno.land/r: every hit is in boards2/commondao render.gno or commondao proposal_kinds.gno:364 with a constant string; no realm imports chain/markdown directly"
+    },
+    {
+      "file": "examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno",
+      "line": 441,
+      "angle": "catalog: realm state safety",
+      "summary": "a wrapper step after EscapeBlockHazards could re-create an unescaped <gno-button",
+      "settled_by": "awk over sanitize.gno: Block ends at line 441 markdown.EscapeBlockHazards(s), BlockRich at 628; Blockquote/BlockquoteRich only prefix \"> \", FootnoteDefinition only \"    \"; the three +lines in sanitize.gno are `//` doc-table rows"
+    }
+  ]
+}

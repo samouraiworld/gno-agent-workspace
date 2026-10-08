@@ -1,0 +1,48 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 427,
+      "angle": "reach",
+      "summary": "escapeGnoButtonTags runs after the bracket walker (line 385), so a link the walker spared stops parsing once the backslash goes in, and its bare brackets bind to the realm's own reference and footnote definitions",
+      "failure_scenario": "User content `[a](<gno-button [evil]>)` goes through sanitize.Block or BlockRich. scanLinkURL (line 1195) accepts a pointy destination that contains a space, so the walker treats the span as an inline link and leaves `[a]` and the inner `[evil]` unescaped. escapeGnoButtonTags then rewrites it to `[a](\\<gno-button [evil]>)`, a non-pointy destination with a space, which goldmark rejects. `[evil]` then becomes a shortcut reference to the realm chrome's `[evil]: https://realm.example/home` and renders as a link, and `[^evil]` binds the realm's footnote. The same holds for `[evil](<gno-button x>)` and for images. The unsanitized input binds to nothing. Running the sanitizer twice changes the output (`\\[a\\](\\<gno-button \\[evil\\]>)`), which breaks the idempotence the native tests assert for every case.",
+      "verify_by": "cp tests/b2-reach-link-break-rebinds-ref_test.go gno.land/pkg/gnoweb/markdown/zz_b2reach_test.go && go test ./gno.land/pkg/gnoweb/markdown -run TestB2ReachLinkBreakRebindsRealmRef -v -count=1 at 065ec369b: expect bound-to-realm-ref=false; observe true for all 8 cases (Block and BlockRich), with idempotent=false",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Block(\"[evil](<gno-button x>)\") out=\"\\n\\n[evil](\\\\<gno-button x>)\\n\\n\" bound-to-realm-ref=true (unsanitized input bound=false) idempotent=false; html=<p><a href=\"https://realm.example/home\" ...>evil...</a>(&lt;gno-button x&gt;)</p>. BlockRich(\"[a](<gno-button [^evil]>)\") renders <sup id=\"fnref:1\"><a href=\"#fn:1\" class=\"footnote-ref\">. Fix tried in scratch: run escapeGnoButtonTags over every line once, right after foldUnicodeSeparators and before escapeBracketsOutsideLinks, and drop the two in-loop calls (413, 427). With that change go test ./gnovm/stdlibs/chain/markdown is ok, TestSanitizeIntegration passes every golden, and the repro reads bound-to-realm-ref=false idempotent=true for all 8 cases.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b2-reach-link-break-rebinds-ref_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 413,
+      "angle": "reach",
+      "summary": "gfanton's requested change (escape <gno-button on lines the fence tracker counts as fenced) might still be open at head",
+      "settled_by": "sed -n 413p shows `out.WriteString(escapeGnoButtonTags(line))` in the inFence branch; at 065ec369b, go test ./gnovm/stdlibs/chain/markdown -run TestEscapeBlockHazards prints --- PASS (case gno-button-in-fence), and TestSanitizeIntegration prints --- PASS for block-gno-button-after-fence-in-html-block, blockquote-gno-button-after-fence-in-html-block and blockrich-gno-button-after-fence-in-list-item"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 427,
+      "angle": "reach",
+      "summary": "the native output shift could change state stored by in-tree realms that sanitize at write time",
+      "settled_by": "A grep for sanitize.(Block|BlockRich|Blockquote|BlockquoteRich) and md.(Blockquote|Footnote) over examples outside tests finds only Render-time calls (commondao render.gno:441, boards2 render.gno:100/376). The one tx-reachable call, commondao proposal_kinds.gno:364 executionPropDefinition.Body(), passes constant text with no `<gno-button`, no fence and no indented `<gno-` line, so its output is byte-identical"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 604,
+      "angle": "reach",
+      "summary": "the backslash skip could treat as escaped a `<` that follows a backslash goldmark reads literally, a construct ending in `\\` such as a linkified URL",
+      "settled_by": "gno.land/pkg/gnoweb/render_config.go:37-41 enables only Strikethrough, Table, Footnote and TaskList, so Linkify is not loaded, and goldmark v1.8.2 extension/linkify.go:16 urlRegexp has no backslash. Code spans, raw HTML, autolinks and links end on a backtick, `>`, `)` or `]`, so the skipped byte is never the `<`"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 438,
+      "angle": "reach",
+      "summary": "a <gno-button with 4 or more columns of indent keeps its backslash inside the indent (visible in indented code), unlike the ext-delimiter branch that moves it to line start",
+      "settled_by": "Moving it to line start would leave the button live: golden block-ext-delim-four-spaces renders `\\    <gno-card>` as `<p>\\    <!-- raw HTML omitted --></p>`, so the tag stays inline HTML after a literal `\\` plus spaces, and an inline <gno-button there is parsed by buttonParser (ext_buttons.go Trigger '<'). The current placement is the safe one"
+    }
+  ]
+}

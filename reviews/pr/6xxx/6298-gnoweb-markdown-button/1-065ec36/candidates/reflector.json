@@ -1,0 +1,33 @@
+{
+  "dropped": [],
+  "notes": [
+    "gfanton CHANGES_REQUESTED on 6298 (497ac8429): fenced-line <gno-button escape closed by 0fd180448 (markdown.go inFence branch: out.WriteString(escapeGnoButtonTags(line))); dark outline/success nit closed by 065ec369b (06-blocks.css:3238-3239 --gno-button-outline: var(--s-color-text-secondary)). Candidate 6 covers other tags on the same path, not the closed thread.",
+    "No candidate was contradicted by a quoted line; every candidate kept. Candidates 1, 15 and 16 overlap on buttonLabel's invisible-only label; 11, 14 and the second halves of 5 and 10 overlap on the native/gnoweb rollout order."
+  ],
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 184,
+      "angle": "catalog: native change / gas",
+      "band": "Suggestion",
+      "summary": "EscapeBlockHazards(Rich) gained per-line escapeGnoButtonTags work and allocation, but the gas fit (slope 27361/1024, worst case `[a]: u\\n(x\\n`) was not re-measured; a `<gno-button`-dense input was never benched against it",
+      "failure_scenario": "A tx-time caller passes strings.Repeat(\"<gno-button \", N) through sanitize.Block: each match allocates and appends; if ns/byte on this shape (plus the bracket walker) exceeds 26.72 ns/N the native is undercharged. Likely within the fit, unmeasured.",
+      "verify_by": "add a `<gno-button `-repeated input to gnovm/cmd/calibrate/markdown_bench_test.go and run go test ./gnovm/cmd/calibrate -run x -bench EscapeBlockHazards -count=3; compare ns/byte against the 26.72 and 26.95 slopes at native_gas.go:184-185",
+      "checked": true,
+      "evidence": "native_gas.go:184 comment names the bracket-walker shape as the fitted worst case; markdown_bench_output.txt and native_gas.go are not in the diff. Bench not run.",
+      "fix_kind": "none"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 215,
+      "angle": "claims",
+      "band": "Nit",
+      "summary": "the coupled-PR claim that markdown/utils.go is byte-for-byte identical across #6297, #6298 and #6299 fails for #6299, whose copy adds trimTagLine after line 214",
+      "failure_scenario": "A reviewer clears utils.go once on the identity claim; #6299's blob ddd55ce differs from #6297/#6298's 32d1a6a by an extra trimTagLine helper, so a merge order of 6297/6298 then 6299 conflicts or leaves a helper only one PR reviewed. Shared scanGnoTag helpers otherwise match.",
+      "verify_by": "gh api repos/gnolang/gno/contents/gno.land/pkg/gnoweb/markdown/utils.go?ref=<head> --jq .sha for each PR head: 6297 and 6298 give 32d1a6af, 6299 gives ddd55cef; diff the blobs",
+      "checked": true,
+      "evidence": "6297 56ff1770 -> 32d1a6af; 6298 065ec369 -> 32d1a6af; 6299 1f9bf51d -> ddd55cef. diff: `214a215,225 > func trimTagLine(line []byte) []byte {`",
+      "fix_kind": "comment"
+    }
+  ]
+}

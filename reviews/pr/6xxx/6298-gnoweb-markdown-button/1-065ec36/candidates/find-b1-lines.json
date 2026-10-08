@@ -1,0 +1,76 @@
+{
+ "candidates": [
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_buttons_test.go",
+   "line": 55,
+   "angle": "lines",
+   "summary": "TestButtonHostileBudget's shapes all stop at the next '<', so none depends on maxButtonTagLen; the cap that keeps a '<'-in-attribute-name line linear is unpinned",
+   "failure_scenario": "scanGnoTag only aborts on '<' at an attribute start (utils.go:72); a '<' inside a key (`<gno-button x` repeated) is read until the cap at utils.go:59. Moving the cap from pre-scan truncation to a post-scan `size > maxLen` check keeps TestButtonHostileBudget, TestParseButtonTagBound, TestScanGnoTag, TestParseButtonTagNoAlloc and the whole package green, while one line of 40k `<gno-button x` (~520 KB) goes from 0.35 s to 14.97 s (16/32/64 KB: 17/62/241 ms, quadratic). Same scanGnoTag ships in #6297 (utils.go byte-identical at 56ff17707) and #6299 (scanGnoTag identical, file adds trimTagLine).",
+   "verify_by": "in a scratch worktree at 065ec369b apply the mutation in the artifact header, run go test -count=1 ./gno.land/pkg/gnoweb/markdown/ (PASS), then copy tests/b1-lines-budget-misses-cap-shape_test.go in and run -run TestButtonHostileBudgetCapShape: FAIL over 5s; unmutated: PASS",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": true,
+   "evidence": "mutated: `ok github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown 1.032s` for the package; new test `\"14.966849747s\" is not less than \"5s\"  Messages: one line, 40k tags, '<' in a key`; head: `--- PASS: TestButtonHostileBudgetCapShape (0.35s)`",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b1-lines-budget-misses-cap-shape_test.go"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+   "line": 96,
+   "angle": "lines",
+   "summary": "buttonLabel's strip set misses U+061C, U+2060 and U+180E, so an invisible-only label passes the label == \"\" gate and renders an empty button",
+   "failure_scenario": "`A <gno-button href=\"/r/x\" label=\"&#x2060;\" />` renders `<a href=\"/r/x\" class=\"gno-button\">\\u2060<span class=\"link-internal tooltip\" \u2026>`: a button with no visible text. U+061C ARABIC LETTER MARK, a Bidi_Control character like the LRM/RLM that StripBidiAndZeroWidth does strip, also reaches the label. The PR body (\"bidi, zero-width and control characters removed\") and golden hostile_label_bidi_zero_width (\"Only invisible\" is rejected) say otherwise. StripBidiAndZeroWidth predates the diff and is a VM native, so the cheap fix is in buttonLabel.",
+   "verify_by": "go test -run TestButtonInvisibleOnlyLabel with tests/b1-lines-invisible-label_test.go copied into gno.land/pkg/gnoweb/markdown: FAIL at head",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "probe OUT for label U+061C U+2060 U+180E: `<p>A <a href=\\\"/r/x\\\" class=\\\"gno-button\\\">\\u061c\\u2060\\u180e<span \u2026`; artifact: `--- FAIL: TestButtonInvisibleOnlyLabel  Messages: word joiner entity`",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b1-lines-invisible-label_test.go"
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+   "line": 72,
+   "angle": "lines",
+   "summary": "'<' inside an attribute name is not an abort, so one attempt can read past the next tag (comment says each attempt reads one tag)",
+   "settled_by": "probe at 065ec369b, 512 KB single line: `<gno-button x` 203 ms vs covered `<gno-button href=\"/r/x\" ` 68 ms and raw-HTML `<span x ` 96 ms, linear under the 2048-byte cap; `<gno-button a<gno-button href=\"/r/x\" label=\"Go\" />` renders one button, as HTML tokenization would. The unpinned cap is the Missing test above."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+   "line": 353,
+   "angle": "lines",
+   "summary": "class.(string) type assertion panics if gno:class holds a non-string",
+   "settled_by": "grep SetAttribute( in gnoweb non-test: only ext_buttons.go:80 (string) and ext_mentions.go mentionLinkAttr; parser.WithAttribute() appears only at render.go:107 on documentationGM, which does not load NewGnoExtension"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+   "line": 84,
+   "angle": "lines",
+   "summary": "raw label String could inject markup into an image alt or alert summary",
+   "settled_by": "goldmark v1.8.2 renderer/html/html.go:705-706 sends raw strings to RawWrite (827-843), which escapes every byte in htmlEscapeTable: quote, amp, lt, gt, NUL"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+   "line": 151,
+   "angle": "lines",
+   "summary": "button inside a markdown link label yields nested anchors",
+   "settled_by": "golden hostile_nested_in_link and valid_brackets_not_link: the inner button wins and the outer brackets stay text, no <a> inside <a>; PR body line 40 says the button 'renders as text', which the golden contradicts (a claims-angle wording point)"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+   "line": 54,
+   "angle": "lines",
+   "summary": "coupled claim: utils.go byte-identical across #6297, #6298, #6299",
+   "settled_by": "sha256 of utils.go: 6297@56ff17707 and 6298@065ec369b both e87153773a024a2a; 6299@1f9bf51d8 is 7acf3164d7aa6e99, differing only by trimTagLine appended at lines 215-225. 6298's own body claims identity with #6297 only, which holds; the false claim is #6299's"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+   "line": 104,
+   "angle": "lines",
+   "summary": "unquoted value swallows '/' so `label=Go/>` is never self-closing",
+   "settled_by": "probe: `<gno-button href=/r/x label=Go/>` gives `<p><!-- raw HTML omitted --></p>` and `label=Go />` gives the button; HTML tokenization also reads `Go/` as the value, so behaviour matches the documented tokenizer rules"
+  }
+ ]
+}

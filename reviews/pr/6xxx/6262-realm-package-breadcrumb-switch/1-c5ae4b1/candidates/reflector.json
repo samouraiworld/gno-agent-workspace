@@ -1,0 +1,13 @@
+{"dropped": [],
+ "candidates": [
+  {"index": 2001, "file": "gno.land/pkg/gnoweb/public/main.css", "line": 1, "angle": "catalog",
+   "summary": "a class the CSS adds for the switch is purged from the committed bundle, so the menu ships unstyled",
+   "failure_scenario": "PurgeCSS drops a selector whose class only appears in a template it does not scan; the menu items render without their grid",
+   "verify_by": "for each class in 06-blocks.css's kind-switch block (item--primary, item-path, item-label, item--inline, b-kind-switch, kind-switch) count it in frontend/css/06-blocks.css and in public/main.css",
+   "band": "Warning", "fix_kind": "code", "checked": true},
+  {"index": 2002, "file": "gno.land/pkg/gnoweb/counterpart.go", "line": 28, "angle": "claims",
+   "summary": "the counterpartGrace comment says a slow node costs a missing link, never a slower page, while a lookup still in flight holds the page up to 300 ms",
+   "failure_scenario": "ListPaths answers in 400 ms with an empty list: the first page view of that root is served 300 ms after its own queries finish",
+   "verify_by": "go test -count=1 -run TestSoloFinder1_GraceAndErrors -v ./gno.land/pkg/gnoweb with tests/solo-finder-1-grace-errors.go copied in: the 'slow empty answer' row's request 0",
+   "band": "Nit", "fix_kind": "none", "checked": true}
+ ]}

@@ -1,0 +1,76 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 93,
+      "angle": "lines",
+      "summary": "No test reaches scanGnoTag's end-of-line guard after `=`; deleting it panics the inline parser and every test stays green (shared scanner: gnolang/gno#6298 and #6299 carry the same lines)",
+      "failure_scenario": "Delete `if i == len(src) { return 0, false }` (utils.go:93-95). A tag ending a line on its `=`, e.g. `x <gno-icon name=` or `<gno-icon name=   ` cut at maxIconTagLen, then evaluates `src[i]` with i == len(src): index out of range inside iconParser.Parse, so goldmark Convert panics and the gnoweb request for that realm fails. TestScanGnoTag, TestParseIconTag, TestIconParseLinear, every ext_icons and sanitize golden and every FuzzIconRender seed still pass, since none ends a tag line on `=`.",
+      "verify_by": "Read: grep -rnE '<gno-(icon|x)[^\\n]*=[[:space:]]*$' -i golden/ *_test.go in gno.land/pkg/gnoweb/markdown returns nothing, and the FuzzIconRender seeds (ext_icons_test.go:143-152) hold no such shape. Mutation: delete utils.go:93-95, run go test ./gno.land/pkg/gnoweb/markdown -run 'TestScanGnoTag|TestParseIconTag|TestIconParseLinear|TestGolden|TestSanitizeIntegration|FuzzIconRender': green. Then add {`<gno-x a=`, 0, false, nil} and {`<gno-x a=  ` + \"\\n\", 0, false, nil} to TestScanGnoTag: panics on the mutant, passes on head.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep for a gno tag line ending on `=` over golden/ and *_test.go: no output (rc 0, empty). FuzzIconRender seeds: `<gno-icon name=\"star\" />`, `... label=\"a > b\" />`, `... onload=x />`, heading, link, CRLF inside quotes, `<GNO-ICON NAME=star/>`, 600-byte open quote; none ends on `=`. No testdata/fuzz corpus directory. utils.go blob 32d1a6af at 6297 and 6298 heads; 6299 (ddd55cef) differs only by an added trimTagLine helper, scanner lines identical.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/tools/cmd/iconset/main.go",
+      "line": 122,
+      "angle": "reach",
+      "summary": "`make icons` fetches the upstream archive with http.Get on the default client, which has no timeout",
+      "failure_scenario": "A stalled codeload.github.com connection (proxy, captive network, half-open TCP) leaves `make icons` blocked in fetchUpstream forever with no error; the maintainer regenerating the table sees a hang rather than a failure.",
+      "verify_by": "Read main.go:122: http.Get(upstreamArchive + upstreamCommit) uses http.DefaultClient (Timeout 0). Check: point upstreamArchive at a listener that accepts and never answers (nc -l), run go -C gno.land/pkg/gnoweb/tools run ./cmd/iconset gno.land/pkg/gnoweb: never returns.",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'http.Get' tools/cmd/iconset/main.go: `122:\tresp, err := http.Get(upstreamArchive + upstreamCommit)`; no http.Client with a Timeout anywhere under gnoweb/tools.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/tools/cmd/iconset/main.go",
+      "line": 162,
+      "angle": "reach",
+      "summary": "svgBody discards the upstream root <svg> and stamps viewBox=\"0 0 21 21\" without comparing, so a non-21px upstream icon would render distorted",
+      "settled_by": "curl of codeload tar.gz at 4a17b006, tally of root tags: `420 viewBox=\"0 0 21 21\"`; the other 10 (boxes, box_add, box_remove, cubes, pill, signal_full/low/medium/none, terminal) are `<svg width=\"21\" height=\"21\" xmlns=...>` with no viewBox, an implicit 0 0 21 21; no root carries stroke, fill or transform, so dropping the root loses nothing"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/tools/cmd/iconset/main.go",
+      "line": 71,
+      "angle": "removed",
+      "summary": "run() rejects a name listed twice in icons.txt but not a vendored name colliding with drawn.svg or a chrome icon",
+      "settled_by": "grep ext_icons_gen_test.go: `175: if _, dup := table[name]; dup {` / `176: return fmt.Errorf(\"icon %q defined twice\", name)` across ICONS.svg, drawn.svg and vendored.svg, with `292: require.ErrorContains(t, err, \"\\\"x\\\" defined twice\", \"across files too\")`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_foreign.go",
+      "line": 396,
+      "angle": "reach",
+      "summary": "gfanton's requested cap (1,000 icons per render, budget carried into <gno-foreign>) might not reach the inner render",
+      "settled_by": "ext_foreign.go:239 `icons: getIconBudget(pc),` and :396 `innerCtx.Set(iconBudgetKey, n.icons)`; the only inner Convert in the package is ext_foreign.go:407 (grep 'text.NewReader|NewBlockReader|.Parse(|NewContext(' found no other); a stripped node's nil budget is re-created by getIconBudget's nil check, no deref; TestIconBudget asserts 500 outer + 1000 inner renders exactly MaxIconsPerConvert <svg>, which a per-context budget would fail at 1500"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/sanitize/block-gno-icon-indented-script.txtar",
+      "line": 11,
+      "angle": "removed",
+      "summary": "fixture pins a visible `\\   ` and a rendered icon for an indented line-start tag, against the body's 'at the start of a line they stay text'",
+      "settled_by": "gnovm/stdlibs/chain/markdown/markdown.go:421-430: isExtDelimiter lines get `\\` at column 0 by design, the comment stating a leading space would be stripped by util.TrimLeftSpace; chain/markdown is untouched here (git diff --stat base..HEAD -- gnovm/ empty), so the backslash placement predates the PR and the icon renders as any mid-line one does in Block mode; the body wording is the claims angle's"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_foreign.go",
+      "line": 432,
+      "angle": "removed",
+      "summary": "a doc listing the extensions inside <gno-foreign> still omits icons after buildInnerForeignMarkdown gained ExtIcons",
+      "settled_by": "grep -rln gno-foreign over docs/, gno.land/, gnovm/adr, examples: the foreign README, acd01fa29 ADR, go-gno-compatibility.md and sanitize README carry no list of inner extensions; only the new ADR mentions icons in foreign, at line 121"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 54,
+      "angle": "reach",
+      "summary": "the coupled note says utils.go is byte for byte identical across 6297, 6298 and 6299",
+      "settled_by": "blob of utils.go: 6297 and 6298 heads 32d1a6af122608fab9ed48902ac6c184e75cb8e4; 6299 head 1f9bf51d8 ddd55cefd; diff is only `214a215,225` adding trimTagLine after titleCase, the scanner and gnoTagLineParser lines identical, so the PR body's 'shares a small tag scanner ... byte for byte' holds and the hunks do not overlap"
+    }
+  ]
+}

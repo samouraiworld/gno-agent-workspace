@@ -1,0 +1,55 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go",
+      "line": 203,
+      "angle": "reach",
+      "summary": "iconHead swaps the System UIcons root for iconHeadStroke, whose root stroke=\"currentColor\" and round caps/joins are inherited by shapes the upstream root left unstroked: 55 of 491 icons (108 shapes) render with a 1.3 outline on their fills and dots, also drawn that way in ICONS.svg",
+      "failure_scenario": "Upstream menu_horizontal.svg is <svg viewBox=\"0 0 21 21\"><g fill=\"currentColor\"><circle r=\"1\"/>x3</g></svg>, no stroke anywhere; iconset wraps it as <symbol viewBox stroke-width=\"1.3\">, iconHead matches iconStrokeRoot and emits iconHeadStroke, so each r=1 dot inherits stroke=currentColor width 1.3 and draws at radius 1.65: rasterized at 210px the glyph inks 2562 px against 948 for the upstream (2.7x). battery's inner fill gains the same outline (9932 -> 11920 px) and nearly closes the gap to its frame. Every gnoweb page writing <gno-icon name=\"menu-horizontal\" /> (or battery, lock, help, warning-triangle, calendar-*, ...) shows the heavier glyph, and ICONS.svg pictures the same. The ADR's 'the generator strips those values from each body wherever an element would inherit them anyway' holds for removal, but the head adds values the source root never set; TestBuildIconTableStrokeInheritance only covers children under a <g stroke=\"currentColor\">. lineweight, user and user-circle also switch stroked shapes from miter/butt to round.",
+      "verify_by": "cp tests/b2-lines-reach-catalog-stroke-head.go gno.land/pkg/gnoweb/markdown/b2_stroke_head_test.go; cd gno.land/pkg/gnoweb && go test ./markdown -run TestB2StrokeHead -v -count=1: expect both tests to fail, listing 55 icons; fix by seeding the generator's inherited map with the source's SVG initial values (stroke none, butt, miter) and writing an attribute wherever the source's effective value differs from what the output head would hand down",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TestB2StrokeHeadMinimal: 'source strokes=[none none none] registry strokes=[currentColor currentColor currentColor]'. TestB2StrokeHeadVendored: '55 icons, 108 shapes: unstroked in the source, stroked in the registry: battery battery-75 battery-half battery-low calculator calendar-date ... menu-horizontal menu-vertical ... warning-circle warning-hex warning-triangle'. resvg at 210px, alpha>50%: src-menu-horizontal ink=948, gen-menu-horizontal ink=2562; src-battery ink=9932, gen-battery ink=11920. Upstream menu_horizontal.svg root read via gh api at 4a17b006: '<svg height=\"21\" viewBox=\"0 0 21 21\" width=\"21\" xmlns=...><g fill=\"currentColor\" fill-rule=\"evenodd\"><circle .. r=\"1\"/>...' (no stroke).",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6297-gnoweb-inline-icons/1-56ff177/tests/b2-lines-reach-catalog-stroke-head.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ICONS.svg",
+      "line": 1,
+      "angle": "lines",
+      "summary": "catalog sheet may be malformed XML (duplicate attributes from head + x/y/width/height/color, xlink without namespace, nested ids/styles)",
+      "settled_by": "xmllint --noout ICONS.svg -> XML_OK; python attribute count per nested <svg> -> 'dups 0'; grep counts id=: 0, <style: 0, xlink: 0, url(#: 0"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_test.go",
+      "line": 353,
+      "angle": "lines",
+      "summary": "TestIconCatalog writes each name unescaped into <text> and sizes cells at 120px, so a long or odd name could overlap or break the sheet",
+      "settled_by": "grep of 491 <text> names for anything outside [a-z0-9-] -> 0; PIL getlength at 11px (NimbusSans, LiberationSans) -> 'max 106 window-collapse-right wider than cell 0 overlapping pairs 0'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ICONS.svg",
+      "line": 281,
+      "angle": "catalog",
+      "summary": "cross glyph has no fill on head or path, so it inherits default black fill instead of currentColor",
+      "settled_by": "sed -n 281p ICONS.svg -> path d=\"M2 10L10 2M2 2L10 10\": two open straight segments, zero fill area; stroke is currentColor"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ICONS.svg",
+      "line": 267,
+      "angle": "lines",
+      "summary": "content glyph's d attribute carries newlines and indentation copied from icons.html, splitting one icon over three lines of the sheet",
+      "settled_by": "awk of non-icon lines -> 268/269 are continuation of the d value; xmllint parses it (XML_OK) and SVG path grammar treats newline as whitespace, so the glyph renders unchanged"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/icons.html",
+      "line": 43,
+      "angle": "reach",
+      "summary": "generator drops folder's clip-path=url(#clip0_529_3809), which could change the glyph",
+      "settled_by": "grep -n -A12 clip-path icons.html -> clipPath is <rect width=\"16\" height=\"16\"/> on viewBox 0 0 16 16: the clip equals the viewport, so dropping it changes nothing"
+    }
+  ]
+}

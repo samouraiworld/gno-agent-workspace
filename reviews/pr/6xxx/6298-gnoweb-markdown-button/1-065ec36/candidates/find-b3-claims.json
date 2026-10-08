@@ -1,0 +1,48 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons_test.go",
+      "line": 55,
+      "angle": "claims",
+      "summary": "the hostile-line budget test and BenchmarkButtonHostileLine only use quoted shapes that stop at the next `<`, so nothing pins the maxButtonTagLen bound the ADR credits for linearity",
+      "failure_scenario": "All three TestButtonHostileBudget shapes (`<gno-button href=\"/r/x\" `, the same per line, `<gno-button href=\"/>\" `) end each scanGnoTag attempt at `case c == '<'` (utils.go:71). An unquoted value takes `<` (utils.go:105), so `<gno-button x=` repeated makes every attempt read to the bound. Raise maxButtonTagLen to 1<<20: TestParseButtonTagBound uses the constant symbolically and stays green, the budget test stays green, and a 140 KB line of `<gno-button x=` goes back to quadratic, the failure the ADR (line 86-90) says the bound removed. Same scanner, same blob 32d1a6af, in #6297; #6299 has the same loop at utils.go:105.",
+      "verify_by": "in a scratch worktree set `const maxButtonTagLen = 1 << 20` in gno.land/pkg/gnoweb/markdown/ext_buttons.go, run `go test ./gno.land/pkg/gnoweb/markdown -run 'TestButtonHostileBudget|TestParseButtonTag' -count=1`: expect red, observe green; then add the shape `\"a \" + strings.Repeat(\"<gno-button x=\", 10_000)` to the map and observe it exceed the 5 s budget under the mutation",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "read: ext_buttons_test.go:55-66 shapes are all quoted; utils.go:71 `case c == '<': return 0, false` runs only at attribute start; utils.go:105 `for i < len(src) && !util.IsSpace(src[i]) && src[i] != '>'` lets an unquoted value cross `<`",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 105,
+      "angle": "claims",
+      "summary": "an unquoted attribute value swallows `<`, so the ADR's claim that the scanner stops at the next `<` outside a quoted value and each attempt reads one tag does not hold; an attempt reads up to 2 KB",
+      "failure_scenario": "Realm markdown with a line of `<gno-button x=` repeated: each `<` triggers buttonParser, and scanGnoTag reads key `x`, then the unquoted value `<gno-button`, then the next `x=`, and on until maxButtonTagLen (2048 bytes, ~146 attributes and ~440 EqualFold calls per attempt), instead of stopping at the next tag as the quoted shapes do. Still linear, but at a per-byte cost about two orders of magnitude above the shape the ADR measured (8 ms for 96 KB). Stopping the unquoted value at `<` keeps the bound to one tag. Same code in #6297 (identical blob) and #6299 (utils.go:105).",
+      "verify_by": "read utils.go:66-115 and confirm `<` ends an attempt only at attribute start (line 71) and not inside an unquoted value (line 105); time `parseButtonTag` on `strings.Repeat(\"<gno-button x=\", 1000)` against `strings.Repeat(`<gno-button href=\"/r/x\" `, 1000)` and compare bytes read per attempt (returned scan reaches 2048 vs ~24)",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "utils.go:105 `for i < len(src) && !util.IsSpace(src[i]) && src[i] != '>' {`; ADR line 88-89 `The scanner stops at the bound and at the next \\`<\\` outside a quoted value, so each attempt reads one tag`",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {"file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md", "line": 105, "angle": "claims", "summary": "coverage table counts (InlineText 15, Block 89, BlockRich 37, Blockquote 11, BlockquoteRich 2, TableCell 3, FootnoteDefinition 4) and 224 total may not match the corpus", "settled_by": "grep -l '^// MARKDOWNFUNC: <h>' golden/sanitize/*.txtar | wc -l per helper returned 15 89 37 11 2 3 4, LinkTitle 4; ls golden/sanitize | wc -l returned 224"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 50, "angle": "claims", "summary": "inline parser 399 / block parser 899 may not sit just ahead of goldmark raw HTML / HTML block", "settled_by": "goldmark@v1.8.2 parser/parser.go:615 `util.Prioritized(NewHTMLBlockParser(), 900)`, :633 `util.Prioritized(NewRawHTMLParser(), 400)`; ext_buttons.go:187 399, :190 899"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 84, "angle": "claims", "summary": "utils.go claimed identical on this branch and the <gno-icon /> PR", "settled_by": "git rev-parse HEAD:gno.land/pkg/gnoweb/markdown/utils.go = 32d1a6af; gh api contents at #6297 head 56ff1770 sha 32d1a6af (identical). #6299 head 1f9bf51d is ddd55cef: it adds trimTagLine, so the three-way byte-identity the coupled note cites does not hold for #6299; 6298's own claim names only #6297"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 219, "angle": "claims", "summary": "#6300 cited as tracking the list-container fence gap", "settled_by": "gh issue view 6300: `sanitize.Block/BlockRich: gno-* tags after a list or quote marker are not neutralized OPEN`"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 167, "angle": "claims", "summary": "measured contrast ratios and every variant passing AA in both themes", "settled_by": "contrast.py over 01-settings.css/02-tools.css (oklch to sRGB, oklab mix for tip): default 6.27/6.27, caution 10.25/4.96, warning 7.13/9.59, info 8.12/6.33, note 17.47/8.76, tip 13.77/4.76, success 9.79/5.60; outlines 7.10/10.26 ... tip 15.51/6.00; raw tip dark 2.95; all within 0.07 of the ADR and all >= 4.5; outline variants over every alert weak bg also >= 4.5"},
+    {"file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css", "line": 3236, "angle": "claims", "summary": ".b-btn silhouette, form-submit default tokens and opacity 0.9 hover may be misquoted", "settled_by": "06-blocks.css:1088-1094 .b-btn radius --s-rounded-sm, padding --g-space-1 --g-space-2, gap --g-space-1-5; :2810-2820 submit bg --s-color-bg-brand-default, color --s-color-text-base, border --s-color-border-brand-default, hover opacity 0.9"},
+    {"file": "gno.land/pkg/gnoweb/public/main.css", "line": 1, "angle": "claims", "summary": "built main.css may lack the button block, a token it uses, or change UI rules", "settled_by": "rule diff base vs head (split on `}`): only gno-button rules plus :root/dark/p3 declarations of --g-color-purple-50/950, --s-color-bg-note-weak, --s-color-bg-tip-weak, referenced 0 times in base and only by gno-button in head; every var() the button uses is declared in head main.css"},
+    {"file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css", "line": 3246, "angle": "claims", "summary": "text colour 'identical at rest and on hover' could be overridden by the realm-view anchor hover rule", "settled_by": "main.css `.c-realm-view a:hover{text-decoration:underline}` sets no colour; `.c-realm-view .gno-button` (0,2,0) beats `.c-realm-view a` (0,1,1); no other realm-view anchor rule sets colour except alert summary (button reduced to text there)"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 129, "angle": "claims", "summary": "button extension may load inside <gno-foreign>", "settled_by": "ext_foreign.go:445-462 buildInnerForeignMarkdown extends Foreign, Columns, Alerts, Links, Mention, Emphasis, no ExtButtons; golden ext_buttons/in_foreign_stays_inert.md.txtar renders `<!-- raw HTML omitted -->`"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 206, "angle": "claims", "summary": "InlineText may not escape `<`", "settled_by": "markdown.go:86 inlineEscapeSet includes '<'; TableCell calls InlineText (sanitize.gno:1009); FootnoteDefinition calls Block (:1552)"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 207, "angle": "claims", "summary": "a strip after the native escape, or a doubled backslash, could leave a live <gno-button through Block/BlockRich", "settled_by": "sanitize.gno:437-441 and :615-628 strip bidi/ZW and NUL before EscapeBlockHazards; escapeGnoButtonTags skips the byte after `\\`; markdown_test.go case gno-button-after-escaped-backslash `a \\\\<gno-button />` -> `a \\\\\\<gno-button />`; uppercase case gno-button-after-list-marker"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 121, "angle": "claims", "summary": "href with leading space or entity-encoded space could hide a javascript: scheme", "settled_by": "ext_buttons.go:116 isButtonHrefAllowed checks trimLeadingControlAndSpace(resolveDestination(href)); golden hostile_javascript_href `js leading space` -> raw HTML omitted; hostile_href_hidden_scheme NBSP/BOM/ZWSP rejected"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 54, "angle": "claims", "summary": "nested button in link label / alt text, and over-length tag keeping following lines", "settled_by": "golden hostile_nested_in_link: outer link left as text, alt=\"in alt\"; golden invalid_tag_over_max_len: `The next line stays visible.` rendered; valid_uppercase_tag.md.txtar exists"},
+    {"file": "gno.land/adr/prxxxx_gnoweb_button.md", "line": 205, "angle": "claims", "summary": "native change could shift stored output of in-tree realms", "settled_by": "grep sanitize.(Block|BlockRich|Blockquote|BlockquoteRich|FootnoteDefinition)( over examples/*.gno: only r/nt/commondao/v0/render.gno and p/moul/md/v0/md.gno, both render-time; on-chain deployments not checked (catalog finders own markdown.go)"}
+  ]
+}

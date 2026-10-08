@@ -1,0 +1,93 @@
+{
+ "candidates": [
+  {
+   "index": 1001,
+   "file": "gno.land/pkg/gnoweb/components/layouts/header.html",
+   "line": 249,
+   "angle": "removed",
+   "summary": "breadcrumb_click analytics stops counting first-segment navigation on every /r/<ns>/ and /p/<ns>/ page: the old <a href=\"/r/\"> moved out of the <ol> the delegate watches, into the popover",
+   "failure_scenario": "analytics.ts:76 fires breadcrumb_click on clicks matching ol[data-searchbar-target=\"breadcrumb\"] a. At base the first chip is <a href=\"/r/\"> inside that <ol>. At head it is a <button> in the <ol> and its three links (counterpart, All in <ns>, All realms) sit in div#kind-switch-menu, a sibling of the <ol>. On a gno.land deployment with analytics on, the operator's breadcrumb_click count drops on namespaced pages after deploy with no sign the clicks moved, and the new menu's use is never counted; SIMPLEANALYTICS.md:68 still documents the event as 'Click on any breadcrumb anchor'.",
+   "verify_by": "go test the rendered /r/alice/golf/game page for menu anchors with an <ol data-searchbar-target=breadcrumb> ancestor, then click each menu anchor in Chromium with gnoweb's compiled public/js/analytics.js and a stub sa_event: expect breadcrumb_click, observe none",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "Go structure test: 'menu anchors=3, menu anchors matched by breadcrumb_click selector=0, <ol> anchors to /r/=0'. Chromium probe: 'control <ol> anchor /r/alice=breadcrumb_click', 'kind-switch button=none', 'menu /p/alice/golf=none', 'menu /u/alice=none', 'menu /r/=none'.",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6262-realm-package-breadcrumb-switch/1-c5ae4b1/tests/solo-finder-2-breadcrumb-analytics.sh"
+  },
+  {
+   "index": 1002,
+   "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+   "line": 3991,
+   "angle": "lines (hot file, found in passing)",
+   "summary": "the no-anchor-positioning fallback never applies: .b-kind-switch's later inset:auto resets the @supports-not top/left, so the menu opens pinned to the viewport's top-left corner",
+   "failure_scenario": "The @supports not (top: anchor(bottom)) block (line 3982) sets top/left, then the .b-kind-switch rule after it at equal specificity sets inset:auto (bundled as left:auto;left:anchor(left);top:auto;top:anchor(bottom)). In a browser without anchor() (Safari before 26, for one) the anchor() declarations are dropped at parse, top:auto/left:auto win, and the popover opens at 0/0 over the gnome logo instead of under the breadcrumb, as the comment above the block promises.",
+   "verify_by": "render /r/alice/golf/game, link the committed public/main.css, showPopover() and read the menu's rect in Chromium, once as shipped and once with anchor( renamed xanchor( so the @supports-not branch holds: expect top/left near var(--g-space-14)/var(--g-space-16), observe 0/0",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "shipped: 'fallback @supports active: false', 'menu top/left px: 45/91', 'button bottom/left px: 41/91'. noanchor: 'fallback @supports active: true', 'menu top/left px: 4/0', 'computed top/left: 0px/0px'.",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6262-realm-package-breadcrumb-switch/1-c5ae4b1/tests/solo-finder-2-kind-switch-fallback.sh"
+  },
+  {
+   "index": 1003,
+   "file": "gno.land/pkg/gnoweb/components/layouts/header.html",
+   "line": 214,
+   "angle": "removed",
+   "summary": "the first breadcrumb chip was a plain link to the kind listing; it is now a popovertarget button with no fallback, so a browser without the Popover API loses that route",
+   "failure_scenario": "On /r/<ns>/... and /p/<ns>/... the 'r'/'p' chip used to be <a href=\"/r/\">. It is now <button popovertarget>; where popover is unsupported (Safari before 17, Chrome before 114, Firefox before 125) the click does nothing and the /r/ or /p/ listing has no breadcrumb route. frontend/package.json targets browserslist 'defaults'; whether that set still holds a popover-less browser is unmeasured.",
+   "verify_by": "npx browserslist 'defaults, not ie <= 11' in gno.land/pkg/gnoweb/frontend and check each against caniuse popover; a hit means the chip is dead there",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": false,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 156,
+   "angle": "catalog: global mutable state & concurrency",
+   "summary": "the per-handler counterpart cache and background lookup goroutine race",
+   "settled_by": "go test -race -count=3 -run Counterpart ./gno.land/pkg/gnoweb/ in the scratch worktree at c5ae4b13a: 'ok  github.com/gnolang/gno/gno.land/pkg/gnoweb 4.167s'"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 318,
+   "angle": "removed",
+   "summary": "the $state branch starts the lookup before State.Handle's per-IP rate limiter, so a rate-limited client still drives node ListPaths",
+   "settled_by": "handler_http.go:472 starts the same lookup on every plain GET of a realm or pure path with no limiter, so the $state path adds no lookup a client could not already trigger"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/handler_http.go",
+   "line": 1412,
+   "angle": "removed",
+   "summary": "weburl.Namespace() returns 'x/foo' for a one-letter namespace (/r/x/foo, idx>1 test), so the menu would read 'All in x/foo'",
+   "settled_by": "grep '.Namespace()' gno.land/pkg/gnoweb: components/overview_build.go:242 already feeds gnourl.Namespace() to the overview page, so the quirk predates and is not first reached by this diff"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/components/layouts/header.html",
+   "line": 249,
+   "angle": "catalog: error & panic handling",
+   "summary": "'index $.Parts 0' under 'with .Namespace' errors the template when Parts is empty",
+   "settled_by": "Namespace is set only under url.IsRealm()||url.IsPure() (handler_http.go:1411), which require reGnolandPath '^/[rpu]/...' with an /r/ or /p/ prefix, so split(url.Path) always yields Parts[0]"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+   "line": 3991,
+   "angle": "removed",
+   "summary": "PurgeCSS drops the new kind-switch selectors from the committed bundle",
+   "settled_by": "grep -o counts in public/main.css at head: kind-switch 35, b-kind-switch 16, popover-open 2, item--primary 1, item--inline 4, item-path 4, anchor-name 1, position-anchor 1"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 100,
+   "angle": "catalog: error & panic handling",
+   "summary": "the gopath.Dir walk in counterpartTarget spins forever if root is not an ancestor of twin",
+   "settled_by": "counterpartRoots (counterpart.go:64-67) builds root as the first two segments of twin with no empty segment and reGnolandPath admits no '.', so gopath.Dir(twin) reaches root in len(segs)-2 steps"
+  }
+ ]
+}

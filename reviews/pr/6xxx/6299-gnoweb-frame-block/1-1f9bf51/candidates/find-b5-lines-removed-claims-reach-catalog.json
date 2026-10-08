@@ -1,0 +1,97 @@
+{
+ "candidates": [
+  {
+   "file": "gno.land/adr/pr6299_gnoweb_frame.md",
+   "line": 157,
+   "angle": "claims",
+   "summary": "scanGnoTag's files are not byte for byte identical across #6297, #6298 and #6299, as the ADR and the PR body say: 6299's utils.go adds trimTagLine and its utils_test.go lacks 6298's FuzzScanGnoTag",
+   "failure_scenario": "whichever PR lands second 'drops its copy' as the ADR says: if 6299 lands after #6297/#6298 and takes their utils.go, trimTagLine (used by ext_frame.go:199,270 and ext_foreign.go:190,244) is gone and the package no longer builds; if #6298 lands after 6299 and takes 6299's utils_test.go, FuzzScanGnoTag is silently deleted. Same file carried by #6297 and #6298",
+   "verify_by": "sha1sum gno.land/pkg/gnoweb/markdown/utils.go and utils_test.go in the gno-review-6297/6298/6299 worktrees; diff 6297 vs 6299 utils.go; diff 6298 vs 6299 utils_test.go",
+   "band": "Nit",
+   "fix_kind": "comment",
+   "checked": true,
+   "run": false,
+   "evidence": "utils.go sha1: 6297 56ff17707 6d054d9d6992, 6298 065ec369b 6d054d9d6992, 6299 1f9bf51d8 c69e004cdd2d; diff 6297..6299 utils.go: '214a215,225 > // trimTagLine strips 0-3 leading spaces ... func trimTagLine'; utils_test.go: 6299 = 6297 (9cd8787d5bb9), 6298 = 259a7af14367, diff '45,70d44 < func FuzzScanGnoTag'",
+   "repro_path": ""
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-frame-indented.txtar",
+   "line": 17,
+   "angle": "lines",
+   "summary": "the new golden pins an indented frame tag rendering as a literal backslash plus a dropped raw-HTML tag, not the literal text sanitize.gno documents for an escaped <gno-...> line",
+   "failure_scenario": "BlockRich('   <gno-frame>') returns '\\\\   <gno-frame>'; the backslash precedes a space, so it is not an escape, stays visible, and the tag after the spaces is inline raw HTML: the page shows '\\\\   ' and the user's '<gno-frame>' text vanishes (<p>\\\\   <!-- raw HTML omitted -->). Unindented tags render as &lt;gno-frame&gt; (blockrich-gno-frame-uppercase). Pre-existing in escapeBlockHazardsImpl, which writes '\\\\' before the indent; the PR adds a golden asserting it",
+   "verify_by": "sed -n '10,18p' the golden; compare with blockrich-gno-frame-uppercase.txtar output.html; read markdown.go isExtDelimiter branch (out.WriteByte('\\\\') before line)",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "golden line 17: '<p>\\\\   <!-- raw HTML omitted -->'; sanitize.gno:391 table row '<gno-card>, <gno-columns>, any <gno-…>/</gno-…> at line-start | escaped (wildcard match) → literal text'",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md",
+   "line": 107,
+   "angle": "claims",
+   "summary": "Cases column Block 65 / BlockRich 40 / 197 total may not match the corpus",
+   "settled_by": "recount of MARKDOWNFUNC over golden/sanitize/*.txtar: '65 Block', '40 BlockRich', 197 files"
+  },
+  {
+   "file": "gno.land/adr/pr6299_gnoweb_frame.md",
+   "line": 144,
+   "angle": "claims",
+   "summary": "ADR says the sanitizer escapes a line-leading <gno-... with 1-3 space indent; code may differ",
+   "settled_by": "markdown.go isExtDelimiter: 'trim := strings.TrimLeft(line, \" \\t\")' then hasCaseInsensitivePrefix(rest, \"gno-\"): any indent and any case escaped, a superset of the claim"
+  },
+  {
+   "file": "gno.land/adr/pr6299_gnoweb_frame.md",
+   "line": 100,
+   "angle": "claims",
+   "summary": "ADR-named symbols and priorities may not exist",
+   "settled_by": "grep: ext_frame_test.go:31 BenchmarkFrame, :91 TestParseFrameLineTagNoAlloc, :170 TestFrameGridScanLinear; ext_frame.go:395 frameParser 499, :401 transformer 501, ext_columns.go:330 500; ext_columns.go:50 inFrame; ext_forms.go:271 reader.AdvanceToEOL(); nestdepth.go:78 <gno-card>; utils.go:219 trimTagLine, no trimForeignLine left"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md",
+   "line": 107,
+   "angle": "claims",
+   "summary": "gfanton's requested changes (title, ADR rename, #6300 wording, bare-CR) may still be open",
+   "settled_by": "title 'feat(gnoweb): add <gno-frame> markdown block'; no 'prxxxx' left in tree (grep only AGENTS.md:133 convention line); SANITIZE.md:107 and ADR:147 say 'Known gap ... tracked in #6300'; goldens cr_only_* present"
+  },
+  {
+   "file": "examples/quarantined/gno.land/r/docs/markdown/markdown.gno",
+   "line": 486,
+   "angle": "claims",
+   "summary": "docs note 'a grid inside a frame must close before the frame does; otherwise the frame ends just before the grid' may misdescribe the parser",
+   "settled_by": "golden ext_frame/columns_open_in_frame_close_outside.md.txtar output: '<section class=\"gno-frame\">\\n<h2>A</h2>\\n</section>\\n<div class=\"gno-columns\">'; CSS 06-blocks.css '.gno-column > .gno-frame:only-child' present for the card claim"
+  },
+  {
+   "file": "examples/quarantined/gno.land/r/docs/markdown/markdown.gno",
+   "line": 389,
+   "angle": "catalog",
+   "summary": "invariant catalog classes against the realm change",
+   "settled_by": "the .gno change adds static doc strings only: no state, gas, caller, coin, map iteration or user text in Render; no class touched"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md",
+   "line": 107,
+   "angle": "removed",
+   "summary": "a doc listing gno-* extensions or the old fixture count may be left stale",
+   "settled_by": "grep gno-columns over docs/ gno.land/pkg/gnoweb misc/ *.md: only SANITIZE.md (has gno-frame) and home.*.md (content pages, not catalogs); grep '186' over gno.land/pkg/gnoweb and p/nt/markdown *.md: no hit"
+  },
+  {
+   "file": "gno.land/adr/pr6299_gnoweb_frame.md",
+   "line": 1,
+   "angle": "claims",
+   "summary": "PR body '75 goldens' and 'existing form goldens are unchanged'",
+   "settled_by": "ls golden/ext_frame | wc -l: 92 (body count stale, prose only, no code misdescribed); risk.md lists only golden/ext_forms/valid_form_in_blockquote.md.txtar under ext_forms (+19/-0)"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/golden/sanitize/block-gno-frame-escaped.txtar",
+   "line": 1,
+   "angle": "claims",
+   "summary": "PR body '11 sanitize fixtures, most inside a realm's own frame'",
+   "settled_by": "ls golden/sanitize | grep -i frame | wc -l: 11; 8 carry the frame CONTEXT, 3 the columns CONTEXT"
+  }
+ ]
+}

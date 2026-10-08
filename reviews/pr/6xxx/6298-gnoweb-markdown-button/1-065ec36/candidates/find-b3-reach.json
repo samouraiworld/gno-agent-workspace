@@ -1,0 +1,69 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3270,
+      "angle": "reach",
+      "summary": "the button's `& > .tooltip { margin: 0 }` loses margin-right to the realm-view link rule `a > .tooltip:last-of-type { margin-inline-end: 0.2em }`, so every button carrying a link-type icon gets 0.2em extra right padding",
+      "failure_scenario": "`<gno-button href=\"/r/docs/home\" label=\"Default\" />` on /r/docs/markdown renders `<a class=\"gno-button\">Default<span class=\"link-internal tooltip\">...</span></a>`. Compiled main.css has `.c-realm-view .gno-button>.tooltip{margin:0}` at specificity (0,3,0) and `.c-realm-view a>.tooltip:last-of-type{margin-right:.2em}` (05-composition.css:211) at (0,3,1), so the higher one wins and the icon keeps a 0.2em right margin: right inner space is g-space-2 + 0.2em against g-space-2 on the left, in every variant, for internal, external, tx and user links. The rule's own comment says it resets the icon; the reset works for `.tooltip:only-of-type` (0,3,0, earlier) and fails for this one.",
+      "verify_by": "grep -oE '[^{}]*tooltip:last-of-type[^{}]*\\{[^}]*\\}' gno.land/pkg/gnoweb/public/main.css and the `.gno-button>.tooltip` rule: compare specificity (0,3,1) vs (0,3,0); or open /r/docs/markdown in gnodev and read getComputedStyle(document.querySelector('.gno-button > .tooltip')).marginRight, expect 0px, observe ~3.2px",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "main.css: `.c-readme-view .gno-button>.tooltip,.c-realm-view .gno-button>.tooltip{border-color:currentColor;color:inherit;margin:0}` and `.c-readme-view a>.tooltip:last-of-type,.c-realm-view a>.tooltip:last-of-type{margin-right:.2em}`; ext_links.go renders the icon spans after the label, so the last icon is a:last-of-type span",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3233,
+      "angle": "reach",
+      "summary": "a token the button consumes is undefined, so a variant falls back to transparent/initial",
+      "settled_by": "loop grep -rlE -- \"--$t:\" over the 33 tokens the block uses: every one defined, 01-settings.css or 02-tools.css, --cr-space-0-5 in 05-composition.css:133 inside `.c-realm-view, .c-readme-view`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3233,
+      "angle": "reach",
+      "summary": "markdown with ExtButtons renders somewhere outside .c-realm-view/.c-readme-view, leaving the button unstyled",
+      "settled_by": "RenderRealm has 4 callers (handler_http.go:471 GetMarkdownView -> components.RealmView, 550 GetRealmView, 832 GetUserView -> user.html:56 `<md-renderer class=\"c-realm-view\">`, 992 renderReadme -> directory.html:50 / overview.html:151 `<md-renderer class=\"c-readme-view\">`); documentationGM does not load the Gno extension"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3251,
+      "angle": "reach",
+      "summary": "an existing realm-view anchor rule overrides the button colour, display or hover decoration",
+      "settled_by": "compiled main.css rules targeting `a` under .c-realm-view: only `a{color;display:inline-block;...}` (0,1,1), `a:hover{text-decoration:underline}` (0,2,1), `a:has(>img)`, `sup>a`, `.gno-alert>summary a`; the button's (0,2,0) base and (0,3,0) hover win; no :focus/:visited anchor rule"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/public/main.css",
+      "line": 1,
+      "angle": "reach",
+      "summary": "the regenerated main.css carries changes beyond the button block (stale or foreign build)",
+      "settled_by": "rule-level diff of base vs head main.css outside gno-button rules: 8 declaration lines, all `--s-color-bg-note-weak`, `--s-color-bg-tip-weak`, `--g-color-purple-50/950` added to :root/dark/p3 blocks; these are tokens the new tip/note variants consume (unused, hence pruned, at base); 02-tools.css is not in the diff"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md",
+      "line": 467,
+      "angle": "reach",
+      "summary": "a line-start `<gno-button` gets the button escape and then the ext-delimiter escape, giving `\\\\<gno-button` and a live tag",
+      "settled_by": "markdown.go:427 runs escapeGnoButtonTags before isExtDelimiter (435), which needs trim[0]=='<', false after the escape; golden block-gno-button-leading-escaped.txtar output.md shows a single `\\<gno-button` and output.html `&lt;gno-button`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md",
+      "line": 467,
+      "angle": "reach",
+      "summary": "a doubled backslash `\\\\<gno-button` is read as already escaped and left live",
+      "settled_by": "markdown.go:595 escapeGnoButtonTags: `case '\\\\': i++` consumes the escaped byte, so in `\\\\<` the second backslash is skipped and `<` is still escaped"
+    },
+    {
+      "file": "gno.land/adr/prxxxx_gnoweb_button.md",
+      "line": 205,
+      "angle": "reach",
+      "summary": "sanitize.Block/BlockRich output changes on chain and shifts state a realm stored from it",
+      "settled_by": "grep sanitize.(Block|BlockRich|Blockquote|BlockquoteRich|FootnoteDefinition)( outside quarantined/tests: commondao render.gno:441 renderBylaws, md.Blockquote callers commondao render.gno + proposal_kinds.gno:363 executionPropDefinition.Body() (constant text, called from render.gno:635 and readonly.gno:183), boards2 render.gno:374 infoAlert; all Render-time, none stored"
+    }
+  ]
+}

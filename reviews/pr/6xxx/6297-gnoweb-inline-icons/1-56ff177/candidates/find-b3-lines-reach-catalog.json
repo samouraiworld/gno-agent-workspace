@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 190,
+      "angle": "reach",
+      "summary": "iconHeadingIDTransformer skips empty ATX headings (Lines().Len()==0) and never registers their goldmark id in the fresh linearIDs, so a later heading slugging to \"heading\" gets a duplicate id",
+      "failure_scenario": "A realm page with an empty heading `##` and any heading carrying an icon: `##\\n\\n## <gno-icon name=\"star\" label=\"Top\" />` renders two <h2 id=\"heading\">; `##\\n\\n## Heading\\n\\n## <gno-icon name=\"star\" /> A` renders ids [heading heading a] where the same doc without the icon gives [heading heading-1]. The TOC entry and any #heading anchor for the second heading jump to the empty one, and the DOM carries duplicate ids. Fix: ids.Put the kept id of a heading with no lines, or regenerate it with ids.Generate(nil, ast.KindHeading).",
+      "verify_by": "cd gno.land/pkg/gnoweb/markdown && cp <repro> zz_b3_dupid_test.go && go test -count=1 -run TestB3EmptyHeadingDuplicateID -v .",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "src=\"##\\n\\n## Heading\\n\" ids=[heading heading-1] (control); src=\"##\\n\\n## Heading\\n\\n## <gno-icon name=\\\"star\\\" /> A\\n\" ids=[heading heading a] -> duplicate heading id \"heading\" (2 times); src=\"##\\n\\n## <gno-icon name=\\\"star\\\" label=\\\"Top\\\" />\\n\" ids=[heading heading] -> duplicate; --- FAIL: TestB3EmptyHeadingDuplicateID",
+      "repro_path": "reviews/pr/6xxx/6297-gnoweb-inline-icons/1-56ff177/tests/b3-lines-reach-catalog-empty-heading-dup-id.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 298,
+      "angle": "lines",
+      "summary": "aloneInNamedParent's heading-wide walk marks icons nested in a link as hintDone with hint=false, so an icon-only link inside a heading that has an earlier unlabeled icon never gets its add-label hint",
+      "failure_scenario": "`## <gno-icon name=\"star\" /> Title [<gno-icon name=\"star\" />](/r/x)`: the first icon's parent is the heading; its walk descends into the link, sets c.hintDone=true on the link's icon and only assigns first.hint, so the link's icon returns hint=false and no `<!-- gno-icon: alone in a link or heading ... -->` is written, although the link has no accessible name. `## Title [<gno-icon name=\"star\" />](/r/x)` (no earlier icon) does get the hint. Fix: in the walk, return WalkSkipChildren on a nested namedByContent node other than parent.",
+      "verify_by": "cd gno.land/pkg/gnoweb/markdown && cp <repro> zz_b3_hint_test.go && go test -count=1 -run TestB3LinkHintLostInsideHeading -v .",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "control `## Title [<gno-icon name=\"star\" />](/r/x)` contains the hint; probes log: an icon-only link inside a heading got no hint: \"## <gno-icon name=\\\"star\\\" /> Title [<gno-icon name=\\\"star\\\" />](/r/x)\\n\" and the two-link variant; --- FAIL: TestB3LinkHintLostInsideHeading",
+      "repro_path": "reviews/pr/6xxx/6297-gnoweb-inline-icons/1-56ff177/tests/b3-lines-reach-catalog-link-hint-lost.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_test.go",
+      "line": 170,
+      "angle": "lines",
+      "summary": "FuzzIconRender's event-handler oracle flags any labeled icon whose label contains a word starting with \"on\", a false positive",
+      "failure_scenario": "Input `<gno-icon name=\"star\" label=\"turn on\" />` renders `<svg class=\"gno-icon\" ... role=\"img\" aria-label=\"turn on\">`; the tag before the first '>' contains \" on\", so t.Fatalf(\"event handler in ...\") fires on a safe render under `go test -fuzz`. Check for an attribute name instead (e.g. a regexp on `\\s on[a-z]+=` outside the quoted aria-label).",
+      "verify_by": "add testdata/fuzz/FuzzIconRender/b3 with `go test fuzz v1\\nstring(\"<gno-icon name=\\\"star\\\" label=\\\"turn on\\\" />\")` and run go test -run FuzzIconRender: expect the fatal",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "read: ext_icons_test.go:170 `strings.Contains(strings.ToLower(tag), \" on\")` over the svg open tag, which carries aria-label=\"<label>\" for a labeled icon (ext_icons.go renderIcon)",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 236,
+      "angle": "lines",
+      "summary": "An unquoted name directly followed by `/>` gets the \"write it self-closing\" hint although the author wrote `/>`",
+      "failure_scenario": "`<gno-icon name=star/> x` renders `<!-- gno-icon: write it self-closing, <gno-icon name=\"…\" /> -->`: scanGnoTag (utils.go:105, shared byte-for-byte with #6298 and #6299) reads the unquoted value as `star/`, HTML-correct, so SelfClosing is false and the hint tells the author to do what they did. Changing scanGnoTag would break `href=/r/x/` in the sibling PRs, so the fix belongs in the hint: say to add a space or quote the name when n.Name ends in '/'.",
+      "verify_by": "render `<gno-icon name=star/> x` through newProductionLikeMarkdown and read the comment",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "\"<p><!-- gno-icon: write it self-closing, <gno-icon name=\\\"…\\\" /> --> x</p>\\n\"",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 182,
+      "angle": "catalog",
+      "summary": "The transformer regenerates every heading id from a hardcoded newLinearIDs(), ignoring pc.IDs() and overwriting explicit ids, for any consumer of the exported ExtIcons/NewGnoExtension that enables parser.WithAttribute",
+      "failure_scenario": "Latent: a goldmark built with parser.WithAttribute() and NewGnoExtension parses `## Intro {#custom}` and one `## <gno-icon name=\"star\" /> A`; the transformer finds an id on every heading and replaces `custom` with `intro`, and a caller's own parser.WithIDs generator is bypassed. In-tree the realm renderer has no WithAttribute (render_config.go:36) and documentationGM (render.go:107) has no GnoExtension, so nothing ships it today.",
+      "verify_by": "grep -rn 'WithAttribute()' gno.land contribs --include='*.go'; build goldmark.New(WithParserOptions(parser.WithAutoHeadingID(), parser.WithAttribute()), WithExtensions(NewGnoExtension())) and render the two headings",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grep: only render.go:107 enables parser.WithAttribute(), on documentationGM, which carries no GnoExtension; NewGnoExtension consumers are app.go, render_config.go, ext.go",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 156,
+      "angle": "lines",
+      "summary": "Icons past MaxIconsPerConvert vanish as `<!-- raw HTML omitted -->` with no budget hint (silent fallback)",
+      "settled_by": "Probe rendered 1,000 icons then `LAST <!-- raw HTML omitted --></p>`; that fallback is what gfanton asked for in the ext_icons.go:160 thread (\"let the rest fall through to the raw HTML path as on master\") and alexiscolin implemented, so it is a reviewer-requested design, not a defect"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 117,
+      "angle": "reach",
+      "summary": "The 1,000-icon cap does not hold output under TestIconBudget's 4 MiB assertion for label-heavy tags",
+      "settled_by": "Probe: largest glyph is `pure` (2234 B, same one the test uses); 1,000 x 512-byte tags with a label of '\"' escaped to &quot; render 5,163,007 B vs 2,301,007 B plain. The cap still bounds output linearly (~5.2 MB max); neither the code comment (\"up to a few KB\" per icon) nor the thread claims a 4 MiB ceiling for every input, so nothing false is asserted"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_test.go",
+      "line": 105,
+      "angle": "lines",
+      "summary": "assertLinear returns early when the 4n run is under 20 ms, which could skip the linearity check",
+      "settled_by": "Instrumented run: every case's 4n input took 25.2 ms to 161 ms here (small 4.5-38.9 ms), and a quadratic path multiplies the 4n time by >=16x small, so it clears the 20 ms floor and fails the 10x assertion"
+    }
+  ]
+}

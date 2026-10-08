@@ -1,0 +1,118 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/valid_indented_three.md.txtar",
+      "line": 4,
+      "angle": "reach",
+      "summary": "No golden pins a </gno-frame> indented 1-3 spaces under a list item: it becomes an invalid leaf inside the <li> and the frame stays open to EOF, the boundary of the 3-space close this fixture accepts at document level",
+      "failure_scenario": "<gno-frame>\\n- item\\n   </gno-frame>\\nafter\\n renders <ul><li>item <!-- unexpected/invalid frame tag omitted --></li></ul><p>after</p></section>: the same 3-space close valid_indented_three closes at document level is captured by the list item, and 'after' lands inside the frame. A blank line then a 2-space close does the same. No fixture pins the case, so a change to trimTagLine or the atDoc rule moves it unseen.",
+      "verify_by": "add golden ext_frame/list_indented_close.md.txtar with that input and the output above, then go test ./gno.land/pkg/gnoweb/markdown -run 'TestGnoExtension/ext_frame' -count=1",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "probe q02 at 1f9bf51d8 via the golden harness: '<section class=\"gno-frame\">\\n<ul>\\n<li>item\\n<!-- unexpected/invalid frame tag omitted -->\\n</li>\\n</ul>\\n<p>after</p>\\n</section>'; probe p09 ('- a\\n\\n  </gno-frame>') gives the same shape",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_unicode_lookalikes.md.txtar",
+      "line": 6,
+      "angle": "lines",
+      "summary": "The NUL byte on this line makes git and GitHub treat the golden as binary, so neither its three lookalike inputs nor the U+FFFD output it pins appear in this PR's diff or in any later one",
+      "failure_scenario": "git diff --numstat 41841e92f..1f9bf51d8 prints '-\\t-' for the file and the round's diff bundle shows 'Binary files /dev/null and b/... differ'; a reviewer of this PR, or of a later -update-golden-tests regeneration, sees no line of '< gno-frame>', the Cyrillic 'gno-fr\\u0430me' or '<gno-frame\\x00>' and cannot check what the expected output asserts. It is the only NUL-bearing golden under gnoweb/markdown/golden.",
+      "verify_by": "git diff --numstat 41841e92f725454c6b2fa2bfcd2a9f7e29c11260 1f9bf51d8e71902053e3bd92986f92d24431efc2 -- gno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_unicode_lookalikes.md.txtar; fix: move the NUL case into ext_frame_test.go as a \"\\x00\" string literal and keep the txtar text-only",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "numstat returned '-\\t-\\tgno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_unicode_lookalikes.md.txtar'; grep -rlaP '\\x00' over golden/ returned only this file; cat -A line 6 shows '<gno-frame^@>'",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/valid_close_ends_lazy_list.md.txtar",
+      "line": 5,
+      "angle": "reach",
+      "summary": "sibling shapes of the lazy-close fixtures (list inside quote, nested ordered/bullet list inside quote) might keep the close as lazy text",
+      "settled_by": "golden-harness probes p03/p16 at 1f9bf51d8: both render '</blockquote>\\n</section>\\n<p>after</p>'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/setext_after_close.md.txtar",
+      "line": 5,
+      "angle": "reach",
+      "summary": "a '---' after a close might turn the frame's last paragraph into a setext heading",
+      "settled_by": "probe p04 '<gno-frame>\\nTitle\\n</gno-frame>\\n---' renders '<p>Title</p>\\n</section>\\n<hr>'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/valid_form_in_frame.md.txtar",
+      "line": 5,
+      "angle": "reach",
+      "summary": "the form's new AdvanceToEOL close might leave a CR that keeps the frame from closing on CRLF pages",
+      "settled_by": "probe p06 (all lines CRLF) renders '</form>\\n</section>\\n<p>after</p>'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/valid_with_alert.md.txtar",
+      "line": 4,
+      "angle": "reach",
+      "summary": "valid_with_alert ends at EOF, so an alert swallowing the close lazily would go unseen",
+      "settled_by": "probes p07/p08 (content after the close, and a lazy alert line) render '</details>\\n</section>\\n<p>after</p>'; a swallowed close would also show as raw HTML inside the alert paragraph of the existing golden"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/valid_tag_whitespace.md.txtar",
+      "line": 6,
+      "angle": "lines",
+      "summary": "trailing \\v on a close and '<gno-frame / >' might be accepted inconsistently with the self-closing rule",
+      "settled_by": "probes p11/p12 open and close the frame; '/ ' not followed by '>' is a plain start tag in x/net/html too, so the self-closing rule (scanGnoTag utils.go:54-58) is not bypassed"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_nested_keeps_depth.md.txtar",
+      "line": 4,
+      "angle": "reach",
+      "summary": "the blank line after the nested opener might be what keeps the depth count right",
+      "settled_by": "probe p01 (same input without the blank line) renders output byte-identical to the golden: three foreign levels then 'render budget exceeded'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/valid_in_foreign.md.txtar",
+      "line": 2,
+      "angle": "reach",
+      "summary": "frame > foreign > frame renders a section inside a section, past the no-nested-frames rule",
+      "settled_by": "probe q01 renders nested '<section class=\"gno-frame\">' inside the foreign body; ADR pr6299_gnoweb_frame.md 'Sandbox parity' states a frame inside foreign content renders in the sandbox, and 'Allowing nested frames' rejects only a frame directly inside a frame"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/valid_cards_in_framed_grid.md.txtar",
+      "line": 3,
+      "angle": "lines",
+      "summary": "a card holding a quote, an alert or a lazy list might not end at its close or at the next separator",
+      "settled_by": "probes p15/p19/p20 render balanced output: card section closed before '</div>\\n<!-- Column 1 -->', outer section closed, '<p>after</p>' outside"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_unclosed_fence.md.txtar",
+      "line": 2,
+      "angle": "reach",
+      "summary": "a type-7 HTML line right after a frame close (stray </gno-foreign>) swallows the next line",
+      "settled_by": "probe h2 '</gno-frame>\\n</gno-foreign>\\nafter' and probe h1 '## T\\n</gno-foreign>\\nafter' both end in '<!-- raw HTML omitted -->' with 'after' gone: plain CommonMark type-7 after any leaf block, not frame-specific"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_trailing_text.md.txtar",
+      "line": 2,
+      "angle": "reach",
+      "summary": "gfanton's requested bare-CR fix (text after the tag dropping the rest of the page) might still be open",
+      "settled_by": "probes g1/g2/g3 with gfanton's exact inputs keep every line: '<p><!-- raw HTML omitted --> ^MFirst paragraph.^MSecond paragraph.^M<!-- raw HTML omitted -->^MFooter.</p>'; ext_frame.go:80-83 returns frameTagNone for size < len(line); PR title already reads 'feat(gnoweb): add <gno-frame> markdown block' and the ADR is pr6299_gnoweb_frame.md"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/valid_form_in_frame.md.txtar",
+      "line": 3,
+      "angle": "reach",
+      "summary": "an unclosed <gno-form> inside a frame swallows </gno-frame> and the rest of the page",
+      "settled_by": "probe p18 shows the swallow, but FormParser.Continue (ext_forms.go) consumes every line until </gno-form> on base too, and invalid_frame_in_form.md.txtar already pins frame tags as form errors"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+      "line": 388,
+      "angle": "catalog",
+      "summary": "global mutable state and concurrency: package-level frame state shared across concurrent renders",
+      "settled_by": "Read ext_frame.go: package vars are the prefixes (56-61), context keys made once (106,115,124) and ExtFrames = &frames{} (388); frameParser, frameHTMLBlockParser and the transformer hold no fields that change, and all per-page state lives in parser.Context. The other catalog classes (determinism, gas, realm state, caller, coin, storage, VM) do not touch a gnoweb renderer"
+    }
+  ]
+}

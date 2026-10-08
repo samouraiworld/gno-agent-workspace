@@ -1,0 +1,48 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons_test.go",
+      "line": 113,
+      "angle": "catalog",
+      "summary": "benchConvert drops the weburl.Parse error (catalog: Error & panic handling, returned err left unchecked)",
+      "failure_scenario": "gnourl, _ := weburl.Parse(...): were the parse to fail, gnourl is nil, getUrlFromContext (context.go:46-48) returns ok=false, linkTransformer returns early, and BenchmarkButton/BenchmarkButtonHostileLine time the untransformed path while reporting success; every base test in the package checks this err (ext_links_test.go:129, ext_test.go:32, sanitize_integration_test.go:332)",
+      "verify_by": "sed -n '113p' gno.land/pkg/gnoweb/markdown/ext_buttons_test.go shows `gnourl, _ := weburl.Parse(\"https://gno.land/r/test\")`; grep -rn 'weburl.Parse(' gno.land/pkg/gnoweb/markdown/*_test.go at the merge base shows every call as `gnourl, err :=` followed by a check",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "head ext_buttons_test.go:113 `gnourl, _ := weburl.Parse(\"https://gno.land/r/test\")`; base ext_links_test.go:129, ext_test.go:32, sanitize_integration_test.go:332 all read `gnourl, err := weburl.Parse(\"https://gno.land/r/test\")`",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 184,
+      "angle": "catalog",
+      "summary": "native-change class: head gnoweb renders a live button from content the chain/mainnet native (merge-base copy) passes through Block, e.g. a mid-line or list-marker <gno-button",
+      "settled_by": "duplicate, not refuted: ls reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/ shows b2-catalog-mainnet-native-live-button.sh, which runs head gnoweb against the chain/mainnet native over the TestSanitizeIntegration/.*gno-button goldens; realm callers checked here: examples/gno.land/r/nt/commondao/v0/render.gno:441 `res.Write(sanitize.Block(text))` sanitizes at render time, and no example realm stores Block/BlockRich output"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 353,
+      "angle": "catalog",
+      "summary": "Error & panic: unchecked class.(string) assertion on the gno:class attribute panics the render on a non-string value",
+      "settled_by": "grep -rn 'gno:class|linkClassAttr' shows one producer, ext_buttons.go:80 SetAttribute(linkClassAttr, buttonClass(...)) with a string; grep 'ParseAttributes(' in goldmark@v1.8.2/parser shows only atx_heading.go:203, so render.go:107 parser.WithAttribute() puts no user attribute on a link; same unchecked shape as base ext_alert.go:425 `!hasTitle.(bool)`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 35,
+      "angle": "catalog",
+      "summary": "Global mutable state & concurrency: new package vars (buttonVariants, buttonTagPrefix, linkClassAttr, ExtButtons) and the shared gnoTagLineParser on one goldmark instance used across requests",
+      "settled_by": "grep -rnE '\\b(buttonVariants|buttonTagPrefix|linkClassAttr|ExtButtons)\\b' gno.land/pkg/gnoweb (non-test) shows declarations and reads only (ext_buttons.go:52,80,127,190, ext_links.go:352, ext.go:96), no assignment; goldmark@v1.8.2/parser/paragraph.go:9-12 `type paragraphParser struct {}` / `var defaultParagraphParser = &paragraphParser{}`, so the embedded BlockParser carries no state; buttonParser is struct{}; no t.Parallel and no cache added"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 121,
+      "angle": "catalog",
+      "summary": "Determinism / native agreement: hasGnoTagPrefix (gnoweb, also in #6297 and #6299) could accept a tag shape the native escapeGnoButtonTags misses",
+      "settled_by": "native escapeGnoButtonTags (markdown.go diff) escapes every case-insensitive `<gno-button` whatever byte follows, a superset of hasGnoTagPrefix's `/`, `>` or util.IsSpace follower; its `\\\\` skip-next-byte model matches goldmark@v1.8.2/parser/parser.go:1208-1247 (escaped set by `\\\\`, cleared after one byte, parsers tried only on unescaped punct); bytes.EqualFold has no non-ASCII fold partner for g,n,o,b,u,t; grep for importers of gno.land/pkg/gnoweb/markdown outside gno.land/pkg/gnoweb returns nothing, so no consensus path renders through it; StripBidiAndZeroWidth, the one native it calls, predates the diff (base markdown.gno:21) and the diff leaves it unchanged"
+    }
+  ]
+}

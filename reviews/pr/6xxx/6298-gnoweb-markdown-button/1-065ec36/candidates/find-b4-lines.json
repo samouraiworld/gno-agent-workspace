@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 96,
+      "angle": "lines",
+      "summary": "buttonLabel decodes the label with html.UnescapeString (text-content rules), not as HTML decodes attribute text, so a legacy entity name with no ';' followed by a letter or '=' is silently replaced",
+      "failure_scenario": "<gno-button href=\"/r/x\" label=\"email&notifications\" /> renders a button labelled \"email¬ifications\"; label=\"Lock&amplify\" gives \"Lock&lify\", label=\"x&copy=1\" gives \"x©=1\", label=\"Buy&regular\" gives \"Buy®ular\". HTML attribute decoding (and the x/net/html tokenizer the sibling block gno-* tags use via ParseHTMLTokens) leaves all four literal, as do CommonMark text and the href (goldmark's resolver needs ';'). The godoc at ext_buttons.go:89 and the ADR both say 'decoded as HTML decodes attribute text'; the button renders with no sign the label changed. valid_label_entities.md.txtar only feeds entities with ';', so no golden pins it.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb/markdown -run TestB4LabelDecodeAttributeMode -v with tests/b4-lines-label-decode_test.go copied into the package: buttonLabel vs the ParseHTMLTokens attribute value for the same tag differ on each input",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "raw \"email&notifications\"  buttonLabel \"email¬ifications\"  html attribute \"email&notifications\"  DIFFERS; raw \"Lock&amplify\" buttonLabel \"Lock&lify\" html attribute \"Lock&amplify\" DIFFERS; raw \"x&copy=1\" buttonLabel \"x©=1\" DIFFERS; rendered: <p><a href=\"/r/x\" class=\"gno-button\">email¬ifications<span class=\"link-internal tooltip\" ...",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b4-lines-label-decode_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_buttons/hostile_control_chars.md.txtar",
+      "line": 2,
+      "angle": "lines",
+      "summary": "no golden feeds an href whose control byte leads or that is blank only after decoding; isButtonHrefAllowed trims leading control/space before its control check (ext_buttons.go:116) and newButtonLink tests the raw href for emptiness (line 72), so both are claimed as buttons",
+      "failure_scenario": "href=\"&#10;/r/test\" and href=\"&#9;/r/test\" pass isButtonHrefAllowed and render '<!-- invalid link -->L' (label as plain text) instead of being rejected outright as the ADR says of 'any control byte', while href=\"/r/test&#10;x\" is rejected; href=\"&#32;\" renders <a href=\"%20\" class=\"gno-button\">L</a>, a button to a blank relative path, though a label blank after decoding is no label. hostile_control_chars and hostile_href_with_newline_entity only embed the control mid-href and invalid_empty_attributes only has a literal href=\"\", so reordering the trim and the control check, or dropping the post-decode blank check, stays green.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb/markdown -run TestB4HrefLeadingBlank -v with tests/b4-lines-href-leading-blank_test.go copied into the package; then grep the ext_buttons goldens for 'href=\"&#' with a leading control or blank entity: none",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "href \"/r/test&#10;x\" allowed=false -> <p><!-- raw HTML omitted --></p>; href \"&#10;/r/test\" allowed=true -> <p><!-- invalid link -->L</p>; href \"&#9;/r/test\" allowed=true -> <p><!-- invalid link -->L</p>; href \"&#32;\" allowed=true -> <p><a href=\"%20\" class=\"gno-button\">L</a></p>",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b4-lines-href-leading-blank_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_buttons/hostile_unterminated_line.md.txtar",
+      "line": 2,
+      "angle": "lines",
+      "summary": "the hostile-line golden, TestButtonHostileBudget and BenchmarkButtonHostileLine cover only quoted shapes; an unquoted value in scanGnoTag (utils.go:105) runs through '<', so one attempt reads past the next tag up to maxButtonTagLen, against the 'each attempt reads one tag' comment at utils.go:72 (utils.go is carried by gnolang/gno#6297 and #6299 too)",
+      "failure_scenario": "parseButtonTag on `<gno-button a=<gno-button href=\"/r/x\" label=\"y\" />` returns 50, consuming both tags into one button; a 256 KB line of `<gno-button a=` repeats takes 87 ms against 38 ms for the quoted shape and for a prefix miss, the costliest per-attempt shape and the one the ADR's 'linear (8 ms; BenchmarkButtonHostileLine)' figure does not measure. Cost stays bounded by the 2048-byte cap, so this is a coverage gap, not a defect.",
+      "verify_by": "grep -n 'a=<\\|a=`' gno.land/pkg/gnoweb/markdown/ext_buttons_test.go gno.land/pkg/gnoweb/markdown/golden/ext_buttons/*.txtar returns no unquoted-value hostile shape; go test -run TestB4UnquotedScan -v with tests/b4-lines-unquoted-scan_test.go copied into the package",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "parseButtonTag size on `<gno-button a=<gno-button ...>`: 50; prefix-miss `<gno-buttox a=` 262139 bytes 38.7ms; quoted `<gno-button a=\"x\" ` 262137 bytes 38.0ms; unquoted `<gno-button a=` 262139 bytes 87.4ms",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b4-lines-unquoted-scan_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 97,
+      "angle": "lines",
+      "summary": "buttonLabel removes only Cc controls and the StripBidiAndZeroWidth set, so a label made only of other invisible characters (U+2060, U+00AD, U+3164) is accepted, against the godoc and ADR rule that a label invisible after cleanup is no label",
+      "failure_scenario": "label=\"&#x2060;\", label=\"&shy;\" or label=\"ㅤ\" each render <a href=\"/r/x\" class=\"gno-button\">(invisible)<span class=\"link-internal tooltip\" ...></a>, a blank button, while label=\"&#x200B;\" is rejected as the 'Only invisible' case of hostile_label_bidi_zero_width expects. Fix belongs in buttonLabel (drop unicode.Cf and blank fillers), not in StripBidiAndZeroWidth, which is a VM native whose output is on chain.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb/markdown -run TestB4LabelInvisibleOnly -v with tests/b4-lines-label-decode_test.go copied into the package",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "label \"&#x2060;\" -> <p><a href=\"/r/x\" class=\"gno-button\">⁠<span ...; label \"&shy;\" -> <a ... class=\"gno-button\">­<span ...; label \"ㅤ\" -> <a ... class=\"gno-button\">ㅤ<span ...; label \"&#x200B;\" -> <p><!-- raw HTML omitted --></p>",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b4-lines-label-decode_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 105,
+      "angle": "lines",
+      "summary": "unquoted attribute value crossing '<' makes hostile lines quadratic in gnoweb render time",
+      "settled_by": "go test -run TestB4UnquotedScanCost (tests/b4-lines-unquoted-scan_test.go): unquoted `<gno-button a=` 262139 bytes 87.4ms vs prefix-miss 38.7ms; the per-attempt scan is capped at maxButtonTagLen, so cost is linear with a ~2x factor, kept only as the Missing test above"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_buttons/invalid_tag_over_max_len.md.txtar",
+      "line": 2,
+      "angle": "lines",
+      "summary": "only a 2135-byte tag is tested, so an off-by-one at maxButtonTagLen would stay green",
+      "settled_by": "grep -n maxButtonTagLen ext_buttons_test.go: 77: n, _ := parseButtonTag(tag(maxButtonTagLen - base)) / 78: require.Equal(t, maxButtonTagLen, n) / 80: parseButtonTag(tag(maxButtonTagLen - base + 1)) -> require.Zero; TestParseButtonTagBound pins both sides of the cap"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_buttons/valid_variants_tip_success.md.txtar",
+      "line": 10,
+      "angle": "lines",
+      "summary": "golden text claims the later CSS rule (success) applies when tip and success are combined; tip sets --gno-button-text that success might not reset",
+      "settled_by": "sed -n 3307,3323p 06-blocks.css: &.gno-button-success sets --gno-button-bg, --gno-button-border, --gno-button-text and --gno-button-outline after &.gno-button-tip, so success overrides every property tip sets"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_buttons/valid_in_columns.md.txtar",
+      "line": 15,
+      "angle": "lines",
+      "summary": "the expected output shows <h2>Left</h2> and <h2>Right</h2> in columns whose input in the blanked bundle has no heading, suggesting the button label leaks into a heading",
+      "settled_by": "grep -n '^\\s*#' in the head worktree's ext_buttons goldens: valid_in_columns.md.txtar:3:## Left and :7:## Right; the bundle blanked those heading lines as comments, the headings are authored"
+    }
+  ]
+}

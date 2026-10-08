@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+      "line": 160,
+      "angle": "reach",
+      "summary": "no golden pins the output of a second <gno-columns> inside a frame-owned grid (the `return frameGrid(pc)` keep branch); only a depth-balance test runs that input",
+      "failure_scenario": "Mutate ext_frame.go:160 `return frameGrid(pc)` to `return false`. Input `<gno-frame>\\n<gno-columns>\\na\\n<gno-columns>\\nb\\n</gno-columns>\\n</gno-frame>\\nafter\\n` then ends the frame at the nested opener with no close node, the real `</gno-frame>` becomes an invalid leaf, and wrapFrames (which stops only at a close node or a column node) pulls the invalid comment and `after` into the frame up to EOF. Depth still returns to 0, so TestFrameNestDepthBalanced (the only test carrying a nested opener in a frame, ext_frame_test.go:77) stays green, and no golden under golden/ext_frame has a nested opener: an awk scan of every ext_frame and ext_columns txtar found nested openers only in ext_columns/invalid_nested_columns and invalid_unclosed, neither with a frame.",
+      "verify_by": "apply the mutation in a scratch tree, `go test ./gno.land/pkg/gnoweb/markdown/ -run 'TestGnoExtension|TestFrame'`: expect red, observe green; the fix is a golden ext_frame/columns_nested_open_in_frame_grid.md.txtar carrying the input above",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "awk over golden/ext_frame/*.txtar and golden/ext_columns/*.txtar for a `<gno-columns>` while one is open printed only `nested-open: invalid_nested_columns.md.txtar line 6 frame=` and `invalid_unclosed.md.txtar line 9/13 frame=`; ext_frame_test.go lines 100-198 carry no nested opener; TestFrameNestDepthBalanced checks `Get(pc) == 0` only",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+      "line": 168,
+      "angle": "lines",
+      "summary": "a stray <gno-columns-sep> or </gno-columns> with no grid open ends the frame, though there is no grid to leave half inside, so a typo moves the rest of the frame's content out and orphans its </gno-frame>",
+      "failure_scenario": "`<gno-frame>\\nx\\n<gno-columns-sep>\\ny\\n</gno-frame>` renders `<section class=\"gno-frame\"><p>x</p></section>`, the stray tag as a comment, `<p>y</p>` outside the frame and the frame's own close as `<!-- unexpected/invalid frame tag omitted -->` (goldens columns_sep_outside_grid_in_frame, columns_stray_close_in_frame). The stray tag itself is inert. The doc comment on frameKeepsColumnsTag says 'Any other columns tag would leave a grid half inside, so it ends the frame', and the author's reply on thread 4217015266 says a frame will 'only stop at a columns tag that would leave the grid half inside'. Neither describes a tag with no grid open.",
+      "verify_by": "read the two goldens' output.html; change Sep to `return !gridOpen || frameGrid(pc)` and Close to keep when `!gridOpen`, make wrapFrames treat a GnoColumnTagUndefined node at frame level as content, re-run `go test ./gno.land/pkg/gnoweb/markdown/ -run TestGnoExtension`: only those two goldens should change",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "ext_frame.go:167-174: `case GnoColumnTagSep: return gridOpen && frameGrid(pc)` and `case GnoColumnTagClose: if !gridOpen || !frameGrid(pc) { return false }`; Open at :209 calls endFrame on false; golden columns_stray_close_in_frame output: `<section class=\"gno-frame\">\\n</section>\\n<!-- unexpected/invalid columns tag omitted -->\\n<p>x</p>\\n<!-- unexpected/invalid frame tag omitted -->`",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+      "line": 231,
+      "angle": "reach",
+      "summary": "at embedding depth 2 a framed card grid collapses: the depth-rejected card leaves an unpaired </gno-frame> that closes the outer frame while its grid is still open, which leaves an empty bordered box",
+      "failure_scenario": "The source of valid_cards_in_framed_grid (frame > columns > card) renders a framed grid at top level. Put that shape two `<gno-foreign>` deep, which the embedding realm decides and the author cannot see, and the card's Push fails at MaxGnoNestDepth (ext_frame.go:225), so the card becomes an invalid leaf. Its `</gno-frame>` then matches `kind == frameTagClose && open` at :231 and closes the outer frame. wrapFrames finds that close before `</gno-columns>`, so the outer frame renders as `<section class=\"gno-frame\">\\n</section>`, an empty box with border and 24-40px padding (06-blocks.css:2641-2648). The grid renders below it, unframed, and the frame's real close becomes an invalid-tag comment (golden invalid_card_at_depth_cap). At depth 3 the frame holds nothing past the grid opener (columns_at_depth_cap_in_frame).",
+      "verify_by": "diff golden valid_cards_in_framed_grid output (grid inside the frame) against invalid_card_at_depth_cap output (empty section, grid outside, trailing invalid comment); then remember a depth-rejected card in the parser context so the next </gno-frame> becomes its invalid leaf instead of closing the outer frame, and re-run the ext_frame goldens",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "invalid_card_at_depth_cap output.html: `<section class=\"gno-frame\">\\n</section>\\n<div class=\"gno-columns\">` ... `<!-- unexpected/invalid frame tag omitted -->` x3; valid_cards_in_framed_grid output.html opens `<section class=\"gno-frame\">\\n<div class=\"gno-columns\">`; 06-blocks.css:2641 `.gno-frame { border: var(--s-border); ... padding: var(--g-space-6);`",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+      "line": 80,
+      "angle": "lines",
+      "summary": "gfanton's requested bare-CR fix (an invalid leaf taking the rest of a CR-only page) not closed at this head",
+      "settled_by": "ext_frame.go:80-83 `case size < len(line): return frameTagNone`, so text after the tag makes the line plain text before AdvanceToEOL; od -c of cr_only_close_trailing_space shows output `<!-- raw HTML omitted -->  \\r F o o t e r . </p>`, cr_only_trailing_space and cr_only_trailing_tab keep `First paragraph.Second paragraph.` and `Footer.`; author reply 4217070176 names those goldens"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_forms.go",
+      "line": 812,
+      "angle": "reach",
+      "summary": "the same bare-CR drop in the sibling tag parsers (form, foreign, columns) the PR touches",
+      "settled_by": "each requires exactly one HTML token: ext_forms.go:812 `if err != nil || len(toks) != 1 { return html.Token{}, false }`, ext_foreign.go:140 `if err != nil || len(toks) != 1 { return foreignTagNone, \"\" }`, ext_columns.go parseLineTag `len(toks) != 1` returns GnoColumnTagUndefined, so trailing text after the tag rejects the line"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+      "line": 401,
+      "angle": "reach",
+      "summary": "production enables extension.Footnote (render_config.go:40), and the footnote list, inserted at the first definition's position, could be wrapped into a frame by the 501 transformer",
+      "settled_by": "goldmark v1.8.2 extension/footnote.go:94 `node.Parent().InsertBefore(node.Parent(), node, list)`, then the footnote ASTTransformer (priority 999, line 685, after 501) ends with `node.AppendChild(node, list)`, which moves the list to the document end from wherever the frame put it"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+      "line": 302,
+      "angle": "reach",
+      "summary": "headings moved under GnoFrameNode by wrapFrames drop out of the TOC or another doc-level consumer",
+      "settled_by": "toc.go:58 `err := ast.Walk(n, ...)` is recursive; the only `doc.FirstChild()` loop outside markdown (components/layout_index.go:120) parses the banner with a plain goldmark that has no gno extension"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+      "line": 165,
+      "angle": "lines",
+      "summary": "frameGridKey set true before the columns parser opens; a declined opener would leave it stale",
+      "settled_by": "the keep path runs only when `Get(pc) < MaxGnoNestDepth` (ext_frame.go:162), so the columns parser's `if !Push(pc)` (ext_columns.go:193) cannot fail on the next line; columnsLineTag and the columns parser both feed the same trimmed line to parseLineTag, so they agree on the tag"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/escaped_html_content.md.txtar",
+      "line": 10,
+      "angle": "reach",
+      "summary": "`</section><section class=\"evil\">` inside a frame closes the frame's section in production",
+      "settled_by": "app.go:150 adds mdhtml.WithUnsafe() only `if cfg.UnsafeHTML`; the default render_config.go options keep goldmark's safe mode, which renders the line as `<!-- raw HTML omitted -->`, as the golden shows"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+      "line": 55,
+      "angle": "catalog",
+      "summary": "global mutable state, determinism, or swallowed errors (catalog classes) in the frame extension",
+      "settled_by": "package vars frameOpenPrefix, frameClosePrefix and columnsTagPrefixes are only read (scanGnoTag and hasGnoTagPrefix reslice, never write); context keys are created once at init; no map iteration; renderGnoFrame's unchecked WriteString follows goldmark's renderer convention; gas, realm, banker and VM classes do not apply to gnoweb"
+    }
+  ]
+}

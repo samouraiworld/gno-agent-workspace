@@ -1,0 +1,19 @@
+{
+ "candidates": [],
+ "dropped": [
+  {
+   "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+   "line": 413,
+   "angle": "removed",
+   "summary": "moving the ext-delimiter backslash from byte 0 to before '<' for 1-3 column indents, and escaping fenced lines, could break neutralisation, idempotence or close-fence detection",
+   "settled_by": "go test -run 'TestSanitizeIntegration/(block-ext-delim|blockrich-gno-button-in-list)' -v: every case PASS (block-ext-delim-two-spaces renders '<p>&lt;gno-card&gt;</p>'); go test -run TestEscapeBlockHazards ./gnovm/stdlibs/chain/markdown/: ok, idempotence loop included; isCloseFence reads the unescaped line"
+  },
+  {
+   "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+   "line": 413,
+   "angle": "removed",
+   "summary": "native output change shifts state stored by realms that called sanitize.Block/BlockRich in a transaction",
+   "settled_by": "grep -rn -E '(md|sanitize)\\.(Blockquote|BlockquoteRich|Block|BlockRich|FootnoteDefinition)\\(' examples: every realm call site is in a render path (commondao render.gno:441, boards2 render.gno:100/376, commondao render.gno:101-572), plus proposal_kinds.gno:364 on fixed text with no <gno- tag; nothing stores the output"
+  }
+ ]
+}

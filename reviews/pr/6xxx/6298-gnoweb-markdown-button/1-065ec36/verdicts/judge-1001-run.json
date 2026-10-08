@@ -1,0 +1,32 @@
+{
+ "verdicts": [
+  {
+   "index": 10,
+   "angle": "reach + rollout",
+   "state": "CONFIRMED",
+   "band": "Warning",
+   "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+   "line": 427,
+   "tldr": "Escaping <gno-button after the bracket walker breaks a pointy link, whose bare brackets then bind to the realm's own reference and footnote definitions; the output is no longer idempotent",
+   "details": "escapeBracketsOutsideLinks spares `[evil](<gno-button x>)` as a link, then escapeGnoButtonTags inserts a backslash that turns the pointy destination into a non-pointy one containing a space, so goldmark drops the link and `[evil]` resolves against the realm's `[evil]: https://realm.example/home` (or `[^evil]` against its footnote). The raw input binds to nothing, and at base the same input stays escaped-safe and idempotent, so the diff introduces it. The rollout half holds too: under head gnoweb the mainnet (= base) native lets 28 of 35 gno-button goldens render live anchors. Fix: run escapeGnoButtonTags over the whole input before escapeBracketsOutsideLinks and drop the two in-loop calls; ship the native before, or gate, the gnoweb button extension.",
+   "evidence": "TestB2ReachLinkBreakRebindsRealmRef at 065ec369b: out=\"\\n\\n[evil](\\\\<gno-button x>)\\n\\n\", html '<p><a href=\"https://realm.example/home\" ...>evil...</a>(&lt;gno-button x&gt;)</p>', bound-to-realm-ref=true (unsanitized input bound=false) and idempotent=false for all 8 Block/BlockRich cases. Base markdown.go swapped in: 8x bound-to-realm-ref=false, every case idempotent=true. Rollout: catalog script pass 2 'count: 28 of 35'.",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b2-reach-link-break-rebinds-ref_test.go",
+   "base_behaves_the_same": false,
+   "verify_by": "cp tests/b2-reach-link-break-rebinds-ref_test.go gno.land/pkg/gnoweb/markdown/zz_b2reach_test.go && go test ./gno.land/pkg/gnoweb/markdown -run TestB2ReachLinkBreakRebindsRealmRef -v -count=1 at 065ec369b: expect bound-to-realm-ref=false; observe true for all 8 cases (Block and BlockRich), with idempotent=false | From the round dir, run `bash tests/b2-rollout-old-native-new-gnoweb.sh` in a checkout at 065ec369b. It swaps in the base native (identical to every gnoland-1 upgrades.json commit) and regenerates the sanitize goldens through head gnoweb with TestSanitizeIntegration -update-golden-tests. A closed window would give 0 live gno-button anchors in output.html; the run gives 28."
+  },
+  {
+   "index": 11,
+   "angle": "catalog: determinism / native change",
+   "state": "CONFIRMED",
+   "band": "Warning",
+   "file": "gno.land/pkg/gnoweb/markdown/ext.go",
+   "line": 96,
+   "tldr": "gnoweb turns <gno-button> on unconditionally while the escape protecting sanitized content lives in a native mainnet only gets at a chain upgrade",
+   "details": "ExtButtons.Extend(m) runs in GnoExtension.Extend with no option, and the mainnet native is byte-identical to the merge base's, which passes <gno-button verbatim. A head gnoweb deployed against mainnet before the upgrade therefore renders sanitize.Block output such as 'hi <gno-button href=\"/r/evil$help&func=Drain\" label=\"Claim\" variant=\"caution\" />' as a realm-styled transaction button, which the PR's safety claim says cannot happen. Fix: gate ExtButtons behind a gnoweb option left off until the upgrade carrying the native, or state and enforce the ship order.",
+   "evidence": "git diff --quiet origin/chain/mainnet b0656512d -- gnovm/stdlibs/chain/markdown/ exit 0 (origin/chain/mainnet e75fef82c). Finder's script, run with `chain/mainnet` rewritten to `origin/chain/mainnet` (the bare name does not resolve in this clone): pass 1 'ok ... 0.615s'; pass 2 'count: 28 of 35', block-gno-button-midline-escaped output.html '<p>hi <a href=\"/r/evil$help&amp;func=Drain\" class=\"gno-button gno-button-caution\">Claim...'.",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6298-gnoweb-markdown-button/1-065ec36/tests/b2-catalog-mainnet-native-live-button.sh",
+   "base_behaves_the_same": false,
+   "verify_by": "bash tests/b2-catalog-mainnet-native-live-button.sh <head clone>: pass 1 head native green; pass 2 swaps in chain/mainnet:gnovm/stdlibs/chain/markdown/markdown.go, regenerates the sanitize goldens and greps output.html for <a ... class=\"gno-button"
+  }
+ ]
+}

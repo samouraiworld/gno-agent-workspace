@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_forms.go",
+      "line": 271,
+      "angle": "reach",
+      "summary": "the AdvanceLine -> AdvanceToEOL fix also changes a form inside a list item, and no golden pins that container; only the blockquote case is covered",
+      "failure_scenario": "Input `- <gno-form>\\n  <gno-input name=\"a\" />\\n  </gno-form>\\n- b\\n`. At base, FormParser.Continue's AdvanceLine leaves the reader on `- b`, and goldmark (parser.go:1129) runs openBlocks(listItem) on it, so `b` renders as a nested `<ul><li>b</li></ul>` inside the first item; at head the line goes through the list's Continue and `b` is a sibling `<li>`. That is a rendering change for existing realm pages that the PR body (line 44) describes only for blockquotes, and `grep -rlE '^\\s*([-*+]|[0-9]+\\.) +<gno-form'` over golden/ and the *_test.go files finds no list-item form fixture, so a later edit that breaks the list case passes CI as long as the blockquote case holds.",
+      "verify_by": "Add golden/ext_forms/valid_form_in_list.md.txtar with the input above; run `go test ./gno.land/pkg/gnoweb/markdown/ -run 'TestGnoExtension/ext_forms'` at head (expect sibling `<li>b</li>`), then with ext_forms.go:271 reverted to `reader.AdvanceLine()` (expect `<ul><li>b</li></ul>` nested in the first item)",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "Read only: goldmark v1.8.2 parser.go:1109-1141 runs openBlocks(thisParent) on the reader's current position after a Continue without the Continue flag; grep for a list-item <gno-form> fixture returned no file; the only ext_forms golden with a container is valid_form_in_blockquote.md.txtar.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 219,
+      "angle": "removed",
+      "summary": "the PR body says markdown/utils.go is shared byte for byte with #6297 and #6298, but 6299's copy adds trimTagLine; 'whichever merges second drops its copy' then deletes a helper four call sites in this PR need",
+      "failure_scenario": "At heads 56ff177 (#6297) and 065ec36 (#6298), utils.go is identical between the two, and `diff` against 6299's 1f9bf51 prints only `214a215,225` (trimTagLine and its comment). If 6299 merges second and follows its own body (line 45, 'Whichever merges second drops its copy') by taking master's utils.go, trimTagLine disappears and ext_foreign.go:190/244 and ext_frame.go:199/270 stop compiling. CI would catch the build break, but the body states as fact something that is not true at this head. #6297 and #6298 carry the rest of the file unchanged.",
+      "verify_by": "diff .worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/utils.go .worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/utils.go: expect output, observe `214a215,225` with trimTagLine; gh pr view 6299 --json body | grep -n 'byte for byte'",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "`diff 6297/utils.go 6298/utils.go && echo 6297==6298` printed `6297==6298`; `diff 6297/utils.go 6299/utils.go` printed `214a215,225` adding `func trimTagLine(line []byte) []byte`; the PR body line 45 reads that utils.go is 'shared byte for byte with #6297 and #6298'.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 144,
+      "angle": "reach",
+      "summary": "gnoTagLineParser (and utils_tagline_test.go) has no non-test caller in 6299; it is registered only by #6297 ext_icons.go:338 and #6298 ext_buttons.go:190",
+      "failure_scenario": "`grep -rn 'newGnoTagLineParser|gnoTagLineParser'` over gno.land at 1f9bf51 hits only utils.go and utils_tagline_test.go:15. If 6299 merges first, master gets an exported-shape block parser and its test with no registration until a sibling lands. golangci's `unused` (golangci.yml:30) runs with `tests: true` (line 8), so the test call counts as a use and CI stays green. The test comment says the branch carries it for its siblings, which is why this is a Nit: land the type with the PR that registers it.",
+      "verify_by": "grep -rn 'newGnoTagLineParser' --include='*.go' gno.land | grep -v _test.go in the 6299 head: expect a caller beside the definition, observe only utils.go:151",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grep returned only `gno.land/pkg/gnoweb/markdown/utils_tagline_test.go:15:\tp := newGnoTagLineParser([]byte(\"<gno-x\"))` beside the definition; in #6297/#6298 worktrees grep returned `util.Prioritized(newGnoTagLineParser(iconTagPrefix), 899)` and `util.Prioritized(newGnoTagLineParser(buttonTagPrefix), 899)`.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_forms.go",
+      "line": 271,
+      "angle": "lines",
+      "summary": "AdvanceToEOL before Close could leave the closing line's remainder to open a block, or regress top-level forms",
+      "settled_by": "goldmark v1.8.2 text/reader.go:235-249 moves pos.Start onto the line's `\\n` (or to sourceLength at EOF); parser.go:1129 then runs openBlocks on a blank remainder, which opens nothing because the last opened block is the form, not a paragraph; parser.go:1141 AdvanceLine moves to the next line. Trailing text after `</gno-form>` never reaches this branch: parseFormTag (ext_forms.go:811-813) rejects more than one token."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/public/main.css",
+      "line": 1,
+      "angle": "removed",
+      "summary": "generated main.css could drift from frontend/css/06-blocks.css",
+      "settled_by": ".github/workflows/ci-dir-gnoland.yml:67-69 runs `make -C gno.land/pkg/gnoweb fclean generate` then `git diff --exit-code`; main.css contains `.c-realm-view .gno-columns{--columns-gap:var(--g-space-10)}` and the 2xl override, and no stale `.gno-columns{...gap:var(--g-space-10)}` rule."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 219,
+      "angle": "removed",
+      "summary": "trimTagLine could differ from the removed trimForeignLine it replaces in ext_foreign.go",
+      "settled_by": "bundle-1.md:1824-1830 (removed trimForeignLine) and utils.go:219-225 have the same body: the 0-3 leading-space loop plus util.TrimRightSpace(line[i:]); `grep -rn trimForeignLine` over gno.land/pkg/gnoweb and docs returned no remaining reference."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 1,
+      "angle": "reach",
+      "summary": "the card selectors `.gno-column > .gno-frame:only-child` and `.gno-columns:has(...)` might not match the rendered DOM",
+      "settled_by": "golden/ext_frame/valid_cards_in_framed_grid.md.txtar output renders `<div class=\"gno-columns\">` > `<div class=\"gno-column\">` > `<section class=\"gno-frame\">` as the only element child; box-sizing: border-box is set in frontend/css/03-generic.css:16, so height:100% with padding does not overflow."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 121,
+      "angle": "reach",
+      "summary": "hasGnoTagPrefix matches case-insensitively, so columnsLineTag could treat `<GNO-COLUMNS>` differently from the columns parser",
+      "settled_by": "ext_columns.go:112-118 parseLineTag tokenizes with x/net/html, which lowercases tag names, and columnsLineTag (ext_frame.go:93-99) delegates to that same function, so both sides answer the same."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown_frame_test.go",
+      "line": 15,
+      "angle": "catalog",
+      "summary": "the new t.Parallel test could add parallelism over shared state (catalog: global mutable state)",
+      "settled_by": "makeProductionRenderer (markdown_dos_test.go:23-25) builds a fresh goldmark per call; the package already has 131 t.Parallel() calls in gno.land/pkg/gnoweb/*_test.go; utils.go adds no package-level var and frame state lives on parser.Context keys."
+    }
+  ]
+}

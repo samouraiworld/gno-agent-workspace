@@ -1,0 +1,124 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/counterpart.go",
+      "line": 97,
+      "angle": "lines",
+      "summary": "counterpartTarget links a directory that is itself a realm or package under an 'N matching' label, so the link opens that one package, never the listing it counts, and the twin is unreachable",
+      "failure_scenario": "Chain holds /r/tests/vm (realm) with /r/tests/vm/crossrealm and /r/tests/vm/subtests; viewing /p/tests/vm/crossrealm, the twin branch returns Dir(twin)=/r/tests/vm with n=2 and the switch reads '2 matching realms'. GetPackageView sends /r/tests/vm to GetRealmView, which renders that realm's Render(); GetPathsListView is reached only on ErrClientPackageNotFound (handler_http.go:546, 1149), and a trailing slash goes to GetDirectoryView, which lists the package's files. The same holds for the no-twin walk at line 112 (/p/gov/dao/utils -> '3 matching realms' -> /r/gov/dao renders the DAO) and on the pure side (/r/alice/golf/v1 -> '2 matching packages' -> /p/alice/golf file list). The user lands on a page naming none of the N, the exact twin included.",
+      "verify_by": "go test -count=1 -run TestSoloFinder1_DirIsPackage -v ./gno.land/pkg/gnoweb with tests/solo-finder-1-dir-is-package.go copied in: expect the followed page to list the N paths, observe it omits all of them",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "page /p/tests/vm/crossrealm: switch href=\"/r/tests/vm\" label=\"2 matching realms\"; follow /r/tests/vm: status=200 explorer-mode=false; followed page does not mention /r/tests/vm/crossrealm, /r/tests/vm/subtests. Same for /p/gov/dao/utils -> /r/gov/dao ('3 matching realms') and /r/alice/golf/v1 -> /p/alice/golf ('2 matching packages'). All 3 subtests FAIL at c5ae4b13a; merge base has no counterpart.go. Shape exists in examples: /r/tests/vm + 16 sub-realms, /r/gov/dao + 6.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6262-realm-package-breadcrumb-switch/1-c5ae4b1/tests/solo-finder-1-dir-is-package.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/counterpart.go",
+      "line": 213,
+      "angle": "reach",
+      "summary": "a failed lookup is never cached, so a node whose qpaths fails slower than the 300 ms grace adds 300 ms and one ListPaths RPC to every realm and package page view",
+      "failure_scenario": "ListPaths answers with an error after 400 ms (slot wait, overloaded node): every request for /r/alice/golf/game misses the cache, starts a new lookup and waits the full grace; four page views cost four ListPaths and 300 ms each, where an empty answer costs one ListPaths and 300 ms once",
+      "verify_by": "go test -count=1 -run TestSoloFinder1_GraceAndErrors -v ./gno.land/pkg/gnoweb with tests/solo-finder-1-grace-errors.go copied in: compare the 'slow error' and 'slow empty answer' rows",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "slow empty answer: request 0: 300ms, requests 1-3: 0s, ListPaths calls over 4 requests: 1; slow error: requests 0-3: 300ms each, ListPaths calls over 4 requests: 4",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6262-realm-package-breadcrumb-switch/1-c5ae4b1/tests/solo-finder-1-grace-errors.go"
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/counterpart.go",
+      "line": 182,
+      "angle": "lines",
+      "summary": "the 300 ms grace timer starts when the page collects, after GetPackageView returns, so a page whose own queries already took 300 ms or more still waits up to another 300 ms for the lookup",
+      "failure_scenario": "Realm render takes 280 ms and ListPaths 1 s: the lookup started alongside the page, yet counterpart() is called at 280 ms and arms time.After(300ms) then, so the page is served at about 580 ms with no link; arming the deadline in startCounterpart would serve it at 300 ms, and a page slower than the grace would pay nothing",
+      "verify_by": "read counterpart.go:182 (time.After armed inside the returned closure) against handler_http.go prepareIndexBodyView, where counterpart() runs after GetPackageView; a stub Realm sleeping 280 ms with ListPaths at 1 s measures ~580 ms",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "gno.land/pkg/gnoweb/counterpart.go",
+      "line": 247,
+      "angle": "reach",
+      "summary": "a cache full of live entries refuses every new root for up to a minute, and nonexistent roots are cached as empty answers, so 4096 junk-root requests a minute keep every real project uncached",
+      "failure_scenario": "A crawler or attacker requests /r/<rand>/<rand> 4096 times a minute; each lookup returns empty and is stored with a full TTL; store then returns early for every real root until the earliest expiry, the attacker refills, and every real realm page view issues a ListPaths and may wait the 300 ms grace",
+      "verify_by": "read counterpart.go:247-262: when len(entries) >= maxCounterpartEntries and now is before sweep, store returns without evicting; TestCounterpartCacheFull pins that a full cache keeps no more",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 5,
+      "file": "gno.land/pkg/gnoweb/counterpart.go",
+      "line": 154,
+      "angle": "reach",
+      "summary": "the detached lookup takes one of the process-wide 32 RPC slots for up to 5 s after its page is served, so under a burst of uncached roots page queries queue behind lookups",
+      "failure_scenario": "rpcClient.query calls acquireRPCSlot(ctx, c.rpcSlots) (client.go:326) with the lookup's WithoutCancel ctx; on a slow node, each cache-miss page leaves a lookup holding a slot until the node answers or 5 s pass, while the next pages' Realm and ListFiles queries wait on the same 32-slot channel and can time out into an error page",
+      "verify_by": "read client.go:326 and app.go MaxConcurrentRPC default 32; run an rpcClient against an httptest node answering vm/qpaths in 2 s and vm/qrender at once, 64 distinct roots, measure qrender latency against the merge base",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 6,
+      "file": "gno.land/pkg/gnoweb/counterpart.go",
+      "line": 90,
+      "angle": "lines",
+      "summary": "in the twin-with-siblings branch the count covers only same-directory siblings, while the listing the link opens shows every package below that directory",
+      "failure_scenario": "Twin /p/alice/golf/v0 with /p/alice/golf/v2 and /p/alice/golf/ui/board: n counts v0 and v2, the label reads '2 matching packages', and /p/alice/golf opens GetPathsListView with prefix '<domain>/p/alice/golf/' (handler_http.go:1107), which lists all three",
+      "verify_by": "read counterpart.go:88-97 (gopath.Dir(m) == dir) against GetPathsListView's prefix path.Join(domain, path)+\"/\"; counterpartTarget(\"/p/alice/golf/v0\", root, {v0, v2, ui/board}) returns n=2",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/counterpart.go",
+      "line": 100,
+      "angle": "reach",
+      "summary": "a '..' segment in the page path could make the walk in counterpartTarget step past root and loop forever at '/'",
+      "settled_by": "sed -n 303p weburl/url.go: var reURLPath = regexp.MustCompile(`^/[a-z0-9_/-]*$`); ParseFromURL rejects any '.' before counterpartRoots sees the path"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1412,
+      "angle": "reach",
+      "summary": "Namespace() returns 'a/foo' for a one-letter namespace, putting /u/a/foo in the new menu",
+      "settled_by": "grep -rn '.Namespace()': components/overview_build.go:242 and markdown/ext_links.go:255 already call it; the defect predates the diff and is not made reachable by it, and no one-letter namespace exists in examples (grep -E '^/[rp]/[a-z0-9_]/' returned nothing)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/counterpart.go",
+      "line": 248,
+      "angle": "lines",
+      "summary": "a stale sweep time could refuse stores while the full cache holds expired entries",
+      "settled_by": "read counterpart.go:247-262: sweep is set to the earliest live expiry and every later entry expires after sweep_time+TTL, so now.Before(sweep) implies no entry has expired"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 318,
+      "angle": "reach",
+      "summary": "a $state mode other than json or frag writes directly and still pays for a lookup",
+      "settled_by": "grep -n 'Has(\"json\")\\|Has(\"frag\")' feature/state/handler.go: lines 46 and 50 are the only direct-write cases"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/redirect.go",
+      "line": 10,
+      "angle": "removed",
+      "summary": "The /newsletter shortlink is deleted rather than pointed at the Mailchimp form that both homepages now link twice",
+      "failure_scenario": "Someone follows an old gno.land/newsletter link from a post, a slide or a print. Today it returns a 302 to /r/gnoland/pages:p/newsletter, which is a 404. After this change it is a direct 404. Mapping \"/newsletter\" to https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b (200) would make the link reach the form the new page promotes. This only applies if the open question in the body keeps that list.",
+      "verify_by": "curl -s -o /dev/null -w '%{http_code}' https://gno.land/newsletter (302) and https://gno.land/r/gnoland/pages:p/newsletter (404); grep -c list-manage misc/deployments/home-alias/home.mainnet.md (2)",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "302 /newsletter; 404 /r/gnoland/pages:p/newsletter; Mailchimp subscribe URL returns 200; both home files link it in 'Join the community' and 'Community'",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {"file": "misc/deployments/home-alias/home.mainnet.md", "line": 1, "angle": "claims", "summary": "body claims every link returns 200 on its network", "settled_by": "curl -L each ](...) target, relative ones on https://gno.land and https://onyx.testnets.gno.land: every row 200, including /r/gnoland/blog$source, /r/gov/dao, /r/gnops/valopers, /p/nt, /partners, faucet, gnoswap.io"},
+    {"file": "gno.land/pkg/gnoweb/redirect.go", "line": 10, "angle": "removed", "summary": "removed redirects might still be linked or their targets might be live", "settled_by": "curl gno.land: 404 /r/gnoland/pages:p/newsletter, 404 /r/demo/boards:gnolang/3; git grep -E '/newsletter\\b|boards:gnolang/[36]\\b|pages:p/newsletter' outside examples/quarantined: no hits; gh search code '\"gno.land/newsletter\"': no hits; only Redirects readers are app.go:179 and contribs/gnobro/pkg/browser/utils.go:21, and no test lists the removed paths"},
+    {"file": "misc/deployments/home-alias/home.mainnet.md", "line": 30, "angle": "lines", "summary": "in-page anchors #live-on-mainnet, #on-this-testnet, #explore-packages-and-realms and #community might not match the generated heading ids", "settled_by": "rendered both files with goldmark WithAutoHeadingID plus md.NewGnoExtension, as render_config.go:36 does: every href=\"#...\" resolves to a heading id (true x3 per file), 5/4 column blocks of 3 columns each, the alert renders, and no raw tag leaks; the live gno.land page shows id=\"socials\" on a heading inside gno-columns"},
+    {"file": "misc/deployments/home-alias/home.testnet.md", "line": 23, "angle": "reach", "summary": "the testnet's first CTA, faucet.gno.land, might not serve onyx", "settled_by": "faucet.gno.land/assets/index-DalgKuER.js contains faucets=[{name:\"Onyx Faucet\",chain_id:\"onyx-1\" and url:\"https://faucet.onyx.testnets.gno.land"},
+    {"file": "misc/deployments/home-alias/home.testnet.md", "line": 86, "angle": "claims", "summary": "Boards note says creating boards is not open to the public, while the live realm shows 'Be the first to create a new board!'", "settled_by": "examples/gno.land/r/gnoland/boards2/v0/boards.gno:57 perms.AddRole(RoleAdmin, PermissionBoardCreate), and public.gno:145 gates CreateBoard on it; the realm's invite text is its generic empty-state message"},
+    {"file": "misc/deployments/home-alias/pages/ecosystem.md", "line": 33, "angle": "claims", "summary": "ecosystem page now says GnoSwap is live on gno.land mainnet", "settled_by": "curl https://gno.land/r/gnoswap/pool -> 200, https://gno.land/r/gnoswap -> 200"},
+    {"file": "misc/deployments/home-alias/home.mainnet.md", "line": 132, "angle": "claims", "summary": "body says r/demo holds only two packages on mainnet and /ecosystem has five entries", "settled_by": "curl gno.land/r/demo hrefs: /r/demo/defi/grc20factory, /r/demo/profile (2); grep -c '^### ' pages/ecosystem.md -> 5"},
+    {"file": "gno.land/pkg/gnoweb/redirect.go", "line": 16, "angle": "claims", "summary": "body says go test ./gno.land/pkg/gnoweb/ passes after the map edit", "settled_by": "gofmt -l redirect.go: clean; git grep 'Redirects' in *.go: no test reads the map, app_test.go:219 lists only /game-of-realms, /getting-started, /blog, /boards"},
+    {"file": "examples/gno.land/r/gnoland/home/home.gno", "line": 56, "angle": "removed", "summary": "the on-chain r/gnoland/home sibling still opens on Boards and keeps the r/demo card", "settled_by": "misc/deployments/home-alias/README.md:15 'Staging is not concerned: it serves r/gnoland/home from the chain, with no alias'; mainnet and onyx serve the alias files"},
+    {"file": "gno.land/pkg/gnoweb/redirect.go", "line": 10, "angle": "catalog", "summary": "invariant catalog classes", "settled_by": "the diff touches no .gno code, GnoVM or stdlib; the Redirects package var is not mutated by the diff, so no catalog class applies"}
+  ]
+}

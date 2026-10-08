@@ -1,0 +1,76 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3270,
+      "angle": "lines",
+      "summary": "the button's `& > .tooltip { margin: 0 }` loses to `.c-realm-view a > .tooltip:last-of-type { margin-inline-end: 0.2em }`, so the link icon keeps a right margin inside every button",
+      "failure_scenario": "`<gno-button href=\"/r/gnoland/blog\" label=\"Read the blog\" />` renders `<a class=\"gno-button\">Read the blog<span class=\"link-internal tooltip\">…</span></a>`; the span is the last span, so the built rule `.c-realm-view a>.tooltip:last-of-type{margin-right:.2em}` (specificity 0,3,1) beats `.c-realm-view .gno-button>.tooltip{margin:0}` (0,3,0): the icon sits 0.2em (about 2.4px at the icon's 0.75em size) further from the right edge than the label from the left, and the `margin: 0` reset the block writes does not hold. A two-icon link also keeps `.tooltip + .tooltip`'s 0.2em left margin the same way.",
+      "verify_by": "open a page loading public/main.css with `<div class=\"c-realm-view\"><a class=\"gno-button\">x<span class=\"link-internal tooltip\"><svg class=\"c-icon\"></svg></span></a></div>` and read getComputedStyle(span).marginRight: expect 0px, observe 0.2em in px; static check: tr '}' '\\n' < gno.land/pkg/gnoweb/public/main.css | grep 'tooltip:last-of-type'",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "built main.css carries `.c-readme-view a>.tooltip:last-of-type,.c-realm-view a>.tooltip:last-of-type{margin-right:.2em}` and `.c-readme-view .gno-button>.tooltip,.c-realm-view .gno-button>.tooltip{border-color:currentColor;color:inherit;margin:0}`; no CSS layers in frontend/css/main.css, so specificity decides; 05-composition.css:211 is the source of the winning rule",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md",
+      "line": 455,
+      "angle": "lines",
+      "summary": "Cases column and the 224 total may not match the sanitize corpus",
+      "settled_by": "ls golden/sanitize | wc -l -> 224; grep -h '^// MARKDOWNFUNC:' | sort | uniq -c -> Block 89, BlockRich 37, InlineText 15, Blockquote 11, BlockquoteRich 2, TableCell 3, FootnoteDefinition 4, every row equal to the table"
+    },
+    {
+      "file": "gno.land/adr/prxxxx_gnoweb_button.md",
+      "line": 84,
+      "angle": "lines",
+      "summary": "ADR says utils.go is identical on this branch and the gno-icon PR",
+      "settled_by": "cmp gno-review-6297/.../utils.go gno-review-6298/.../utils.go -> identical (6297 head 56ff17707). 6299's copy differs: it appends trimTagLine after line 214, but neither the 6298 ADR nor its body claims identity with 6299"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 413,
+      "angle": "lines",
+      "summary": "gfanton's requested change: lines the fence tracker counts as fenced skip the button escape",
+      "settled_by": "sed -n '413p' -> `out.WriteString(escapeGnoButtonTags(line))` in the inFence branch; closed at this head, thread 4217000607 answered"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3239,
+      "angle": "lines",
+      "summary": "gfanton's dark nit: default outline equals success outline in dark",
+      "settled_by": "sed -n '3239p' -> `--gno-button-outline: var(--s-color-text-secondary);`; closed at this head, the ADR states the new match with note outline as intended"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3233,
+      "angle": "lines",
+      "summary": "a button token may be undefined and fall back silently",
+      "settled_by": "grep -c -- '--<token>:' frontend/css/*.css for all 33 tokens the block uses -> each defined at least once (colour tokens twice, light and dark)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3251,
+      "angle": "lines",
+      "summary": "a realm-view link rule may override the button's colour, display or hover decoration (alert, table, column contexts)",
+      "settled_by": "compiled rules matching `.c-realm-view … a` in public/main.css: the base `.c-realm-view a{color;display}` is 0,1,1 < 0,2,0; `a:hover{text-decoration:underline}` 0,2,1 < `.gno-button:hover` 0,3,0; `.gno-alert>summary a{color:inherit}` applies only in titles where the button is reduced to text; no table/columns link rule exists"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/public/main.css",
+      "line": 1,
+      "angle": "lines",
+      "summary": "built main.css may be stale against 06-blocks.css",
+      "settled_by": "grep -o '[^}]*gno-button[^}]*}' main.css -> base, hover, focus-visible, >.tooltip, all seven variant rules present, tip carries color-mix(in oklab,…70%…) and default --gno-button-outline:var(--s-color-text-secondary), matching the source"
+    },
+    {
+      "file": "examples/quarantined/gno.land/r/docs/markdown/markdown.gno",
+      "line": 870,
+      "angle": "lines",
+      "summary": "docs realm claims (unsafe schemes rejected, variants whitelisted and space-separated, non-self-closing or split tag removed, `&#124;` in table cells) may not match the code",
+      "settled_by": "ext_buttons.go:120 rejects IsDangerousURL plus every data:; :80 strings.Fields + whitelist; goldens invalid_not_self_closing and invalid_multiline_tag output `<!-- raw HTML omitted -->`; ext_buttons_test.go carries the &#124; case; /r/docs/home and /r/gnoland/blog both exist"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "candidates": [],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 127,
+      "angle": "catalog",
+      "summary": "Determinism: the variant class order could follow map or input-word order, so the same tag renders different HTML",
+      "settled_by": "sed -n 127p ext_buttons.go: `for _, v := range buttonVariants {` walks the fixed slice at line 33; golden valid_variant_case_insensitive pins `INFO Outline` -> `gno-button gno-button-outline gno-button-info`; go test -run TestGnoExtension -v in a scratch worktree at 065ec369b: 64 ext_buttons subtests, `64 PASS:`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 35,
+      "angle": "catalog",
+      "summary": "Global mutable state: buttonTagPrefix, buttonVariants and ExtButtons are package-level and shared across concurrent gnoweb renders",
+      "settled_by": "grep -rn 'buttonVariants\\|buttonTagPrefix\\|ExtButtons' --include='*.go' gno.land/: only declarations (ext_buttons.go:33,35,179) and reads (ext_buttons.go:52,127,190; ext.go:96), nothing writes any of them after init"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 123,
+      "angle": "catalog",
+      "summary": "Native/renderer parity: hasGnoTagPrefix matches the tag name with bytes.EqualFold (Unicode folding) while the native escapeGnoButtonTags folds ASCII only, so a non-ASCII spelling could parse in gnoweb yet skip the on-chain escape",
+      "settled_by": "probe TestB4CatalogPrefixFoldASCII (unicode.SimpleFold orbit of every rune of \"<gno-button\") at 065ec369b: `--- PASS`, 9 orbit lines all U+00xx; no letter of the prefix has a non-ASCII fold partner, so both matchers accept the same 11-byte spellings"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 161,
+      "angle": "catalog",
+      "summary": "In an alert header the button collapses to its raw label String node; if the header renderer wrote it unescaped, a decoded `&lt;img ...&gt;` label would land as live HTML",
+      "settled_by": "probe TestB4CatalogAlertHeaderLabelEscaped rendering `> [!NOTE] Read <gno-button href=\"/r/test\" label=\"&lt;img src=x onerror=alert(1)&gt;\" />` at 065ec369b: `--- PASS`, output `Read &lt;img src=x onerror=alert(1)&gt;<svg>` inside <summary>; renderAlertHeader returns WalkContinue and the String node goes through goldmark's escaping RawWrite"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 96,
+      "angle": "catalog",
+      "summary": "Native-change: button labels go through chainmd.StripBidiAndZeroWidth, a native whose output change would shift on-chain sanitize output too",
+      "settled_by": "diff of the StripBidiAndZeroWidth and isBidiOrZeroWidth bodies between the merge-base and head markdown.go: `SAME`; gnoweb links it as a Go import (already done by ext_foreign.go at base), so the label path does not depend on the chain's deployed native"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 120,
+      "angle": "catalog",
+      "summary": "The parse-time href check and the render-time check could decode the destination differently, letting a scheme pass one and not the other",
+      "settled_by": "read: isButtonHrefAllowed uses trimLeadingControlAndSpace(resolveDestination(href)) and IsDangerousURL plus a data: ban; renderGnoLink at ext_links.go:341 uses `dest := resolveDestination(n.Destination)` and the same trim and IsDangerousURL; goldens hostile_javascript_href and valid_href_decoded_once pass (64/64)"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 413,
+      "angle": "catalog",
+      "summary": "gfanton's requested change (escape <gno-button on lines the sanitizer tracks as fenced code) may still be open at head",
+      "settled_by": "sed -n 409,414p markdown.go: `if inFence {` ... `out.WriteString(escapeGnoButtonTags(line))`; golden sanitize/block-gno-button-after-fence-in-html-block.txtar (his exact repro) pins output.md `\\<gno-button href=\"https://evil.example/claim\" ...` and output.html `<p>&lt;gno-button ...&gt;</p>`, so it is closed"
+    }
+  ]
+}

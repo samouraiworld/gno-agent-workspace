@@ -1,0 +1,41 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 72,
+      "angle": "reach",
+      "summary": "the blank-button guards miss siblings of their own fixtures: a label of only format characters and an href that is blank after decoding both render a live button",
+      "failure_scenario": "invalid_label_blank_after_decode and hostile_label_bidi_zero_width ('Only invisible') pin that a label showing nothing is no label, but buttonLabel strips only the StripBidiAndZeroWidth set (U+200B-200F, U+202A-202E, U+2066-2069, U+FEFF) plus Cc controls. label=\"&#x2060;\" (word joiner), \"&#x61C;\" (Arabic letter mark, the bidi mark beside LRM/RLM), \"&#xAD;\" (soft hyphen), \"&#x3164;\" or \"&#x2800;\" each renders <a href=\"/r/test\" class=\"gno-button\">\\u2060</a> etc., a blank button. Likewise invalid_empty_attributes pins href=\"\" and href=\"   \" rejected, but the check at line 72 reads the raw bytes: href=\"&#32;\" renders <a href=\"%20\" class=\"gno-button\">space href</a> and href=\"&nbsp;\" renders href=\"%C2%A0\", a button to a dead relative path",
+      "verify_by": "render through NewGnoExtension under the production goldmark options (render_config.go) the inputs <gno-button href=\"/r/test\" label=\"&#x2060;\" />, label=\"&#x61C;\", label=\"&#xAD;\", <gno-button href=\"&#32;\" label=\"x\" />: expect <!-- raw HTML omitted --> as for label=\"&#32;\" and href=\"\", observe a rendered <a class=\"gno-button\">. Fix stays off the native set (consensus): drop unicode.Cf runes in buttonLabel and test len(bytes.TrimSpace(resolveDestination(t.href))) == 0",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "probe at 065ec369b, production options: IN label=\"&#x2060;\" OUT \"<p><a href=\\\"/r/test\\\" class=\\\"gno-button\\\">\\u2060</a></p>\"; label=\"&#x61C;\" OUT \"...class=\\\"gno-button\\\">\\u061c</a>\"; label=\"&#xAD;\" OUT \"...\\u00ad</a>\"; href=\"&#32;\" OUT \"<p><a href=\\\"%20\\\" class=\\\"gno-button\\\">space href</a></p>\"; href=\"&nbsp;\" OUT \"<a href=\\\"%C2%A0\\\" class=\\\"gno-button\\\">\"",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 59,
+      "angle": "reach",
+      "summary": "hostile_unterminated_line pins only the cheap shape (each attempt stops at the next '<'); an unquoted value holding '<' makes every attempt read the full maxButtonTagLen, suspected to break the 'stays linear' claim (shape carried by 6297, 6298 and 6299 in markdown/utils.go)",
+      "settled_by": "go test -run TestB4ReachScanCost at 065ec369b, 1 MiB single line, production options: 'buttons=false unquoted value holding < 1023 KiB 142ms' vs 'buttons=true unquoted value holding < 1023 KiB 358ms'; fixture shape 136ms vs 141ms; plain text 11ms. Linear by the cap, worst shape 2.5x goldmark's own raw-HTML baseline, so no bound is broken; the fixture's line b also pins the '<' early return (removing it lets the first attempt accept href=\"/>\" with label \"still parsed after\")"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 352,
+      "angle": "reach",
+      "summary": "class.(string) on the gno:class attribute panics the render if any path stores a []byte under that name (goldmark's WithAttribute stores []byte)",
+      "settled_by": "grep -rn 'SetAttribute(\\|WithAttribute()' gno.land/pkg/gnoweb contribs (non-test): the only gno:class setter is ext_buttons.go:80 with a string; WithAttribute is on render.go:107 documentationGM alone, which registers no GnoExtension and no linkRenderer"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 59,
+      "angle": "reach",
+      "summary": "maxButtonTagLen boundary off by one (invalid_tag_over_max_len is 2137 bytes, no fixture at the cap)",
+      "settled_by": "probe at 065ec369b: a 2048-byte tag renders <a href=\"/r/x\" class=\"gno-button\">aaa..., a 2049-byte tag renders <p><!-- raw HTML omitted --></p>, matching 'bounds how far a tag is scanned' at 2 KB inclusive"
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+ "candidates": [
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 270,
+   "angle": "removed",
+   "summary": "frameHTMLBlockParser.Continue ends a doc-level HTML block on `</gno-frame>` and columns lines but not on a card's `<gno-frame>` open line, so an HTML line directly above a card swallows the card open and the card's `</gno-frame>` then closes the OUTER frame",
+   "failure_scenario": "`<gno-frame>\\n## Apps\\n<gno-columns>\\n<div></div>\\n<gno-frame>\\ncard\\n</gno-frame>\\n<gno-columns-sep>\\nb\\n</gno-columns>\\n</gno-frame>`: the `<div></div>` type-7 HTML block (opened by the wrapper, frame open) runs over `<gno-frame>` and `card`; the wrapper cuts it at `</gno-frame>`, which Open (line 231, frameInner false, open true) pairs with the outer frame; wrapFrames' gridCloseInFrame then meets that close before `</gno-columns>` and the outer frame ends before the grid. Output: `<section class=\"gno-frame\"><h2>Apps</h2></section>` then the whole grid unframed, the card's text gone and two `<!-- unexpected/invalid frame tag omitted -->`. This is the half-framed grid gfanton raised on line 313 and the author called a bug (fixed in b748d310c for the plain case); the same page with a blank line after the HTML line, or with the HTML line before the card's close instead, renders correctly. Fix: also return Close when `parseFrameLineTag(tag) == frameTagOpen && frameGrid(pc) && gridOpen(pc)`; with that change the whole markdown package passes, goldens included.",
+   "verify_by": "cp tests/b1-lines-removed-reach-catalog-html-block-hides-card-open_test.go into gno.land/pkg/gnoweb/markdown/ at 1f9bf51d8 and `go test ./gno.land/pkg/gnoweb/markdown/ -run TestProbeFrameHTMLBlockHidesCardOpen -v -count=1`: the two html_before/div_before cases fail, the three controls pass; apply the one-condition fix and `go test ./gno.land/pkg/gnoweb/markdown/ -count=1` is ok",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head: `=== html_before_card_open holds=false` output `<section class=\"gno-frame\">\\n</section>\\n<div class=\"gno-columns\">...<!-- raw HTML omitted -->\\n<!-- unexpected/invalid frame tag omitted -->`; `=== div_before_card_open holds=false` `<section class=\"gno-frame\">\\n<h2>Apps</h2>\\n</section>\\n<div class=\"gno-columns\">`; controls control_no_html, control_html_before_close, control_blank_after_html holds=true. With wrapper condition extended to a card open while frameGrid&&gridOpen: `ok github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown 1.202s` (probe included).",
+   "repro_path": "tests/b1-lines-removed-reach-catalog-html-block-hides-card-open_test.go"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 231,
+   "angle": "reach",
+   "summary": "a card `<gno-frame>` the parser refuses (depth cap, or an attribute) leaves its `</gno-frame>` live, and Open pairs it with the outer frame, which then ends before the grid",
+   "failure_scenario": "The framed-grid page `<gno-frame>\\nintro\\n<gno-columns>\\n<gno-frame>\\ncard\\n</gno-frame>\\n<gno-columns-sep>\\nb\\n</gno-columns>\\n</gno-frame>` inside two nested `<gno-foreign>` blocks: foreign(1)+foreign(2)+frame(3)+grid(4) puts the card's Push at the cap (line 225 fails), the card renders an invalid comment, and its `</gno-frame>` hits `case kind == frameTagClose && open` and closes the outer frame: output `<section class=\"gno-frame\"><p>intro</p></section>` then the grid unframed. Under one `<gno-foreign>` the same page keeps the grid in the frame. `<gno-frame class=\"x\">` as the card open (invalid, attrs) takes the same path at any depth.",
+   "verify_by": "cp tests/b1-lines-removed-reach-catalog-refused-card-close-ends-outer_test.go into gno.land/pkg/gnoweb/markdown/ and `go test ./gno.land/pkg/gnoweb/markdown/ -run TestProbeRefusedCardCloseEndsOuter -v -count=1`: depth 1 holds=true, depth 2 holds=false",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "`=== foreign depth 1: outer frame holds grid=true`; `=== foreign depth 2: outer frame holds grid=false` with `<section class=\"gno-frame\">\\n<p>intro</p>\\n</section>\\n<div class=\"gno-columns\">\\n<!-- Column 0 -->\\n<div class=\"gno-column\">\\n<!-- unexpected/invalid frame tag omitted -->\\n<p>card</p>\\n<!-- unexpected/invalid frame tag omitted -->`",
+   "repro_path": "tests/b1-lines-removed-reach-catalog-refused-card-close-ends-outer_test.go"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 270,
+   "angle": "lines",
+   "summary": "the wrapper cuts every HTML block type at a frame-close or columns line, so a `<!-- ... -->` (type 2) or `<pre>`/`<script>` block inside a frame that hides a gno-columns or `</gno-frame>` line is ended there and the rest of the commented-out lines, `-->` included, render as live markdown",
+   "failure_scenario": "`<gno-frame>\\nIntro\\n<!--\\n<gno-columns>\\ndraft\\n</gno-columns>\\n-->\\n</gno-frame>`: line 270 returns Close at `<gno-columns>` regardless of HTMLBlockType, the draft grid renders and `-->` becomes a visible `<p>--&gt;</p>`; the same comment outside a frame hides all of it. The ADR's reason, 'Safe mode strips that HTML anyway', covers the lines inside the cut block, not the lines after the cut, which are no longer HTML. Types 1-5 end at their own marker, never at a blank line, and an unclosed one hides the rest of the page anyway, so restricting the cut to `HTMLBlockType6`/`HTMLBlockType7` (the shapes the code comment names) keeps the defence and drops the leak.",
+   "verify_by": "render the input above through newGnoMarkdown at 1f9bf51d8 and grep the output for `draft` and `--&gt;`; then guard line 270 with `node.(*ast.HTMLBlock).HTMLBlockType >= ast.HTMLBlockType6` and re-run the markdown package goldens",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  },
+  {
+   "file": "examples/gno.land/p/nt/markdown/foreign/v0/foreign.gno",
+   "line": 223,
+   "angle": "removed",
+   "summary": "trimSentinel's comment still names `trimForeignLine`, which this diff removed in favour of `trimTagLine` in utils.go",
+   "failure_scenario": "a reader following 'the parser's trimForeignLine strips' finds no such function in gno.land/pkg/gnoweb/markdown at this head; the trim it mirrors now lives in utils.go trimTagLine (same body)",
+   "verify_by": "grep -rn trimForeignLine at 1f9bf51d8: hits only foreign.gno:223 and the ADR line recording the rename",
+   "band": "Nit",
+   "fix_kind": "comment",
+   "checked": true,
+   "run": false,
+   "evidence": "grep -rn 'trimForeignLine' -> gno.land/adr/pr6299_gnoweb_frame.md:109 and examples/gno.land/p/nt/markdown/foreign/v0/foreign.gno:223 only",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_foreign.go",
+   "line": 190,
+   "angle": "removed",
+   "summary": "trimForeignLine -> trimTagLine changes the foreign tag-line trim (risk table: guard removed)",
+   "settled_by": "bundle-1 diff: removed body `for i < len(line) && i < 3 && line[i] == ' ' { i++ }; return util.TrimRightSpace(line[i:])` equals utils.go:219-225 trimTagLine byte for byte"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 93,
+   "angle": "lines",
+   "summary": "columnsLineTag sees a trimTagLine'd line (<=3 spaces) while columnsParser.Open uses TrimLeftSpace, so frame state could diverge from the grid on an indented or tab-led line",
+   "settled_by": "goldmark v1.8.2 parser.go openBlocks: `if w > 3 && !bp.CanAcceptIndentedLine() { continue }` and `bps = p.blockParsers[line[pos]]`; both parsers return false from CanAcceptIndentedLine, any tab before `<` gives w>=4, and \\v/\\f lead to no '<' bucket"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/toc.go",
+   "line": 58,
+   "angle": "reach",
+   "summary": "headings moved under a GnoFrameNode by wrapFrames drop out of the TOC",
+   "settled_by": "toc.go:58 `err := ast.Walk(n, func(...)` descends into every child, GnoFrameNode included"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 79,
+   "angle": "lines",
+   "summary": "gfanton's requested bare-CR fix and the optional perf and half-framed-grid items still open at head",
+   "settled_by": "ext_frame.go at 1f9bf51d8: `case size < len(line): return frameTagNone` (bare-CR), wrapper Open `if !frameOpen(pc) { return nil, parser.NoChildren }` (perf), frameKeepsColumnsTag keeps a grid opened in the frame (half-framed grid); probe control_no_html renders the grid inside the frame"
+  }
+ ]
+}

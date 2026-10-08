@@ -1,0 +1,19 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_forms.go",
+      "line": 271,
+      "angle": "removed",
+      "band": "Missing test",
+      "summary": "The AdvanceLine -> AdvanceToEOL change on the </gno-form> line changes rendering outside blockquotes too (list items, lazy lines after a quoted form, loose list paragraphs), and only valid_form_in_blockquote pins it",
+      "failure_scenario": "Same probe rendered through NewGnoExtension at base 41841e92f and head 1f9bf51d8. `- <gno-form>\\n  <input name=\"a\" />\\n  </gno-form>\\nafter\\n`: base puts `after` inside the <li>, head renders `</li>` ... `<p>after</p>` after the list. `> <gno-form>\\n> </gno-form>\\nlazy\\n`: base keeps `<p>lazy</p>` inside the <blockquote>, head moves it after `</blockquote>`. `1. <gno-form>\\n   </gno-form>\\n\\n   para\\n`: base glues `para</li>` onto the item, head renders `<p>para</p>` inside it. Each head output follows CommonMark, but they are visible changes on deployed realm pages that use forms in lists, that no golden pins, and that the PR body does not list next to the blockquote fix. Reverting line 271 to AdvanceLine would leave the list and lazy-line shapes unpinned.",
+      "verify_by": "Add goldens under golden/ext_forms for the list-item trailing line, the lazy line after a quoted form and the loose ordered-list paragraph. Revert ext_forms.go:271 to reader.AdvanceLine() and run `go test ./gno.land/pkg/gnoweb/markdown/ -run TestGnoExtension -count=1`: today only valid_form_in_blockquote goes red.",
+      "checked": true,
+      "run": true,
+      "fix_kind": "test",
+      "evidence": "diff base.out head.out: `< after</li>` / `> </li>` `> <p>after</p>`; `< para</li>` / `> <p>para</p>` `> </li>`; FORM 6 base `<p>lazy</p>\\n</blockquote>`, head `</blockquote>\\n<p>lazy</p>`",
+      "repro_path": ""
+    }
+  ]
+}

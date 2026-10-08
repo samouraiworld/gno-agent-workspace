@@ -1,0 +1,48 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/adr/prxxxx_gnoweb_button.md",
+      "line": 228,
+      "angle": "catalog",
+      "summary": "ADR says user content cannot produce a button because the sanitizer escapes it, but that escape lives in the deployed chain/markdown native and the renderer ships in gnoweb on its own deploy; the ADR names neither the chain-upgrade dependency nor that the EscapeBlockHazards(Rich) output change is consensus-affecting",
+      "failure_scenario": "gnoweb built from 065ec369b serves a chain still on the chain/mainnet native (0 `gno-button` hits there; base isExtDelimiter escapes only a line-start `<gno-`). A commondao bylaws document rendered through sanitize.Block (chain/mainnet render.gno:441) or a boards2 infoAlert through md.Blockquote that carries `Vote: <gno-button href=\"/r/x\" label=\"Approve\" />` mid-line or in a list item reaches gnoweb unescaped and renders as a first-party styled call-to-action until the chain upgrades. Separately, a tx-time caller that stores Block output gets different bytes after the upgrade; every in-tree mainnet caller runs at Render time, so no stored output in the tree shifts.",
+      "verify_by": "git grep -c 'gno-button' origin/chain/mainnet -- gnovm/stdlibs/chain/markdown/markdown.go (expect 0); read base markdown.go:548-559 isExtDelimiter (TrimLeft then trim[0]=='<' and gno- prefix only); run tests/b2-catalog-mainnet-native-live-button.sh for the rendered composition; read ADR lines 205-230 for any mention of chain upgrade, rollout order or consensus",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "chain/markdown added in 72aff5a95 (#5714), tags containing it: chain/mainnet, chain/test13, v1.2.0..v1.5.0; mainnet markdown.go: 0 `gno-button` hits; base isExtDelimiter: `trim := strings.TrimLeft(line, \" \\t\"); if len(trim) == 0 || trim[0] != '<' { return false }`; mainnet callers: commondao render.gno:441 `res.Write(sanitize.Block(text))` (bylaws, Render), boards2 render.gno:382 `return md.Blockquote(header + \"\\n\" + msg)` (Render); ADR 205-230 carries no upgrade or consensus wording",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 427,
+      "angle": "catalog",
+      "summary": "per-line escapeGnoButtonTags adds work to EscapeBlockHazards(Rich) while native_gas.go (not in the diff) keeps the slope fitted on the base worst case `[a]: u\\n(x\\n`, so a button-heavy input could under-charge gas",
+      "settled_by": "tests/b3-catalog-native-gas-button-shapes_test.go, go test -bench 'BenchmarkB3Button/EscapeBlockHazards/(ref|combo_lines|btn_lines)/100000' -count=4 at 065ec369b: `ref/100000 2764434-3012198 ns/op`, `combo_lines/100000 2547505-2722686 ns/op`, `btn_lines/100000 1172034-1186498 ns/op`; Rich: ref 2956872-4278901, combo_lines 2846576-3538074, btn_lines 1222186-1883971. No button shape exceeds the fitted worst shape on the same machine"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 427,
+      "angle": "catalog",
+      "summary": "native output change shifts stored state of realms already on chain that keep sanitize.Block/BlockRich/Blockquote output",
+      "settled_by": "git grep 'sanitize\\.Block\\|md\\.Blockquote' origin/chain/mainnet -- 'examples/gno.land/r/*.gno': only boards2 render.gno:100,382 and commondao render.gno:101,106,332,441,566,572 (all Render paths), proposal_bylaws.gno:148 (a comment) and proposal_kinds.gno Body() whose Blockquote input is a constant with no '<' (escapeGnoButtonTags fast path returns it unchanged); no in-tree tx-time caller stores the output"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 210,
+      "angle": "catalog",
+      "summary": "package-level titleCaser (cases.Caser, not goroutine-safe) shared across concurrent gnoweb renders",
+      "settled_by": "grep -n titleCaser base utils.go: `90:var titleCaser = cases.Title(language.AmericanEnglish)` — predates the diff, which neither adds nor touches it; out of scope"
+    },
+    {
+      "file": "examples/quarantined/gno.land/r/docs/markdown/markdown.gno",
+      "line": 868,
+      "angle": "catalog",
+      "summary": "realm Render change could hit render-markdown (caller text concatenated into Render) or a type-check break",
+      "settled_by": "bundle-1-blank.md lines 95-142: every added line is literal doc text inside the existing Render string, no caller input and no new symbol; CSS (06-blocks.css) and generated public/main.css touch no catalog class"
+    }
+  ]
+}

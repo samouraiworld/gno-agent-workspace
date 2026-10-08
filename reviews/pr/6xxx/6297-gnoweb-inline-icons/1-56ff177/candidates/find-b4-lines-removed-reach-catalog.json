@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go",
+      "line": 202,
+      "angle": "reach",
+      "summary": "collapsing a 21px symbol to iconHeadStroke adds stroke=\"currentColor\" round/round to every shape, so 58 of 491 generated glyphs paint differently from their source: filled shapes with no stroke gain a 1.3 outline",
+      "failure_scenario": "vendored.svg ico-battery is <g fill=\"none\" ...><path stroke=.../><path d=\"m3 2h9...\" fill=\"currentColor\"/>: the bar has no stroke. iconHead matches iconStrokeRoot and returns iconHeadStroke, whose root sets stroke=\"currentColor\" stroke-width=\"1.3\"; the body copier only drops values equal to inherited ones and never writes stroke=\"none\", so the bar now inherits the stroke and grows 0.65 units on every side. <gno-icon name=\"battery\" /> shows a solid block (gap to the outline 0.85 -> 0.2), calculator's r=1 keypad dots merge into one block, wallet/lock/user/info-circle-outline/warning-* dots thicken. 55 shapes gain the stroke, 3 more switch butt/miter caps to round. TestIconTable stays green because it compares the generator with its own committed output; golden nested_columns.md.txtar lines 17 and 23 pin the thickened wallet and lock dots.",
+      "verify_by": "cp tests/b4-lines-removed-reach-catalog-stroke-head-paints-fills.go gno.land/pkg/gnoweb/markdown/zz_b4_stroke_test.go && cd gno.land/pkg/gnoweb/markdown && go test -count=1 -run TestB4GeneratedGlyphPaint -v . : expect 0 glyphs differing, observe 58",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TestB4GeneratedGlyphPaint: \"58 of 491 glyphs paint a shape differently from their source: battery battery-75 battery-half battery-low calculator calendar-date ... wallet warning-circle warning-hex warning-triangle\"; first diff for battery shape 1 \"source: path fill=currentColor stroke=none / generated: path fill=currentColor stroke=currentColor width=1.3 cap=round join=round\"; categories: 33 circle + 21 path + 1 rect fill-only shapes gain the stroke, 3 cap/join changes. Rasterized with resvg at 210px (head vs source symbol): inked px battery 9932 -> 11920, calculator 10622 -> 12504, wallet 8043 -> 8581; side-by-side shows the battery gap closed and calculator dots merged.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6297-gnoweb-inline-icons/1-56ff177/tests/b4-lines-removed-reach-catalog-stroke-head-paints-fills.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 105,
+      "angle": "lines",
+      "summary": "the label is trimmed and tested for emptiness on its raw bytes, before renderIcon decodes entities, so a label that decodes to blank renders role=\"img\" with a blank aria-label and suppresses the alone-in-link hint",
+      "failure_scenario": "[<gno-icon name=\"star\" label=\"&#32;\" />](/r/docs): bytes.TrimSpace keeps \"&#32;\", len(Label) > 0 picks the labeled branch, DefaultWriter.Write decodes it to \" \"; output <a href=\"/r/docs\"><svg ... role=\"img\" aria-label=\" \"> with no hint, so the link and the image have no accessible name and the author is not told. label=\"&nbsp;\" gives aria-label=\"\\u00a0\" the same way.",
+      "verify_by": "render the two inputs above with NewGnoExtension and grep for role=\"img\" aria-label=\" \" and the absence of \"alone in a link\"",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "probe case 3: \"<p><a href=\\\"/r/docs\\\">[ICON role=\\\"img\\\" aria-label=\\\" \\\">]</a></p>\"; case 4: aria-label=\"\\u00a0\"; same under production options and the golden harness",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 287,
+      "angle": "lines",
+      "summary": "hintDone set by a heading's walk answers for an icon-only link nested in that heading, so the link's own missing name gets no hint",
+      "failure_scenario": "## <gno-icon name=\"star\" /> [<gno-icon name=\"heart\" />](/r/docs): star renders first, walks the heading, marks heart hintDone with hint=false; heart's own parent is the link, which has no text, but the early return hands back false. Output carries one hint after star and none inside the unnamed link.",
+      "verify_by": "render the input above and check the <a> contains no \"alone in a link\" comment",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "probe case 2: \"<h2 id=\\\"rdocs\\\">[ICON hidden]<!-- gno-icon: alone in a link or heading, add label=\\\"…\\\" to name it --> <a href=\\\"/r/docs\\\">[ICON hidden]</a></h2>\"",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/ext_icons/nested_emphasis.md.txtar",
+      "line": 7,
+      "angle": "reach",
+      "summary": "the struck line pins literal ~~ because the golden harness (ext_test.go:45 goldmark.New()) has no Strikethrough; production renders <del>, so the fixture names a nesting it never exercises",
+      "failure_scenario": "~~<gno-icon name=\"trash\" /> struck~~ golden output is <p>~~<svg ...> struck~~</p>; NewDefaultGoldmarkOptions renders <p><del><svg ...> struck</del></p>. The real nesting is pinned by ext_icons_test.go:282/293 under newProductionLikeMarkdown, so the golden line is redundant and reads as coverage it is not.",
+      "verify_by": "render the line with goldmark.New()+NewGnoExtension and with extension.Strikethrough added; compare",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "probe case 0: prod \"<p><del>[ICON hidden] struck</del></p>\", golden \"<p>~~[ICON hidden] struck~~</p>\"",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/icons.html",
+      "line": 128,
+      "angle": "removed",
+      "summary": "removing the 24px ico-ddl and second ico-warning could change chrome icons that use them",
+      "settled_by": "grep -n 'id=\"ico-ddl\"\\|id=\"ico-warning\"' on the base icons.html: 54 ddl (kept), 128 ddl (removed), 150 warning (kept), 159 warning (removed); <use href> resolves to the first id in tree order, so the removed copies were never painted"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3154,
+      "angle": "removed",
+      "summary": "svg:not(.gno-icon):last-of-type raises the closed-chevron rule to the open rule's specificity, which could keep open alerts' chevron rotated",
+      "settled_by": "grep -ob in public/main.css: closed rule '.gno-alert>summary svg:not(.gno-icon):last-of-type' at offset 100805, open rule '.gno-alert[open]>summary svg:last-of-type{transform:rotate(0)}' at 101413; equal (0,4,2) specificity, later rule wins"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 2621,
+      "angle": "reach",
+      "summary": ".gno-icon sizing is nested in .c-realm-view, .c-readme-view; an icon rendered outside would fall back to svg{display:block} unsized",
+      "settled_by": "grep: every RenderRealm sink lands in c-realm-view or c-readme-view (view_realm.go:54, views/user.html:56, views/directory.html:50, views/overview.html:151, view_source.go:41); documentationGM (render.go:101-108) does not load ExtIcons"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go",
+      "line": 60,
+      "angle": "catalog",
+      "summary": "the element/attribute allowlist could silently drop paint-relevant markup from the sources",
+      "settled_by": "python scan of all <symbol>s in icons.html, drawn.svg, vendored.svg: only dropped elements are clippath/defs (ico-folder) and title (26); only dropped attrs are clip-path (folder) and id (arrow-down, folder)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go",
+      "line": 197,
+      "angle": "reach",
+      "summary": "non-stroke chrome glyphs with no fill on head or shape would paint default black and vanish in dark mode",
+      "settled_by": "scan of icons_gen.go non-stroke entries for shapes with no fill on self/ancestor/head: only 'cross' (path M2 10L10 2M2 2L10 10, open lines with no area)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 156,
+      "angle": "reach",
+      "summary": "a nested parse with a fresh parser.Context would reset the 1,000-icon budget",
+      "settled_by": "grep '.Parse(|NewContext(|NewGnoParserContext|.Convert(' in markdown/*.go non-test: only ext_foreign.go:394-407 reparses, and it sets iconBudgetKey to the outer budget (ext_foreign.go:396); TestIconBudget pins the foreign case"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go",
+      "line": 14,
+      "angle": "reach",
+      "summary": "package markdown tests importing gnoweb/components could form an import cycle",
+      "settled_by": "grep -rln 'gnoweb/markdown\"' components/*.go returned nothing"
+    }
+  ]
+}

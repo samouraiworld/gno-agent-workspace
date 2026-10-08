@@ -1,0 +1,48 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 427,
+      "angle": "rollout",
+      "summary": "The button renders from gnoweb, a patch-level image with ExtButtons always on (ext.go:96), but the escape that stops sanitized user content producing one is in a VM native that only changes at a coordinated halt. gnoweb deployed ahead of the chain renders live buttons from sanitize.Block output.",
+      "failure_scenario": "gnoweb built from this PR or any later patch goes live while gnoland-1 nodes still run v1.5.0. Their chain/markdown/markdown.go matches the merge base byte for byte, as it does at every upgrades.json commit from v1.2.0 to v1.5.0. A proposer puts `hi <gno-button href=\"/r/evil$help&func=Drain\" label=\"Claim\" variant=\"caution\" />` (or `- <gno-button .../>`, `> quote <gno-button .../>`, or a tag indented 1-3 spaces, which the old native turns into `\\  <gno-button`) into text that a realm passes through sanitize.Block, BlockRich, Blockquote or FootnoteDefinition at Render, such as commondao renderBylaws (render.gno:441). Render runs on the RPC node, whose old native returns the tag unescaped. Head gnoweb then emits <a href=\"/r/evil$help&amp;func=Drain\" class=\"gno-button gno-button-caution\">Claim</a>, a call to action styled as the realm's own. The window stays open until the halt that ships the native, and stays open for good on any chain or RPC node left on an older binary. A realm that stored Block output at write time before the halt keeps the old shape afterwards, so those rows never heal. The body's line that sanitized user content 'can't render a button' holds only after the halt. boards2 is outside the window: it renders user content through gno-foreign, which per ext.go:93 does not load buttons.",
+      "verify_by": "From the round dir, run `bash tests/b2-rollout-old-native-new-gnoweb.sh` in a checkout at 065ec369b. It swaps in the base native (identical to every gnoland-1 upgrades.json commit) and regenerates the sanitize goldens through head gnoweb with TestSanitizeIntegration -update-golden-tests. A closed window would give 0 live gno-button anchors in output.html; the run gives 28.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "mainnet native == base: 9c8eb132e4 31b6650a10 00417a1be9 e75fef82c0 | goldens whose output.md changes under the mainnet native: 30 | goldens rendering a live gno-button under the mainnet native: 28 | sample: <p>hi <a href=\"/r/evil$help&amp;func=Drain\" class=\"gno-button gno-button-caution\">Claim<span class=\"link-internal tooltip\" ...",
+      "repro_path": "tests/b2-rollout-old-native-new-gnoweb.sh"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 438,
+      "angle": "rollout",
+      "summary": "The native's new output breaks state: MsgRun output goes into the results hash. Nothing marks the PR as breaking, so cut-release.sh would accept it in a rolling PATCH, and a mixed validator set would split.",
+      "failure_scenario": "The PR title is `feat(gnoweb): markdown button ext`, and none of its 18 commits carries `!:` or BREAKING. cut-release.sh refuses a PATCH range only on that marker (line 368); its consensus-path check fires only on a merge of master. RELEASING.md files gnoweb changes as patches, and under a PATCH validators switch binaries whenever convenient. On gnoland-1 `run_submitters` is open (mainnet README line 17), so anyone can send a MsgRun that prints sanitize.Block(\"  <gno-card>\\n\") or a mid-line `<gno-button`. For the indented case the base native returns `\\  <gno-card>` and head returns `  \\<gno-card>`. vm/handler.go:69 copies Run's output into res.Data, and ABCIResult hashes Data (tm2/pkg/bft/types/results.go:16). Validators on v1.5.0 and validators on the new binary therefore compute different LastResultsHash for that block. The same divergence hits a node that joins from genesis with only the newest binary, which the mainnet README documents for rows with no halt_min_version, at any past block whose tx result depended on this output. The body says the output 'changes on chain once this ships' but never says the release has to be coordinated.",
+      "verify_by": "Check the marker: `echo 'feat(gnoweb): markdown button ext' | grep -cE '^[a-z]+(\\([^)]*\\))?!:|^BREAKING'`, the regex at cut-release.sh:368, returns 0, as does a scan of the 18 commit messages. Check the output change: tests/b2-rollout-old-native-new-gnoweb.sh counts 30 sanitize goldens whose native output bytes differ between the gnoland-1 native and head. Check the hash path: read handler.go:69 and results.go:16.",
+      "band": "Warning",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": true,
+      "evidence": "title regex count: 0; commits carrying !:/BREAKING: 0 of 18 | goldens whose output.md changes under the mainnet native: 30 | handler.go:69 `res.Data = []byte(resstr)` | results.go:16 `Data   []byte` in ABCIResult | mainnet README:17 '`run_submitters` open'",
+      "repro_path": "tests/b2-rollout-old-native-new-gnoweb.sh"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/nt/commondao/v0/render.gno",
+      "line": 441,
+      "angle": "rollout",
+      "summary": "An in-tree realm stores sanitize.Block/BlockRich output at write time, so its rows written before the halt keep live old-shape tags afterwards.",
+      "settled_by": "A grep for `sanitize\\.(Block|BlockRich|Blockquote|FootnoteDefinition)` and `md\\.(Blockquote|Footnote)` across examples/gno.land/r finds only Render-path callers: commondao render.gno:441 inside renderBylaws, md.Blockquote in the boards2 and commondao render.gno files, and proposal_kinds.gno:364 Body() over a constant string. In-tree output is recomputed on every read, so it heals at the halt."
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 184,
+      "angle": "rollout",
+      "summary": "The gas for the EscapeBlockHazards native call itself differs between the old and new binary because its output differs.",
+      "settled_by": "native_gas.go:184 `{Pkg: \"chain/markdown\", Fn: \"EscapeBlockHazards\", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString}`. The row is keyed on the length of input 0, not on the output."
+    }
+  ]
+}
