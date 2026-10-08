@@ -93,6 +93,22 @@ def strip_local_links(text):
     return "\n".join(out)
 
 
+def strip_skip_bullets(body):
+    """Drop each Body bullet opening "- SKIP", with its indented lines."""
+    out, skipping = [], False
+    for line in body.split("\n"):
+        if line.startswith("- "):
+            skipping = line.startswith("- SKIP")
+        elif line.strip() and not line.startswith((" ", "\t")):
+            skipping = False
+        if skipping:
+            if line.startswith("- SKIP"):
+                print("skipping (marked SKIP): Body bullet", file=sys.stderr)
+            continue
+        out.append(line)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip() + "\n"
+
+
 def parse_comment_md(text):
     """Return (event, body, comments) in GitHub reviews-API shape."""
     m = re.search(r"^Event:\s*(\S+)\s*$", text, re.MULTILINE)
@@ -105,7 +121,7 @@ def parse_comment_md(text):
     for header, content in sections(text):
         content = strip_local_links(content)
         if header == "Body":
-            body = content
+            body = strip_skip_bullets(content)
             continue
         # "## SKIP <path>:<line>" — pruned by the reviewer, don't post.
         if header.startswith("SKIP "):
