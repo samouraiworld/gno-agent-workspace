@@ -1,5 +1,6 @@
 # Review: [#6262](https://github.com/gnolang/gno/pull/6262)
-Event: APPROVE
+Posted: https://github.com/gnolang/gno/pull/6262#pullrequestreview-5458892490
+Event: COMMENT
 Verdict: APPROVE. No Warning remains: the "N matching" link now opens a page listing what it counts, and what is left is one Suggestion on the twinless walk and one Nit on the menu's path line.
 Model: claude-opus-5-5, solo review
 Commit: 8abf28b6ad75f68641f9acd7f9dbe3edd098d394
@@ -9,7 +10,9 @@ Round: 2, over the fix commits alone (d631c4496..8abf28b6a, master's merge left 
 
 ## Body
 
-## gno.land/pkg/gnoweb/counterpart.go:121-122 [gh](https://github.com/gnolang/gno/blob/8abf28b6ad75f68641f9acd7f9dbe3edd098d394/gno.land/pkg/gnoweb/counterpart.go#L121-L122) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L121) · Suggestion
+> AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6262-realm-package-breadcrumb-switch/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6262-realm-package-breadcrumb-switch/2-8abf28b/claims.md) · Status: APPROVE
+
+## gno.land/pkg/gnoweb/counterpart.go:121-122 [gh](https://github.com/gnolang/gno/blob/8abf28b6ad75f68641f9acd7f9dbe3edd098d394/gno.land/pkg/gnoweb/counterpart.go#L121-L122) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L121) · Suggestion [posted](https://github.com/gnolang/gno/pull/6262#discussion_r4220790553)
 Suggestion: `return dir, 1` offers one realm on a twinless `/p/tests/vm/foo` while `/r/tests/vm$source#subpackages` lists the two that match below it.
 Linking that section when two or more direct children match, as the twin branch at [`counterpart.go:103-104`](https://github.com/gnolang/gno/blob/8abf28b6ad75f68641f9acd7f9dbe3edd098d394/gno.land/pkg/gnoweb/counterpart.go#L103-L104) does, keeps the `/r/gov/dao` case at "Matching realm":
 
@@ -60,7 +63,7 @@ With the suggestion applied the same input gives `target="/r/tests/vm$source#sub
 
 </details>
 
-## gno.land/pkg/gnoweb/counterpart.go:104 [gh](https://github.com/gnolang/gno/blob/8abf28b6ad75f68641f9acd7f9dbe3edd098d394/gno.land/pkg/gnoweb/counterpart.go#L104) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L104) · Nit
+## gno.land/pkg/gnoweb/counterpart.go:104 [gh](https://github.com/gnolang/gno/blob/8abf28b6ad75f68641f9acd7f9dbe3edd098d394/gno.land/pkg/gnoweb/counterpart.go#L104) · [↗](../../../../../.worktrees/gno-review-6262/gno.land/pkg/gnoweb/counterpart.go#L104) · Nit [posted](https://github.com/gnolang/gno/pull/6262#discussion_r4220790594)
 Nit: the menu's path line prints this target whole, so the item under "2 matching realms" reads `/r/tests/vm$source#subpackages` where every other item shows a plain path.
 
 <details><summary>rendered menu</summary>

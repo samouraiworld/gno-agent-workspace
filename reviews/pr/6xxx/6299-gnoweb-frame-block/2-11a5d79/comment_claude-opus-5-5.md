@@ -1,6 +1,7 @@
 # Review: [#6299](https://github.com/gnolang/gno/pull/6299)
+Posted: https://github.com/gnolang/gno/pull/6299#pullrequestreview-5458897507
 
-Event: APPROVE
+Event: COMMENT
 Verdict: APPROVE. Nothing above Nit is open: one missing golden for the refused-card flag reset at a columns tag, and two Nits on frame tag lines that either end an HTML comment early or end the outer frame from inside a card.
 Model: claude-opus-5-5, solo review (one judge and writer, high)
 Commit: 11a5d796a07a92ece6344770ca86e6baac84ebbb
@@ -10,7 +11,9 @@ Round: 2, scoped to the fix commits 96fcf8a2b..11a5d796a. 2 finders, a reflector
 
 ## Body
 
-## gno.land/pkg/gnoweb/markdown/ext_frame.go:226 [gh](https://github.com/gnolang/gno/blob/11a5d796a07a92ece6344770ca86e6baac84ebbb/gno.land/pkg/gnoweb/markdown/ext_frame.go#L226) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L226) · Missing test
+> AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6299-gnoweb-frame-block/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6299-gnoweb-frame-block/2-11a5d79/claims.md) · Status: APPROVE
+
+## gno.land/pkg/gnoweb/markdown/ext_frame.go:226 [gh](https://github.com/gnolang/gno/blob/11a5d796a07a92ece6344770ca86e6baac84ebbb/gno.land/pkg/gnoweb/markdown/ext_frame.go#L226) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L226) · Missing test [posted](https://github.com/gnolang/gno/pull/6299#discussion_r4220794172)
 
 Missing test: deleting this reset keeps every golden green, since none has a refused card left open before `<gno-columns-sep>`.
 
@@ -50,7 +53,7 @@ With the line deleted, the page ends `<!-- unexpected/invalid frame tag omitted 
 
 </details>
 
-## gno.land/pkg/gnoweb/markdown/ext_frame.go:254 [gh](https://github.com/gnolang/gno/blob/11a5d796a07a92ece6344770ca86e6baac84ebbb/gno.land/pkg/gnoweb/markdown/ext_frame.go#L254) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L254) · Nit
+## gno.land/pkg/gnoweb/markdown/ext_frame.go:254 [gh](https://github.com/gnolang/gno/blob/11a5d796a07a92ece6344770ca86e6baac84ebbb/gno.land/pkg/gnoweb/markdown/ext_frame.go#L254) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L254) · Nit [posted](https://github.com/gnolang/gno/pull/6299#discussion_r4220794185)
 
 Nit: `!frameInner(pc)` remembers only a refused card opener, so in a card holding a refused frame the card's close ends the outer frame and the grid lands outside it.
 
@@ -111,7 +114,7 @@ Nit: `line[1] != '/'` holds for `<gno-frame/>` too, so a self-closing tag in a f
 
 Not posted: two readings, and the ADR lists the self-closing form beside attributes as one invalid tag, so treating it as a refused opener is consistent; with the outer close present the grid stays in the frame, and only a page whose one `</gno-frame>` sits in that column has its outer frame wrap the rest of the page.
 
-## gno.land/pkg/gnoweb/markdown/ext_frame.go:292 [gh](https://github.com/gnolang/gno/blob/11a5d796a07a92ece6344770ca86e6baac84ebbb/gno.land/pkg/gnoweb/markdown/ext_frame.go#L292) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L292) · Nit
+## gno.land/pkg/gnoweb/markdown/ext_frame.go:292 [gh](https://github.com/gnolang/gno/blob/11a5d796a07a92ece6344770ca86e6baac84ebbb/gno.land/pkg/gnoweb/markdown/ext_frame.go#L292) · [↗](../../../../../.worktrees/gno-review-6299/gno.land/pkg/gnoweb/markdown/ext_frame.go#L292) · Nit [posted](https://github.com/gnolang/gno/pull/6299#discussion_r4220794205)
 
 Nit: `parseFrameLineTag(tag) != frameTagNone` ends an `<!--` comment at a `<gno-frame>` line in a frame with no grid, where the line opens nothing, so the comment's rest renders as text.
 

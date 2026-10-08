@@ -1,6 +1,7 @@
 # Review: [#6297](https://github.com/gnolang/gno/pull/6297)
+Posted: https://github.com/gnolang/gno/pull/6297#pullrequestreview-5458894155
 
-Event: APPROVE
+Event: COMMENT
 Verdict: APPROVE. Both round-1 Warnings are fixed at this head. Two Nits and a Suggestion remain on how icon labels reach the TOC, and none of them blocks.
 Model: claude-opus-5-5, solo review (two finders, one judge and writer)
 Commit: 6a68bc69fc638c389d2308743e2fb1d11cc326bc
@@ -10,7 +11,9 @@ Round: 2, covering the fix commits 84df2c459..6a68bc69f only. 2 finders, the jud
 
 ## Body
 
-## gno.land/pkg/gnoweb/markdown/utils.go:206 [gh](https://github.com/gnolang/gno/blob/6a68bc69fc638c389d2308743e2fb1d11cc326bc/gno.land/pkg/gnoweb/markdown/utils.go#L206) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/utils.go#L206) · Nit
+> AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6297-gnoweb-inline-icons/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6297-gnoweb-inline-icons/2-6a68bc6/claims.md) · Status: APPROVE
+
+## gno.land/pkg/gnoweb/markdown/utils.go:206 [gh](https://github.com/gnolang/gno/blob/6a68bc69fc638c389d2308743e2fb1d11cc326bc/gno.land/pkg/gnoweb/markdown/utils.go#L206) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/utils.go#L206) · Nit [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4220791819)
 
 Nit: this case writes the raw `n.Label` even for an icon that renders nothing, so the TOC title can disagree with its heading.
 
@@ -22,10 +25,10 @@ Nit: this case writes the raw `n.Label` even for an icon that renders nothing, s
 
 </details>
 
-## gno.land/pkg/gnoweb/markdown/ext_icons.go:312 [gh](https://github.com/gnolang/gno/blob/6a68bc69fc638c389d2308743e2fb1d11cc326bc/gno.land/pkg/gnoweb/markdown/ext_icons.go#L312) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L312) · Nit
+## gno.land/pkg/gnoweb/markdown/ext_icons.go:312 [gh](https://github.com/gnolang/gno/blob/6a68bc69fc638c389d2308743e2fb1d11cc326bc/gno.land/pkg/gnoweb/markdown/ext_icons.go#L312) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L312) · Nit [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4220791828)
 
 Nit: `nested == 0` keeps icons in an image's alt text, so in `## ![<gno-icon name="star" />](i.png) <gno-icon name="star" />` the unrendered alt icon takes the hint and the nameless heading gets none.
 
-## gno.land/pkg/gnoweb/markdown/ext_icons.go:196 [gh](https://github.com/gnolang/gno/blob/6a68bc69fc638c389d2308743e2fb1d11cc326bc/gno.land/pkg/gnoweb/markdown/ext_icons.go#L196) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L196) · Suggestion
+## gno.land/pkg/gnoweb/markdown/ext_icons.go:196 [gh](https://github.com/gnolang/gno/blob/6a68bc69fc638c389d2308743e2fb1d11cc326bc/gno.land/pkg/gnoweb/markdown/ext_icons.go#L196) · [↗](../../../../../.worktrees/gno-review-6297/gno.land/pkg/gnoweb/markdown/ext_icons.go#L196) · Suggestion [posted](https://github.com/gnolang/gno/pull/6297#discussion_r4220791837)
 
 Suggestion: the ID set here drops the labels the TOC title keeps, so a heading listed as `Top` gets a positional `#heading-N` anchor that any icon-only heading above it shifts. I would build the ID from the text the TOC shows, as the `iconHeadingIDTransformer` doc comment says.

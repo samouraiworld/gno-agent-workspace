@@ -18,6 +18,8 @@ Resume: worktrees at `.worktrees/gno-review-<n>` and `-base`; round inputs at th
 
 Status 2026-10-08: all five rounds drafted, final-checked, pushed and posted.
 
+Round 2 posted 2026-10-08 as an AI review (COMMENT): 6262 review 5458892490, 6297 review 5458894155, 6298 review 5458895890, 6299 review 5458897507.
+
 ## Round 2, the author's fixes
 
 Scope: the commits pushed after round 1, each diffed against round 1's head merged locally with master `47d19f8a3`, so no master content enters the diff. The generated `public/main.css` is left out. #6293's head did not move, so it has no round 2.

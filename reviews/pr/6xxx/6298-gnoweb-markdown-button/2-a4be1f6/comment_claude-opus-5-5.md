@@ -1,4 +1,5 @@
 # Review: [#6298](https://github.com/gnolang/gno/pull/6298)
+Posted: https://github.com/gnolang/gno/pull/6298#pullrequestreview-5458895890
 
 Event: COMMENT
 Verdict: NEEDS DISCUSSION. The open Warning is carried from round 1: gnoweb renders `<gno-button>` as soon as it deploys, and only the ADR's upgrade note, no code, keeps sanitized user text from rendering as a button until the chain runs the new escape; the one new posted finding is a Nit.
@@ -10,7 +11,9 @@ Round: 2, scoped to the fix commits, ab27ce5c0..a4be1f67b. 2 finders, a reflecto
 
 ## Body
 
-## gno.land/pkg/gnoweb/markdown/ext_buttons.go:117-124 [gh](https://github.com/gnolang/gno/blob/a4be1f67b066a1f0a28ed57d854c8d96c775965c/gno.land/pkg/gnoweb/markdown/ext_buttons.go#L117-L124) · [↗](../../../../../.worktrees/gno-review-6298/gno.land/pkg/gnoweb/markdown/ext_buttons.go#L117) · Nit
+> AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6298-gnoweb-markdown-button/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6298-gnoweb-markdown-button/2-a4be1f6/claims.md) · Status: NEEDS DISCUSSION
+
+## gno.land/pkg/gnoweb/markdown/ext_buttons.go:117-124 [gh](https://github.com/gnolang/gno/blob/a4be1f67b066a1f0a28ed57d854c8d96c775965c/gno.land/pkg/gnoweb/markdown/ext_buttons.go#L117-L124) · [↗](../../../../../.worktrees/gno-review-6298/gno.land/pkg/gnoweb/markdown/ext_buttons.go#L117) · Nit [posted](https://github.com/gnolang/gno/pull/6298#discussion_r4220793039)
 
 Nit: `isVisibleRune` counts six blank runes as visible, U+2800, U+034F, U+FE0F, U+E0100, U+17B4 and U+180B, so `label="&#x2800;"` renders an empty button.
 
