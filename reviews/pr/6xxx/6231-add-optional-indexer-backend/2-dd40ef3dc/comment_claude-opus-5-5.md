@@ -1,4 +1,5 @@
 # Review: [#6231](https://github.com/gnolang/gno/pull/6231)
+Posted: https://github.com/gnolang/gno/pull/6231#pullrequestreview-5454211539
 
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. The branch ships 14 Warnings to gnoweb readers, among them `-indexer-url` credentials printed on every indexer-backed results page, a `$search` limiter at 100 requests a minute, and scoped searches answering from the whole chain.
@@ -28,7 +29,7 @@ Round: 2. 10 finders, one reflector, 53 candidates, the Criticals and Warnings r
   ```
   </details>
 
-## gno.land/pkg/gnoweb/client.go:238 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/client.go#L238) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/client.go#L238) · Warning
+## gno.land/pkg/gnoweb/client.go:238 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/client.go#L238) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/client.go#L238) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010243)
 Forwarding `?limit=` caps `/u/<user>` at [`MaxUserContributions`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/handler_http.go#L673), 200 packages per namespace, where the bare `vm/qpaths` returned the [node's default of 1000](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/sdk/vm/handler.go#L200). Namespaces of 201 to 1000 packages lose their tail, and the page shows the capped count as the total with no truncation mark.
 
 <details><summary>repro</summary>
@@ -40,7 +41,7 @@ go test ./gno.land/pkg/gnoweb -run TestUserContributionsListingNotLowered -v -co
 ```
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/discover.go:17 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L17) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L17) · Warning
+## gno.land/pkg/gnoweb/feature/omnisearch/discover.go:17 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L17) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L17) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010254)
 `discover` builds its filter from `q.Text` alone, so a search scoped to `/r/alice/blog`, by the page or by `in:`, lists `/r/bob/blog` from the whole chain. [The page hint](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L96) advertises `in:` as "Narrow to a package", and the JSON response echoes [`pkg_path`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/json.go#L48) as the scope.
 
 <details><summary>repro</summary>
@@ -60,7 +61,7 @@ go test ./gno.land/pkg/gnoweb/feature/omnisearch/ -run 'TestB3InQualifier' -coun
 
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/feature.go:96 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/feature.go#L96) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/feature.go#L96) · Warning
+## gno.land/pkg/gnoweb/feature/omnisearch/feature.go:96 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/feature.go#L96) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/feature.go#L96) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010260)
 `Client.Doc` runs inside `singleflight.DoChan` with no recover, so a panic in `Doc` during a `func:`, `type:` or `imports` search exits the whole gnoweb process. `DoChan` re-panics on a fresh goroutine that the per-request recover of net/http cannot reach, where [`state/page.go`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/state/page.go#L75) wraps the same call in `recoverFetcher`.
 
 <details><summary>repro</summary>
@@ -130,7 +131,7 @@ go test ./gno.land/pkg/gnoweb/feature/omnisearch/ -run 'TestB5' -count=1 -v
 
 Not posted: same defect as `gno.land/pkg/gnoweb/indexer/client.go:115`, which one edit to `URL()` closes; its repro is folded there.
 
-## gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go:158 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L158) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L158) · Warning
+## gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go:158 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L158) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L158) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010266)
 `capResults` cuts `func:`, `type:`, `file:` and `imports` results at [`MaxResults`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/query.go#L26), here and at lines [179](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L179), [213](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L213) and [234](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L234), with `Group.Truncated` left false, so a partial list reads as complete.
 
 <details><summary>repro</summary>
@@ -143,7 +144,7 @@ go test ./gno.land/pkg/gnoweb/feature/omnisearch/ -run TestB9FuncResultsCappedRe
 
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go:135 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L135) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L135) · Warning
+## gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go:135 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L135) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L135) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010272)
 `SourceContains` gets the bare `q.ChainPath` as an [unanchored pattern](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/queries.go#L200-L201), so "Imported by" on `gno.land/r/demo/foo` also lists importers of `gno.land/r/demo/foobar`. Every `gno.land/r/demo/foo/<sub>` matches through its gnomod module line too, each using up the [`recentLimit`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L16) budget.
 
 <details><summary>repro</summary>
@@ -155,7 +156,7 @@ go test ./gno.land/pkg/gnoweb/indexer/ -run TestZZImportersTextMatchesALongerPat
 ```
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go:175 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L175) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L175) · Warning
+## gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go:175 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L175) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L175) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010281)
 This loop takes `Path()` of every message in a matched transaction, and [tx-indexer returns the whole transaction](https://github.com/gnolang/tx-indexer/blob/57b1b385c928a55df1dd71415f54d3e11f44f3b6/serve/graph/model/filter_methods_gen.go#L1365-L1375) when any message matches. A realm the transaction only called, or a sibling deployed alongside, is listed under `content:` and, through the [same loop in `resolveImporters`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L143-L157), under importers.
 
 <details><summary>repro</summary>
@@ -169,7 +170,7 @@ go test ./gno.land/pkg/gnoweb/feature/omnisearch/ -run TestZZ -v
 ```
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go:82 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L82) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L82) · Warning
+## gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go:82 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L82) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L82) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010298)
 Every `Realm` failure returns nil here, so a `render:` search answers "Nothing matched." instead of "Could not answer" when the node times out or is down. With one candidate from `in:` or page scope, the page tells the reader the realm lacks the text.
 
 <details><summary>repro</summary>
@@ -178,7 +179,7 @@ Copy `tests/b6-lines-removed-reach-catalog-render-errors-swallowed_test.go` into
 
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go:119 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L119) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L119) · Warning
+## gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go:119 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L119) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L119) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010309)
 This call drops the truncated flag of the listing for `render:<text> author:<ns>`, and the loop stops at [`maxRenderCandidates`, 8](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L16), without marking the group. A match past either cut reads as "Nothing matched.", while [`discover` marks the same listing `Truncated`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L86-L92).
 
 <details><summary>repro</summary>
@@ -187,7 +188,7 @@ Copy `tests/b6-lines-removed-reach-catalog-render-cap-silent_test.go` into `gno.
 
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html:22 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html#L22) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html#L22) · Warning
+## gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html:22 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html#L22) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html#L22) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010324)
 The truncation notice lives inside a group, and [`discover` drops empty groups](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L78-L80). A truncated listing with no visible match therefore says "Nothing matched." with no notice, which is exactly the case the flag exists for.
 
 <details><summary>repro</summary>
@@ -196,7 +197,7 @@ Copy `tests/b8-lines-reach-catalog-results-page_test.go` into `gno.land/pkg/gnow
 
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html:14 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L14) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L14) · Warning
+## gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html:14 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L14) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L14) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010338)
 `PkgPath` alone decides the scope header here, so whole-chain discovery results get it too. The reader is told the list covers one realm when it does not.
 
 <details><summary>repro</summary>
@@ -216,7 +217,7 @@ Copy `tests/b8-lines-reach-catalog-results-page_test.go` into `gno.land/pkg/gnow
 
 Not posted: same defect as `gno.land/pkg/gnoweb/indexer/client.go:115`, which one edit to `URL()` closes; its repro is folded there.
 
-## gno.land/pkg/gnoweb/indexer/client.go:115 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/client.go#L115) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/indexer/client.go#L115) · Warning
+## gno.land/pkg/gnoweb/indexer/client.go:115 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/client.go#L115) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/indexer/client.go#L115) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010346)
 `URL()` returns `-indexer-url` as configured, so a basic-auth `user:password` or a query-string key reaches every anonymous reader through the [results page footer](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L65) and the [`/$search&json` response](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/json.go#L92). The URL is the only place such a credential fits, since [`GNOWEB_INDEXER_TOKEN`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/client.go#L195) only sends `Bearer`.
 
 <details><summary>repro</summary>
@@ -237,7 +238,7 @@ go test ./gno.land/pkg/gnoweb/feature/omnisearch/ -run TestB8ProvenanceFooterPri
 
 </details>
 
-## gno.land/pkg/gnoweb/indexer/client.go:135 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/client.go#L135) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/indexer/client.go#L135) · Warning
+## gno.land/pkg/gnoweb/indexer/client.go:135 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/client.go#L135) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/indexer/client.go#L135) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010356)
 This condition counts a caller's own `context.DeadlineExceeded` as an indexer failure, so three concurrent callers whose deadline expires before the answer open the breaker for every reader for 30s. Omnibar lookups trip the breaker through the 3s [`jsonTimeout`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L23) against the [4s client timeout](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/client.go#L45), and deploys scans through a [`recent()` band](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/queries.go#L301) outliving the caller's deadline.
 
 <details><summary>repro</summary>
@@ -257,7 +258,7 @@ The breaker opens after [`breakerThreshold`](https://github.com/gnolang/gno/blob
 
 </details>
 
-## gno.land/pkg/gnoweb/indexer/queries.go:277 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/queries.go#L277) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/indexer/queries.go#L277) · Warning
+## gno.land/pkg/gnoweb/indexer/queries.go:277 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/queries.go#L277) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/indexer/queries.go#L277) · Warning [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010364)
 `recent()` stops after [`maxWindowSteps`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/queries.go#L248), 4 windows or about 1.17M blocks, and returns what it found with a nil error. Deploy history then reads empty, with no truncation notice, for any package deployed further below the tip.
 
 <details><summary>repro</summary>
@@ -327,7 +328,7 @@ Missing test: no test pins the breaker exemptions for `ErrTooLarge` and `context
 
 Not posted: PLAUSIBLE Missing test on the finder's read; the mutation that would show it was not run.
 
-## gno.land/adr/pr6231_gnoweb_indexer.md:133 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/adr/pr6231_gnoweb_indexer.md?plain=1#L133) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/adr/pr6231_gnoweb_indexer.md#L133) · Nit
+## gno.land/adr/pr6231_gnoweb_indexer.md:133 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/adr/pr6231_gnoweb_indexer.md?plain=1#L133) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/adr/pr6231_gnoweb_indexer.md#L133) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010377)
 Nit: this line says `is:` cuts a discovery search to one `ListPaths` call. [`discover`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L25) always calls `Directory.Paths`, and `is:` only [skips a group](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L46), after both kinds are fetched.
 
 <details><summary>repro</summary>
@@ -338,7 +339,7 @@ sed -n 25,46p gno.land/pkg/gnoweb/feature/omnisearch/discover.go
 `Paths` is called unconditionally, before the `hasIs` filter.
 </details>
 
-## gno.land/adr/pr6231_gnoweb_indexer.md:264 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/adr/pr6231_gnoweb_indexer.md?plain=1#L264) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/adr/pr6231_gnoweb_indexer.md#L264) · Nit
+## gno.land/adr/pr6231_gnoweb_indexer.md:264 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/adr/pr6231_gnoweb_indexer.md?plain=1#L264) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/adr/pr6231_gnoweb_indexer.md#L264) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010385)
 Nit: `RateLimitConfig.TrustedProxies` was already applied at the merge base, where `-trusted-proxies` fed it and [`feature/state/handler.go`](https://github.com/gnolang/gno/blob/87f0357fe2b373476bb92a26d59833402b9916d3/gno.land/pkg/gnoweb/feature/state/handler.go#L24) applied it through `extractIP`. `AllowRequest` moves that rule into the limiter without changing behaviour.
 
 <details><summary>repro</summary>
@@ -349,7 +350,7 @@ grep -n trusted-proxies <base>/gno.land/cmd/gnoweb/main.go
 ```
 </details>
 
-## gno.land/cmd/gnoweb/main.go:311 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/cmd/gnoweb/main.go#L311) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/cmd/gnoweb/main.go#L311) · Nit
+## gno.land/cmd/gnoweb/main.go:311 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/cmd/gnoweb/main.go#L311) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/cmd/gnoweb/main.go#L311) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010394)
 Refactor: `splitAndTrim` repeats the trim and the empty-entry skip that [`ParseTrustedProxies`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/state/ratelimit.go#L49-L52) does already, so a plain split gives the same networks and matches [`TrustedPaths`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/cmd/gnoweb/main.go#L340).
 
 ```suggestion
@@ -366,7 +367,7 @@ sed -n 43,52p gno.land/pkg/gnoweb/feature/state/ratelimit.go
 The output shows `strings.TrimSpace` and the empty-entry skip.
 </details>
 
-## gno.land/pkg/gnoweb/components/layout_header.go:177 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/components/layout_header.go#L177) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/components/layout_header.go#L177) · Nit
+## gno.land/pkg/gnoweb/components/layout_header.go:177 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/components/layout_header.go#L177) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/components/layout_header.go#L177) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010417)
 Nit: `data.RealmURL.Path` is the alias target after the [rewrite in the handler](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/handler_http.go#L309-L310), while the JS controller scopes from `window.location.pathname`. On an alias page such as the home page, a search is scoped to the alias realm without JS and chain-wide with it.
 
 <details><summary>repro</summary>
@@ -378,7 +379,7 @@ go test ./gno.land/pkg/gnoweb/ -run TestAliasHeaderSearchScope -v
 ```
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/discover.go:21 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L21) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L21) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/discover.go:21 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L21) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L21) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010428)
 Nit: a bare word under [`MinTermLen`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/query.go#L23), or an `is:` value naming no kind such as `is:pkg`, returns no group, so the page says "Nothing matched." while matching paths exist.
 
 <details><summary>repro</summary>
@@ -387,13 +388,13 @@ Copy `tests/b8-lines-reach-catalog-results-page_test.go` into `gno.land/pkg/gnow
 
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/handler.go:183 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L183) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L183) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/handler.go:183 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L183) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L183) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010432)
 Nit: a `Bare` selector gets an empty term even when typed with a value, so `imports:json` lists every import with no hint that `json` was dropped.
 
-## gno.land/pkg/gnoweb/feature/omnisearch/handler.go:220 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L220) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L220) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/handler.go:220 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L220) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L220) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010440)
 Nit: `g.Source == SourceIndexer` also counts a group carrying only a [pre-flight error](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/handler.go#L141-L154). `content:abc` or an unscoped `activity` then prints "Some results above come from an indexer" over zero results.
 
-## gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go:150 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L150) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L150) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go:150 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L150) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L150) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010445)
 Nit: `func:` tags every top-level `/r/` function except `Render` as an action, unexported helpers included. Non-crossing getters that [`MsgCall` panics on](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/sdk/vm/keeper.go#L1256) get the tag too, so the action link targets functions the help page omits.
 
 <details><summary>repro</summary>
@@ -402,7 +403,7 @@ Copy `tests/b9-lines-reach-catalog-resolve-chain_test.go` into `gno.land/pkg/gno
 
 </details>
 
-## gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go:224 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L224) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L224) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go:224 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L224) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_chain.go#L224) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010450)
 Nit: the `matches` call on the term never filters, because `selectorFor` hands the `Bare` selector `imports` an empty term. The call reads as if `imports:x` narrows the list.
 
 ## SKIP gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go:214 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L214) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_indexer.go#L214) · Nit
@@ -410,19 +411,19 @@ Nit: `tx.Messages[0].Path()` titles and links every activity row from the first 
 
 Not posted: PLAUSIBLE Nit; whether tx-indexer matches the `RecentByPackage` predicate on any message element is unchecked.
 
-## gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go:91 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L91) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L91) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go:91 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L91) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L91) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010459)
 Nit: `hits` is appended in goroutine completion order and `capResults` only truncates, so `render:` results, and which ones survive the cap, change between reloads.
 
-## gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go:141 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L141) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L141) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go:141 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L141) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/resolve_render.go#L141) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010468)
 Nit: `snippetAround` slices at byte offsets, so a multi-byte rune at either edge is split and the snippet shows U+FFFD.
 
-## gno.land/pkg/gnoweb/feature/omnisearch/search_test.go:139 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/search_test.go#L139) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/search_test.go#L139) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/search_test.go:139 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/search_test.go#L139) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/search_test.go#L139) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010478)
 Test: `idx` is already an `Indexer` interface, so a nil `*mockIndexer` arrives non-nil and passes `idx != nil`, and this guard cannot stop the typed-nil trap its comment names.
 
-## gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html:41 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L41) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L41) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html:41 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L41) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L41) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010490)
 Nit: `HasResults` ignores groups carrying only an `Err`, so a failed backend prints "Could not answer: ..." and "Nothing matched." on the same page.
 
-## gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html:63 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L63) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L63) · Nit
+## gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html:63 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L63) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/page.html#L63) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010503)
 Nit: `indexerStatus` marks the indexer used on `g.Source` alone, so with the indexer down this footer claims results above came from it on a page with none.
 
 ## SKIP gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts:295 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L295) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L295) · Nit
@@ -430,7 +431,7 @@ Nit: any 404 from `$search&json` sets `searchAvailable = false`, and the [only J
 
 Not posted: PLAUSIBLE Nit; no concrete path both fails `ParseFromURL` and renders the header bar was found.
 
-## gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts:298 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L298) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L298) · Nit
+## gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts:298 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L298) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L298) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010514)
 Nit: `if (!res.ok) return null` discards the `{error}` body the server writes for a 429 or a 400. A refused qualified search falls back to the local path filter, and the dropdown reads "No results".
 
 <details><summary>repro</summary>
@@ -442,10 +443,10 @@ python3 tests/b7-lines-removed-reach-catalog-dropdown-silent-fallback.py gno.lan
 ```
 </details>
 
-## gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts:389 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L389) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L389) · Nit
+## gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts:389 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L389) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts#L389) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010524)
 Nit: the full-results item appended here makes `this.items` non-empty, so the `this.items.length === 0` check never fires. A qualified query matching nothing shows only the link, never "No results".
 
-## gno.land/pkg/gnoweb/indexer/client.go:231 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/client.go#L231) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/indexer/client.go#L231) · Nit
+## gno.land/pkg/gnoweb/indexer/client.go:231 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/client.go#L231) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/indexer/client.go#L231) · Nit [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010533)
 Nit: this line returns nil on a 200 JSON body with neither `data` nor `errors`, the answer of an `-indexer-url` pointing at the wrong endpoint. `LatestBlockHeight` then reads 0, `TxByHash` says not found, and nothing is logged.
 
 <details><summary>repro</summary>
@@ -458,10 +459,10 @@ go test ./gno.land/pkg/gnoweb/indexer/ -run TestB5EnvelopeWithoutDataReportsSucc
 
 </details>
 
-## gno.land/pkg/gnoweb/app.go:195 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/app.go#L195) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/app.go#L195) · Suggestion
+## gno.land/pkg/gnoweb/app.go:195 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/app.go#L195) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/app.go#L195) · Suggestion [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010538)
 Suggestion: parse `cfg.IndexerURL` at startup, since [`indexer.New`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/indexer/client.go#L94) stores it unparsed. A value such as `localhost:8546/graphql` parses with scheme `localhost`, and every indexer search fails behind a startup log calling the indexer enabled.
 
-## gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html:13 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html#L13) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html#L13) · Suggestion
+## gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html:13 [gh](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html#L13) · [↗](../../../../../.worktrees/gno-review-6231/gno.land/pkg/gnoweb/feature/omnisearch/templates/_results.html#L13) · Suggestion [posted](https://github.com/gnolang/gno/pull/6231#discussion_r4217010544)
 Suggestion: render `10+` or a notice on a discovery group capped at [`maxDiscoverResults`](https://github.com/gnolang/gno/blob/dd40ef3dc9b92a3df888bb9e70dc21871dcc192a/gno.land/pkg/gnoweb/feature/omnisearch/discover.go#L11), which shows count 10 for 25 matches with nothing saying more matched.
 
 <details><summary>repro</summary>

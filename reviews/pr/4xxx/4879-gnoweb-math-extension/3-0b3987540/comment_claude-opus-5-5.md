@@ -1,4 +1,5 @@
 # Review: [#4879](https://github.com/gnolang/gno/pull/4879)
+Posted: https://github.com/gnolang/gno/pull/4879#pullrequestreview-5454217425
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. Two Criticals block it: a `\color` whose `{` closes outside its environment hangs gnoweb, and each pair of openers whose closer sits outside their group multiplies parse time by 4 to 5. 33 Warnings on rendering, empty arguments and the symbol table also reach users.
 Model: claude-opus-5-5, standard review
