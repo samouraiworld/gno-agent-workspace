@@ -1,0 +1,93 @@
+{
+ "candidates": [
+  {
+   "index": 1,
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 121,
+   "angle": "lines",
+   "summary": "the twinless walk names a package ancestor alone even when its direct children are members its overview's Directories section lists",
+   "failure_scenario": "On a /p/tests/vm/<x> page with no /r/tests/vm/<x> (root /r/tests/vm, a realm with 16 direct-child realms in examples/), the walk reaches /r/tests/vm with n=17 and returns (\"/r/tests/vm\", 1): the menu reads \"Matching realm\" and opens that one realm, while /r/tests/vm$source#subpackages, the target the twin branch three lines up uses for the same directory, lists all 16. The godoc's reason, \"no page lists what lies deeper below it\", holds for grandchildren only, so the user is told there is one match where a page listing the rest exists.",
+   "verify_by": "read: counterpartTarget(\"/r/tests/vm/foo\", \"/r/tests/vm\", []string{\"/r/tests/vm\", \"/r/tests/vm/crossrealm\", \"/r/tests/vm/subtests\"}) walks to /r/tests/vm, n=3, slices.Contains true, returns (\"/r/tests/vm\", 1); TestCounterpart_LinkOpensWhatItCounts case 1 shows /r/tests/vm$source lists both children",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "counterpart.go:121-122 `case n > 1 && slices.Contains(members, dir): return dir, 1`; find examples/gno.land/r/tests/vm -name gnomod.toml: r/tests/vm plus 16 direct children (crossrealm, crossrealm_b, ..., variadic)",
+   "repro_path": ""
+  },
+  {
+   "index": 2,
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 104,
+   "angle": "lines",
+   "summary": "the menu's path line now prints the target with gnoweb's webquery and fragment, /r/tests/vm$source#subpackages",
+   "failure_scenario": "On /p/tests/vm/crossrealm the primary item reads \"2 matching realms\" over the path line `/r/tests/vm$source#subpackages`, since header.html:255 renders `<span class=\"item-path\">{{ .URL }}</span>` from the href; every other item's path line is a plain path (/u/<ns>, /r/), and a screen reader reads the `$source#subpackages` suffix as part of the link text.",
+   "verify_by": "render /p/tests/vm/crossrealm with the TestCounterpart_LinkOpensWhatItCounts fixture and grep `<span class=\"item-path\">`: expect a plain path, observe /r/tests/vm$source#subpackages",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "header.html:255 `<span class=\"item-path\">{{ .URL }}</span>`; counterpart.go:104 `return dir + \"$source#subpackages\", siblings`; counterpartLink sets URL: target",
+   "repro_path": ""
+  },
+  {
+   "index": 3,
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 122,
+   "angle": "reach",
+   "summary": "on a capped listing the new `return dir, 1` replaces the \"100+\" floor with a single named match, and the new subtree and sibling counts are floors shown without \"+\"",
+   "failure_scenario": "A project /p/alice/golf that is itself a package with over 100 packages below it: startCounterpart keeps the first 100 paths (counterpart.go:184), so a twin /p/alice/golf/zz sorted past them is absent, the walk climbs to /p/alice/golf with n=100 and returns (\"/p/alice/golf\", 1). On /r/alice/golf/zz the menu reads \"Matching package\" and opens /p/alice/golf while /p/alice/golf/zz exists; before the fix the same listing read \"100+ matching packages\". counterpartLink adds \"+\" only when n >= 100 (line 157), so countUnder over a subdirectory and the siblings count of a capped listing also read as exact.",
+   "verify_by": "read, or unit: counterpartTarget(\"/p/alice/golf/zz\", \"/p/alice/golf\", append([]string{\"/p/alice/golf\"}, 99 paths /p/alice/golf/aNN...)) returns (\"/p/alice/golf\", 1); at d631c4496 the same input returns (\"/p/alice/golf\", 100)",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "counterpart.go:184 `paths = paths[:maxCounterpartPaths]`; :157 `count += \"+\"` under `n >= maxCounterpartPaths`; :121-122 return n=1 whatever n reached",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 104,
+   "angle": "lines",
+   "summary": "round-1 Warning (N matching opens one package when the twin's directory is a package): suspected still open",
+   "settled_by": "round-1 tests/solo-finder-1-dir-is-package.go at 8abf28b6a, request built from the href with the fragment cut as a browser does: `page /p/tests/vm/crossrealm: switch href=\"/r/tests/vm$source#subpackages\" label=\"2 matching realms\"` and `page /r/alice/golf/v1: switch href=\"/p/alice/golf$source#subpackages\" label=\"2 matching packages\"` both list every counted path; `page /p/gov/dao/utils: switch href=\"/r/gov/dao\" label=\"Matching realm\"` no longer promises a listing. Run verbatim it fails only because httptest keeps #subpackages in the request path. Resolved."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+   "line": 4096,
+   "angle": "lines",
+   "summary": "round-1 Nit (inset: auto overrides the no-anchor fallback): suspected the source reorder never reached the bundle",
+   "settled_by": "public/main.css at 8abf28b6a: `.b-kind-switch{position-anchor` at byte 118083, `@supports not (top:anchor(bottom))` at 119957 (after it; at c5ae4b13a it was 117042, before the rule at 117138). round-1 tests/solo-finder-2-kind-switch-fallback.sh re-run on head's main.css, Chromium: `== noanchor ... computed top/left: 56px/64px` (round 1: 0px/0px). Resolved."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 106,
+   "angle": "lines",
+   "summary": "round-1 Nit (count covers direct siblings, listing shows the subtree)",
+   "settled_by": "go test ./pkg/gnoweb -run Counterpart -count=1 at head: `--- PASS: TestCounterpart_LinkOpensWhatItCounts`, whose case \"twin's listing counts the whole subtree it shows\" asserts \"3 matching packages\" and /p/alice/golf/ui/board listed. Resolved."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 236,
+   "angle": "reach",
+   "summary": "round-1 Suggestions (errors never cached; full cache stores no new root)",
+   "settled_by": "diff.md: the only counterpart.go hunk is `@@ -44,95 +44,118 @@` ending in counterpartLink; counterpartCache.get and store are untouched; author replies 4219456017 and 4219456318 defer both to a follow-up. Carried, open."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 41,
+   "angle": "claims",
+   "summary": "the PR body's Target sentence (\"whose listing opens instead\", \"the deepest directory holding several\") no longer describes the package-directory branches",
+   "settled_by": "fix is the description's wording alone; the task returns nothing whose only fix is wording"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/counterpart.go",
+   "line": 44,
+   "angle": "catalog",
+   "summary": "invariant catalog classes against the diff",
+   "settled_by": "diff touches gnoweb Go and CSS only (4 files per risk.md); the catalog's classes and realm audit patterns cover .gno code, none applies"
+  }
+ ]
+}

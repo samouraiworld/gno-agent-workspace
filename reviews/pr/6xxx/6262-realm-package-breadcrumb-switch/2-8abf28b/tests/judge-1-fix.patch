@@ -1,0 +1,20 @@
+diff --git a/gno.land/pkg/gnoweb/counterpart.go b/gno.land/pkg/gnoweb/counterpart.go
+index afe8672e4..9ec0dc8e1 100644
+--- a/gno.land/pkg/gnoweb/counterpart.go
++++ b/gno.land/pkg/gnoweb/counterpart.go
+@@ -119,6 +119,15 @@ func counterpartTarget(twin, root string, paths []string) (target string, n int)
+ 		case n == 1:
+ 			return last, 1
+ 		case n > 1 && slices.Contains(members, dir):
++			children := 0
++			for _, m := range members {
++				if gopath.Dir(m) == dir {
++					children++
++				}
++			}
++			if children > 1 {
++				return dir + "$source#subpackages", children
++			}
+ 			return dir, 1
+ 		case n > 1:
+ 			return dir, n

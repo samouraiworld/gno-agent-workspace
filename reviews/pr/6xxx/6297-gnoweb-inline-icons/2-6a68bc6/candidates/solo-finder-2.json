@@ -1,0 +1,92 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 206,
+      "angle": "reach",
+      "summary": "the TOC title takes the icon label raw, so its character references show literally while the svg's aria-label resolves them",
+      "failure_scenario": "`## <gno-icon name=\"star\" label=\"Q &amp; A\" />`, the label syntax the ADR documents: renderIcon writes aria-label \"Q & A\" (DefaultWriter.Write resolves it), but writeNodeText writes n.Label raw, TocInspect returns Title \"Q &amp; A\", and ui/toc.html's html/template {{ .Title }} escapes it again, so a reader sees `Q &amp; A` in the page's table of contents. Before this diff an icon-only heading had no TOC entry at all.",
+      "verify_by": "cp tests/solo-finder-2-toc-label.go gno.land/pkg/gnoweb/markdown/zz_toclabel_test.go && go test -count=1 -run 'TestSoloFinder2TocLabel/entity' -v ./gno.land/pkg/gnoweb/markdown: expect title \"Q & A\", observe \"Q &amp; A\"",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6a68bc69f: `expected: []string{\"Q & A\"} actual  : []string{\"Q &amp; A\"}` with html `aria-label=\"Q &amp; A\"`; with 84df2c459's utils.go the same heading has no TOC entry (`actual  : []string(nil)`)",
+      "repro_path": "tests/solo-finder-2-toc-label.go"
+    },
+    {
+      "index": 1002,
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 206,
+      "angle": "reach",
+      "summary": "a labeled icon that renders nothing (unknown name, missing name, not self-closing) still titles its heading in the TOC",
+      "failure_scenario": "`## <gno-icon name=\"unicorn\" label=\"Top\" />` (also `<gno-icon label=\"Top\" />` and the non-self-closing `<gno-icon name=\"star\" label=\"Top\">`) renders `<h2 id=\"heading\"><!-- gno-icon: unknown name \"unicorn\" --></h2>`, an empty heading with no accessible name, yet writeNodeText writes the label unconditionally, so the TOC lists \"Top\" and its link lands on a blank heading. At the merge base these headings had no TOC entry. The Icon case would write the label only when renderIcon writes an svg: SelfClosing and the name in iconRegistry.",
+      "verify_by": "cp tests/solo-finder-2-toc-label.go gno.land/pkg/gnoweb/markdown/zz_toclabel_test.go && go test -count=1 -run 'TestSoloFinder2TocLabel/broken' -v ./gno.land/pkg/gnoweb/markdown: expect no TOC entry, observe [Top]",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head 6a68bc69f: three `Should be empty, but was [Top]`, html `<h2 id=\"heading\"><!-- gno-icon: unknown name \"unicorn\" --></h2>`, `<!-- gno-icon: missing name -->`, `<!-- gno-icon: write it self-closing ... -->`; with 84df2c459's utils.go all three `--- PASS` (no entry)",
+      "repro_path": "tests/solo-finder-2-toc-label.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/icons_gen.go",
+      "line": 1,
+      "angle": "removed",
+      "summary": "a regenerated outline glyph paints differently from its source symbol (round-1 section on ext_icons_gen_test.go)",
+      "settled_by": "tests/solo-finder-2-paint-parity.sh, resvg render of every source symbol beside its registry glyph: head 6a68bc69f `TOTAL 434 compared, 0 differ at 96px` and `0 differ at 21px`; the round-1 table from 84df2c459 `TOTAL 434 compared, 58 differ at 96px`. The head resolves it."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/icons_gen.go",
+      "line": 1,
+      "angle": "removed",
+      "summary": "17 icons regenerated with no render change (box-add, wifi, terminal...) gain a `stroke=\"none\"` group wrapper that a child group overrides",
+      "settled_by": "comm of the 75 changed names against the 58 that differed at base: box-add now `<g fill-rule=\"evenodd\" stroke=\"none\"><g stroke=\"currentColor\">`, source and output differ on that group as the ADR says the generator writes; renders identical, not a defect"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons_gen_test.go",
+      "line": 357,
+      "angle": "reach",
+      "summary": "TestIconTableMatchesSource skips components/ui/icons.html, so a chrome glyph through the new paint path goes unchecked",
+      "settled_by": "symbol roots: `434 <symbol  viewBox=\"0 0 21 21\" stroke-width=\"1.3\">`, and `grep -c '<symbol'` gives drawn.svg 6 + vendored.svg 428 = 434, `grep -c 'iconHeadStroke,' icons_gen.go` 434: no icons.html symbol takes the paint path"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 326,
+      "angle": "reach",
+      "summary": "the nested counter could leave `first` nil and panic on `first.hint`",
+      "settled_by": "the parent loop at ext_icons.go climbs only inlines that are not namedByContent, so the walk reaches n itself at nested 0; `go test -run 'TestIcon|TestBuildIcon|TestParseIcon|TestToc'` ok, TestIconHintPerParent included"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 192,
+      "angle": "removed",
+      "summary": "the empty-heading ID rewrite drops goldmark's numbering",
+      "settled_by": "TestIconHeadingIDEmpty passes at head (`ok ... 4.558s`); the empty heading now enters the fresh linearIDs as goldmark's own generateAutoHeadingID does with a nil line. Round-1 section resolved."
+    },
+    {
+      "file": "gno.land/adr/prxxxx_gnoweb_inline_icons.md",
+      "line": 183,
+      "angle": "removed",
+      "summary": "ADR: the generator `removes 48 KB of repeats`",
+      "settled_by": "body-only measure (allowlisted source verbatim against the generated body, 434 outline icons): `generated bodies 142285 bytes, verbatim bodies 176278 bytes, removed 33993 bytes`; the ADR does not say what it counts and the only fix is its wording, so no candidate"
+    },
+    {
+      "file": "gno.land/adr/prxxxx_gnoweb_inline_icons.md",
+      "line": 85,
+      "angle": "removed",
+      "summary": "ADR: each icon writes up to 2.3 KB of glyph, about 5 KB with a label filling the tag bound",
+      "settled_by": "render of every registry name: `largest glyph \"pure\": 2300 bytes unlabeled; tag of 512 bytes with 479 quotes: 5162 bytes`; the claim holds"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 54,
+      "angle": "removed",
+      "summary": "a doc sentence still says <gno-button> exists in this tree",
+      "settled_by": "`grep -rn 'gno-button'` over gno.land and docs: utils.go:54 `later ones such as <gno-button />` and the ADR's three `the <gno-button /> PR` lines; none claims it is registered here"
+    }
+  ]
+}

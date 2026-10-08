@@ -1,0 +1,71 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 124,
+      "angle": "reach",
+      "summary": "isVisibleRune counts every rune that is not a space or a Hangul filler as visible, so a label of only U+2800 or a lone combining mark still renders a blank button",
+      "failure_scenario": "<gno-button href=\"/r/test\" label=\"&#x2800;\" /> (BRAILLE PATTERN BLANK, So), label=\"&#x34F;\" (COMBINING GRAPHEME JOINER, Mn) or label=\"&#xFE0F;\" (VARIATION SELECTOR-16, Mn): none is Cf, control or space, StripBidiAndZeroWidth keeps them, so buttonLabel returns a non-empty label and the reader sees a first-party styled button with no readable text. This is the blank-button case of round 1's posted label Nit; the head's fix (drop Cf, reject Hangul fillers) closes it only for those two classes.",
+      "verify_by": "append `Blank: <gno-button href=\"/r/test\" label=\"&#x2800;\" /> <gno-button href=\"/r/test\" label=\"&#x34F;\" />` to gno.land/pkg/gnoweb/markdown/golden/ext_buttons/invalid_label_invisible.md.txtar, run `go test ./gno.land/pkg/gnoweb/markdown -run TestGnoExtension -count=1 -update-golden-tests` and read output.html: a fixed head gives `<!-- raw HTML omitted -->` for both; the read predicts `<a href=\"/r/test\" class=\"gno-button\">` carrying the blank rune",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "Go 1.25.9 unicode classes: `U+2800 Cf=false Control=false Space=false`, `U+034F Cf=false Control=false Space=false Mn=true`, `U+FE0F ... Space=false Mn=true`; isBidiOrZeroWidth (gnovm/stdlibs/chain/markdown/markdown.go:46-58) covers only 200B-200F, 202A-202E, 2066-2069, FEFF; ext_buttons.go:119-124 isVisibleRune returns `!unicode.IsSpace(r)` outside 115F/1160/3164/FFA0",
+      "repro_path": ""
+    },
+    {
+      "index": 1002,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 135,
+      "angle": "reach",
+      "summary": "an href that decodes to a non-ASCII blank, `&#xA0;` or `&#x2060;`, still makes a button, since the trim before the new `len(dest) == 0` check strips only bytes <= ' '",
+      "failure_scenario": "<gno-button href=\"&#xA0;\" label=\"Go\" />: resolveDestination yields U+00A0, trimLeadingControlAndSpace (ext_links.go:119-123) strips only bytes <= ' ', so dest is 2 bytes, passes the control-byte check, and the button renders linking to `%C2%A0` relative to the page. Round 1's posted Nit named the `&#32;` shape of a blank-after-decode href; the head closes it for ASCII whitespace only.",
+      "verify_by": "append `<gno-button href=\"&#xA0;\" label=\"NBSP\" /> <gno-button href=\"&#x2060;\" label=\"WJ\" />` to gno.land/pkg/gnoweb/markdown/golden/ext_buttons/invalid_href_blank_after_decode.md.txtar, run `go test ./gno.land/pkg/gnoweb/markdown -run TestGnoExtension -count=1 -update-golden-tests`: a blank-href rule gives `<!-- raw HTML omitted -->`; the read predicts `<a href=\"%C2%A0\" class=\"gno-button\">NBSP</a>`. A markdown link `[x](&#xA0;)` behaves the same, so the judge may rule browser-URL semantics (ASCII whitespace only) the intended line",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "ext_buttons.go:135 `dest := trimLeadingControlAndSpace(resolveDestination(href))`; ext_links.go:120 `for len(s) > 0 && s[0] <= ' ' {`",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 389,
+      "angle": "removed",
+      "summary": "moving escapeGnoButtonTags out of the per-line loop (both the fenced and the unfenced branch) leaves a fenced, mid-line or marker-led `<gno-button` unescaped, or breaks idempotency",
+      "settled_by": "at a4be1f67b in a scratch worktree: `go test ./gnovm/stdlibs/chain/markdown -count=1` -> `ok` (gno-button-in-fence, -mid-line, -after-list-marker, -after-nbsp, -after-escaped-backslash and the four pointy-link cases, strict and Rich, each with its idempotency check); `go test ./gno.land/pkg/gnoweb/markdown -run 'TestSanitizeIntegration|TestSanitizeCoverageTableMatchesCorpus' -count=1` -> `ok`; the eight new pointy-link goldens render `[evil]` unbound (`<p>[evil](&lt;gno-button x&gt;)</p>`)"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 436,
+      "angle": "claims",
+      "summary": "rewritten comment says the 4-column delimiter line renders as a backslash plus the indent and the tag dropped as raw HTML",
+      "settled_by": "golden/sanitize/block-ext-delim-four-spaces.txtar at head records output.html `<p>\\    <!-- raw HTML omitted --></p>` and TestSanitizeIntegration passes at a4be1f67b, so the comment matches the output (round 1's markdown.go:443 Nit)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md",
+      "line": 106,
+      "angle": "claims",
+      "summary": "coverage table counts Block 93, BlockRich 41 and 232 total after the eight new fixtures",
+      "settled_by": "`go test ./gno.land/pkg/gnoweb/markdown -run TestSanitizeCoverageTableMatchesCorpus -count=1` at a4be1f67b -> `ok`"
+    },
+    {
+      "file": "gno.land/adr/prxxxx_gnoweb_button.md",
+      "line": 237,
+      "angle": "claims",
+      "summary": "Upgrade ordering note calls the native output change a MINOR coordinated upgrade under RELEASING.md",
+      "settled_by": "RELEASING.md:38 `**If a change alters the bytes nodes agree on, it is at least a MINOR**`; RELEASING.md:35 MINOR = `A coordinated upgrade of the current network`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3300,
+      "angle": "removed",
+      "summary": "the rewritten `&.gno-button > .tooltip` selector is purged from the generated bundle",
+      "settled_by": "`grep -o '.gno-button.gno-button[^{]{0,20}' gno.land/pkg/gnoweb/public/main.css` at a4be1f67b -> `.gno-button.gno-button>.tooltip`"
+    }
+  ]
+}

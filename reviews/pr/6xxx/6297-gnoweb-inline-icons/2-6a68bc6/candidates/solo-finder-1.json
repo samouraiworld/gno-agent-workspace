@@ -1,0 +1,95 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 206,
+      "angle": "lines",
+      "summary": "the TOC titles a heading with the label of an icon that renders nothing (unknown name, missing name, not self-closing)",
+      "failure_scenario": "`## <gno-icon name=\"nope\" label=\"Top\" />` renders `<h2 id=\"heading\"><!-- gno-icon: unknown name \"nope\" --></h2>`, a visually empty heading with no accessible name, yet the TOC lists it as `Top`; before c28342d7d it had no TOC entry. The same holds for `<gno-icon name=\"star\" label=\"Top\">` and `<gno-icon label=\"Top\" />`. A visitor follows a TOC entry to a blank heading; writeNodeText's own comment says the label is the name the icon gives its heading, which a failed icon does not give.",
+      "verify_by": "at head, Parse+Render `## <gno-icon name=\"nope\" label=\"Top\" />\\n` with newProductionLikeMarkdown and NewGnoParserContext, then TocInspect(doc, src, TocOptions{MinDepth: 2, MaxDepth: 6}): expect no item, observe heading=Top",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "SRC \"## <gno-icon name=\\\"nope\\\" label=\\\"Top\\\" />\\n\" HTML <h2 id=\"heading\"><!-- gno-icon: unknown name \"nope\" --></h2> TOC [\"heading=Top\"]; not self-closing: HTML <h2 id=\"heading\"><!-- gno-icon: write it self-closing, ... --></h2> TOC [\"heading=Top\"]; missing name: TOC [\"heading=Top\"]",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 206,
+      "angle": "lines",
+      "summary": "writeNodeText writes the label raw, so a character reference in a label shows literally in the TOC while the aria-label resolves it",
+      "failure_scenario": "A double-quoted label needs `&quot;` for a quote. `## <gno-icon name=\"star\" label=\"Say &quot;hi&quot;\" /> Picks` renders aria-label `Say &quot;hi&quot;` (resolved, then escaped by gmhtml.DefaultWriter.Write), but the TOC title is the raw `Say &quot;hi&quot; Picks`, which toc.html escapes again, so the sidebar reads `Say &quot;hi&quot; Picks` verbatim. renderIcon resolves references for the label; this new path does not.",
+      "verify_by": "at head, TocInspect on `## <gno-icon name=\"star\" label=\"Say &quot;hi&quot;\" /> Picks\\n`: expect title `Say \"hi\" Picks`, observe `Say &quot;hi&quot; Picks`",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TOC [\"picks=Say &quot;hi&quot; Picks\"]",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 206,
+      "angle": "lines",
+      "summary": "the label is joined to the adjacent heading text with no separator in the TOC title",
+      "failure_scenario": "`## Picks<gno-icon name=\"star\" label=\"Top\" />` renders `Picks` then the star, and the TOC lists it as `PicksTop`; the same for a label before text with no space. writeNodeText writes n.Label with nothing around it, so a trailing status icon (`## Status<gno-icon name=\"check-circle\" label=\"done\" />`) titles the entry `Statusdone`.",
+      "verify_by": "at head, TocInspect on `## Picks<gno-icon name=\"star\" label=\"Top\" />\\n`: expect a separator between the words, observe `PicksTop`",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "SRC \"## Picks<gno-icon name=\\\"star\\\" label=\\\"Top\\\" />\\n\" TOC [\"picks=PicksTop\"]",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 312,
+      "angle": "lines",
+      "summary": "an icon inside an image's alt text sits at nested==0, takes `first`, and swallows the heading's alone-in-heading hint since it never renders",
+      "failure_scenario": "`## ![<gno-icon name=\"star\" />](i.png) <gno-icon name=\"star\" />` renders `<img src=\"i.png\" alt=\"\">` and one decorative svg, so the heading has no accessible name, but no hint is written: the image is not namedByContent, so the alt icon counts as the heading's first icon, gets hint=true and never renders (the image renderer skips its children), and the visible icon returns its memoised hint=false. The rewritten selection excludes icons under a nested link but not icons under a node whose children never render.",
+      "verify_by": "at head, Convert `## ![<gno-icon name=\"star\" />](i.png) <gno-icon name=\"star\" />\\n` with newProductionLikeMarkdown: expect one `<!-- gno-icon: alone in a link or heading` comment, observe none",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "HTML <h2 id=\"ipng\"><img src=\"i.png\" alt=\"\"> <svg class=\"gno-icon\" ... transform=\"translate(3 3)\"/></svg></h2> (no hint comment)",
+      "repro_path": ""
+    },
+    {
+      "index": 5,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 196,
+      "angle": "claims",
+      "summary": "a label-only heading is now a TOC entry, but its anchor stays positional `heading-N` rather than coming from the label the TOC shows",
+      "failure_scenario": "With c28342d7d `## <gno-icon name=\"star\" label=\"Top\" />` is listed as `Top` and links to `#heading-1` (TestIconHeadingIDAndToc asserts `heading-1=Top`). The transformer's doc says the ID comes from the text the TOC shows, which for this heading is `Top`. Adding any empty or unlabeled icon-only heading above it renumbers every later label-only anchor, so a shared `#heading-1` link lands on a different section. Deriving the ID from the label when the heading has no other text would give a stable `top`.",
+      "verify_by": "read ext_icons.go:189-196 (value from withoutIcons, labels dropped) against the test expectation `heading-1=Top` in ext_icons_test.go TestIconHeadingIDAndToc; run TocInspect on `##\\n\\n## <gno-icon name=\"star\" label=\"Top\" />\\n`: observe heading-1=Top",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "read, not run: TestIconHeadingIDAndToc asserts \"heading-1=Top\" (diff.md line 2083) and TestIconHeadingIDEmpty pins \"##\\n\\n## <gno-icon name=\\\"star\\\" label=\\\"Top\\\" />\\n\" to ids {\"heading\", \"heading-1\"}; ext_icons.go:192 builds the id from withoutIcons, which drops labels",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 192,
+      "angle": "lines",
+      "summary": "dropping the Lines().Len() > 0 guard could renumber the id of a heading another extension builds with no source lines",
+      "settled_by": "grep -rn 'NewHeading\\|SetAttributeString(\"id\"\\|SetAttribute([]byte(\"id\")\\|\\.IDs()' gno.land/pkg/gnoweb (non-test) returned only ext_icons.go:196: no other code creates a heading or sets an id"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+      "line": 326,
+      "angle": "lines",
+      "summary": "with the nested counter, `first` could stay nil and `first.hint` panic",
+      "settled_by": "aloneInNamedParent climbs `for parent != nil && parent.Type() == ast.TypeInline && !namedByContent(parent)`, so no namedByContent node lies between n and parent and n itself is visited at nested==0; the probe's heading-with-link inputs rendered without panic"
+    }
+  ]
+}

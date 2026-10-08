@@ -1,0 +1,100 @@
+{
+ "candidates": [
+  {
+   "index": 1,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 292,
+   "angle": "lines",
+   "summary": "the HTML-block cut now fires on any frame tag line for every block type, so a <!-- comment inside a frame that holds a <gno-frame> or invalid frame tag line ends there and the rest of the comment renders as page text",
+   "failure_scenario": "Inside a frame an author writes <!--, then <gno-frame> (or <gno-frame x=\"1\">), then secret, then -->. At 11a5d796a the comment is cut at the tag line: the page shows an invalid-tag comment, then <p>secret\\n--&gt;</p> inside the frame. At 96fcf8a2b the whole comment stayed one 'raw HTML omitted'. The tag it cuts on would be an invalid leaf anyway (a frame in a frame with no grid), so the cut changes no frame structure and only publishes hidden text. A commented-out card in a framed grid column now renders as a live card plus '-->'.",
+   "verify_by": "cd gno.land && cp <round>/tests/solo-finder-1-comment-opener-leak_test.go pkg/gnoweb/markdown/zz_comment_opener_leak_test.go && go test ./pkg/gnoweb/markdown -run TestFrameCommentHidesOpener -count=1 -v: FAIL at head, PASS at the merge base (go test -overlay, base read-only). Fix trial: cut on an opener/invalid tag line only when node.(*ast.HTMLBlock).HTMLBlockType >= ast.HTMLBlockType6, keep the close and columns cut for every type; whole package green.",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head: '--- FAIL: TestFrameCommentHidesOpener' with '<p>secret\\n--&gt;</p>' for both opener and invalid cases; base 96fcf8a2b via -overlay: '--- PASS: TestFrameCommentHidesOpener'. Narrow-fix trial (opener/invalid cut only for HTMLBlockType6/7): 'ok github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown', html_block_before_card_open still green, comment stays two 'raw HTML omitted'. Cutting types 1-5 entirely instead flips html_comment_cut_by_close, html_comment_cut_by_columns, html_script_cut_by_close, the author's pinned trade-off, so the narrow form is the one to propose. Round-1 inline 4219153235: card-opener half resolved (html_block_before_card_open passes at head), comment half open by design (documented, golden html_comment_cut_by_columns).",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6299-gnoweb-frame-block/2-11a5d79/tests/solo-finder-1-comment-opener-leak_test.go"
+  },
+  {
+   "index": 2,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 254,
+   "angle": "removed",
+   "summary": "the refused-opener fix covers only a card opener in a framed grid column; a refused nested frame opener (frame directly in a frame, a frame inside an open card, a frame in a frame sitting in a column) still has its close end the enclosing frame",
+   "failure_scenario": "<gno-frame>, <gno-frame>, inner, </gno-frame>, outer rest, </gno-frame>, after: the second opener is an invalid leaf, its close ends the outer frame, 'outer rest' renders outside the frame and the real close becomes a stray comment. Same shape inside a card: a second <gno-frame> in an open card is refused, its close ends the card, and the card's own close then ends the outer frame mid-grid. The fix's own rule (a refused opener's close is an invalid leaf so the enclosing frame keeps) is applied to one member of the class.",
+   "verify_by": "render '<gno-frame>\\n<gno-frame>\\ninner\\n</gno-frame>\\nouter rest\\n</gno-frame>\\nafter\\n' with convertGno(newGnoMarkdown()) at head: expect 'outer rest' inside <section>, observe it after </section>",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "probe nested_frame_close_ends_outer at head: '<section class=\"gno-frame\">\\n<!-- unexpected/invalid frame tag omitted -->\\n<p>inner</p>\\n</section>\\n<p>outer rest</p>\\n<!-- unexpected/invalid frame tag omitted -->'; identical at 96fcf8a2b",
+   "repro_path": ""
+  },
+  {
+   "index": 3,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 254,
+   "angle": "claims",
+   "summary": "line[1] != '/' marks a self-closing <gno-frame/> in a framed grid column as a refused card opener, so the next </gno-frame> in that column is eaten as its close though a self-closing tag has none",
+   "failure_scenario": "<gno-frame>, <gno-columns>, <gno-frame/>, a, </gno-frame>, b, </gno-columns>, after: the </gno-frame> becomes an invalid leaf, the outer frame never closes and wraps 'after' and the rest of the page to EOF. At the merge base that close ended the frame (half-grid case). The ADR and frameRefusedKey's comment name only 'an attribute, or the depth cap'.",
+   "verify_by": "render that input at head: observe '<p>after</p>\\n</section>' at the end; at the base the </section> comes before the grid",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "probe selfclosing_card_then_half_close at head ends '</div> <!-- </gno-columns> -->\\n<p>after</p>\\n</section>'; diff against base shows base's '</section>' earlier",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame_test.go",
+   "line": 122,
+   "angle": "claims",
+   "summary": "TestFrameNULInTag's claim that the NUL line is no tag line and renders as U+FFFD",
+   "settled_by": "go test ./pkg/gnoweb/markdown -run TestFrameNULInTag -v: '--- PASS: TestFrameNULInTag'"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_unicode_lookalikes.md.txtar",
+   "line": 1,
+   "angle": "claims",
+   "summary": "author reply says the golden reads as text again",
+   "settled_by": "git diff --numstat <empty tree> 11a5d796a -- that file: '10 0' (text); tr -dc '\\000' | wc -c: 0"
+  },
+  {
+   "file": "examples/gno.land/p/nt/markdown/foreign/v0/foreign.gno",
+   "line": 226,
+   "angle": "claims",
+   "summary": "trimSentinel claims to mirror trimTagLine's trim",
+   "settled_by": "utils.go:219 trimTagLine trims <=3 spaces then util.TrimRightSpace; goldmark v1.8.2 util.go:804 'var spaces = []byte(\" \\t\\n\\x0b\\x0c\\x0d\")', the same set trimSentinel strips"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame_test.go",
+   "line": 211,
+   "angle": "claims",
+   "summary": "the new 20ms skip in TestFrameGridScanLinear could make the test pin nothing",
+   "settled_by": "timing probe at head with the test's own sizes: unclosed large=50.2ms, half inside large=82.5ms, inside large=104.8ms, ratios 5.17/3.83/3.93; no page falls under the skip here"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 337,
+   "angle": "lines",
+   "summary": "a stray columns node flagged inFrame could be wrapped into the wrong frame or past a frame ended at a columns tag",
+   "settled_by": "probes stray_then_grid, stray_in_frame_in_column, stray_close_eof, html_div_before_stray at head each render the stray comment inside the one frame open when it was parsed and close the frame where the ADR says; inFrame is set only from frameOpen(pc) after the frame parser (499) ran, and frame-ending columns tags (sep/close of an outer grid, opener at cap, second opener) keep inFrame false"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 181,
+   "angle": "lines",
+   "summary": "Sep case !gridOpen || frameGrid would keep a tag if frameGridKey stayed true after the grid closed",
+   "settled_by": "frameGridKey is set true only after Get(pc) < MaxGnoNestDepth (ext_frame.go:175-178), so the columns Push that follows on the same pc succeeds and the grid opens; it is reset on the kept close (189) and in endFrame (149)"
+  },
+  {
+   "file": "gno.land/adr/pr6299_gnoweb_frame.md",
+   "line": 68,
+   "angle": "claims",
+   "summary": "ADR names goldens invalid_card_attrs_keeps_frame, invalid_card_at_depth_cap, columns_stray_tags_stay_in_frame, html_block_before_card_open, html_comment_cut_by_columns, html_same_line_close",
+   "settled_by": "ls golden/ext_frame lists all six; go test ./pkg/gnoweb/markdown -count=1 at head: 'ok'"
+  }
+ ]
+}

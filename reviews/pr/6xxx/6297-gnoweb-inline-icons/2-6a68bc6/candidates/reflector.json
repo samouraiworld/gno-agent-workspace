@@ -1,0 +1,26 @@
+{
+ "dropped": [],
+ "candidates": [
+  {
+   "index": 2001,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_icons.go",
+   "line": 196,
+   "angle": "claims",
+   "summary": "the transformer's doc says the ID comes from the text the TOC shows, but the TOC now includes labels and the ID does not",
+   "failure_scenario": "`## Status <gno-icon name=\"check-circle\" label=\"done\" />` is listed in the TOC as `Status done` and links `#status`; the doc comment above iconHeadingIDTransformer (ext_icons.go:170-172) says the ID is built from the text the TOC shows. Same root as candidate 5: the ID and the TOC title read different text.",
+   "verify_by": "go test -run TestIconHeadingIDAndToc ./gno.land/pkg/gnoweb/markdown at head: PASS with the expectation `status=Status done`",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "TestIconHeadingIDAndToc PASS at 6a68bc69f, asserting `<h2 id=\"status\">Status <svg` and TOC item `status=Status done`",
+   "repro_path": ""
+  }
+ ],
+ "completeness": [
+  "sibling of the edited `h.Lines().Len() > 0` guard: grep `Lines().At(|Lines().Len()` over gno.land/pkg/gnoweb non-test returns only ext_icons.go:192-193, no sibling",
+  "callers of the changed writeNodeText: grep `nodeText(` returns only toc.go:96, so the label change reaches the TOC title and nothing else",
+  "invariant catalog: its classes are realm audit patterns and caller identity predicates for gno code; this round's diff is Go renderer code in gnoweb, no class applies",
+  "round-1 stroke Warning: TestIconTableMatchesSource PASS at head and FAIL with 84df2c459's icons_gen.go swapped in (`fill=currentColor stroke=currentColor width=1.3` against `fill=currentColor stroke=none`), so the new test pins the fix"
+ ]
+}

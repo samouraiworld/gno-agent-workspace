@@ -1,0 +1,71 @@
+{
+ "candidates": [
+  {
+   "index": 1001,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 254,
+   "angle": "removed",
+   "summary": "a frame refused inside a card, or a second refused card opener in one column, still lets a `</gno-frame>` end the outer frame and push its grid out, the shape the refused-card fix was for",
+   "failure_scenario": "Input `<gno-frame>` `<gno-columns>` `<gno-frame>` `<gno-frame>` `x` `</gno-frame>` `</gno-frame>` `<gno-columns-sep>` `b` `</gno-columns>` `</gno-frame>` `after`, one per line. The card opens (case at 243); the nested opener is refused but the refused case at 254 requires `!frameInner(pc)`, so nothing is remembered; the nested close closes the card (246); the card's own close then hits `kind == frameTagClose && open` (251) and calls endFrame while the frame's grid is open. wrapFrames then breaks at the grid (gridCloseInFrame meets the outer close first), so the page renders an empty `<section class=\"gno-frame\"></section>`, the grid outside it, an invalid comment in column 0 and a trailing invalid comment: the output invalid_card_at_depth_cap had before this round. Golden invalid_frame_in_card only avoids it by giving the card no close of its own. Same result with `<gno-frame x=\"1\">` then `<gno-frame x=\"2\">` in one column, each closed: frameRefusedKey is a bool, so the second close ends the outer frame. An author who nests a box in a card, which the docs refuse, loses the outer frame's border around the whole grid.",
+   "verify_by": "Add golden/ext_frame/invalid_frame_in_card_closed.md.txtar with the input above and an empty output.html, run `go test ./gno.land/pkg/gnoweb/markdown/ -run TestGnoExtension -update-golden-tests -count=1` in a scratch tree, read the written output: expect the grid inside the section as in invalid_card_attrs_keeps_frame, observe `<section class=\"gno-frame\">\\n</section>\\n<div class=\"gno-columns\">` and a trailing `<!-- unexpected/invalid frame tag omitted -->`; repeat with the two-attribute-opener input. Fix: remember a frame refused inside the card in its own flag, tested ahead of the inner-close case at 246, and count refusals instead of a bool.",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  },
+  {
+   "index": 1002,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 226,
+   "angle": "reach",
+   "summary": "no golden pins the reset of the refused-card flag at a columns tag: every refused-card golden closes the card before the next columns tag",
+   "failure_scenario": "Delete `pc.Set(frameRefusedKey, false)` at 226: invalid_card_attrs_keeps_frame and invalid_card_at_depth_cap, the only goldens with a refused card, both consume the flag with the card's own close before `<gno-columns-sep>`/`</gno-columns>`, so every golden stays green. On `<gno-frame>` `<gno-columns>` `<gno-frame x=\"1\">` `card` `<gno-columns-sep>` `b` `</gno-columns>` `</gno-frame>` `after` (a refused card left unclosed, as card_unclosed_ends_at_sep does for a valid one) the mutated parser consumes the outer `</gno-frame>` as the refused card's close and the frame runs to the end of the page with `after` inside it.",
+   "verify_by": "In a scratch tree delete line 226, `go test ./gno.land/pkg/gnoweb/markdown/ -run TestGnoExtension -count=1`: expect red, observe green. Fix: golden ext_frame/invalid_card_unclosed_ends_at_sep.md.txtar with the input above, whose output keeps `<p>after</p>` after `</section>`.",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 254,
+   "angle": "reach",
+   "summary": "`line[1]` could index past a one-byte line",
+   "settled_by": "Read ext_frame.go:76-79: `size, selfClosing := scanGnoTag(line, prefix, ...)` then `case size == 0: return frameTagNone`; the switch at 238 is reached only for kind != frameTagNone, i.e. a line carrying the `<gno-frame`/`</gno-frame` prefix, at least 10 bytes"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_columns.go",
+   "line": 205,
+   "angle": "reach",
+   "summary": "inFrame on a stray columns tag might be read by another consumer or leak across the foreign sandbox",
+   "settled_by": "grep -rn inFrame gno.land/pkg/gnoweb/markdown/*.go: readers only ext_frame.go:337 and :368; ext_foreign.go:391 renders the body with `parser.WithContext(innerCtx)`, its own context"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 150,
+   "angle": "reach",
+   "summary": "the refused flag might survive an endFrame and swallow a later frame's close",
+   "settled_by": "grep endFrame( : callers 228 (after the reset at 226), 253 (reached only when the refused case at 249 failed) and 317 (after parsing); the reset in endFrame never changes a value read later"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/golden/ext_frame/invalid_nested_frame.md.txtar",
+   "line": 4,
+   "angle": "removed",
+   "summary": "a frame nested directly in a frame (no grid) still lets its close end the outer frame, sibling of the refused-card fix",
+   "settled_by": "cat golden invalid_nested_frame: output pins `</section>\\n<p>after inner close</p>\\n<!-- unexpected/invalid frame tag omitted -->`, the author's chosen behaviour at top level, and no grid is pushed out there"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame.go",
+   "line": 292,
+   "angle": "removed",
+   "summary": "widening the HTML-block cut from close lines to open and invalid frame tag lines might newly expose commented-out drafts",
+   "settled_by": "diff.md:128-131 ADR now states the cut covers `a frame tag line (open, close or invalid)`, and a commented draft frame carries its close line, which round 1's head already cut; golden html_comment_cut_by_columns pins the documented cost"
+  }
+ ]
+}

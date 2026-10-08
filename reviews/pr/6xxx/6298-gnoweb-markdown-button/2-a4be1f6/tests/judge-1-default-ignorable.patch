@@ -1,0 +1,18 @@
+diff --git a/gno.land/pkg/gnoweb/markdown/ext_buttons.go b/gno.land/pkg/gnoweb/markdown/ext_buttons.go
+index e762d4a37..9ddf59f2f 100644
+--- a/gno.land/pkg/gnoweb/markdown/ext_buttons.go
++++ b/gno.land/pkg/gnoweb/markdown/ext_buttons.go
+@@ -117,11 +117,10 @@ func buttonLabel(raw []byte) string {
+ // isVisibleRune reports whether r draws something: not a space and not a
+ // Hangul filler, which is a letter that renders blank.
+ func isVisibleRune(r rune) bool {
+-	switch r {
+-	case 0x115F, 0x1160, 0x3164, 0xFFA0:
++	if r == 0x2800 { // BRAILLE PATTERN BLANK, a symbol that draws nothing
+ 		return false
+ 	}
+-	return !unicode.IsSpace(r)
++	return !unicode.IsSpace(r) && !unicode.In(r, unicode.Other_Default_Ignorable_Code_Point, unicode.Variation_Selector)
+ }
+ 
+ // isButtonHrefAllowed rejects what renderGnoLink would neutralize anyway

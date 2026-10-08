@@ -1,0 +1,18 @@
+{
+ "dropped": [],
+ "candidates": [
+  {
+   "index": 2001,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_frame_test.go",
+   "line": 211,
+   "angle": "tests",
+   "band": "Missing test",
+   "summary": "TestFrameGridScanLinear skips every page whose 1600-copy render takes under 20ms, so a fast runner checks nothing",
+   "failure_scenario": "The `if large < 20*time.Millisecond { continue }` guard drops the ratio check per page; if every page renders under 20ms at 1600 copies the test passes without asserting linearity.",
+   "verify_by": "time the three pages at 400 and 1600 copies with the test's own render loop (tests/judge-1001-frame-tag-probe_test.go TestJudgeGridScanTimes) and read whether large >= 20ms",
+   "fix_kind": "test",
+   "checked": true
+  }
+ ],
+ "completeness": "Thin angles: the finders ran lines, removed, claims and reach; tests was thin, so 2001 covers the one test the fix commits weaken. Siblings swept by shape: every frameRefusedKey writer (150, 226, 250, 255) and every refused-opener path in Open (254 only covers the card case: 1001 and 2 are its missed members). Catalog: not walked, the one .gno line in the diff is a comment in foreign.gno."
+}

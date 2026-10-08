@@ -1,0 +1,10 @@
+{
+ "candidates": [],
+ "dropped": [],
+ "completeness": [
+  "Angles: lines and reach returned candidates; claims settled the PR body only; no test-mutation angle ran, and the judge's fix run (judge-1-fix.patch) kept every Counterpart test green, the /r/gov/dao case included.",
+  "Catalog: the diff touches gnoweb Go and CSS only; no class of invariant-catalog.md applies.",
+  "Siblings by shape: the twin branch's new `slices.Contains(members, dir)` case and the twinless walk's case are the two members of the package-directory shape; candidate 1 is the twinless one. buildSubpackages (components/overview_build.go:138) keeps direct-child packages only, matching the twin branch's siblings count. countUnder has one call site; the twinless loop needs `last` and does not fold into it.",
+  "CSS: public/main.css at head carries `@supports not (top:anchor(bottom)){.b-kind-switch{...}}` at byte 119958, after `.b-kind-switch{position-anchor...` at 118088, same specificity."
+ ]
+}

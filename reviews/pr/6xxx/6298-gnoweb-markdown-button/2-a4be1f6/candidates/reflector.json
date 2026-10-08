@@ -1,0 +1,9 @@
+{"dropped": [],
+ "notes": "Completeness: lines and reach came back; claims covered by candidates 2 and 3 on the godoc. Cleared by run: the CSS comment's specificity claim (headless Chromium, button icon margin 0px at head), the pointy-link reorder (head's TestEscapeBlockHazards green, red at ab27ce5c0), the image form ![evil](<gno-button x>) now escaped. Catalog classes (gas, determinism, caller identity) touched only through the native's output change, which the ADR's upgrade note names; gas not re-measured this round.",
+ "candidates": [
+  {"index": 2001, "file": "gnovm/stdlibs/chain/markdown/markdown.go", "line": 389, "angle": "reach",
+   "summary": "with the button escape ahead of the bracket walker, a reference definition `[evil]: <gno-button x>` is stripped only up to the space and leaves `x>` as text",
+   "failure_scenario": "EscapeBlockHazards(\"[evil]: <gno-button x>\\n\") returns \"x>\\n\" at head, \"\" at ab27ce5c0: the backslash makes the walker read `\\<gno-button` as the destination, so the definition it strips ends before ` x>`. Nothing binds, since the brackets are gone.",
+   "verify_by": "tests/judge-2001-lrd-leftover.go at head and at ab27ce5c0, compare the B= outputs",
+   "band": "Nit", "fix_kind": "code", "checked": true}
+ ]}

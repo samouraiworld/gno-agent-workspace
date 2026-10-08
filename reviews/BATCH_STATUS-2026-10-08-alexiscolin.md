@@ -16,4 +16,17 @@ Coupling: 6297, 6298 and 6299 each carry `gno.land/pkg/gnoweb/markdown/utils.go`
 
 Resume: worktrees at `.worktrees/gno-review-<n>` and `-base`; round inputs at the workspace's `.worktrees/<n>-round/`; resume a run with its run id and the same `args_file`.
 
-Status 2026-10-08: all five rounds drafted, final-checked and pushed; each waits on `post as an AI`.
+Status 2026-10-08: all five rounds drafted, final-checked, pushed and posted.
+
+## Round 2, the author's fixes
+
+Scope: the commits pushed after round 1, each diffed against round 1's head merged locally with master `47d19f8a3`, so no master content enters the diff. The generated `public/main.css` is left out. #6293's head did not move, so it has no round 2.
+
+| PR | Old head | New head | Diff base (local) | Shape | Projected | Round dir | Run |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| [gnolang/gno#6262](https://github.com/gnolang/gno/pull/6262) | `c5ae4b1` | `8abf28b` | `d631c44` | solo | $4 | `6262-realm-package-breadcrumb-switch/2-8abf28b` | `wf_56ffe08f-732` |
+| [gnolang/gno#6297](https://github.com/gnolang/gno/pull/6297) | `56ff177` | `6a68bc6` | `84df2c4` | solo wider, 2 finders | $12 | `6297-gnoweb-inline-icons/2-6a68bc6` | `wf_32f71aaa-ca5` |
+| [gnolang/gno#6298](https://github.com/gnolang/gno/pull/6298) | `065ec36` | `a4be1f6` | `ab27ce5` | solo wider, 2 finders | $8 | `6298-gnoweb-markdown-button/2-a4be1f6` | `wf_64ea4525-00f` |
+| [gnolang/gno#6299](https://github.com/gnolang/gno/pull/6299) | `1f9bf51` | `11a5d79` | `96fcf8a` (the author's own merge) | solo wider, 2 finders | $8 | `6299-gnoweb-frame-block/2-11a5d79` | `wf_32b81a43-c5b` |
+
+Round inputs at the workspace's `.worktrees/<n>-round2/`.

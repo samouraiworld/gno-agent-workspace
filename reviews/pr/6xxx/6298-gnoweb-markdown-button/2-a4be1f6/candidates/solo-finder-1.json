@@ -1,0 +1,79 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 121,
+      "angle": "lines",
+      "summary": "a label made only of a rune that draws nothing but is not a space, a Cf or a Hangul filler (U+2800, U+034F, U+FE0F, U+E0100, U+17B4, U+180B) still renders a blank button",
+      "failure_scenario": "<gno-button href=\"/r/test\" label=\"&#x2800;\" /> renders <a href=\"/r/test\" class=\"gno-button\">⠀</a>: the visitor sees an empty, first-party-styled button leading wherever the realm chose. Round-1 nit 4219151701 is partly resolved: its own inputs (&#x2060;, &shy;, U+3164, &#x200B;) are rejected at head (round-1 TestB4LabelInvisibleOnly and TestButtonInvisibleOnlyLabel pass), these six are not, though the reply says a label needs at least one visible rune.",
+      "verify_by": "cp tests/solo-finder-1-blank-button.go gno.land/pkg/gnoweb/markdown/zz_finder1_blank_test.go; cd gno.land && go test ./pkg/gnoweb/markdown -run TestFinder1BlankButton -v: expect the label subtests green (no button), observe 6 FAIL",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestFinder1BlankButton/label_U+2800_braille_blank: blank button rendered: <p><a href=\"/r/test\" class=\"gno-button\">⠀</a></p>; same FAIL for label_U+034F_grapheme_joiner, label_U+FE0F_variation_selector, label_U+E0100_variation_selector, label_U+17B4_khmer_inherent_vowel, label_U+180B_mongolian_fvs",
+      "repro_path": "tests/solo-finder-1-blank-button.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 136,
+      "angle": "claims",
+      "summary": "an href blank once decoded by a non-ASCII space (&#xA0;, &#x3000;) still makes a button, since the emptiness check follows an ASCII-only trim while the label's blank test uses unicode.IsSpace",
+      "failure_scenario": "<gno-button href=\"&#xA0;\" label=\"Go\" /> renders <a href=\"%C2%A0\" class=\"gno-button\">Go</a>, a button to /r/%C2%A0 that 404s. The godoc and ADR say an href blank once decoded is no href; round-1 nit 4219151679 is resolved for &#32; (TestB4HrefLeadingBlank at head: href \"&#32;\" allowed=false) and open for Unicode blanks.",
+      "verify_by": "same test file: subtests href_U+00A0_no-break_space and href_U+3000_ideographic_space expect no button, observe FAIL",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestFinder1BlankButton/href_U+00A0_no-break_space: blank button rendered: <p><a href=\"%C2%A0\" class=\"gno-button\">Go</a></p>; href_U+3000_ideographic_space: <p><a href=\"%E3%80%80\" class=\"gno-button\">Go</a></p>",
+      "repro_path": "tests/solo-finder-1-blank-button.go"
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 98,
+      "angle": "lines",
+      "summary": "the chainmd.StripBidiAndZeroWidth call is now redundant: every rune it strips is Cf, which the new strings.Map case drops",
+      "failure_scenario": "no wrong output: the label takes a second pass and a cross-package import for a set the Cf case already covers, and the godoc lists both sets as if they differed. Dropping the call (and the chainmd import in this file) leaves the same rendered label.",
+      "verify_by": "enumerate U+0000..U+10FFFF and count runes StripBidiAndZeroWidth removes that are not unicode.Cf (expect 0); then delete line 98's call, pass string(decoded) on, and run go test ./pkg/gnoweb/markdown -run 'TestGnoExtension|TestButton' green",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "scratch enumeration at head: stripped=15 notCf=0",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3300,
+      "angle": "claims",
+      "summary": "the doubled-class selector might be collapsed by the build or lose to .tooltip:only-of-type / :has(+span), leaving the button icon's margin (round-1 nit 4219151668)",
+      "settled_by": "headless Chromium on head public/main.css, getComputedStyle margins: button icon in .c-realm-view `t: 0px 0px 0px 0px`, two icons in .c-readme-view `rt: 0px 0px 0px 0px`, `rt2: 0px 0px 0px 0px`, control plain link `lt: 0px 2.4px 1px 3.6px`; compiled rule `.c-realm-view .gno-button.gno-button>.tooltip{border-color:currentColor;color:inherit;margin:0}`, no @layer. Resolved."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 71,
+      "angle": "lines",
+      "summary": "removing the raw `len(t.href) == 0` guard might let a missing or empty href through",
+      "settled_by": "round-1 TestB4HrefLeadingBlank at head: `href \"\" allowed=false -> <p><!-- raw HTML omitted --></p>` and `href \"&#32;\" allowed=false`; a missing href leaves t.href nil, resolveDestination(nil) is empty, len(dest) == 0 rejects. Round-1 4219151679 resolved for &#32;."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 97,
+      "angle": "claims",
+      "summary": "the switch to goldmark decoding might still decode `&not=` (round-1 nit 4219151689)",
+      "settled_by": "round-1 TestB4LabelDecodeAttributeMode at head: email&notifications, Lock&amplify, x&copy=1, Buy&regular all `same` as the HTML attribute; golden valid_label_entities_attribute_rules passes (`--- PASS: TestGnoExtension`). Resolved."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons_test.go",
+      "line": 113,
+      "angle": "catalog",
+      "summary": "benchConvert discarding weburl.Parse's error (round-1 nit 4219151714)",
+      "settled_by": "diff.md hunk: `gnourl, err := weburl.Parse(...)` followed by `if err != nil { b.Fatal(err) }`. Resolved; no other catalog class touches the gnoweb render path."
+    }
+  ]
+}
