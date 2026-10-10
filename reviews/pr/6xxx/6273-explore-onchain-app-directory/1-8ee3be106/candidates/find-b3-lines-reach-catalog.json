@@ -1,0 +1,139 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 208,
+      "angle": "lines",
+      "summary": "paged's echo-mismatch error is cached 5 s but never logged: it is built after decode returned nil, so decode's deferred Warn never sees it, and servePage drops it under the comment 'an error is logged once by decode'",
+      "failure_scenario": "The realm (or a later realm version) answers api/v1/category/defi/1 with another key, page or page count. paged returns 'store: category/defi/1 answered games/1 of 2', cached 5 s; servePage (handler.go:144) returns nil, View falls back to the realm's markdown, and the operator's log carries nothing. ADR-004 line 918 states every failure is 'logged once, at load (Warn)'; a malformed body on the same path is logged, the mismatch is not.",
+      "verify_by": "cp tests/b3-lines-reach-catalog-paged-mismatch-unlogged_test.go gno.land/pkg/gnoweb/feature/store/zz_b3_paged_unlogged_test.go && go test -count=1 -run TestB3PagedMismatchIsNotLogged -v ./gno.land/pkg/gnoweb/feature/store/: expect a log line naming 'answered', observe only the control's decode failure",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "log output: level=WARN msg=\"store: realm query failed\" endpoint=category/defi/2 error=\"store: decode category/defi/2: unexpected end of JSON input\" (control only); both targets 'view nil=true status=0'; 'echo mismatch on category/defi/1 left no log line: the page fell back to markdown silently' --- FAIL",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6273-explore-onchain-app-directory/1-8ee3be106/tests/b3-lines-reach-catalog-paged-mismatch-unlogged_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 172,
+      "angle": "reach",
+      "summary": "the Height clamp is the only guard keeping featured's day index non-negative, and no test sends a negative height",
+      "failure_scenario": "Drop max(res.Height, 0) and every store test stays green (homeBody sends 1000, TestFeatured sets blocksPerDay, no fixture is negative). A realm answering \"height\":-1 with one eligible app then reaches view.go:300 pool[day%len(pool)] or view.go:310 pool[(day*spotlightSize+i)%len(pool)] with day < 0: index out of range, a panic on every home render while the response is cached.",
+      "verify_by": "grep -n 'height\":-\\|Height = -' gno.land/pkg/gnoweb/feature/store/store_test.go returns nothing; mutate api.go:172 to drop the clamp and run go test ./gno.land/pkg/gnoweb/feature/store/: all green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 207,
+      "angle": "lines",
+      "summary": "paged's echo check (key, page, page count) has no test: every paged fixture echoes correctly and every bad page is refused by pageParam before paged runs",
+      "failure_scenario": "Replace the condition at api.go:207 with false: TestCategory and TestLists stay green, since ':c/defi?page=3' and ':latest?page=3' are rejected from the home count and never reach paged; a realm answering another category's listings under this key would then render them as DeFi.",
+      "verify_by": "grep -n answered gno.land/pkg/gnoweb/feature/store/store_test.go returns nothing; mutate api.go:207 to 'if false {' and run go test ./gno.land/pkg/gnoweb/feature/store/: all green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 154,
+      "angle": "catalog",
+      "summary": "decode's refusals have no test: the maxPayload bound (errTooLarge) and the realm error string other than not_found (envelope.check, api.go:46)",
+      "failure_scenario": "Delete the len(body) > maxPayload check, or the case e.Error != \"\" arm: no store test fails, since fakeClient never returns a body over 2 MiB and every error fixture is 'not_found' or version 2; a realm answering {\"version\":1,\"error\":\"paused\"} would then render an empty store front instead of falling back.",
+      "verify_by": "grep -n 'errTooLarge\\|maxPayload\\|\"error\":\"[a-z]' gno.land/pkg/gnoweb/feature/store/store_test.go shows only fakeClient's not_found; mutate each guard and run go test ./gno.land/pkg/gnoweb/feature/store/: all green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 238,
+      "angle": "catalog",
+      "summary": "three validator guards are untested: negative stars_7d (api.go:238), an undisplayable shelf Empty text (api.go:235) and negative builder counts (api.go:249)",
+      "failure_scenario": "TestShelfFieldsAreValidated covers only a length mismatch, the note and More; TestBuild only a bad namespace; TestPinnedShelves calls h.shelves with Empty already absent. Drop slices.ContainsFunc(... n < 0), the Empty block, or '|| b.Listings < 0 || b.Stars < 0' and the suite stays green, so a regression draws a negative momentum count, a bidi-spoofed empty text, or '-3 listings' on a builder row.",
+      "verify_by": "apply each mutation separately and run go test ./gno.land/pkg/gnoweb/feature/store/: all green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/store_test.go",
+      "line": 263,
+      "angle": "reach",
+      "summary": "TestCacheCoalesces renders three times in sequence, so it pins the TTL hit and never the singleflight coalescing of concurrent loads its name claims",
+      "failure_scenario": "Replace the c.group.DoChan block in cache.go with a direct load and put: the three sequential renders still cost one call, the test stays green, and concurrent cold requests each query the node.",
+      "verify_by": "mutate cache.go's cached to call load directly (no DoChan) and run go test -run TestCacheCoalesces ./gno.land/pkg/gnoweb/feature/store/: green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 207,
+      "angle": "reach",
+      "summary": "paged accepts res.Pages above the page count pageParam derives from the cached home count, so servePage draws a Next link to a page that answers 404 until home refreshes",
+      "failure_scenario": "Home is cached with defi count 24 (one page); an app joins; a fresh category/defi/1 answers pages 2; handler.go:161 sets Next to 2 from res.Pages; the click goes through pageParam with the stale count 24 and returns 'Not found' with HTTP 404 for up to cacheTTL (30 s).",
+      "verify_by": "fakeClient with home count 24 and category/defi/1 answering pages 2: render ':c/defi' shows rel=\"next\", render ':c/defi?page=2' shows '<h1>Not found</h1>'",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 175,
+      "angle": "catalog",
+      "summary": "cached home/build/paged responses are shared across requests; a view builder writing through them would race",
+      "settled_by": "go test -count=1 -race -run TestB3ConcurrentRendersShareCachedResponses ./gno.land/pkg/gnoweb/feature/store/ (tests/b3-lines-reach-catalog-shared-response-race_test.go): 'rendered per target: map[:200 :build:200 :c/defi?page=2:200 :latest?page=2:200]' --- PASS, no race report"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 172,
+      "angle": "reach",
+      "summary": "the clamp leaves the upper bound: int(res.Height/blocksPerDay) truncating on 32-bit, or day*spotlightSize overflowing, would make the day index negative",
+      "settled_by": ".github/goreleaser.yaml id: gnoweb goarch lists only 'amd64' and 'arm64'; on 64-bit day <= MaxInt64/17280 ~ 5.3e14 and day*spotlightSize(3) ~ 1.6e15, far below MaxInt64"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 238,
+      "angle": "reach",
+      "summary": "shelves/trending/leads index s.Slugs[i] by the index of s.Stars7d, out of range if the lengths differ",
+      "settled_by": "api.go:238 sets Stars7d to nil unless len(s.Stars7d) == len(s.Slugs), and validShelves runs on both home (api.go:174) and build (res.Shelves = validShelves(res.Shelves) in build())"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 207,
+      "angle": "reach",
+      "summary": "home's category count and the category page's page count could disagree persistently, misplacing Next/Prev",
+      "settled_by": "examples/gno.land/r/gnoland/store/v0/listing.gno:514-515 appCount(category) returns categoryMembers(category).Size(), the same tree apiCategory pages over (api.gno:68-75); both use pageSize 24 (shelves.gno:14, handler.go:16)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 154,
+      "angle": "lines",
+      "summary": "maxPayload's comment could overclaim a memory bound, since the body is fully read before the length check",
+      "settled_by": "api.go comment reads 'maxPayload refuses an oversized answer before decoding it', which line 154 (check before json.Unmarshal) satisfies; no memory-bound claim is made"
+    }
+  ]
+}

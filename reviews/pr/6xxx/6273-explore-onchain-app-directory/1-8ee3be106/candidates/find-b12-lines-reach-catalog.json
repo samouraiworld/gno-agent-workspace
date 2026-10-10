@@ -1,0 +1,97 @@
+{
+ "candidates": [
+  {
+   "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+   "line": 170,
+   "angle": "reach",
+   "summary": "While r/sys/names is paused, ownsNamespace answers false for every address, so a namespace owner's own star ranks",
+   "failure_scenario": "names enabled; GovDAO executes names.ProposeSetPaused(true), the addpkg-only emergency halt that leaves MsgCall traffic running. The named, mature owner of gno.land/r/<owner>/b calls Star(\"own-b\"): verifier() returns false at verifier.gno:231 before its PA check, so !ownsNamespace is true and the star is stored Ranked=true. It stays ranked after unpause and feeds Badge, Top, trending, builder stars and confirmStars for the owner's own claimed listing. The same branch makes every Claim panic 'caller does not own the namespace' for the length of the pause.",
+   "verify_by": "cp tests/b12-lines-reach-catalog-names-paused-selfstar_filetest.gno examples/gno.land/r/gnoland/store/v0/filetests/b12_names_paused_selfstar_filetest.gno; export GNOROOT=$PWD; cd examples; gno test ./gno.land/r/gnoland/store/v0/ -v | grep -A2 'RUN.*b12_names_paused': the control badge reads 0 and the paused badge 1",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "--- PASS: ./gno.land/r/gnoland/store/v0/b12_names_paused_selfstar_filetest.gno with pinned output: 'live owns: true' / 'live badge: ★ 0 on Explore' (own-a, names live) then 'paused owns: false' / 'paused badge: ★ 1 on Explore' (own-b, names paused)",
+   "repro_path": "tests/b12-lines-reach-catalog-names-paused-selfstar_filetest.gno"
+  },
+  {
+   "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+   "line": 117,
+   "angle": "catalog",
+   "summary": "No test reaches ownsNamespace's registered-name branch: every Claim and own-star test uses a personal-address namespace",
+   "failure_scenario": "Replacing line 117 with `return addr.String() == ns` stops every registered-name owner from claiming gno.land/r/<name>/... and lets their own stars rank, yet store_test.gno stays green. Each passing Claim path (lines 280, 290, 320, 340, 356, 369, 922, 1008) and TestOwnStarDoesNotRank use gno.land/{p,r}/<address>/..., which the verifier accepts at its PA check before any name lookup. Line 264 runs with names disabled, and store_govdao.txtar has no Claim or Star (grep -c: 0).",
+   "verify_by": "apply the mutation at store.gno:117 and run gno test ./gno.land/r/gnoland/store/v0/ plus go test ./gno.land/pkg/integration -run 'TestTestdata/store_govdao': expect a red test, observe green",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "grep -n 'Claim(cross' store_test.gno: every path is gno.land/{p,r}/\"+owner.String()+\"/... or the rejected gnoland/blog claim under disabled names; grep -c 'Claim\\|Star' store_govdao.txtar: 0",
+   "repro_path": ""
+  },
+  {
+   "file": "examples/gno.land/r/gnoland/store/v0/store_test.gno",
+   "line": 508,
+   "angle": "reach",
+   "summary": "No test unstars a ranked star older than the 7-epoch trend window and checks stars7d afterwards",
+   "failure_scenario": "Unstar -> removeStar calls l.book.recent.add(starEpoch, -1). At line 508 the unstarred star is 17 epochs old, and only the stale-epoch guard at pulse.gno:98 (`if epoch <= r.last-n { return }`) stops the decrement from landing in counts[epoch%7], the slot now holding the newest epoch (E0+14). The test asserts earned() alone, so deleting that guard turns a live ranked star into 0 in stars7d and trendScore with the suite green.",
+   "verify_by": "delete pulse.gno:98-100 and run gno test ./gno.land/r/gnoland/store/v0/: expect a red test, observe green; the fix is an assertion of l.stars7d(h) after the Unstar at store_test.gno:508",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "store_test.gno:507-510 assert only l.earned() and the 'not starred' abort after the Unstar; pulse.gno:98 is the only guard on a negative delta for an epoch out of the window",
+   "repro_path": ""
+  },
+  {
+   "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+   "line": 212,
+   "angle": "reach",
+   "summary": "maxPerNamespace counts core namespaces against their own seeds, leaving r/gnoland two slots",
+   "failure_scenario": "seed.gno lists boards2/v0, blog and coins under gnoland and avl, ufmt and ownable under nt, all through upsert, so 3 of the 5 slots are gone in each. examples/gno.land/r/gnoland holds 8 realms (blog boards2 coins dao ghverify home store wugnot). The third extra gnoland realm's Register is refused namespace_full with nothing but an event, and a later version whose seed lists a sixth gnoland or nt entry panics in init ('store: seed ...: namespace_full'). isCoreNamespace already exempts these namespaces from builders (updateBuilder), but not from the cap.",
+   "verify_by": "count seed entries per namespace in seed.gno (gnoland 3, nt 3); in a test register gno.land/r/gnoland/x1..x3: the third upsert returns namespace_full",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "grep -c 'gnoland/' seed.gno: 3; ls examples/gno.land/r/gnoland: 8 entries; available() at listing.gno:212 has no isCoreNamespace exemption",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+   "line": 135,
+   "angle": "lines",
+   "summary": "SubmitRich and Star ignore the store pause",
+   "settled_by": "sed -n '50,51p' admin.gno: 'Register is refused ... and Claim panics. Stars, SubmitRich and hiding keep working.' The pause scope is documented as intended"
+  },
+  {
+   "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+   "line": 93,
+   "angle": "reach",
+   "summary": "An owner cannot withdraw its own listing; a v0 listing keeps the slug, title and namespace slot from its v1 successor",
+   "settled_by": "grep -n -i retire adr-004-gnoweb-store.md: line 321 '| later: `Flag`, `Retire`, editor shelves | see Follow-ups |', a planned follow-up"
+  },
+  {
+   "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+   "line": 177,
+   "angle": "lines",
+   "summary": "Unstar cannot reach a hidden listing, since bySlugOrPanic reads visible listings only",
+   "settled_by": "TestHideReleasesSlug store_test.gno:444 unhide(...) -> 'store: slug_taken': a listing is visible again only under its own slug, where Unstar works, and a hidden listing's star shows nowhere"
+  },
+  {
+   "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+   "line": 113,
+   "angle": "catalog",
+   "summary": "With names disabled, a registered-name owner's own star ranks, since ownsNamespace accepts PA namespaces only",
+   "settled_by": "adr-004-gnoweb-store.md:1585 'An enforcement-independent owner query in r/sys/names, so ownsNamespace need not special-case chains where names are not enforced', a recorded follow-up"
+  },
+  {
+   "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+   "line": 69,
+   "angle": "lines",
+   "summary": "Register's doc claims it never panics, so it cannot break the caller's init",
+   "settled_by": "read of upsert, validateListing, available, update, touch, confirm, reindex, index and track: each refusal returns a reason string and no panic( sits on the path; register_rejected_filetest.gno --- PASS emits StoreRegisterRejected with bad_category"
+  }
+ ]
+}

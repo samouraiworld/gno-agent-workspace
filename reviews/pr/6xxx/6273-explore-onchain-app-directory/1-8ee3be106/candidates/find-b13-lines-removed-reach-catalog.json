@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/integration/testdata/store_govdao.txtar",
+      "line": 1,
+      "angle": "reach",
+      "summary": "Only ProposeHide and ProposeSpotlight get executed through GovDAO. The ProposeUnhide, ProposePause and ProposeUnpause executors never run in any test, yet store_test.gno:875-876 says GovDAO execution is covered by this txtar",
+      "failure_scenario": "Change the executor closure of ProposeUnhide (admin.gno, `func() error { return unhide(path) }`) or of ProposePause (`paused = true`) to return nil without doing anything. The txtar stays green, because it only votes on proposals 0 (hide) and 1 (pick). gno test on the realm stays green too, because TestProposals (store_test.gno:878-885) only builds the three requests and never executes them. So a GovDAO unhide or pause vote that passes and changes nothing would ship with every test green.",
+      "verify_by": "grep -c 'ProposeUnhide\\|ProposePause\\|ProposeUnpause' gno.land/pkg/integration/testdata/store_govdao.txtar returns 0. Then set the Unhide and Pause closures in admin.gno to `func() error { return nil }`, run `go test ./gno.land/pkg/integration -run 'TestTestdata/store_govdao'` and `gno test ./examples/gno.land/r/gnoland/store/v0`, and observe both stay green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "The txtar's Propose* calls are only ProposeHide (line 68) and ProposeSpotlight (line 80). A repo-wide grep finds ProposeUnhide/ProposePause/ProposeUnpause only at store_test.gno:881,883,884, where they are built and never executed. store_test.gno:875-876: 'Execution by GovDAO is covered by the integration test store_govdao.txtar'.",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/filetests/register_rejected_filetest.gno",
+      "line": 6,
+      "angle": "reach",
+      "summary": "The only Register call made from outside the store package is this refused one, made from a filetest main. No test deploys a realm whose init calls store.Register, the path the realm documents as the normal one, and none covers an accepted Register from a real external realm",
+      "failure_scenario": "The realm documents Register as called from the app realm's own init at deploy time, with the calling realm's path as proof of control (store.gno:54-68). Every accepted Register in the tests is simulated in-package with testing.SetRealm(testing.NewCodeRealm(path)) (store_test.gno:22-25). This filetest calls Register from main and only for the bad_category refusal, while its comment speaks of 'the caller's init'. So a regression in how cur.Previous().PkgPath() resolves when a realm's init cross-calls Register during addpkg/loadpkg, or in the accepted path from an external realm, ships with every test green. Also, the Render(\"c/utilities\") line adds nothing as a witness: a 'casino' listing could never appear under utilities.",
+      "verify_by": "grep -rn 'store\\.Register(' --include='*.gno' --include='*.txtar' --include='*.go' . finds only store.gno:60 (a doc comment) and this filetest's line 9. Add a txtar that loadpkg's a $WORK realm with `func init(cur realm) { store.Register(cross(cur), ...) }` and queries api/v1/category/<cat>/1 for its slug",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep output: examples/gno.land/r/gnoland/store/v0/store.gno:60 (doc comment) and filetests/register_rejected_filetest.gno:9 only. store_test.gno:23 shows `testing.SetRealm(testing.NewCodeRealm(path))` before every in-package Register.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cover.go",
+      "line": 100,
+      "angle": "lines",
+      "summary": "For a title of two or more words, initials takes each word's first rune rather than its first letter or digit, so a word that starts with punctuation puts a symbol in the generated icon",
+      "failure_scenario": "Title \"#1 Wallet\": strings.Fields gives [\"#1\",\"Wallet\"]. DeleteFunc keeps both, since each contains an alphanumeric, and the default branch then decodes '#', so the icon reads \"#W\". \"(Beta) Swap\" gives \"(S\", \"@gno Notes\" gives \"@N\" and \"$GNOT Faucet\" gives \"$F\". The single-word path strips non-alphanumerics through wordParts, and TestInitials pins that intent with \"★ Swap\" → \"SW\". The fix is to decode from p[strings.IndexFunc(p, isAlnum):], which DeleteFunc guarantees is >= 0.",
+      "verify_by": "Add `\"(Beta) Swap\": \"BS\"` and `\"#1 Wallet\": \"1W\"` to TestInitials and run `go test ./gno.land/pkg/gnoweb/feature/store -run TestInitials`. Expect the failures to show \"(S\" and \"#W\"",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "cover.go:100-102 `for _, p := range parts[:2] { r, _ := utf8.DecodeRuneInString(p); out = append(out, unicode.ToUpper(r)) }`. cover.go:90 drops only words with no alphanumeric at all. store_test.gno TestInitials has no multi-word case with a punctuation-led word.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cover.go",
+      "line": 50,
+      "angle": "reach",
+      "summary": "palette[l.Palette] would panic on a realm-supplied palette outside 0..11",
+      "settled_by": "listing.go:96 validCore requires `l.Palette >= 0 && l.Palette < paletteSize`, and cover/icon are called only from sanitize after validCore (listing.go sanitize: `if !h.validCore(&l) { continue } ... l.art, l.glyph = cover(&l), icon(&l)`)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/public/main.css",
+      "line": 1,
+      "angle": "removed",
+      "summary": "Built CSS could be stale, or PurgeCSS could drop store selectors",
+      "settled_by": "CI job gnoweb_generate (.github/workflows/ci-dir-gnoland.yml:67 `make -C gno.land/pkg/gnoweb fclean generate` + diff) catches a stale build. A python scan of all 45 class selectors in feature/store/frontend/store.css found every one present in public/main.css, and `.b-header .store-link[aria-current]{color:var(--s-color-bg-brand-default)}` is present"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/feature.go",
+      "line": 56,
+      "angle": "lines",
+      "summary": "store.New panics on an empty Domain instead of NewRouter returning an error",
+      "settled_by": "app.go:104 defaults Domain to \"gno.land\", and grep -n domain gno.land/cmd/gnoweb/main.go finds no flag that sets it, so the panic guards a programmer error only"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 197,
+      "angle": "lines",
+      "summary": "aria-current colour --s-color-bg-brand-default (#226C57) has about 2.9:1 contrast on the dark header (#151515)",
+      "settled_by": "06-blocks.css:741 `.link--is-active > svg { color: var(--s-color-bg-brand-default) }`: the existing header tabs use the same token for their active icon, as the CSS comment claims, so this is the design system's choice and not a defect of this diff"
+    },
+    {
+      "file": "gno.land/pkg/integration/testdata/store_govdao.txtar",
+      "line": 25,
+      "angle": "catalog",
+      "summary": "A store-built ProposalRequest executor could be invoked directly, hiding a listing without a vote",
+      "settled_by": "examples/gno.land/r/gov/dao/types.gno:222 SimpleExecutor.Execute returns 'execution denied: executors are only invocable by gno.land/r/gov/dao' unless cur.Previous().PkgPath() is the dao proxy or under it"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/templates/pages.html",
+      "line": 151,
+      "angle": "reach",
+      "summary": "Pagination Next link could point past gnoweb's own page bound if gnoweb and realm page sizes differ",
+      "settled_by": "handler.go:16 `const pageSize = 24` and shelves.gno:14 `pageSize = 24`. The category count comes from categoryMembers(key).Size() (listing.go:514), the same tree apiCategory pages; store_test.go:153-157 asserts prev/next links"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/templates/pages.html",
+      "line": 13,
+      "angle": "reach",
+      "summary": "pages.html references a store/* template that is not defined, which would error at execution",
+      "settled_by": "comm -3 of the `template \"store/...\"` uses against the `define \"store/...\"` names across templates/*.html lists only store/build, store/home and store/page, the top-level entry points executed by handler.go:99,108,128,164"
+    }
+  ]
+}

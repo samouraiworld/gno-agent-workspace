@@ -1,0 +1,76 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/frontend/store.css",
+      "line": 708,
+      "angle": "reach",
+      "summary": "The Spotlight row's overflow-x:auto clips the card focus ring on three sides below 1020px, and the category reel clips its pills' ring top and left",
+      "failure_scenario": "Window 800px wide (any width under --xl, 1020px): Tab to a Spotlight card. The ring is drawn on .b-store-card:has(h3 a:focus-visible), solid 2px at offset 2px (lines 275-279), and the link's own outline is none (441-443). The ul is overflow-x:auto, so overflow-y computes to auto, it has no padding, and the card fills its height, so the ring's top, bottom and left edges fall outside the clip box. Only a 2px sliver on the right shows, so a keyboard user cannot see which card has focus. The category strip (.b-store-nav > ul, a .c-reel with overflow: scroll and padding-top 0, lines 161-164) clips the top and left of the 'All' pill's ring the same way at every width. A shelf grid (overflow visible) at the same width shows the full ring.",
+      "verify_by": "Render the home page with b5-lines-reach-catalog-render_test.go, then run xvfb-run -a node b5-lines-reach-catalog-css-probe.mjs <html> <shots>. Expect P2.spotlight.container 'overflow-x auto overflow-y auto' with clipped {top,bottom,left} all true, P2.categoryPill clipped top and left true, and the shelf baseline overflow visible. Fix check: add padding (or scroll-padding plus padding) of at least 4px to both scroll containers, or an inset outline-offset inside them, and re-run.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Headful Chromium (xvfb), real Tab key: spotlight {\"focused\":\"Trusted Two\",\"focusVisible\":true,\"outline\":\"solid 2px offset 2px\",\"container\":\"overflow-x auto overflow-y auto\",\"clipped\":{\"top\":true,\"bottom\":true,\"left\":true}}; categoryPill {\"focused\":\"All\",\"outline\":\"solid 2px offset 2px\",\"container\":\"overflow-x scroll overflow-y scroll padding-top 0px\",\"clipped\":{\"top\":true,\"bottom\":false,\"left\":true}}; shelf baseline container 'overflow-x visible overflow-y visible'. The screenshot b5-lines-reach-catalog-spotlight-ring.png shows only the ring's right edge, and the baseline screenshot shows the full ring on a shelf card.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6273-explore-onchain-app-directory/1-8ee3be106/tests/b5-lines-reach-catalog-css-probe.mjs"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/frontend/store.css",
+      "line": 434,
+      "angle": "lines",
+      "summary": "The stretched-link overlay covers every card's trust badge, 'community' label and truncated path, so their title= explanations never show on hover",
+      "failure_scenario": "On any card in a shelf, the Spotlight, or a category or list page, h3 a::after is position:absolute with inset 0 over the whole card (lines 434-439). Only .b-store-meta a is raised above it (592-594). The .trust span ('One of gno.land's core apps' / 'A named builder whose app earned its place'), the .community span ('Deployed by its author. Read the code before you interact.') and the ShortPath span whose title holds the full package path are not raised. A mouse over any of them hits the card's link, so the span is never hovered and the browser shows no tooltip. The same badge on the hero, which has no stretched link, shows its tooltip. On cards the community warning and the full path go unseen.",
+      "verify_by": "Run P1 of b5-lines-reach-catalog-css-probe.mjs at 1280px. Expect spanHovered false and hit 'A' for spotlightCardTrust, shelfCommunity and shelfPath, against spanHovered true for heroTrust. Fix check: give .b-store-card :is(.trust, .community, .path [title]) position:relative and z-index var(--g-z-1), then re-run and expect spanHovered true.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Headful Chromium, real mouse.move: spotlightCardTrust {\"spanHovered\":false,\"hit\":\"A\",\"tooltipFrom\":null}, shelfCommunity {\"spanHovered\":false,\"hit\":\"A\",\"tooltipFrom\":null}, shelfPath {\"spanHovered\":false,\"hit\":\"A\",\"tooltipFrom\":null}; heroTrust baseline {\"spanHovered\":true,\"hit\":\"SPAN.b-tag trust\",\"tooltipFrom\":\"One of gno.land's core apps\"}",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6273-explore-onchain-app-directory/1-8ee3be106/tests/b5-lines-reach-catalog-css-probe.mjs"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/frontend/store.css",
+      "line": 145,
+      "angle": "reach",
+      "summary": "On a phone, a pulse with no figures renders as a lone live dot followed by no text",
+      "failure_scenario": "newPulse (view.go:411) drops every count that is 0 over 30 days, but pages.html:11 still draws the pulse whenever Height is set, which is every live chain. Under 640px, store.css:145-153 hides .clock and .moment and keeps only the first .figure. On a quiet chain (no listing or star in 30 days: a fresh chain, a testnet, a lull) none exists, so the line shows only its ::before dot, 8x8 px, in a 21px row under the lead, with no text.",
+      "verify_by": "Run P3 of b5-lines-reach-catalog-css-probe.mjs at 375px on the quiet-chain fixture. Expect visibleText \"\", children clock:none and moment:none, and the 8px dot drawn. See b5-lines-reach-catalog-pulse-phone.png.",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "{\"visibleText\":\"\\\"\\\"\",\"height\":21,\"children\":[\"clock:none\",\"moment:none\"],\"dot\":\"\\\"\\\" 8pxx8px\"}",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6273-explore-onchain-app-directory/1-8ee3be106/tests/b5-lines-reach-catalog-css-probe.mjs"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/frontend/store.css",
+      "line": 17,
+      "angle": "catalog",
+      "summary": "a var(--token) store.css reads may be undefined, making its declaration invalid at computed-value time (z-index on meta links above the stretched link was the risky one)",
+      "settled_by": "a loop over every var(--x) in store.css, grepping '--x:' in frontend/css and feature/*/frontend: each of the 50 tokens is defined at least once, e.g. '1 --g-z-1', '1 --s-focus-ring', '2 --store-nav-fade'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/frontend/store.css",
+      "line": 1,
+      "angle": "reach",
+      "summary": "the production purgecss pass may drop store selectors whose classes live only in Go strings or the templates",
+      "settled_by": "a python check of every class in store.css against the store selectors in the committed public/main.css (fresh per the green gnoweb_generate CI job): every class has at least one surviving store selector, e.g. '1 clock', '2 figure', '2 trust', '15 b-store-grid--spotlight'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/frontend/store.css",
+      "line": 64,
+      "angle": "reach",
+      "summary": "the lens tab on category pages carries aria-current=\"true\", not \"page\", so the current-door underline may not draw",
+      "settled_by": "06-blocks.css:3548 and 3554 select '.b-pkg-subheader .b-packages-tabs a[aria-current]' with no value, so both 'true' and 'page' match"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/frontend/store.css",
+      "line": 568,
+      "angle": "lines",
+      "summary": "the primary button may set brand-coloured text on a brand background",
+      "settled_by": "02-tools.css:87 '--s-color-text-brand-default: var(--g-color-light, #ffffff); /* Text on brand buttons */' (dark theme 218 also g-color-light)"
+    }
+  ]
+}

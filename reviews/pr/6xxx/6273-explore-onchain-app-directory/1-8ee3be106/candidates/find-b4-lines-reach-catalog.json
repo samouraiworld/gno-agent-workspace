@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 57,
+      "angle": "lines",
+      "summary": "TestCacheCoalesces pins sequential TTL hits, not the coalescing of concurrent misses the DoChan block exists for",
+      "failure_scenario": "Replace the DoChan block (cache.go:57-77) with `v, err := load(ctx); c.put(key, v, err); return v, err`: every concurrent miss on a cold or just-expired key then sends its own vm/qrender, the stampede singleflight is there to stop, yet TestCacheCoalesces (store_test.go:263-269, three sequential render calls) stays green because renders two and three hit the entry render one put. No test in store_test.go or handler_store_test.go issues concurrent calls on one Handler (no go func / WaitGroup).",
+      "verify_by": "Apply that mutation, run `go test -count=1 -run TestCacheCoalesces ./gno.land/pkg/gnoweb/feature/store/`: expect ok. Then copy tests/b4-lines-reach-catalog-cache-race.go into the package and run it under the mutation: expect FAIL with realm calls > 3.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "Offered test run at the unmutated head, 3 runs: `zz_b4_cache_race_test.go:58: realm calls: 3` / `--- PASS: TestB4CacheConcurrentRenders` / `ok github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/store` (64 goroutines x 40 renders over home, build, category/defi/1). Mutation not run (Missing test is read-only).",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6273-explore-onchain-app-directory/1-8ee3be106/tests/b4-lines-reach-catalog-cache-race.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 95,
+      "angle": "reach",
+      "summary": "The cacheMaxEntries eviction (sweep, then clear) is reached by no test, so the map's only memory bound is unpinned",
+      "failure_scenario": "Every test touches at most three keys, so deleting cache.go:95-104 leaves the package green while the entries map then grows by one entry per distinct `category|list/<key>/<page>` endpoint for the life of the gnoweb process; the sweep-then-clear branch, including the clear that drops live home/build entries, has never executed under test.",
+      "verify_by": "grep -n 'cacheMaxEntries' gno.land/pkg/gnoweb/feature/store/*_test.go gno.land/pkg/gnoweb/*_test.go (no hit); delete cache.go:95-104 and run `go test -count=1 ./gno.land/pkg/gnoweb/feature/store/ ./gno.land/pkg/gnoweb/`: expect ok.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep for cacheMaxEntries|errorTTL|cacheTTL|newResponseCache|cached( over store_test.go and handler_store_test.go returned no hit (only t.Parallel at handler_store_test.go:14,30).",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 62,
+      "angle": "reach",
+      "summary": "Detaching the shared load from the first caller's context is unpinned: swapping WithoutCancel(ctx) for ctx stays green",
+      "failure_scenario": "With `context.WithTimeout(ctx, fetchTimeout)` in place of `context.WithTimeout(context.WithoutCancel(ctx), fetchTimeout)`, the first visitor disconnecting mid-load cancels the shared vm/qrender; put caches the context.Canceled for errorTTL, so every visitor for the next 5s gets the realm's fallback markdown instead of the store. render() passes context.Background() and no test cancels a caller, so the package stays green.",
+      "verify_by": "Apply the mutation, run `go test -count=1 ./gno.land/pkg/gnoweb/feature/store/`: expect ok. A test with a fakeClient that blocks until its ctx is done or a release channel fires, a first caller cancelled mid-load, then a second caller asserting a non-nil store view, goes red under the mutation.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "store_test.go render() calls h.View(context.Background(), u); grep for cancel|WithCancel over both store test files returned no hit.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 91,
+      "angle": "lines",
+      "summary": "The shorter errorTTL for failed loads is unpinned: caching errors for cacheTTL stays green",
+      "failure_scenario": "Deleting cache.go:90-92 caches a transient backend failure (ErrClientTimeout from a busy RPC slot, a realm error) for 30s instead of 5s, every visitor in that window falling back to the realm markdown; TestFallsBackToTheRealm renders one failing request and never re-queries after the failure, so the package stays green.",
+      "verify_by": "Delete cache.go:90-92, run `go test -count=1 ./gno.land/pkg/gnoweb/feature/store/`: expect ok.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep for errorTTL over the store and gnoweb test files returned no hit; TestFallsBackToTheRealm (store_test.go:245) asserts a single render per target.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 57,
+      "angle": "catalog",
+      "summary": "A panic inside load kills the whole gnoweb process: DoChan runs load on its own goroutine and re-raises the panic there unrecoverably",
+      "failure_scenario": "load runs on the goroutine DoChan starts, and golang.org/x/sync v0.21.0 singleflight re-raises a panic with `go panic(e)` once a DoChan waiter exists (singleflight.go:166-167, commented 'needs to ensure that this panic cannot be recovered'), so a panic anywhere in decode, sanitize, cover/icon or the operator's Trusted func terminates gnoweb, every realm page down, where net/http's per-connection recover would otherwise lose one request. No input reaching such a panic was found today (validCore bounds Palette, the /r/ or /p/ prefix guards pkgPath's slice, TruncMiddle and LastPathElement check lengths), so the risk is latent. Fix: recover inside the DoChan closure and return it as an error.",
+      "verify_by": "Read $(go list -m -f '{{.Dir}}' golang.org/x/sync)/singleflight/singleflight.go:160-170; a package-store test calling cached(ctx, newResponseCache(), \"k\", func(context.Context) (int, error) { panic(\"x\") }) under a deferred recover exits the test binary with `panic: x` and a goroutine dump instead of recovering.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "singleflight.go v0.21.0: `if len(c.chans) > 0 { go panic(e); select {} }`; no recover() in non-test gnoweb code (grep over gno.land/pkg/gnoweb/*.go and gno.land/cmd/gnoweb/*.go).",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 57,
+      "angle": "catalog",
+      "summary": "Global mutable state & concurrency: every request shares the cached *homeResponse/*buildResponse/*pageResponse, so a render path writing into one would race",
+      "settled_by": "Concurrent renders over one Handler under -race (tests/b4-lines-reach-catalog-cache-race.go, 64 goroutines x 40 renders of home, build, c/defi): `--- PASS: TestB4CacheConcurrentRenders` / `ok .../gnoweb/feature/store`, no DATA RACE, 3 runs; `go test -race -count=1 ./gno.land/pkg/gnoweb/feature/store/ ./gno.land/pkg/gnoweb/`: `ok .../feature/store 1.246s` / `ok .../gnoweb 55.556s`. Render paths (card, shelves, buildHome, servePage) copy into fresh views and only read the cached values."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 54,
+      "angle": "reach",
+      "summary": "One key shared by two T would make e.val.(T) panic",
+      "settled_by": "Only three call sites (tree-wide grep: api.go:167 \"home\", api.go:181 \"build\", api.go:198 endpoint) and api.go:197 `endpoint := kind + \"/\" + key + \"/\" + strconv.Itoa(page)` always carries a '/', so it never equals \"home\" or \"build\"."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 62,
+      "angle": "lines",
+      "summary": "A caller whose request is cancelled would cache context.Canceled for every visitor",
+      "settled_by": "cache.go:62 `lctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), fetchTimeout)`: the load's context is detached from the caller's cancellation, so only the 4s fetchTimeout can fail it; the caller's own ctx.Done branch returns without a put."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 95,
+      "angle": "lines",
+      "summary": "Re-putting a key already in a full map would flush every live entry for no growth",
+      "settled_by": "put follows only a miss: cache.go:84 `return e, ok && time.Now().Before(e.expires)` is false for that key, and put's later `now` makes cache.go:97 `if now.After(e.expires)` true for the same entry, so the sweep deletes it and the map drops below the bound before the clear check."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/listing.go",
+      "line": 130,
+      "angle": "reach",
+      "summary": "Realm-controlled listing data reaching a panic in load, which DoChan would turn into a process crash (lifting the Suggestion to Critical)",
+      "settled_by": "listing.go:130 `return l.webPath[len(\"/r/\"):]` runs only after validCore requires IsPure (`strings.HasPrefix(gnoURL.Path, \"/p/\")`) or IsRealm (`\"/r/\"`); cover.go `palette[l.Palette]` after validCore's `l.Palette >= 0 && l.Palette < paletteSize`; shorten.go:15 `if len(r) <= head+tail+1 { return s }`; mempackage.go LastPathElement slices at LastIndexByte only when pos >= 0; trustedPaths.contains stops at `i < 0`; initials/wordParts index only under i>0 and i+1<len(rs) guards."
+    }
+  ]
+}

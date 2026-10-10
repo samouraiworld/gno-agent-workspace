@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 270,
+      "angle": "reach",
+      "summary": "On a trusted page, an off-site link whose path starts with /u/ renders with no rel and is followed: detectLinkType returns GnoLinkTypeUser on target.IsUser() (line 298) before it compares target.Domain with the page's",
+      "failure_scenario": "A trusted realm (/r/gnoland/forum under -trusted-paths=gnoland, LinkPolicy FollowInternalLinks) renders a user post containing [a](https://casino.example/u/promo), [b](//casino.example/u/promo) or [c](http://casino.example/u/promo:ref). weburl.ParseFromURL succeeds with Domain casino.example, IsUser() is true, so the link is typed User, follows(User) is true, Followed is set and rel() returns \"\": the anchor is <a href=\"https://casino.example/u/promo\"> with no rel, so search engines follow an off-site link from an official page, against the FollowInternalLinks godoc ('follows links within the site and marks the others'). The same link without /u/ renders rel=\"noopener nofollow ugc\". It also wears the in-site user-link icon on every page. The misordering predates the diff (base gave every non-external link no rel), but the diff makes the link type the follow boundary for trusted documents and its sweep of off-site shapes (round 2's //host fix, TestExtLinksPolicyOffSiteWithoutScheme) missed this member of the class. Fix: in detectLinkType return GnoLinkTypeExternal when target.Domain != \"\" && target.Domain != orig.Domain before the IsUser check, and add https://casino.example/u/promo to TestExtLinksPolicyOffSiteWithoutScheme.",
+      "verify_by": "cp tests/b4-lines-removed-reach-catalog-offsite-user-path_test.go gno.land/pkg/gnoweb/zz_offsite_user_path_test.go && go test ./gno.land/pkg/gnoweb -run TestZZOffsiteUserPath -v -count=1: expect nofollow on every off-site anchor, observe none on the three /u/ rows of /r/gnoland/forum",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head ea1c620f7, scratch worktree: '/r/gnoland/forum  https://casino.example/u/promo -> <a href=\"https://casino.example/u/promo\">', '//casino.example/u/promo -> <a href=\"//casino.example/u/promo\">', 'http://casino.example/u/promo:ref -> <a href=\"http://casino.example/u/promo:ref\">', control 'https://casino.example/promo -> <a href=\"https://casino.example/promo\" rel=\"noopener nofollow ugc\">'; community /r/nym/app gives the /u/ rows rel=\"nofollow ugc\". --- FAIL: TestZZOffsiteUserPath, three Error lines, all /r/gnoland/forum. With the domain check moved above IsUser in detectLinkType: TestZZOffsiteUserPath ok, go test ./gno.land/pkg/gnoweb/markdown ./gno.land/pkg/gnoweb both ok; ext_links.go restored after.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6229-give-every-page-title/3-ea1c620f7/tests/b4-lines-removed-reach-catalog-offsite-user-path_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/utils.go",
+      "line": 213,
+      "angle": "removed",
+      "summary": "The line-break space added to nodeText is pinned by no test; the only consumer it changes is the TOC title (toc.go:95), since visibleText handles Text leaves itself",
+      "failure_scenario": "Delete utils.go:213-215 (the SoftLineBreak/HardLineBreak space in nodeTextWriter.walk): every markdown test stays green, though a multi-line setext heading's TOC title goes back from 'Setext title' to 'Setexttitle'. visibleText calls nodeText only for non-Text, non-Icon leaves (ast.String, footnote refs), which carry no line-break flags, so TestDescription 'line breaks collapse' does not reach this line.",
+      "verify_by": "delete utils.go:213-215 and run go test ./gno.land/pkg/gnoweb/markdown -count=1: expect red, observe green; grep -n nodeText gno.land/pkg/gnoweb/markdown/*_test.go returns nothing",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n nodeText markdown/*_test.go: no hit; grep for multi-line setext fixtures in toc_test.go/utils_test.go: no hit; probe at head: TocInspect of 'Setext\\ntitle\\n===' gives toc=[\"Setext title\"].",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/description.go",
+      "line": 55,
+      "angle": "lines",
+      "summary": "Round 2's per-node 4 KiB Warning is fixed for inline-heavy leads, but the round-2 artifact still FAILs on plain prose: Lead allocates 11.3x parse+render on a 1 MB plain paragraph by materialising and converting the whole paragraph to []rune twice to keep 160 runes",
+      "failure_scenario": "A realm whose Render opens with one 1 MB plain paragraph: Lead builds the full text, resolveText copies it three times, oneLine maps, splits and joins it, then len([]rune(text)) and truncateRunes each allocate a 4 MB rune slice: 12.2 MB against parse+render's 1.08 MB, though Lead's time stays 0.44x of render. Cost only, bounded by the 1 MiB render cap. Fix: utf8.RuneCountInString for the minimum check and stop collecting text once descriptionMaxRunes+1 runes are kept.",
+      "verify_by": "cp 2-fedfdde13/tests/b2-lines-removed-reach-catalog-lead-bufio-alloc.go gno.land/pkg/gnoweb/markdown/zz_lead_alloc_test.go && go test ./gno.land/pkg/gnoweb/markdown -run TestLeadAllocVsRender -v -count=1: the emphasis, links and code-span rows sit at 0.2x-0.6x, the plain rows at 6.6x and 11.3x",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head: 'plain words src= 1000010 B parse+render 1084144 B 26.742005ms | Lead 12247968 B 11.693055ms | ratio alloc 11.3x time 0.44x'; 'emphasis ... 1000010 B ... ratio alloc 0.6x time 0.40x'; 'links ... 0.2x time 0.13x'; 'code spans ... 0.5x time 0.29x'; --- FAIL: TestLeadAllocVsRender on the plain rows only.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/description.go",
+      "line": 52,
+      "angle": "lines",
+      "summary": "Lead lifts a paragraph that follows a list, a blockquote (even one holding a heading) or a table, while its godoc (lines 38-39) says text after a list or a post someone else wrote never names the page",
+      "failure_scenario": "'# Home\\n\\n> ## Quoted heading\\n\\nA paragraph after a quoted heading, long enough to be the summary.' gives that paragraph as the description; '- ## List heading' and a table before the paragraph do the same, because only a top-level KindHeading or KindThematicBreak ends the lead. The lifted description is used on trusted pages only, so the reach is a trusted realm that renders a list or quote of user posts followed by a user paragraph. Fix: also end the lead at a top-level list, blockquote or table, or narrow the godoc.",
+      "verify_by": "Lead on the three sources above with the production goldmark options: expect description \"\", observe the trailing paragraph",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "Probe at head with NewDefaultGoldmarkOptions' extensions: blockquote-heading case desc=\"A paragraph after a quoted heading, long enough to be the summary.\"; list-heading case desc=\"A paragraph after a list heading, long enough to be the summary.\"; table case desc=\"A paragraph after a table, long enough to be the summary text.\"",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 270,
+      "angle": "reach",
+      "summary": "Round-2 Warning: scheme-relative and host-less off-site links (//host, ///host, https:///host) followed in trusted realms",
+      "settled_by": "Round-2 artifact TestZZOffsiteFollowed rerun at head now fails on its bug assertion: '[a](//casino.example) -> <a href=\"//casino.example\" rel=\"noopener nofollow ugc\">', '[b](///casino.example) -> ... rel=\"noopener nofollow ugc\"', '[h](https:///casino.example) -> ... rel=\"noopener nofollow ugc\"'; TestExtLinksPolicyOffSiteWithoutScheme PASS for all three. Fixed by master #6294 merged in 9c4eb93ff and pinned by cd5f9d142."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/description.go",
+      "line": 137,
+      "angle": "lines",
+      "summary": "Round-2 Warning: resolveText's 4 KiB bufio buffer per text node makes Lead allocate about 10x parse+render on inline-heavy leads",
+      "settled_by": "resolveText now uses bufio.NewWriterSize(&buf, 16); round-2 artifact rerun at head: 'emphasis src= 1000010 B parse+render 202545560 B | Lead 114245200 B ratio alloc 0.6x', 'links ... ratio alloc 0.2x', 'code spans ... ratio alloc 0.5x'. The plain-prose remainder is the Nit at description.go:55."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 487,
+      "angle": "reach",
+      "summary": "docLinks may miss autolinks, email autolinks, reference links or image links in the doc renderer",
+      "settled_by": "Probe with ExtEmphasis+ExtDocLinks+WithAttribute: '<a href=\"https://a.example\" rel=\"noopener nofollow ugc\">', '<a href=\"mailto:me@x.example\" rel=\"noopener nofollow ugc\">', '<a href=\"https://r.example\" rel=\"noopener nofollow ugc\">ref</a>', '<a href=\"https://c.example\" rel=\"noopener nofollow ugc\"><img ...></a>'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 290,
+      "angle": "reach",
+      "summary": "A backslash destination (/\\host) typed Package could be followed off-site under FollowInternalLinks",
+      "settled_by": "Round-2 probe at head: '[e](/\\casino.example) -> <a href=\"/%5Ccasino.example\">': the renderer percent-encodes the backslash, so the browser reads a same-site path"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/description.go",
+      "line": 115,
+      "angle": "lines",
+      "summary": "visibleText could glue the words of a code span that spans two lines",
+      "settled_by": "Probe at head: '`foo\\nbar` code span that runs across two lines, long enough to summarise.' gives desc=\"foo bar code span that runs across two lines, long enough to summarise.\""
+    }
+  ]
+}

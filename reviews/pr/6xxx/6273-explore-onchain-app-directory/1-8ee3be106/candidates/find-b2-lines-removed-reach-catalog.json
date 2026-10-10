@@ -1,0 +1,43 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go", "line": 528, "angle": "reach",
+      "summary": "the GetPackageView store branch is never reached with a decodable store response by any pkg/gnoweb test",
+      "failure_scenario": "TestStoreHeaderEntry's mock store realm renders the plain string \"store\", so store.View fails to decode api/v1/home and returns nil; the branch body (title/description copy, meta.Status propagation, the !wantMarkdown gate) never runs. Dropping `!wantMarkdown`, deleting line 530, or returning http.StatusOK instead of meta.Status (so a 404 'Not found' store page answers 200) leaves every test green",
+      "verify_by": "in a scratch worktree, mutate handler_http.go:531 to `return http.StatusOK, view` and separately drop `&& !wantMarkdown` at :528, then `go test ./gno.land/pkg/gnoweb/...`: expect red, observe green; grep shows no *_test.go under pkg/gnoweb serving JSON for api/v1",
+      "band": "Missing test", "fix_kind": "test", "checked": true, "run": false,
+      "evidence": "grep -rln 'api/v1|StoreRealm' --include=*_test.go gno.land: only handler_store_test.go (mock Render returns \"store\"), feature/store/store_test.go (package store, cannot reach HTTPHandler), cmd/gnoweb/main_test.go",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go", "line": 331, "angle": "removed",
+      "summary": "no test runs setupWeb with a valid -store-realm, so the line that enables the store in the binary is unpinned",
+      "failure_scenario": "TestSetupWeb_StoreRealm feeds only rejected values and TestWithStoreAlias calls the helper directly; deleting `appcfg.StoreRealm = cfg.storeRealm` (or making the shape check reject every value) leaves the suite green while gnoweb -store-realm=/r/gnoland/store/v0 never serves Explore and never shows the header link",
+      "verify_by": "delete main.go:331 in a scratch worktree, `go test ./gno.land/cmd/gnoweb/`: expect red, observe green; read main_test.go:195-207 for an accepted case",
+      "band": "Missing test", "fix_kind": "test", "checked": true, "run": false,
+      "evidence": "main_test.go:199 loops only over bad values: gno.land/r/gnoland/store, r/gnoland/store, /p/nt/avl/v0, /r/gnoland/store/",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go", "line": 193, "angle": "catalog",
+      "summary": "NewHTTPHandler hands StoreRealm to store.New, which panics on an empty Meta.Domain, and never checks StoreRealm's shape; only cmd/gnoweb's setupWeb does",
+      "failure_scenario": "a library caller of NewHTTPHandler/NewRouter (exported, also embedded by gnodev-style tools) setting StoreRealm with no Domain gets a panic instead of the error NewHTTPHandler returns for every other bad config; one passing \"gno.land/r/gnoland/store/v0\" gets a store that never matches u.Path and a relative header href on every realm page. Moving the -store-realm shape check and the Domain requirement into HTTPHandlerConfig.validate puts the guard where its next caller is",
+      "verify_by": "read feature/store/feature.go New (panics on RealmPath==\"\"||Domain==\"\") and HTTPHandlerConfig.validate (checks ClientAdapter, Renderer, Aliases only); construct HTTPHandlerConfig{StoreRealm: \"/r/x/y\", Meta: StaticMetadata{}} and call NewHTTPHandler: observe panic",
+      "band": "Suggestion", "fix_kind": "code", "checked": true, "run": false,
+      "evidence": "feature.go: `case deps.RealmPath == \"\" || deps.Domain == \"\": panic(\"store.New: RealmPath and Domain are required\")`; validate() has no StoreRealm or Domain check",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {"file": "gno.land/pkg/gnoweb/components/template.go", "line": 71, "angle": "removed", "summary": "truncMiddle with keep<=0 now returns \"…\" instead of the input", "settled_by": "grep -rn truncMiddle --include=*.html: only components/views/overview.html:54 `{{ truncMiddle . 6 }}`; keep 6 gives the same threshold (len<=13) before and after"},
+    {"file": "gno.land/pkg/gnoweb/feature/store/listing.go", "line": 52, "angle": "reach", "summary": "ipfs.io gateway missing from the CSP img-src", "settled_by": "grep ipfs gno.land/cmd/gnoweb/main.go: 42: \"https://ipfs.io\","},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 193, "angle": "catalog", "summary": "global mutable state and concurrency: new response cache and parallel store header test race", "settled_by": "go test -race -count=1 ./cmd/gnoweb/ ./pkg/gnoweb/ ./pkg/gnoweb/components/ ./pkg/gnoweb/feature/state/ ./pkg/gnoweb/feature/store/: all ok, exit 0"},
+    {"file": "gno.land/cmd/gnoweb/main.go", "line": 338, "angle": "removed", "summary": "a sibling caller still mutating the shared gnoweb.DefaultAliases", "settled_by": "grep DefaultAliases|.Aliases[..]=|maps.Copy(..Aliases outside tests: app.go:105 assigns it, cmd/gnoweb now copies via withStoreAlias, contribs/gnobro/pkg/browser/utils.go:11 only reads"},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 1000, "angle": "removed", "summary": "a doc still naming displayPackageName after its move to components.PackageName", "settled_by": "grep displayPackageName: only gnovm/adr/pr5048_pkg_name_matches_path.md:83, an ADR, which the calibration rule never critiques"},
+    {"file": "gno.land/pkg/gnoweb/feature/store/listing.go", "line": 105, "angle": "catalog", "summary": "gnoweb's displayable drops a listing title the realm's validText accepts, so a paid listing vanishes", "settled_by": "validate.gno validText rejects !unicode.IsGraphic (covers Cf), spaces other than ' ', isBlankFiller, doubled and padded spaces; displayable rejects only IsGraphic&&!IsSpace&&!Cf failures plus the same fillers, rune caps 40/80 equal maxTitle/maxTagline, reSlug/reIPFS match validSlug/validAsset, every taxonomy key matches reKey"},
+    {"file": "gno.land/pkg/gnoweb/handler_http.go", "line": 531, "angle": "lines", "summary": "a non-nil store view with a zero Meta.Status would call WriteHeader(0)", "settled_by": "feature/store/handler.go returns a view only at 99 (200), 108 (h.meta 200), 128 (404), 164 (m set by h.meta in both branches)"},
+    {"file": "gno.land/cmd/gnoweb/main.go", "line": 325, "angle": "reach", "summary": "-trusted-paths=\"\" now always set yields an empty entry trusting every path in the store tier", "settled_by": "realm_notice.go newTrustedPaths: `if e = strings.Trim(e, \" /\"); e != \"\"` drops empty entries; contains(\"\") walks to no match"},
+    {"file": "gno.land/cmd/gnoweb/main.go", "line": 394, "angle": "reach", "summary": "the /explore alias collides with a static redirect or another route", "settled_by": "redirect.go Redirects keys: /r/demo/boards:gnolang/6, /blog, /gor, /game-of-realms, /grants, /language, /getting-started, /newsletter; no /explore elsewhere in gno.land or r/gnoland"},
+    {"file": "gno.land/pkg/gnoweb/components/layouts/header.html", "line": 11, "angle": "lines", "summary": "the store link icon symbol does not exist, leaving an invisible link", "settled_by": "components/ui/icons.html:13 `<symbol id=\"ico-apps\" viewBox=\"0 0 19 19\">`; .store-link styled at frontend/css/06-blocks.css:166"}
+  ]
+}

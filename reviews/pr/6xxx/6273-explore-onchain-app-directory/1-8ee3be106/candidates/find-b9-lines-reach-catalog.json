@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/api.gno",
+      "line": 188,
+      "angle": "reach",
+      "summary": "writeActivity serves events of apps in free g1… address namespaces, and gnoweb turns the newest one into the Explore pulse moment, while New and Rediscover leave those namespaces out",
+      "failure_scenario": "A fresh key deploys gno.land/r/<its g1 address>/app with Register in init: Register sets Confirmed, upsert calls track(\"listed\"), shownApp() is true, so api/v1/home's activity starts with {\"kind\":\"listed\",\"slug\":\"anon-app\"} and gnoweb's latestMoment prints \"Anon App just joined\" with a link on the front page. On the same page the New shelf is empty and says \"List yours from a registered namespace: it opens here.\" Deploying from new keys holds that slot for gas and deposit only, with no name registered, and pulse listed_7d goes up with each deploy.",
+      "verify_by": "cd examples && gno test ./gno.land/r/gnoland/store/v0 -run TestZZAnonFrontPage -v with tests/b9-lines-reach-catalog-anon-front-slot_test.gno copied into the package: expect anon-app absent from activity like it is from New, observe it first",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "after deploy, New shelf: ,\"pinned\":true,\"empty\":\"No new app yet. List yours from a registered namespace: it opens here.\",\"slugs\":[] / after deploy, activity: [{\"kind\":\"listed\",\"slug\":\"anon-app\",\"stars\":0},{\"kind\":\"listed\",\"slug\":\"valopers\",\"stars\":0},...] / --- PASS: TestZZAnonFrontPage",
+      "repro_path": "tests/b9-lines-reach-catalog-anon-front-slot_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/front.gno",
+      "line": 64,
+      "angle": "reach",
+      "summary": "The Recently updated front shelf windows apps.updated, which holds address-namespace apps, so a free g1… app gets a front-page card by changing its tagline once updateCooldown has passed",
+      "failure_scenario": "Deploy as above, wait 7 epochs, then Register again with a new tagline (or SubmitRich). touch moves the app into apps.updated, listShelf(mustList(\"updated\", h)) takes its first 16, and the app is the first slug of Recently updated in api/v1/home and in the markdown front. The ADR's \"Updated cannot be farmed\" holds per listing, not per key: keys are free and each namespace takes 5 listings, so staggered listings each refreshed once a week keep the 8 cards gnoweb draws. That is the front-page slot newApps and rotation filter out through namedApps.",
+      "verify_by": "same run: expect Recently updated without anon-app, observe slugs [\"anon-app\"]; the fix check is namedApps-style filtering (!address(l.Namespace).IsValid()) on the updated shelf",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "after update, Recently upd.: ,\"slugs\":[\"anon-app\"] / markdown Recently updated: - **[Anon App](/r/g1veex2etpdehkuh6lta047h6lta047h6l2cyn54/app)** — Changed tagline / after update, New shelf: ...\"slugs\":[]",
+      "repro_path": "tests/b9-lines-reach-catalog-anon-front-slot_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/front.gno",
+      "line": 81,
+      "angle": "lines",
+      "summary": "No test reaches listShelf's truncation with more than gridPool trending apps or compares len(stars_7d) with len(slugs), so losing the Counts slice would stay green",
+      "failure_scenario": "Change line 81 to cut only s.Items: the Trending shelf then sends 16 slugs and up to 24 stars_7d. gnoweb's validShelves sets Stars7d to nil whenever the lengths differ, so every momentum figure on Trending silently disappears. TestTrendingIsExact builds 13 trending apps (under 16), TestStars7dAndTrending builds 1, and no test reads the shelf's Counts.",
+      "verify_by": "grep -n 'Counts\\|stars_7d\\|gridPool' store_test.gno (only the pulse lines 650/653 hit); mutation: drop s.Counts[:gridPool] on line 81 and run gno test ./gno.land/r/gnoland/store/v0, expect red, observe green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep on store_test.gno returns only 650/653, both `\"pulse\":{\"listed_7d\":...,\"stars_7d\":...}`; TestTrendingIsExact loops n+2 = 12 warm apps plus hot-app",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/api.gno",
+      "line": 127,
+      "angle": "catalog",
+      "summary": "writeHeader writes time.Now() into Render output (determinism class)",
+      "settled_by": "grep -n 'func X_now' -A 6 gnovm/stdlibs/time/time.go: `return ctx.Timestamp, int32(ctx.TimestampNano), ...`: the block timestamp, the same on every node at a given height"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/api.gno",
+      "line": 92,
+      "angle": "reach",
+      "summary": "a huge page number could overflow (n-1)*pageSize in pageOf before apiPage's n > pages check",
+      "settled_by": "pager.gno:77 `if pageNumber > totalPages { ... return page }` runs before line 83 `startIndex := (pageNumber - 1) * pageSize`; strconv.Atoi rejects anything past int64"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/shelves.gno",
+      "line": 48,
+      "angle": "reach",
+      "summary": "the Top and New shelves' more.count and See all lists hold core, 1-star and g1 apps the shelves filter out",
+      "settled_by": "front.gno homeShelves comment `Its \"See all\", :latest, lists every app, so its count is more than newApps draws from` and the ADR Top row `Its list, :top, goes on with every starred app`; gnoweb pageParam and the realm page from the same Index.Size(), so the page counts agree"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/api.gno",
+      "line": 236,
+      "angle": "reach",
+      "summary": "category counts and api/v1/category pages include unconfirmed (claimed) apps",
+      "settled_by": "ADR lines 268-269 `Until it is confirmed, a claimed package or service shows nowhere, and a claimed app only on its category page`; listing.gno index() comment `index adds a visible app to its category`"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/front.gno",
+      "line": 98,
+      "angle": "lines",
+      "summary": "the seed lists p/moul/md but moul is not in coreNamespaces, so moul shows as a builder",
+      "settled_by": "front.gno comment `the seed also lists packages of personal namespaces (p/moul/md), whose owners are community builders like any other`; store_test.gno:979 `uassert.False(t, isCoreNamespace(\"moul\"))`"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/front.gno",
+      "line": 24,
+      "angle": "catalog",
+      "summary": "topApps or apiHome could grow with the listing count past qrender's gas limit",
+      "settled_by": "topApps stops at the first listing below topStars (`if !isTop(l) { return true }`) and skips only the seeded core apps; trending stops at trendingScan=200; activity is a 20-slot ring; the other shelves are window/IterateByOffset of 16"
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1440,
+      "angle": "removed",
+      "summary": "A realm with no Render and a namespace with no realm ignore the args, yet every args variant is index, follow and names itself canonical: canonicalURL clears Args only for views it can see in the URL",
+      "failure_scenario": "GET /r/gnoland:anything-at-all (Realm not found, fetchRealm falls back to GetPathsListView) and GET /r/gnoland/norender:anything-at-all (ErrClientRenderNotDeclared, fallback to GetDirectoryView) each answer 200, robots index, follow, canonical and og:url https://gno.land/r/gnoland:anything-at-all, the same listing as the bare URL. Official pages get this in every -index-community mode, community ones under all. It is the round-2 args Warning's missed sibling: the author's reply says the canonical drops args wherever Render does not read them, and neither fallback runs Render.",
+      "verify_by": "cp reviews/pr/6xxx/6229-give-every-page-title/3-ea1c620f7/tests/b3-lines-removed-reach-catalog-canonical-siblings_test.go gno.land/pkg/gnoweb/zz_b3r3_test.go && go test ./gno.land/pkg/gnoweb -run TestB3R3_FallbackViewsKeepArgs -v -count=1: expect the args variant's canonical to equal the bare one, observe a self-canonical keeping the args",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head ea1c620f7, go test -run TestB3R3_FallbackViewsKeepArgs -v: '/r/gnoland/norender status=200 robots=\"index, follow\" canonical=\"https://gno.land/r/gnoland/norender\"'; '/r/gnoland/norender:anything-at-all status=200 robots=\"index, follow\" canonical=\"https://gno.land/r/gnoland/norender:anything-at-all\"'; '/r/gnoland:anything-at-all status=200 robots=\"index, follow\" canonical=\"https://gno.land/r/gnoland:anything-at-all\" title=\"realms by gnoland - gno.land\"'; under all also '/r/nym/norender:anything-at-all ... robots=\"index, follow\" canonical=\"https://gno.land/r/nym/norender:anything-at-all\"'. --- FAIL: TestB3R3_FallbackViewsKeepArgs. The PR's own TestHTTPHandler_CanonicalDropsIgnoredArgs passes (ok).",
+      "repro_path": "reviews/pr/6xxx/6229-give-every-page-title/3-ea1c620f7/tests/b3-lines-removed-reach-catalog-canonical-siblings_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 329,
+      "angle": "reach",
+      "summary": "A GnowebPath alias keyed /license.md or /Terms still gets the canonical https://gno.land//license.md, a 400. The round-2 dotted-key fix routes only static aliases through the raw key",
+      "failure_scenario": "Run gnoweb with -aliases '/license.md=/r/gnoland/pages:p/license' or '/Terms=...'. GET /license.md answers 200, index, follow, with <link rel=canonical> and og:url https://gno.land//license.md, because ParseFromURL(&requested) reads the last segment as File under Path '/'. GET //license.md answers 400 Invalid path. The target /r/gnoland/pages:p/license names https://gno.land/license.md as its canonical, so the chain ends at a 400 and shared links point there. When the realm gives no lead, the title falls back to the bare 'gno.land', since pathName of Path '/' is empty, while /about reads 'about - gno.land'.",
+      "verify_by": "same file copied in, go test ./gno.land/pkg/gnoweb -run TestB3R3_RealmAliasDottedKey -v -count=1: expect canonical https://gno.land/license.md, observe https://gno.land//license.md",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head ea1c620f7: '/about status=200 robots=\"index, follow\" canonical=\"https://gno.land/about\" title=\"about - gno.land\"'; '/license.md status=200 robots=\"index, follow\" canonical=\"https://gno.land//license.md\" og:url=\"https://gno.land//license.md\" title=\"gno.land\"'; '/Terms status=200 ... canonical=\"https://gno.land//Terms\"'; '/r/gnoland/pages:p/license ... canonical=\"https://gno.land/license.md\"'; '//license.md status=400 robots=\"noindex, nofollow\" title=\"Invalid path - gno.land\"'. --- FAIL: TestB3R3_RealmAliasDottedKey. TestHTTPHandler_StaticAliasNamedLikeAFile passes, so only the static half is fixed.",
+      "repro_path": "reviews/pr/6xxx/6229-give-every-page-title/3-ea1c620f7/tests/b3-lines-removed-reach-catalog-canonical-siblings_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/page_kind.go",
+      "line": 77,
+      "angle": "reach",
+      "summary": "aliasTargets keys an alias by its target's path and args, dropping the $ view, so an alias to $source or $help becomes the bare realm page's canonical",
+      "failure_scenario": "Run -aliases '/src=/r/gnoland/pages$source' with no shorter plain alias for that realm. canonicalURL's aliasFor (handler_http.go:1449) then gives GET /r/gnoland/pages, the rendered realm, at 200, index, follow, with canonical and og:url https://gno.land/src, which is the source view. With '/actions=/r/gnoland/home$help', /r/gnoland/home names /actions as canonical, and /actions answers noindex, follow, so search engines are told to replace the realm page with one kept out of the index.",
+      "verify_by": "same file copied in, go test ./gno.land/pkg/gnoweb -run TestB3R3_ViewAliasTakesRealmCanonical -v -count=1: expect /r/gnoland/pages canonical https://gno.land/r/gnoland/pages, observe https://gno.land/src",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head ea1c620f7: '/r/gnoland/pages status=200 robots=\"index, follow\" canonical=\"https://gno.land/src\" og:url=\"https://gno.land/src\"'; '/r/gnoland/home status=200 robots=\"index, follow\" canonical=\"https://gno.land/actions\"'; '/src status=200 robots=\"index, follow\" canonical=\"https://gno.land/src\"'; '/actions status=200 robots=\"noindex, follow\" canonical=\"\" og:url=\"https://gno.land/actions\"'. --- FAIL: TestB3R3_ViewAliasTakesRealmCanonical. The CLI's parseAliases (cmd/gnoweb/main.go:421) accepts a $source or $help target, since it splits only on '='.",
+      "repro_path": "reviews/pr/6xxx/6229-give-every-page-title/3-ea1c620f7/tests/b3-lines-removed-reach-catalog-canonical-siblings_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1455,
+      "angle": "lines",
+      "summary": "A file view /r/x/render.gno and /r/x$source&file=render.gno render the same source view, and each is index, follow and names itself canonical",
+      "failure_scenario": "GetPackageView (handler_http.go:570) sends both URLs to GetSourceView with fileName render.gno. canonicalURL gives https://gno.land/r/gnoland/blog/render.gno for the first and appends $source&file=render.gno for the second (1455-1458), so one page is published under two self-canonical URLs. TestHTTPHandler_PageMetadata pins the second form, and TestHTTPHandler_CanonicalDropsIgnoredArgs the first.",
+      "verify_by": "GET /r/gnoland/path/render.gno and /r/gnoland/path$source&file=render.gno through newMetadataHandler and compare the canonical hrefs; read handler_http.go:569-571 and 1440-1458",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "Read: handler_http.go:570 `if gnourl.IsFile() || gnourl.WebQuery.Get(\"file\") != \"\" {` routes both to GetSourceView; 1440 clears Args on IsFile; 1455 `canonical += \"$source\"` then `&file=`. Not run (Nit).",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1443,
+      "angle": "lines",
+      "summary": "rewriting a pure package file's Path to /p/<pkg> could drop the separator before File (/p/nym/liblib.gno)",
+      "settled_by": "weburl/url.go ParseFromURL trims a file URL's upath to the last '/' (`if i := strings.LastIndexByte(upath, '/'); i > 0 { upath = upath[:i] }`) and Encode writes `urlstr.WriteRune('/'); urlstr.WriteString(gnoURL.File)`, so /p/nym/lib/lib.gno keeps Path /p/nym/lib and encodes back with the slash"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1506,
+      "angle": "reach",
+      "summary": "og:image built with path.Join over AssetsPath breaks when AssetsPath is an absolute CDN URL",
+      "settled_by": "app.go:132 `assetsBase := \"/\" + strings.Trim(cfg.AssetsPath, \"/\") + \"/\" // sanitize`: AssetsPath is always a root-relative path"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1645,
+      "angle": "catalog",
+      "summary": "pr shared with the renderReadme goroutine in GetOverviewView could race",
+      "settled_by": "renderReadme only reads pr through h.renderContext(pr) (page_kind.go:230-236, `Links: pr.links`) and discards RenderRealm's meta; no goroutine writes pr"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 607,
+      "angle": "reach",
+      "summary": "the paths-listing fallback could index every string prefix of a namespace (/r/gnoland/b, /r/gnoland/bl, ...)",
+      "settled_by": "handler_http.go:1157 `prefix := path.Join(h.Static.Domain, gnourl.Path) + \"/\"`: the listing is bounded by path segment, not by string prefix"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 429,
+      "angle": "lines",
+      "summary": "classifyPage's X-Robots-Tag set before the state handler could leave two header values",
+      "settled_by": "grep X-Robots-Tag over gnoweb non-test .go: every writer (handler_http.go:429/444, feature/state/json.go:139, fragments.go:282, page.go:302) uses Header().Set"
+    }
+  ]
+}

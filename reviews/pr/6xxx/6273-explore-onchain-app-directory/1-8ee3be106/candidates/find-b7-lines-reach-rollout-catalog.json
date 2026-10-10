@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/view.go",
+      "line": 263,
+      "angle": "lines",
+      "summary": "eligible() cuts the Spotlight pool at the first 12 eligible apps in shelf order, and New comes first, so the operator cap never counts the earned apps on Top",
+      "failure_scenario": "The realm sends the home shelves as New, Top, Trending, Updated, Rediscover, essentials, and New carries the 16 newest named apps. Put 12 trusted-tier apps on New and 4 earned apps on Top: eligible() returns at 12 with earned=0, so capped is false, and the hero plus the Spotlight are 4 operator apps every day ([t01 t02 t03 t04], then [t02 t04 t05 t06], ...). featured's doc says 'Once spotlightSize apps have earned their place, the operator's own apps take one place at most, hero included'. The earned apps never reach the Spotlight. The premise at line 249, 'the realm's shelf order, which puts quality first', is false: the first shelf is New, ordered by age.",
+      "verify_by": "copy tests/b7-lines-reach-rollout-catalog-featured-pool_test.go into gno.land/pkg/gnoweb/feature/store/ and run go test ./gno.land/pkg/gnoweb/feature/store/ -run TestB7FeaturedCapBehindTrustedNew -v: expect at most 1 trusted among hero+spot, observe 4",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "day 0: hero+spot=[t01 t02 t03 t04] trusted=4 / day 0: 4 operator apps among hero and Spotlight, want at most 1 once 4 apps earned their place / --- FAIL: TestB7FeaturedCapBehindTrustedNew",
+      "repro_path": "tests/b7-lines-reach-rollout-catalog-featured-pool_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/view.go",
+      "line": 338,
+      "angle": "reach",
+      "summary": "trending() only considers apps inside the 12-app pool, so an eligible app leading the week is never the hero when New holds 12 eligible apps",
+      "failure_scenario": "An earned app leads the trending shelf with 50 ranked stars this week. Twelve eligible apps on New fill the pool before it, so trending() skips it (slices.Contains(pool, l) is false) and the hero falls back to the daily rotation, labelled 'In the spotlight today', on t01. featured's doc says 'else the eligible app with the most momentum this week'. On a quiet chain the 16 apps on New are all old enough to be earned, so this holds for any trending leader that is not also on New. Same root as the pool cut at line 263.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb/feature/store/ -run TestB7TrendingHeroBehindTrustedNew -v with the same repro file: expect hero=hot, observe hero=t01",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "hero=t01 label=\"In the spotlight today\" / hero t01 (\"In the spotlight today\"), want the eligible app with the most momentum, hot / --- FAIL: TestB7TrendingHeroBehindTrustedNew",
+      "repro_path": "tests/b7-lines-reach-rollout-catalog-featured-pool_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/view.go",
+      "line": 454,
+      "angle": "rollout",
+      "summary": "The pulse says the newest activity event 'just joined', but the event has no height, and the realm keeps the seed's 'listed' events indefinitely, so the store shows stale events as news",
+      "failure_scenario": "seed.gno's init upserts 12 listings at deploy, and each one tracks a 'listed' event. The activity ring (pulse.gno) has no expiry, and api/v1/home serves events as kind/slug/stars with no height. A year after deploy, with no new event, api/v1/home still serves [{\"kind\":\"listed\",\"slug\":\"valopers\"},...], and gnoweb draws the pulse line 'Block 6307200 · <n>s ago · Valopers just joined'. Valopers joined at deploy. The same holds for any listing on an idle store. gnoweb has no field to tell the event's age, so the error is invisible to it.",
+      "verify_by": "copy tests/b7-lines-reach-rollout-catalog-stale-moment_test.gno into examples/gno.land/r/gnoland/store/v0/ and run cd examples && gno test ./gno.land/r/gnoland/store/v0 -run TestB7StaleSeedMoment -v (passes: same seed activity a year later), then tests/b7-lines-reach-rollout-catalog-stale-moment_test.go in the gnoweb store package with -run TestB7MomentHasNoAge",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "realm: at seed and year later both print [{\"kind\":\"listed\",\"slug\":\"valopers\",\"stars\":0},{\"kind\":\"listed\",\"slug\":\"govdao\",\"stars\":0},...] --- PASS: TestB7StaleSeedMoment; gnoweb: pulse: Block 6307200 · \"Valopers just joined\"",
+      "repro_path": "tests/b7-lines-reach-rollout-catalog-stale-moment_test.gno"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/view.go",
+      "line": 493,
+      "angle": "catalog",
+      "summary": "shortPath keeps only 4 data and 4 checksum characters of an address namespace, so a 40-bit vanity grind gives a look-alike namespace with the same short path, against the comment's 'never hidden by truncation'",
+      "failure_scenario": "TruncMiddle(ns, 6, 4) shows 'g1', the first 4 data characters and the last 4 checksum characters ('g17zyd…9cxg/poll', store_test.go:332). At 5 bits per character that is 40 bits, about 1.1e12 key generations, which a GPU vanity search covers in minutes. An attacker grinds an address whose short path equals another anonymous app's, and their card's path line reads the same. Only the hover title shows the full path. Both cards carry the Community mark and titles stay unique, so the loss is the path line as an identifier.",
+      "verify_by": "read store_test.go:332 for the shown characters and count the free bits: 4 data chars after g1 plus 4 checksum chars = 8 x 5 bits",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/render.gno",
+      "line": 131,
+      "angle": "catalog",
+      "summary": "listing Title written into Render markdown unescaped (render-markdown pattern)",
+      "settled_by": "md.gno:257-258 'return \"[\" + sanitize.InlineText(text) + \"](\" + sanitize.URL(url) + \")\"'; store_test.gno:1020 asserts '**[Block \\\\*App\\\\* \\\\[x\\\\]\\\\(y\\\\)](/r/blockns/app)**'"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/render.gno",
+      "line": 96,
+      "angle": "reach",
+      "summary": "?page=9223372036854775807 overflows the pager offset before the clamp",
+      "settled_by": "pager.gno:77-81 'if pageNumber > totalPages { page.PageNumber = pageNumber ... return page }': no offset is computed past the last page"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/seed.gno",
+      "line": 13,
+      "angle": "rollout",
+      "summary": "seed lists paths that do not exist in examples, giving dead links in gno.land essentials",
+      "settled_by": "test -d over the 12 seed paths printed 'ok' for each, r/gnoland/boards2/v0 through p/moul/md/v0"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/seed.gno",
+      "line": 33,
+      "angle": "lines",
+      "summary": "seeded core apps would show as Community in gnoweb if their namespace is outside the trusted list",
+      "settled_by": "main.go:70 defaultTrustedPaths = \"gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,...\" covers every seed namespace"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/view.go",
+      "line": 360,
+      "angle": "catalog",
+      "summary": "view builders read the shared cached response concurrently and might race",
+      "settled_by": "go test -race ./gno.land/pkg/gnoweb/feature/store/ printed no DATA RACE; the only failure was the planted TestB7FeaturedCapBehindTrustedNew"
+    }
+  ]
+}

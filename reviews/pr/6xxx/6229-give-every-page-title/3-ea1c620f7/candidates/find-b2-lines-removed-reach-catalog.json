@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 49,
+      "angle": "lines",
+      "summary": "A lowercase 'word: text' prose line between an opening thematic break and a later one makes the block front matter, so everything between the two rules, a heading included, is cut from the served page",
+      "failure_scenario": "Static alias file '---\\n\\n# Welcome\\n\\nnote: the testnet resets every week.\\n\\n---\\n\\nMore text...\\n': line 49 admits 'note' as a front matter key (lowercase word, colon then space), line 52 skips '# Welcome' as a YAML comment, sawKey goes true and target.Value becomes only the text after the second rule. GET /about serves 200, index, follow, title 'about - gno.land' (the H1 is gone, so the title falls back to the path), with neither the heading nor the note. At the merge base main.go:393 stored a static file verbatim (AliasTarget{Value: string(content)}), so the whole page rendered. This is the class gfanton raised in threads 4145044203 and 4156217924; the narrowing since covers capitalised prose, URLs, mailto and headings alone, not a lowercase key-shaped line. Fix: take a block as front matter only when it sets a known key (title or description), or when no blank line follows the opening fence.",
+      "verify_by": "cp tests/b2-lines-removed-reach-catalog-front-matter_test.go gno.land/pkg/gnoweb/zz_front_matter_r3_test.go && go test ./gno.land/pkg/gnoweb -run 'TestZZR3LowercaseProseServed|TestZZR3FrontMatter/lowercase' -v: expect the heading and the note in the body, observe welcome=false note=false",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head ea1c620f7, scratch worktree: TestZZR3LowercaseProseServed logs '<title>about - gno.land</title>', '<meta name=\"robots\" content=\"index, follow\" />', 'status=200 welcome=false note=false more=true', --- FAIL; NewStaticAlias case logs title=\"\" description=\"\" body=\"More.\\n\". Base main.go:393 'aliases[parts[0]] = gnoweb.AliasTarget{Value: string(content), Kind: gnoweb.StaticMarkdown}'.",
+      "repro_path": "tests/b2-lines-removed-reach-catalog-front-matter_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 122,
+      "angle": "claims",
+      "summary": "A trailing ' # comment' on a plain value and a '' escape in a single-quoted value still land in the title, though the reply to the round-2 Nit says it was fixed in 6fa5b8400",
+      "failure_scenario": "'title: About # shipped with the node' gives the title 'About # shipped with the node'; \"title: 'It''s gno'\" gives \"It''s gno\". The round-2 Nit named three shapes; the reply (4220141043) covers only the wrapping-pair one. Fix: cut an unquoted value at ' #', and replace '' with ' inside a single-quoted value.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb -run 'TestZZR3FrontMatter/r2_(trailing|single)' -v with the artifact copied in: expect About and It's gno",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "title=\"About # shipped with the node\"; title=\"It''s gno\"",
+      "repro_path": "tests/b2-lines-removed-reach-catalog-front-matter_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 111,
+      "angle": "reach",
+      "summary": "A quoted value on the line after its key keeps its quotes, since the empty first part gives the joined value a leading space and the pair check at line 122 fails",
+      "failure_scenario": "'title:\\n  \"Gno: a language\"' makes scalarValue append \"\" and then the quoted line, so Join returns ' \"Gno: a language\"'. value[0] is ' ', the pair is never removed, and the title reads \"Gno: a language\" with both quotes kept. Fix: append first only when it is non-empty, or TrimSpace the joined value before the quote check.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb -run 'TestZZR3FrontMatter/quoted_value_on_the_line_after' -v with the artifact copied in: expect Gno: a language",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "title=\"\\\"Gno: a language\\\"\"",
+      "repro_path": "tests/b2-lines-removed-reach-catalog-front-matter_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 30,
+      "angle": "removed",
+      "summary": "A closing fence at end of file with no trailing newline is not found, so the front matter renders as a rule and text; the round-2 Nit named this case and the fix covered only BOM and CRLF",
+      "failure_scenario": "'---\\ntitle: About\\n---' (front matter only, no final newline) fails Cut(rest, \"\\n---\\n\") and returns the content unchanged: no title, the YAML shown on the page. Fix: also accept rest ending in \"\\n---\".",
+      "verify_by": "go test ./gno.land/pkg/gnoweb -run 'TestZZR3FrontMatter/closing_fence' -v with the artifact copied in: expect title About and empty body",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "title=\"\" description=\"\" body=\"---\\ntitle: About\\n---\"",
+      "repro_path": "tests/b2-lines-removed-reach-catalog-front-matter_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 64,
+      "angle": "removed",
+      "summary": "Round-2 Warning: a folded or literal block scalar or a wrapped plain description became '>' or '|' or lost its continuation",
+      "settled_by": "go test ./gno.land/pkg/gnoweb -run TestZZR3 -v at ea1c620f7: r2 cases pass with title=\"About\" description=\"What gno.land is and why it exists.\", description=\"What gno.land is.\"; TestZZR3FrontMatterHead serves '<meta name=\"description\" content=\"What gno.land is and why it exists.\" />' and the same og:description and twitter:description, --- PASS. Fixed by scalarValue in 6fd6f4d16"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/layouts/head.html",
+      "line": 37,
+      "angle": "lines",
+      "summary": "og:image:width 1200 and height 630 are hardcoded for every card image",
+      "settled_by": "file frontend/static/imgs/og-*.png public/imgs/og-*.png: all eight read 'PNG image data, 1200 x 630'; cmp shows each static and public pair identical"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/layouts/head.html",
+      "line": 61,
+      "angle": "removed",
+      "summary": "The unconditional robots meta became conditional, so a render path without Robots would drop it",
+      "settled_by": "grep 'IndexLayout(' handler_http.go: renders at 296, 366, 411, each preceded by setHead (294, 364, 407), which sets head.Robots = r.String(); robots.String() at community_index.go:64-72 returns 'index, follow', 'noindex, follow' or 'noindex, nofollow', never empty"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/context.go",
+      "line": 84,
+      "angle": "reach",
+      "summary": "A parser context built without Links might follow links by default",
+      "settled_by": "ext_links.go:74 'FollowNoLinks LinkPolicy = iota', so the zero value follows nothing; grep NewGnoParserContext( outside tests: render.go:137, whose mdctx.Links = ctx.Links comes from renderContext(pr) (page_kind.go:235 'Links: pr.links') at every RenderRealm call (handler_http.go:543, 624, 903, 1063), and ext_foreign.go:382"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/context.go",
+      "line": 46,
+      "angle": "reach",
+      "summary": "getGnoContext now hands the outer link policy to the foreign inner context, which could follow foreign links on an operator page",
+      "settled_by": "ext_foreign.go:389 markForeignOrigin(innerCtx) runs before Convert; ext_links.go:185 untrusted := isForeignOrigin(pc) and :270 'gnoLink.Followed = !gnoLink.Untrusted && links.follows(...)', so a foreign link is never followed whatever the policy; mentions are exempted at :216 by design and pinned by TestForeign_MentionKeepsUserChrome"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/og-cards/quantize.go",
+      "line": 1,
+      "angle": "catalog",
+      "summary": "A package main under gno.land/pkg would join ./... builds and lint",
+      "settled_by": "sed -n 1p quantize.go: '//go:build ignore'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/og-cards/card.swift",
+      "line": 25,
+      "angle": "lines",
+      "summary": "CTFontCreateWithName(\"Inter\") could miss the registered font and fall back silently",
+      "settled_by": "fc-scan --format '%{family}' Intervar.woff2: 'Inter | Inter Regular | Inter-Regular', the family name the script asks for"
+    }
+  ]
+}

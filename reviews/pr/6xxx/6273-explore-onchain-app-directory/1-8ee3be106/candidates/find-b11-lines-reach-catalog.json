@@ -1,0 +1,76 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/pulse.gno",
+      "line": 62,
+      "angle": "lines",
+      "summary": "track() pushes every indexed listing's event into the 20-slot activity ring, services and packages included, while writeActivity serves app events only, so toolbox listings evict every app event and the home activity feed reads empty",
+      "failure_scenario": "Register an app (feed-app), then list 20 services (Claim kind service + Register from the service realm). Each confirm calls track(\"listed\"), which checks l.indexed() but not l.shownApp(), so the ring's 20 slots all hold service events; api/v1/home then writes \"activity\":[] although feed-app's listed event exists and is newer than every core-app event. The gnoweb pulse moment (latestMoment over res.Activity) goes blank too. activitySize's own comment budgets room only for hidden listings and kind changes, not for kinds the feed never serves",
+      "verify_by": "gno test . -run TestActivityFloodedByServices -v in examples/gno.land/r/gnoland/store/v0 with the repro copied in: expect activity to still start with feed-app, observe []. Fix to check: push to activity only when l.shownApp(), keeping pulseListed.add on indexed()",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "activity before: [{\"kind\":\"listed\",\"slug\":\"feed-app\",\"stars\":0},{\"kind\":\"listed\",\"slug\":\"valopers\",...}] / activity after: [] / --- FAIL: TestActivityFloodedByServices",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6273-explore-onchain-app-directory/1-8ee3be106/tests/b11-lines-reach-catalog-activity-toolbox-flood_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/shelves.gno",
+      "line": 144,
+      "angle": "reach",
+      "summary": "trending() walks appTrend.slots in array order (epoch % 7) and shares one trendingScan budget across them, so trendingScan entries in a lower-indexed slot exhaust the scan before a far hotter app in a later slot is read: Trending omits the week's top app and depends on slot layout, not stars",
+      "failure_scenario": "Hot app gets 5 ranked stars at epoch 1105 (slot 6). At epoch 1106 (slot 0) 200 apps get 2 ranked stars each. trending(h,10) visits slot 0 first; once best is full its cutoff is 2 and bound 2 < 2 is false, so all 200 entries are scanned, scanned hits trendingScan and the loop breaks before slot 6. The home Trending shelf, the Trending list page and Block(\"trending\") show 2-star apps and drop the 5-star one, with nothing marking the result as truncated. Swapping the slots (hot in slot 0, fillers in slot 6) puts the hot app first: the order of the array, not the scores, decides. Reachable organically at 200 apps with 2+ ranked stars in a week, or by a filler set of free address-namespace apps",
+      "verify_by": "gno test . -run TestTrendingSlotOrderHidesHotApp -v (expect hotslot-app first, observe absent) then, alone, -run TestTrendingSlotOrderControl (same data, slots swapped: PASS). Fix to check: merge the seven descending slot iterators by bound, or give each slot its own share of trendingScan",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TestTrendingSlotOrderHidesHotApp: trending(h, 10): [\"slotfill0\",\"slotfill1\",\"slotfill10\",...] with hot.stars7d(h)==5 asserted; --- FAIL. TestTrendingSlotOrderControl: trending(h, 10): [\"hotctl-app\",\"ctlfill0\",...]; --- PASS",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6273-explore-onchain-app-directory/1-8ee3be106/tests/b11-lines-reach-catalog-trending-slot-order_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/shelves.gno",
+      "line": 50,
+      "angle": "catalog",
+      "summary": "findList's New and Top lists index apps.created and apps.stars, which hold the seeded core apps, while the core field says core apps are kept off New and Top and the shelves exclude them: on a fresh chain the New shelf reads \"No new app yet\" and its See all page lists the 7 genesis core apps as New",
+      "failure_scenario": "seed.gno:29 sets Confirmed on every seed, listing.gno:300 puts every confirmed app into apps.created, so api/v1/list/latest/1 and Render(\"latest\") list boards, blog, coins and the rest under the title New, and the home New shelf's more.count is 7 while its slugs are []; once a core app is starred, api/v1/list/top/1 lists it under Top though topApps skips core apps",
+      "verify_by": "Render(\"api/v1/home\") on a fresh store: New shelf \"slugs\":[] with more count 7; Render(\"api/v1/list/latest/1\") contains \"slug\":\"boards\"; settle against the author's intent for the lists (TestTopFloor only asserts More.count() >= len(Items))",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/shelves.gno",
+      "line": 150,
+      "angle": "lines",
+      "summary": "trending with n == 0 indexes best.scores[best.n-1] = scores[-1]",
+      "settled_by": "render.gno:144-148 clamps Block's n to [1, maxBlock]; findList passes pageSize (24); no other caller of trending (grep trending( over v0/*.gno)"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/shelves.gno",
+      "line": 188,
+      "angle": "reach",
+      "summary": "rotation's wrap clamp to start could ask window(ix, fresh, 0) for everything or repeat apps",
+      "settled_by": "p/nt/avl/v0/node.gno:395 `if limit <= 0 || offset >= node.size { return false }`; wrap <= start keeps [start..old-1] ++ [0..start-1] disjoint"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/pulse.gno",
+      "line": 101,
+      "angle": "reach",
+      "summary": "unstarring a star older than the ring decrements a reused slot below zero",
+      "settled_by": "pulse.gno:98 `if epoch <= r.last-n { return }` precedes the decrement, and the window [last-n+1, last] matches sum's loop at pulse.gno:107"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/pulse.gno",
+      "line": 60,
+      "angle": "lines",
+      "summary": "pulseListed counts services and packages on the apps home",
+      "settled_by": "gnoweb/feature/store/view.go:421 labels it \"apps & packages listed\": the count is meant global"
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 574,
+      "angle": "lines",
+      "summary": "foldRune folds only ASCII 0 and | (plus Cyrillic/Greek letters), while validText's mixing rule is set only by letters, so a non-Latin digit or symbol look-alike inside a Latin word lists beside the title it copies",
+      "failure_scenario": "Seed titles 'Boards' and 'Gno.land Blog' are listed. A realm registers 'B\\u1040ards' (Myanmar digit zero), 'Gn\\u0966.land Blog' (Devanagari zero) or 'Gno.\\u2223and Blog' (DIVIDES, the shape the code folds '|' to 'l' for): validText accepts each (digits and symbols never set foreign), titleKey keeps the code point ('b\\u1040ards' != 'boards'), and upsert returns '' instead of title_taken, so a visually identical impersonating title takes its own slot",
+      "verify_by": "cp tests/b10-lines-reach-catalog-titlekey-confusables_test.gno examples/gno.land/r/gnoland/store/v0/zz_b10_confusables_test.gno; cd examples/gno.land/r/gnoland/store/v0 && gno test . -run TestB10Confusable -v: expect title_taken for the 'myanmar zero', 'devanagari zero' and 'divides as l' cases, observe reason \"\"",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "myanmar zero validText=true titleKey(\"Boards\")=\"boards\" titleKey(\"B၀ards\")=\"b၀ards\" reason=\"\"; devanagari zero ... titleKey(\"Gn०.land Blog\")=\"gn०landblog\" reason=\"\"; divides as l ... titleKey(\"Gno.∣and Blog\")=\"gno∣andblog\" reason=\"\"; --- FAIL: TestB10ConfusableTitlesList",
+      "repro_path": "tests/b10-lines-reach-catalog-titlekey-confusables_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 552,
+      "angle": "catalog",
+      "summary": "titleKey folds no Lisu or Cherokee letter and validText refuses those scripts only next to Latin, so an all-Lisu or all-Cherokee title drawn as Latin capitals lists beside the original (the ADR's own ACME example)",
+      "failure_scenario": "An app titled 'ACME' is listed. Another registers the all-Lisu '\\uA4EE\\uA4DA\\uA4DF\\uA4F0' (rendered ACME) or all-Cherokee '\\u13AA\\u13DF\\u13B7\\u13AC': validText passes (foreign letters, no Latin), titleKey returns the Lisu string unchanged or lowercase Cherokee, and upsert returns '' instead of title_taken; the all-Cyrillic twin the ADR cites collides, these do not",
+      "verify_by": "same test, cases 'all Lisu' and 'all Cherokee': expect title_taken, observe reason \"\"",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "all Lisu validText=true titleKey(\"ACME\")=\"acme\" titleKey(\"ꓮꓚꓟꓰ\")=\"ꓮꓚꓟꓰ\" reason=\"\"; all Cherokee validText=true titleKey(\"ᎪᏟᎷᎬ\")=\"ꭺꮯꮇꭼ\" reason=\"\"",
+      "repro_path": "tests/b10-lines-reach-catalog-titlekey-confusables_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 334,
+      "angle": "reach",
+      "summary": "no test hides or re-kinds a namespace's oldest listing, so unindex's re-derivation of builder.First through firstCreated, and updateBuilder's buildersByFirst rekey on a First change, are unpinned",
+      "failure_scenario": "TestBuilders hides builderns-two, the newer listing, and compares First against itself (fresh[0].First); store_test.gno has no reference to firstCreated and no assertion on First, so deleting line 334 leaves 'New builders' ordered by a hidden listing's height with the suite green",
+      "verify_by": "delete 'b.First = firstCreated(l.Namespace, l)' at listing.gno:334 and run gno test ./examples/gno.land/r/gnoland/store/v0: expect a failure, observe none",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'firstCreated|.First ==|First:' store_test.gno returned no line; TestBuilders asserts builder{\"builderns\", 1, 0, fresh[0].First}",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 658,
+      "angle": "lines",
+      "summary": "submitRich carries no paused check, so SubmitRich updates icon and cover while the store is paused",
+      "settled_by": "sed -n '356,357p' gno.land/adr/adr-004-gnoweb-store.md: '`Pause` turns `Register` into a no-op and makes `Claim` panic; stars, `SubmitRich` and hiding keep working.'"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 288,
+      "angle": "reach",
+      "summary": "index() adds an unconfirmed claimed app to byCategory before the Confirmed return, so category pages and appCount include claims never deployed",
+      "settled_by": "grep -n 'Category pages' adr-004-gnoweb-store.md:623 '... apps only; the only place an unconfirmed claimed app shows.'"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 176,
+      "angle": "lines",
+      "summary": "upsert forces existing.Slug, so a hidden listing whose slug was taken meanwhile can never take a new one and never be unhidden",
+      "settled_by": "store_test.gno:102 'the slug argument is ignored on update'; adr-004 362-364 'Unhide ... refuses with slug_taken, title_taken or namespace_full if any was taken meanwhile.'"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 552,
+      "angle": "lines",
+      "summary": "titleKey keeps precomposed Latin diacritics (U+1ECD) unfolded while validText refuses the decomposed form",
+      "settled_by": "store_test.gno:230 TestTitleRules asserts validText(\"Tiếng Việt\") true; adr-004:1237 'Residual: confusables outside these folds remain'"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 342,
+      "angle": "reach",
+      "summary": "indexStars puts every app with one ranked star in apps.stars, so the :top list holds apps under topStars and core apps",
+      "settled_by": "adr-004:616 'Its list, `:top`, goes on with every starred app.'"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 362,
+      "angle": "catalog",
+      "summary": "updateBuilder skips only coreNamespaces, so the seed's p/moul/md gives moul a builder row",
+      "settled_by": "adr-004:749-750 'The list is not derived from the seed, which also lists a package of a personal namespace (`p/moul/md`)'"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 388,
+      "angle": "reach",
+      "summary": "builder rank Stars*16+Listings breaks its stars-then-listings order once Listings reaches 16",
+      "settled_by": "store_test.gno:818-820 TestBuilderRankFits asserts maxPerNamespace < 16; store.gno:44 maxPerNamespace = 5"
+    }
+  ]
+}

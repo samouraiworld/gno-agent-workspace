@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/templates/parts.html",
+      "line": 150,
+      "angle": "reach",
+      "summary": "The Build page's 'List your package' gnokey command fails as shown: -gas-wanted 20000000 is below Claim's cost (25.6M on a fresh chain), and it carries no -chainid, so gnokey signs for its default 'dev'",
+      "failure_scenario": "A namespace owner copies the store-claim snippet, fills NAMESPACE, RPC and KEY, and runs it against a chain whose ID is not 'dev': with -chainid added it still fails 'out of gas error' (GAS WANTED 20000000, GAS USED 25606611); with enough gas and no -chainid the node answers 'signature verification failed; verify correct account, sequence, and chain-id'. The page's only listing path for a package never lands. The store template gets only realmPath and domain (template.go newTemplates), so unlike ui/command.html it cannot fill -chainid or -remote from the configured ChainId/RemoteHelp.",
+      "verify_by": "cp tests/b6-lines-reach-catalog-claim-snippet.txtar gno.land/pkg/integration/testdata/b6_store_claim_snippet.txtar && go test ./gno.land/pkg/integration -run 'TestTestdata/b6_store_claim_snippet' -v",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Step 1, snippet flags plus -chainid=tendermint_test: 'GAS WANTED: 20000000 / GAS USED: 25606611 / Data: out of gas error'. Step 2, -gas-wanted 40000000 and no -chainid: 'signature verification failed; verify correct account, sequence, and chain-id'. Step 3, both fixed: 'OK! GAS USED: 25606591'. PASS. For scale, the sibling Register snippet deploys and lists (tests/b6-lines-reach-catalog-register-snippet.txtar) but the deploy costs 48,830,139 gas against 3,601,349 for a bare realm, and the page states no figure.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6273-explore-onchain-app-directory/1-8ee3be106/tests/b6-lines-reach-catalog-claim-snippet.txtar"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/templates/parts.html",
+      "line": 147,
+      "angle": "reach",
+      "summary": "No test runs either published snippet against the realm: TestSnippetsUseTheConfiguredRealm asserts only the import string, so the Claim command's gas shortfall and missing -chainid ship green",
+      "failure_scenario": "Claim's gas cost grows past the hard-coded 20000000 (it already has, at 25.6M) or Register's signature changes; store_test.go and store_govdao.txtar stay green since neither executes the store-claim or store-register text.",
+      "verify_by": "grep -n 'Claim\\|gas-wanted\\|chainid' gno.land/pkg/gnoweb/feature/store/store_test.go gno.land/pkg/integration/testdata/store_govdao.txtar: no Claim call and no snippet execution; then run tests/b6-lines-reach-catalog-claim-snippet.txtar as the missing case",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "store_test.go:208-222 TestSnippetsUseTheConfiguredRealm checks `import &#34;test.land/r/acme/store&#34;` only; grep of store_govdao.txtar for Claim returned no line.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/templates/parts.html",
+      "line": 144,
+      "angle": "lines",
+      "summary": "'Listed packages appear in Build' is false right after the snippet's Claim succeeds: a claimed package stays unconfirmed and shows nowhere until it has 3 ranked stars",
+      "failure_scenario": "Owner runs the corrected Claim command, gets OK!, opens Build: the package is absent from every shelf, since listing.gno:296 index() returns before toolbox.created/updated/stars are set while !Confirmed, and store.gno:89 says a claimed package 'shows nowhere' until confirmStars (3) ranked stars. The CTA gives no hint, and the card's star link only renders once a listing has stars.",
+      "verify_by": "sed -n '83,93p' examples/gno.land/r/gnoland/store/v0/store.gno and sed -n '286,300p' examples/gno.land/r/gnoland/store/v0/listing.gno; or append to the claim txtar: gnokey query vm/qrender --data gno.land/r/gnoland/store/v0:api/v1/build and ! stdout mylib",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "store.gno:89 '// Until then a claimed package or service shows nowhere'; listing.gno:296 'if !l.Confirmed {' precedes ix.created.Set.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/templates/parts.html",
+      "line": 124,
+      "angle": "reach",
+      "summary": "Register snippet's func init(cur realm) with store.Register(cross(cur), ...) might not deploy or list",
+      "settled_by": "tests/b6-lines-reach-catalog-register-snippet.txtar: addpkg 'OK! GAS USED: 48830139', then 'gnokey query vm/qrender --data gno.land/r/gnoland/store/v0:c/utilities' matched 'Your App Name'; PASS"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/handler.go",
+      "line": 16,
+      "angle": "lines",
+      "summary": "gnoweb pageSize might disagree with the realm's page size, making pageParam accept or reject the wrong pages",
+      "settled_by": "grep pageSize examples/gno.land/r/gnoland/store/v0/shelves.gno: '14: pageSize = 24', equal to handler.go:16"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/handler.go",
+      "line": 123,
+      "angle": "reach",
+      "summary": "pageParam bounds pages by the home category count, which might count a different set than the category index the page endpoint pages",
+      "settled_by": "api.gno:236 writeInt(b, int64(appCount(c.Key))) and listing.gno:514-515 appCount returns categoryMembers(category).Size(), the same tree apiCategory pages"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/handler.go",
+      "line": 123,
+      "angle": "reach",
+      "summary": "An empty category (count 0) passes pageParam as page 1, but the realm might answer pages 0 and paged() reject it",
+      "settled_by": "shelves.gno pageOf: 'if p.TotalPages == 0 { return out, 1 }'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/handler.go",
+      "line": 35,
+      "angle": "reach",
+      "summary": "gnoweb's fixed list keys might not match the keys the realm answers, leaving See all links unhandled",
+      "settled_by": "shelves.gno findList cases 'top', 'latest', 'updated', 'trending'; front.gno homeShelves uses exactly those four as More"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/templates/parts.html",
+      "line": 5,
+      "angle": "catalog",
+      "summary": "store/cover and store/icon emit .Art and .Glyph as template.HTML, a possible injection from listing text",
+      "settled_by": "cover.go:63 'built from constants and numbers only'; cover.go:69-71 icon wraps template.HTMLEscapeString(initials(l.Title))"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/templates/parts.html",
+      "line": 149,
+      "angle": "lines",
+      "summary": "Snippet categories 'utilities' and 'dev-tools' might not exist in the taxonomy, so a verbatim copy is rejected",
+      "settled_by": "taxonomy.gno:23 {\"dev-tools\", \"Dev tools\"} and :27 {\"utilities\", \"Utilities\"}"
+    }
+  ]
+}

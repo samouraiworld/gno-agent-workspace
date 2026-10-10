@@ -1,0 +1,17 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 1506,
+      "angle": "reach",
+      "band": "Nit",
+      "summary": "og:image is built with path.Join(\"/\", AssetsPath, card.image), which collapses an absolute AssetsPath such as https://cdn.example/ into /https:/cdn.example/..., so the card URL breaks wherever assets are served from another origin",
+      "failure_scenario": "gnoweb run with -canonical-origin https://gno.land and an assets path pointing at a CDN origin: og:image and twitter:image read https://gno.land/https:/cdn.example/imgs/og-community-realm.png, a 404, so every link preview shows no card",
+      "verify_by": "grep -n 'AssetsPath\\|assets-path' gno.land/cmd/gnoweb/main.go gno.land/pkg/gnoweb/app.go to confirm an operator can set an absolute assets path; then a handler test with Static.AssetsPath=\"https://cdn.example/\" and CanonicalOrigin set, asserting the og:image href",
+      "checked": false,
+      "fix_kind": "code"
+    }
+  ],
+  "notes": "No drop: every candidate's mechanism was read at ea1c620f7 and held (aliasKey encodes Path|Args only, page_kind.go:85; detectLinkType checks IsUser before the domain, ext_links.go:298; scalarValue appends an empty first part, alias_static.go:110; Cut(rest, \"\\n---\\n\") needs a trailing newline, alias_static.go:30; TestCanonicalURLArgs ranges DefaultAliases while app_test.go:181 writes it through NewDefaultAppConfig, app.go:120; gnodev staging keeps default TrustedPaths, setup_web.go:46). Candidates 8 and 18 are the same finding and should merge at the judge. Merges 9c4eb93ff and ad45835cf: ext_links.go resolution passes links to both replaceWithGnoLink calls, Makefile and description.go hunks clean. Unread for budget: og-cards card.swift, markdown/context.go, layout_index.go beyond HeadData, ADR."
+}

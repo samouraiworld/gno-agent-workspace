@@ -1,0 +1,98 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/validate.gno",
+      "line": 145,
+      "angle": "lines",
+      "summary": "validText refuses only letters of non-allowlisted scripts next to Latin, while the allowlist (Arabic, Hebrew, Devanagari...) holds Latin look-alikes; titleKey folds none of them, so a title one glyph away from a visible title is listed next to it",
+      "failure_scenario": "Visible \"Gnoland Swap\". Each of \"Gn\\u09E6land Swap\" (Bengali digit zero: Bengali is not on the allowlist, but a digit is not a letter so foreign stays false), \"Gn\\u0966land Swap\" (Devanagari zero), \"Gno\\u0627and Swap\" (Arabic alef for l), \"Gn\\u05E1land Swap\" (Hebrew samekh for o) and \"Gno\\u05C0and Swap\" (Hebrew paseq, the glyph of the ASCII '|' that titleKey folds to l) passes validText, gets a distinct titleKey and is registered. ADR T6 says Latin is refused next to letters of any script outside an allowlist that does not mimic Latin, and titleKey's comment says it covers what validText cannot refuse",
+      "verify_by": "gno test -v -run TestB8TitleHomoglyphs in examples/gno.land/r/gnoland/store/v0 with tests/b8-lines-reach-catalog-store_test.gno copied in as b8_test.gno: expect every copy refused or title_taken, observe all five listed",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "0 Gn\u09e6land Swap validText: true listed: true key: gn\u09e6landswap / 1 Gn\u0966land Swap validText: true listed: true key: gn\u0966landswap / 2 Gno\u0627and Swap validText: true listed: true / 3 Gn\u05e1land Swap validText: true listed: true / 4 Gno\u05c0and Swap validText: true listed: true; --- PASS: TestB8TitleHomoglyphs. ADR lists a full UTS #39 skeleton as future work, so the judge weighs this against that; the non-letter exemption and the allowlist letters are holes in the mitigation the ADR states as done",
+      "repro_path": "tests/b8-lines-reach-catalog-store_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/validate.gno",
+      "line": 177,
+      "angle": "reach",
+      "summary": "commonLatin admits every Latin Extended-B letter below U+0250 except the four click letters, including LATIN CAPITAL LETTER IOTA (U+0196, an l) and WYNN (U+01BF, a p); titleKey folds neither, so a pure-Latin copy of a title lists beside it",
+      "failure_scenario": "Visible \"Gnoland Pay\". \"Gno\\u0196and Pay\" (key gno\\u0269andpay) and \"Gnoland \\u01BFay\" (key gnoland\\u01BFay) both pass validText as common Latin and register beside it; the code already excludes U+01C0 for the same look-alike reason, and folds ASCII i/1/| to l",
+      "verify_by": "gno test -v -run TestB8LatinExtBLookalikes with the same artifact: expect title_taken or bad_title, observe both listed",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "0 Gno\u0196and Pay validText: true listed: true key: gno\u0269andpay orig key: gnolandpay / 1 Gnoland \u01bfay validText: true listed: true key: gnoland\u01bfay orig key: gnolandpay; --- PASS: TestB8LatinExtBLookalikes",
+      "repro_path": "tests/b8-lines-reach-catalog-store_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/admin.gno",
+      "line": 171,
+      "angle": "lines",
+      "summary": "a GovDAO pick is bound to the title alone: the app swaps its tagline at once, and its cover a day later, and keeps the \"Picked by GovDAO\" hero for the rest of the up-to-30-day pick",
+      "failure_scenario": "GovDAO executes ProposeSpotlight(\"bee-hero\", 7). The app's realm then calls Register with the same title and tagline \"Official GovDAO airdrop, claim yours now\": update() changes Tagline with no dropPick, picked() checks only shownApp and titleKey, and the home renders the new tagline under \"## Picked by GovDAO\". SubmitRich with a new cover shows after richDelay with picked() still true. ADR \u00a73 says the pick is for the app as it was voted on",
+      "verify_by": "gno test -v -run TestB8PickKeepsSwappedTagline with the artifact: expect picked() nil after the tagline or cover change, observe the pick kept",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "## Picked by GovDAO\n\n- **[Bee Hero](/r/beehero/app)** \u2014 Official GovDAO airdrop, claim yours now; cover in effect: ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi picked: true; --- PASS: TestB8PickKeepsSwappedTagline",
+      "repro_path": "tests/b8-lines-reach-catalog-store_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/admin.gno",
+      "line": 54,
+      "angle": "catalog",
+      "summary": "the Pause, Unpause and Unhide executors never run through GovDAO in any test: TestProposals only builds them, the pause test sets paused directly, unhide is called directly, and store_govdao.txtar executes only a hide and a pick",
+      "failure_scenario": "Mutate ProposePause's closure to paused = false (or ProposeUnhide's to return nil without unhide): store_test.gno and store_govdao.txtar stay green, so a broken emergency brake ships",
+      "verify_by": "grep -n 'Pause\\|Unhide' gno.land/pkg/integration/testdata/store_govdao.txtar returns nothing; store_test.gno:377 sets paused = true directly, :883-884 only build the requests; apply the mutation and run gno test . plus go test ./gno.land/pkg/integration -run TestTestdata/store_govdao",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/admin.gno",
+      "line": 181,
+      "angle": "reach",
+      "summary": "dropPick ends a pick by pointer identity, but no test hides or renames the picked app in a transaction after the one that set the pick",
+      "failure_scenario": "TestPick and TestPickEndsWithTheShownApp set the pick and hide or rename inside one test function; store_govdao.txtar executes the pick (lines 39-48) and stops. A pick.listing loaded in a later transaction that compared unequal would keep a hidden app in the hero, and nothing would go red",
+      "verify_by": "append to store_govdao.txtar a ProposeHide(\"boards\", \"other\") proposal, vote and execute after the pick, then Render api/v1/home and assert ! stdout '\"pick\"'",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/admin.gno",
+      "line": 53,
+      "angle": "lines",
+      "summary": "the pause proposal GovDAO votes on reads \"Pauses new listings and listing updates\", but SubmitRich, which the realm records as an update, keeps changing icons and covers while paused",
+      "failure_scenario": "GovDAO pauses during a phishing wave believing listing updates stop; a listed realm calls SubmitRich with a new cover, accepted while paused = true and shown after richDelay. ADR \u00a73 says SubmitRich keeps working, so the text voters read is what is wrong",
+      "verify_by": "gno test -v -run TestB8PausedSubmitRich with the artifact: Register update refused, SubmitRich accepted, cover in effect after richDelay",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "paused: true effective cover after richDelay: ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi; --- PASS: TestB8PausedSubmitRich",
+      "repro_path": "tests/b8-lines-reach-catalog-store_test.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+      "line": 135,
+      "angle": "lines",
+      "summary": "SubmitRich never reads paused, so a pause leaves icon and cover changes open (as a Warning)",
+      "settled_by": "sed -n 356,357p gno.land/adr/adr-004-gnoweb-store.md: \"`Pause` turns `Register` into a no-op and makes `Claim` panic; stars, `SubmitRich` and hiding keep working.\" Designed; kept only as the Nit on the proposal text"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/validate.gno",
+      "line": 142,
+      "angle": "reach",
+      "summary": "validSegment rejects a path segment starting with a digit, so a realm such as gno.land/r/ns/2048 could never Register",
+      "settled_by": "gnovm/pkg/gnolang/mempackage.go Re_name = r.G(r.C(`a-z`), ...) \"start with letter\", and IsRealmPath matches ReGnoUserPkgPath: such a path is no realm"
+    }
+  ]
+}

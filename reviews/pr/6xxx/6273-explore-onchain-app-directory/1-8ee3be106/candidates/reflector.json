@@ -1,0 +1,38 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+      "line": 178,
+      "angle": "reflector: caller identity (realm checklist)",
+      "summary": "Claim on a path a realm already registered overwrites that realm's title, tagline, category and kind through existing.update, and Register then keeps the claimed kind (kind = existing.Kind); authority is ownsNamespace, which r/sys/names grants to the CURRENT name holder only, so control of a deployed app's listing follows the name, not the deployer",
+      "failure_scenario": "alice deploys r/alice/swap, which Registers 'Alice Swap'. alice renames to alice2 (verifier.gno: authority over r/alice/* is lost). If r/sys/users lets another address take 'alice', that address calls Claim(\"gno.land/r/alice/swap\", ..., title 'Claim Free GNOT', kind 'service'): upsert finds the existing listing, the title check passes, update rewrites title/tagline/kind, and the realm's next Register keeps kind service. Even without re-registration, alice2 can no longer correct her own listing by Claim",
+      "verify_by": "filetest with names enabled: register alice, deploy r/alice/swap with Register in init, UpdateName to alice2, try RegisterUser('alice') from a second address, then Claim from it; check Render(\"api/v1/app/<slug>\") title and kind. If the name cannot be retaken, band drops to Suggestion (owner loses edit rights)",
+      "band": "Warning",
+      "checked": true,
+      "evidence": "upsert listing.gno:176-186: existing != nil -> existing.update(l, h) with no check that the listing was Registered by the realm; store.gno Register 'kind = existing.Kind // a service claimed by its owner stays one'; names verifier.gno:83-87 'the user keeps deploy authority over r/alice2/* but LOSES it for r/alice/*'"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 479,
+      "angle": "reflector: one-way state (catalog)",
+      "summary": "confirm() is one-way and removeStar never unconfirms, so three matured named addresses can confirm a claimed listing, unstar, and reuse the per-app slot elsewhere: T11's 'takes confirmStars ranked stars to confirm' holds only at one instant",
+      "failure_scenario": "Owner Claims a nonexistent package gno.land/p/x/fake. Three matured named addresses Star it (ranked), addStar calls l.confirm at n >= confirmStars, then each Unstars: removeStar drops the ranked entry but Confirmed stays true and the package stays on Build with 0 stars. Each address spends one of its 20 daily stars per listing confirmed, so 3 addresses confirm 20 claimed listings a day that show no stars",
+      "verify_by": "gno test with Claim of a /p/ path, 3 matured named stars, 3 Unstar: expect the package absent from api/v1/build, observe it present with stars 0",
+      "band": "Suggestion",
+      "checked": true,
+      "evidence": "listing.gno:259-265 confirm only sets Confirmed=true; listing.gno:479-490 removeStar touches book.all, pulseStars, recent and ranked, never Confirmed"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/admin.gno",
+      "line": 1,
+      "angle": "reflector: cap bypass via unhide (catalog: invariant re-check on state change)",
+      "summary": "maxPerNamespace is checked only on create (available), and visibleInNamespace skips hidden listings, so a GovDAO unhide may put a namespace over its cap",
+      "failure_scenario": "Namespace has 5 visible listings; GovDAO hides one (4 visible); the owner lists a fifth new one (cap check passes at 4); GovDAO later unhides the first: 6 visible, no check on the unhide path",
+      "verify_by": "read admin.gno's unhide execution for a visibleInNamespace check; gno test: hide one of 5, Register a new one, unhide, count visible listings in the namespace",
+      "band": "Nit",
+      "checked": false,
+      "evidence": ""
+    }
+  ]
+}

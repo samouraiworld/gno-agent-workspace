@@ -1,0 +1,146 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/listing.gno",
+      "line": 554,
+      "angle": "claims",
+      "summary": "titleKey lowercases before folding, so the Greek capitals Nu, Mu, Zeta and Upsilon fold away from the Latin letter they look like, and an all-Greek \"ΤΟΚΕΝ\" registers next to \"TOKEN\"",
+      "failure_scenario": "App A registers the title \"TOKEN\" (key \"token\"). Realm B then registers \"ΤΟΚΕΝ\" (Greek Tau Omicron Kappa Epsilon Nu). validText accepts it because it holds no Latin letter, so the mixing rule never fires. strings.ToLower turns Ν into ν and foldRune maps ν to 'v', which gives the key \"tokev\" != \"token\". upsert's uniqueness check passes and both listings show the same drawn title. The same holds for ZONE (key \"ζove\"), MINT (\"μlvt\") and KEY (\"keu\"). ADR T6 claims that Greek letters which look Latin fold \"to that letter\". The fold is permanent for the v0 path. Cyrillic һ (U+04BB) and ү (U+04AF) are also left unfolded.",
+      "verify_by": "copy tests/b1-claims-greek-capital-fold.gno into examples/gno.land/r/gnoland/store/v0 as b1_claims_fold_test.gno, then run gno test -v -run 'TestB1Greek' . there. Expected: equal keys, and mallory-token refused with title_taken. Observed: the keys differ and mallory-token is listed. The BOX control (every letter folds correctly) passes",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TOKEN: Greek twin accepted with a distinct key: \"token\" vs \"tokev\" / ZONE: ... \"zone\" vs \"ζove\" / MINT: ... \"mlnt\" vs \"μlvt\" / KEY: ... \"key\" vs \"keu\" / --- FAIL: TestB1GreekCapitalsFold; a second app took a title drawn as TOKEN: \"ΤΟΚΕΝ\" / --- FAIL: TestB1GreekTwinRegisters",
+      "repro_path": "tests/b1-claims-greek-capital-fold.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/validate.gno",
+      "line": 182,
+      "angle": "claims",
+      "summary": "isMimic refuses only U+1D400-1D7FF, so the double-struck, script and fraktur letters of Letterlike Symbols (U+2102-2149) pass validText, although T6 says mathematical alphanumerics are refused",
+      "failure_scenario": "A realm registers the title \"ℤℴℴℳ\" (script/double-struck Zoom) or \"ℍℴℳℯ\". These letters are script Common, not Latin, so latin stays false and the mixing rule never fires. isMimic covers only the U+1D400 block, whose holes are exactly these Letterlike code points. validText accepts the title, and titleKey leaves it unfolded, so it lists next to \"Zoom\" or \"Home\". The ADR's T6 and isMimic's own comment both say mathematical alphanumerics are refused, and v0 cannot be changed after deploy.",
+      "verify_by": "run gno test -v -run TestB1LetterlikeMathLetters with the same artifact: validText(\"\\u2124\\u2134\\u2134\\u2133\") and validText(\"\\u2102\\u210D\\u2115\") should be false; both are observed true. The U+1D400 control is refused",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "\"ℤℴℴℳ\" accepted though T6 says mathematical alphanumerics are refused / \"ℂℍℕ\" accepted though T6 says mathematical alphanumerics are refused / --- FAIL: TestB1LetterlikeMathLetters (the U+1D400 control did not fire)",
+      "repro_path": "tests/b1-claims-greek-capital-fold.gno"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+      "line": 186,
+      "angle": "claims",
+      "summary": "ADR T10 claims tests that try maketx run on the star functions, but no test calls Star or Unstar from a gno.land/e/<addr>/run realm, so starTarget's IsUserCall guard is never pinned against a run script",
+      "failure_scenario": "In store_test.gno, every Star call is made from NewUserRealm, or from NewCodeRealm(\"gno.land/r/starred/bot\") at line 492. The /e/ run realms appear only for Register (line 84) and Claim (line 285). If starTarget's guard were loosened to caller.IsUser(), which also accepts IsUserRun, a maketx run script could star on a user's behalf. That breaks the T8 claim that stars come from direct user calls only, and the whole suite stays green because the code-realm case still panics.",
+      "verify_by": "grep -n 'Star(cross' -B3 store_test.gno | grep SetRealm: no /e/ realm appears. Mutate store.gno:186 to `if !caller.IsUser() {`, run gno test . in the realm dir, and expect it to stay green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "the SetRealm lines before the Star(cross calls are NewUserRealm (lines 36, 56, 355, 397, 521, 580, 585) and NewCodeRealm(\"gno.land/r/starred/bot\") (line 492); the only /e/ realms are store_test.gno:84 (Register) and :285 (Claim)",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/view.go",
+      "line": 493,
+      "angle": "claims",
+      "summary": "An address namespace is cut to its first 6 and last 4 runes, which hides 30 of 40 characters, while the comment and ADR §7 say a look-alike namespace is never hidden by truncation",
+      "failure_scenario": "Listing A is at gno.land/r/g17zyd...9cxg/poll. An attacker grinds a key whose address matches the 4 data characters after \"g1\" and the last 4 checksum characters, about 2^40 key derivations, which a GPU vanity search can do. The attacker's card then shows the same \"g17zyd…9cxg/poll\" short path. The full path is only in the title tooltip, so the truncation hides exactly what tells the two namespaces apart.",
+      "verify_by": "in a Go test in feature/store, use bech32.Encode to vary the middle data until two valid g1 addresses share the first 6 and last 4 chars (about 2^20 encodes), then assert shortPath(a+\"/poll\") == shortPath(b+\"/poll\")",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/render.gno",
+      "line": 131,
+      "angle": "claims",
+      "summary": "Block/writeItems passes an unescaped listing title to md.Link, which would contradict 'one sanitized link per line'",
+      "settled_by": "grep of p/moul/md/v0/md.gno:257-258: func Link(text, url string) string { return \"[\" + sanitize.InlineText(text) + \"](\" + sanitize.URL(url) + \")\" }"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/store.gno",
+      "line": 186,
+      "angle": "claims",
+      "summary": "T8 says a maketx run script cannot star; suspected that IsUserCall accepts the ephemeral run realm",
+      "settled_by": "gnovm/stdlibs/chain/runtime/frame.gno:105-106: func (r Realm) IsUserCall() bool { return r.pkgPath == \"\" }, and a run realm is a separate IsUserRun (frame.gno:90)"
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 327,
+      "angle": "claims",
+      "summary": "ADR says -store-realm is validated at startup, a realm path or gnoweb refuses to start",
+      "settled_by": "main.go:327 `!u.IsRealm() || u.IsDir()` returns an error; weburl/url.go:240-241 IsRealm = HasPrefix(\"/r/\") && IsValidPath (reGnolandPath ^/[rpu]/([a-z][a-z0-9_/-]*)*$)"
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 390,
+      "angle": "claims",
+      "summary": "ADR/PR body: /explore is added before -aliases, so an operator's own /explore wins, and DefaultAliases is never mutated",
+      "settled_by": "main.go:338 appcfg.Aliases = withStoreAlias(...) runs before maps.Copy(appcfg.Aliases, aliases) at :346; withStoreAlias at :391-392 allocates `out := make(...)` and copies, so the shared map is never written"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/api.go",
+      "line": 151,
+      "angle": "claims",
+      "summary": "Resource bounds: realm JSON capped at 2 MiB before decoding; failure logged once per load",
+      "settled_by": "api.go:22 maxPayload = 2 << 20; decode checks len(body) > maxPayload before json.Unmarshal; the Warn is in decode's defer, which runs inside the singleflight load whose error is cached errorTTL (cache.go:18, 5 s)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/cache.go",
+      "line": 62,
+      "angle": "claims",
+      "summary": "Resource bounds: cached 30 s, singleflight, 4 s timeout detached from the request, at most 512 entries",
+      "settled_by": "cache.go:14 cacheTTL = 30s, :23 cacheMaxEntries = 512, :57 group.DoChan, :62 context.WithTimeout(context.WithoutCancel(ctx), fetchTimeout) with api.go:19 fetchTimeout = 4s; put() clears at the cap"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/layouts/header.html",
+      "line": 9,
+      "angle": "claims",
+      "summary": "ADR: aria-current on the store realm's Content tab only, not on $source or $help",
+      "settled_by": "header.html:9 sets aria-current only under `and (eq $.RealmURL.Path .) (not $.RealmURL.WebQuery)`, and $source/$help put a key in WebQuery"
+    },
+    {
+      "file": "gno.land/pkg/integration/testdata/store_govdao.txtar",
+      "line": 42,
+      "angle": "claims",
+      "summary": "ADR: the integration test proposes a hide and a pick shown as 'Feature boards as the front page's hero for 7 days', and api/v1/home then carries \"pick\":\"boards\"",
+      "settled_by": "txtar:28 stdout 'Hide blog from the store', :36 ! stdout '\"slug\":\"blog\"', :42 stdout 'Feature boards as the front page''s hero for 7 days', :48 stdout '\"pick\":\"boards\"'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/template.go",
+      "line": 71,
+      "angle": "claims",
+      "summary": "ADR Consequences: core grows 'with no change to existing behaviour'; truncMiddle now delegates to TruncMiddle, which differs for keep<=0",
+      "settled_by": "grep -rn truncMiddle gno.land/pkg/gnoweb (non-test): the only template call is views/overview.html:54 `truncMiddle . 6`, so no reachable output changes"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/store/listing.go",
+      "line": 95,
+      "angle": "claims",
+      "summary": "ADR §6: gnoweb accepts a superset of the realm's validation, showing whatever the realm accepts and dropping nothing silently",
+      "settled_by": "listing.go:105-114 displayable needs IsVisibleRune (layout_index.go:213: IsGraphic && !IsSpace && !Cf, plus the 5 fillers) and so accepts a superset of validText; reSlug {3,40}, palette <12, title 40 and tagline 80 runes match validate.gno:11-15; path segments [a-z][a-z0-9_-]* fit weburl's regex"
+    },
+    {
+      "file": "examples/gno.land/r/gnoland/store/v0/admin.gno",
+      "line": 1,
+      "angle": "claims",
+      "summary": "ADR §1: GovDAO executor callbacks return errors instead of panicking; hide/pick bound to path and folded title; Unhide refuses slug_taken/title_taken/namespace_full",
+      "settled_by": "admin.gno: hideBound/pickBound/unhide return error values only (checkSlugPath, errTitleChanged, available(l)); the only panics are in the Propose* builders at build time; available() checks listings.Has, byTitle.Has and visibleInNamespace >= maxPerNamespace"
+    },
+    {
+      "file": "gno.land/adr/adr-004-gnoweb-store.md",
+      "line": 1006,
+      "angle": "claims",
+      "summary": "Footprint claim '+100/-8 lines over 8 files' recounts to about +140/-45 over 11 core files (risk.md); it is wording only, and the code it describes is not defective",
+      "settled_by": "risk.md rows: main.go +34/-2, app.go +6/-1, handler_http.go +28/-14, header.html +8, 06-blocks.css +23/-1, main.css +1, layout_header.go +2, template.go +1/-7, layout_index.go +4/-4, shorten.go +30, sidebar.go +3/-16"
+    }
+  ]
+}

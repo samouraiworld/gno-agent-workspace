@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 84,
+      "angle": "reach",
+      "summary": "cmd/gnoweb's default -trusted-paths and -index-community=registered lend a stranger's h1 and paragraph to <title> and description on staging.gno.land, whose chain never enables r/sys/names",
+      "failure_scenario": "misc/loop/docker-compose.yml runs ghcr.io/gnolang/gno/gnoweb:master for staging.gno.land with neither -trusted-paths nor -index-community, against the portal loop chain, whose genesis (gno.land/genesis/genesis_txs.jsonl via misc/loop/scripts/start.sh) never calls r/sys/names.Enable. With verifier.gno's `enabled = false`, any account (funded by faucet-api.staging.gno.land) can addpkg under any namespace; addpkg_namespace.txtar shows `gno.land/r/randomname/one` answering OK before Enable. A stranger deploys gno.land/r/gnoland/airdrop rendering `# Official GNOT airdrop` plus a lure paragraph. gnoweb classifies it official and serves title `Official GNOT airdrop - gno.land`, the lure as description, robots `index, follow`, followed internal links and no realm notice. On master the same page was titled `gno.land - /r/gnoland/airdrop` with an empty description, so the lending comes from this PR. The ADR's own rule, that a chain without r/sys/names runs -index-community=none and its trusted list means nothing, is not applied to the in-tree staging deployment, which the PR leaves unchanged.",
+      "verify_by": "cp tests/b1-lines-removed-claims-reach-catalog-loop-defaults_test.go gno.land/cmd/gnoweb/zz_loop_defaults_test.go && go test ./gno.land/cmd/gnoweb -run TestLoopDefaultsLendUnenforcedNamespace -v -count=1; then the read-only probe `gnokey query vm/qeval --data \"gno.land/r/sys/names.IsEnabled()\" -remote https://rpc.staging.gno.land:443`, expect `false bool` (staging RPC answered 503 this session, so the live state is inferred from the genesis files)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TrustedPaths=[gnoland sys gov nt docs demo tests gnops devrels moul aeddi aib howl leon jeronimoalbi mason samcrew onbloc gnoswap] IndexCommunity=registered; status=200 title=\"Official GNOT airdrop - gno.land\" description=\"Claim your free GNOT airdrop at evil.example before it closes tonight.\" robots=\"index, follow\" X-Robots-Tag=\"\" notice=false. grep -c 'sys/names' gno.land/genesis/genesis_txs.jsonl -> 0; no names reference under misc/loop.",
+      "repro_path": "tests/b1-lines-removed-claims-reach-catalog-loop-defaults_test.go"
+    },
+    {
+      "file": "contribs/gnodev/setup_web.go",
+      "line": 46,
+      "angle": "reach",
+      "summary": "gnodev staging keeps DefaultTrustedPaths and -index-community=registered on a chain that never enables r/sys/names, and gnodev has no flag to change either",
+      "failure_scenario": "`gnodev staging`, which docs/resources/gnodev.md describes as tuned for server use, boots a chain where r/sys/names stays `enabled = false`: nothing in contribs/gnodev calls names.Enable. Any account can therefore deploy under `gnoland` or any other name, including the preloaded devtest account. gnoWebAppConfig leaves staging on gnoweb's default list and on `registered`. A deployer's gno.land/r/gnoland/airdrop is official: its h1 and paragraph become <title> and description with `index, follow`. Any other name, such as /r/brandname/airdrop, counts as registered and is indexed. The ADR says such a chain should run -index-community=none and treat its trusted list as meaningless, but gnodev exposes neither -trusted-paths nor -index-community, so a staging operator cannot follow that advice.",
+      "verify_by": "cp tests/b1-lines-removed-claims-reach-catalog-staging-trust_test.go contribs/gnodev/zz_staging_trust_test.go && cd contribs/gnodev && go test . -run TestStagingTrustsNamespacesItsChainDoesNotEnforce -v -count=1; grep -rn 'sys/names\\|Enable' contribs/gnodev/pkg/dev (expect no Enable call)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "staging TrustedPaths=[gnoland sys gov ... gnoswap] IndexCommunity=registered; /r/gnoland/airdrop status=200 title=\"Official GNOT airdrop - gno.land\" description=\"Claim your free GNOT airdrop at evil.example before it closes tonight.\" robots=\"index, follow\"; /r/brandname/airdrop robots=\"index, follow\" X-Robots-Tag=\"\". grep -rln 'sys/names' contribs/gnodev -> no hit.",
+      "repro_path": "tests/b1-lines-removed-claims-reach-catalog-staging-trust_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/render.go",
+      "line": 151,
+      "angle": "lines",
+      "summary": "RenderRealm walks the document for md.Lead on every render, though community pages, the user view and the README view discard it",
+      "failure_scenario": "handler_http.go:903 (user page) and :1063 (README) call RenderRealm as `_, err :=`. For every community page, mayRepeat is false, so the lead is never used. Each of these renders still pays the Lead walk and its buffers. The author's own benchmark after the 16-byte writer is 27 MB per op on a 20k-emphasis lead, which a community realm can force on every view for a value nobody reads.",
+      "verify_by": "grep -n 'RenderRealm(' gno.land/pkg/gnoweb/handler_http.go (903 and 1063 discard the meta); benchmark GetRealmView on a community realm whose lead is 20k emphasis spans, with and without the md.Lead call",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "contribs/gnodev/setup_web.go",
+      "line": 46,
+      "angle": "claims",
+      "summary": "round-2 Suggestion: the gnodev wildcard applied to staging too",
+      "settled_by": "staging run logged TrustedPaths=[gnoland sys gov ...] with no `*`; the wildcard is set only when !cfg.staging, and TestGnoWebAppConfigTrustsEveryPathLocallyOnly pins it"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/trusted_paths.go",
+      "line": 45,
+      "angle": "claims",
+      "summary": "round-2 Suggestion: trustedPathProblem accepted gnoland/*",
+      "settled_by": "realm_notice_test.go:45 `\"gnoland/*\": true`; go test ./gno.land/pkg/gnoweb -run TestTrustedPathProblem -> PASS"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/realm_notice.go",
+      "line": 15,
+      "angle": "removed",
+      "summary": "showRealmNotice classifies again inside the views and could disagree with classifyPage for an alias",
+      "settled_by": "handler_http.go:276-278 rewrites r.URL.Path to the alias target before ParseFromURL, so the views and classifyPage receive the same gnourl, and kind is a pure function of it"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/trusted_paths.go",
+      "line": 22,
+      "angle": "reach",
+      "summary": "the `*` short-circuit trusts the empty package the old pkg != \"\" guard excluded",
+      "settled_by": "page_kind.go:129-135 packagePath returns ok=false for an empty pkg, and kind returns pageSite before contains is reached"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/render.go",
+      "line": 64,
+      "angle": "removed",
+      "summary": "RenderRealm's return type changed from md.Toc to md.RealmMeta, which could break another implementer in the tree",
+      "settled_by": "grep -rn 'RenderRealm(' over the whole tree: the only implementations are HTMLRenderer and rawRenderer (handler_http_test.go:115), both updated"
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 177,
+      "angle": "reach",
+      "summary": "fs.TextVar panics at registration if the default does not round-trip",
+      "settled_by": "community_index.go:41-50 MarshalText gives \"registered\" and UnmarshalText matches it by String(); go test -race ./gno.land/cmd/gnoweb -run 'TestSetupTrust|TestIndexCommunityFlag|TestSetupWeb' -> ok"
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 272,
+      "angle": "catalog",
+      "summary": "the new parallel tests read the package-level defaultWebOptions and could race",
+      "settled_by": "go test -race -count=1 ./gno.land/cmd/gnoweb -run 'TestSetupTrust|TestIndexCommunityFlag|TestSetupWeb' -> ok 1.132s"
+    }
+  ]
+}

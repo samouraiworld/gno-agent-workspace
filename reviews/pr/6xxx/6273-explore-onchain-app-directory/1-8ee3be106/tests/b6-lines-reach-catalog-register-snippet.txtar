@@ -1,0 +1,51 @@
+# Check for gnolang/gno#6273 at 8ee3be106: the home page's "List your app"
+# snippet (gno.land/pkg/gnoweb/feature/store/templates/parts.html, define
+# "store/list-your-app") deploys and lists, placeholders filled. It also
+# measures the deploy's gas against a bare realm: 3,601,349 bare, 48,830,139
+# with the snippet's init and Badge, on a fresh chain.
+#
+# From a plain clone:
+#   git clone https://github.com/gnolang/gno && cd gno
+#   git fetch origin pull/6273/head && git checkout 8ee3be106cd932e3156197c4ce3a080520493eb9
+#   cp <this file> gno.land/pkg/integration/testdata/b6_store_register_snippet.txtar
+#   go test ./gno.land/pkg/integration -run 'TestTestdata/b6_store_register_snippet' -v
+
+loadpkg gno.land/r/gnoland/store/v0
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/bare -pkgpath gno.land/r/$test1_user_addr/bare -gas-fee 1000000ugnot -gas-wanted 200000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/app -pkgpath gno.land/r/$test1_user_addr/app -gas-fee 1000000ugnot -gas-wanted 200000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qrender --data gno.land/r/gnoland/store/v0:c/utilities
+stdout 'Your App Name'
+
+-- bare/gnomod.toml --
+module = "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/bare"
+gno = "0.9"
+-- bare/bare.gno --
+package bare
+
+func init(cur realm) {}
+
+func Render(path string) string { return "" }
+-- app/gnomod.toml --
+module = "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/app"
+gno = "0.9"
+-- app/app.gno --
+package app
+
+import "gno.land/r/gnoland/store/v0"
+
+func init(cur realm) {
+	store.Register(cross(cur), "your-slug", "Your App Name",
+		"What it does, in one line", "utilities", 0)
+}
+
+func Render(path string) string {
+	// Your app's stars as Explore counts them, and a link to star it.
+	return store.Badge("gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/app")
+}
