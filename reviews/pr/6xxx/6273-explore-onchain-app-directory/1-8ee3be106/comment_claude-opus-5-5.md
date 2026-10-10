@@ -1,4 +1,5 @@
 # Review: [#6273](https://github.com/gnolang/gno/pull/6273)
+Posted: https://github.com/gnolang/gno/pull/6273#pullrequestreview-5479893292
 
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. Fourteen Warnings sit in code the branch adds: five title look-alikes that list beside the original, a front-page shelf and an activity feed that address namespaces and toolbox listings can take over, a Trending scan that drops the top app by slot order, an ownership check that fails open during a names pause, a hero and Spotlight pool cut before earned apps are counted, a page error that is never logged, a clipped focus ring, and a Claim snippet that fails as written.
@@ -9,7 +10,11 @@ Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6273 8ee3be106
 Open the code: [gh](https://github.com/gnolang/gno/blob/8ee3be106cd932e3156197c4ce3a080520493eb9)
 Round: 1. 13 finders, one reflector, 31 candidates, the Criticals and Warnings run by their finders and judged by an agent that was not the finder, the rest judged by read; 2 refuted, none of them above Nit.
 
-## examples/gno.land/r/gnoland/store/v0/front.gno:64 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/front.gno#L64) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/front.gno#L64) · Warning
+## Body
+
+- Suggestion: [`validate`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/handler_http.go#L126) checks neither `Meta.Domain` nor the leading slash of `StoreRealm`, so [`store.New`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/feature.go#L57) panics without a domain and a slashless path never matches. I think `validate` should make both checks, a job only [`setupWeb`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/cmd/gnoweb/main.go#L326-L329) does today, and return the error from `NewHTTPHandler`.
+
+## examples/gno.land/r/gnoland/store/v0/front.gno:64 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/front.gno#L64) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/front.gno#L64) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365642)
 `listShelf(mustList("updated", h))` reads `apps.updated`, which [`touch`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L244-L255) fills with every indexed app whatever its namespace. A g1 address-namespace app thus gets a Recently updated card by changing its tagline, a front-page slot the [`newApps` comment](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/front.gno#L39-L42) denies those namespaces.
 
 <details><summary>repro</summary>
@@ -66,7 +71,7 @@ markdown Recently updated:    - **[Anon App](/r/g1veex2etpdehkuh6lta047h6lta047h
 `newApps` reads `namedApps`, which [`index`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L301) fills only when `!address(l.Namespace).IsValid()`. The cooldown applies per listing and keys are free, so staggered g1 listings can hold every card gnoweb draws on that shelf.
 </details>
 
-## examples/gno.land/r/gnoland/store/v0/listing.gno:554 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L554) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L554) · Warning
+## examples/gno.land/r/gnoland/store/v0/listing.gno:554 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L554) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L554) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365644)
 `titleKey` lowercases the title before [`foldRune`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L566) sees it, so Greek `Ν` and `Υ` [fold to `v` and `u`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L602-L605) and `Μ` and `Ζ` keep their own runes. An all-Greek `ΤΟΚΕΝ` thus keys as `tokev` and registers beside `TOKEN`.
 
 <details><summary>repro</summary>
@@ -126,7 +131,7 @@ a second app took a title drawn as TOKEN: "ΤΟΚΕΝ"
 ```
 </details>
 
-## examples/gno.land/r/gnoland/store/v0/listing.gno:567 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L567) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L567) · Warning
+## examples/gno.land/r/gnoland/store/v0/listing.gno:567 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L567) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L567) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365647)
 `foldRune` has no case for a Lisu or Cherokee letter, and [`validText`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/validate.gno#L151) refuses those scripts only beside a Latin letter. So an all-Lisu or all-Cherokee `ACME` keys apart from the Latin one and lists beside it.
 
 <details><summary>repro</summary>
@@ -185,7 +190,7 @@ all Cherokee     validText=true titleKey("ACME")="acme" titleKey("ᎪᏟᎷᎬ")
 ```
 </details>
 
-## examples/gno.land/r/gnoland/store/v0/listing.gno:572-574 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L572-L574) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L572) · Warning
+## examples/gno.land/r/gnoland/store/v0/listing.gno:572-574 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L572-L574) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L572) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365650)
 The `'0'` and `'1', '|'` cases of `foldRune` fold only the ASCII digits and bar, and [`validText`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/validate.gno#L145-L146) flags a foreign script only on a letter. So `B၀ards`, with a Myanmar zero, lists beside the seeded [`Boards`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/seed.gno#L13), and a Devanagari zero or U+2223 DIVIDES does the same to [`Gno.land Blog`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/seed.gno#L14).
 
 <details><summary>repro</summary>
@@ -247,7 +252,7 @@ myanmar zero     validText=true titleKey("Boards")="boards" titleKey("B၀ards")
 ```
 </details>
 
-## examples/gno.land/r/gnoland/store/v0/pulse.gno:62 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/pulse.gno#L62) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/pulse.gno#L62) · Warning
+## examples/gno.land/r/gnoland/store/v0/pulse.gno:62 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/pulse.gno#L62) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/pulse.gno#L62) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365653)
 `activity.push` runs for services and packages as well as apps, and [`writeActivity`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/api.gno#L188) serves app events only. So 20 service or package events after the newest app event fill the [20-slot ring](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/pulse.gno#L5), and the home activity feed shows nothing.
 
 <details><summary>repro</summary>
@@ -309,7 +314,7 @@ activity after: []
 `indexed()` is `!l.hidden && l.Confirmed` and lets every kind through; `shownApp()` adds `l.Kind == kindApp`. From 16 non-app events after the newest app events the feed shows fewer than 5 items, and from 20 it shows none.
 </details>
 
-## examples/gno.land/r/gnoland/store/v0/shelves.gno:144 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/shelves.gno#L144) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/shelves.gno#L144) · Warning
+## examples/gno.land/r/gnoland/store/v0/shelves.gno:144 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/shelves.gno#L144) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/shelves.gno#L144) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365658)
 `range appTrend.slots` walks the slots in array order under one [`trendingScan`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/shelves.gno#L16) budget of 200, so 200 two-star apps in an earlier slot end the scan before it reaches a later slot. Trending then drops the week's top app for the day it was starred, not for its stars.
 
 <details><summary>repro</summary>
@@ -388,7 +393,7 @@ trending(h, 10): ["hotctl-app","ctlfill0",...]
 The pruning test is `bound < best.scores[best.n-1]`, so entries tied with the n-th best score are never pruned and each one spends the budget. Reaching this needs 200 apps at 2 or more ranked stars filed in one epoch.
 </details>
 
-## examples/gno.land/r/gnoland/store/v0/store.gno:117 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/store.gno#L117) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/store.gno#L117) · Warning
+## examples/gno.land/r/gnoland/store/v0/store.gno:117 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/store.gno#L117) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/store.gno#L117) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365662)
 `ownsNamespace` returns `names.IsAuthorizedAddressForNamespace`, and that call [answers false for every address](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/sys/names/verifier.gno#L231) during a GovDAO pause of `r/sys/names`. During a pause, [`Star`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/store.gno#L170) therefore stores an owner's star on their own app as ranked, and that star keeps counting after the pause.
 
 <details><summary>repro</summary>
@@ -533,7 +538,7 @@ The Arabic alef and Hebrew samekh rows are letters of scripts allowed next to La
 
 Not posted: the same defect as the section on listing.gno:572-574; folding non-ASCII digits and bars in `foldRune`, or flagging a foreign non-letter in `validText`, closes both.
 
-## examples/gno.land/r/gnoland/store/v0/validate.gno:177 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/validate.gno#L177) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/validate.gno#L177) · Warning
+## examples/gno.land/r/gnoland/store/v0/validate.gno:177 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/validate.gno#L177) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/validate.gno#L177) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365667)
 `commonLatin` admits every Latin Extended-B letter below U+0250 except the four click letters, and [`foldRune`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L572-L573) folds neither LATIN CAPITAL LETTER IOTA `Ɩ` nor WYNN `ƿ`. `GnoƖand Pay` and `Gnoland ƿay` thus list beside `Gnoland Pay`, where `GnoIand Pay` with an ASCII `I` collides.
 
 <details><summary>repro</summary>
@@ -581,7 +586,7 @@ The test asserts that both copies list, and it passes: neither key matches `gnol
 The same expression already drops U+01C0 to U+01C3 for this look-alike reason, and its comment names Romanian and Pinyin as the Extended-B letters it is for.
 </details>
 
-## examples/gno.land/r/gnoland/store/v0/validate.gno:185 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/validate.gno#L185) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/validate.gno#L185) · Warning
+## examples/gno.land/r/gnoland/store/v0/validate.gno:185 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/validate.gno#L185) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/validate.gno#L185) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365671)
 `isMimic` stops at the Mathematical Alphanumeric Symbols block. So `validText` accepts the double-struck, script and fraktur letters of Letterlike Symbols, U+2102 to U+214F, and each keeps its own key: `ℤℴℴℳ` lists beside `Zoom`.
 
 <details><summary>repro</summary>
@@ -624,7 +629,7 @@ The test fails because both Letterlike titles are accepted, while the U+1D400 co
 These letters are script Common, so the Latin branch never runs, and a title with no Latin letter passes `alnum && (!latin || !foreign)`. Mixing one with ASCII or with U+1D400 is refused, so only words spelled from about 25 such letters get through.
 </details>
 
-## gno.land/pkg/gnoweb/feature/store/api.go:208 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/api.go#L208) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/api.go#L208) · Warning
+## gno.land/pkg/gnoweb/feature/store/api.go:208 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/api.go#L208) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/api.go#L208) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365676)
 `paged` builds the `answered` error after `decode` returns, so the [deferred `Warn`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/api.go#L145-L149) inside `decode` never logs it, and [`servePage`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/handler.go#L142-L145) drops it silently. The page then falls back to markdown with no log line whenever the realm answers with the wrong key, page or page count.
 
 <details><summary>repro</summary>
@@ -696,7 +701,7 @@ level=WARN msg="store: realm query failed" endpoint=category/defi/2 error="store
 [`cached`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/cache.go#L64-L65) stores the error without logging it, so the mismatch recurs silently in every cache window.
 </details>
 
-## gno.land/pkg/gnoweb/feature/store/frontend/store.css:708 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L708) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L708) · Warning
+## gno.land/pkg/gnoweb/feature/store/frontend/store.css:708 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L708) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L708) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365679)
 `overflow-x: auto` on an unpadded box makes the Spotlight row clip the card's [focus ring](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L275-L279) on its top, bottom and left below the `--xl` breakpoint. The category strip has padding only at its [block end](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L160-L163), and it cuts the pills' ring on top and left at every width.
 
 <details><summary>steps</summary>
@@ -706,7 +711,7 @@ Open the store home in Chromium at a width below the `--xl` breakpoint and press
 At that width the Spotlight container computes `overflow-x: auto; overflow-y: auto`, and its clip box sits inside the ring on the top, bottom and left. The category strip computes `overflow-x: scroll; overflow-y: scroll` with no top padding. The card link's own outline is [turned off](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L441-L443), so the card ring is the only focus cue.
 </details>
 
-## gno.land/pkg/gnoweb/feature/store/templates/parts.html:150 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/templates/parts.html#L150) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/templates/parts.html#L150) · Warning
+## gno.land/pkg/gnoweb/feature/store/templates/parts.html:150 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/templates/parts.html#L150) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/templates/parts.html#L150) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365682)
 The Claim snippet asks for `-gas-wanted 20000000`, below the 25.6M gas `Claim` uses on a fresh chain. It also carries no `-chainid`, so gnokey signs for its [default chain ID `dev`](https://github.com/gnolang/gno/blob/8ee3be106/tm2/pkg/crypto/keys/client/maketx.go#L123-L125) and any other chain refuses it.
 
 <details><summary>repro</summary>
@@ -755,7 +760,7 @@ GAS USED:   25606591
 [`newTemplates`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/template.go#L19-L25) passes only the package path, domain and store URL into the store templates, so this snippet cannot print the configured chain ID and remote the way `ui/command.html` does.
 </details>
 
-## gno.land/pkg/gnoweb/feature/store/view.go:263 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L263) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/view.go#L263) · Warning
+## gno.land/pkg/gnoweb/feature/store/view.go:263 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L263) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/view.go#L263) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365684)
 `eligible` cuts the pool at the first 12 eligible apps in shelf order, and the realm sends [New first](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/front.gno#L55), so 12 trusted apps on New keep every earned app on Top uncounted. [`capped`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L312) then stays false, and the hero and every Spotlight place go to operator apps.
 
 <details><summary>repro</summary>
@@ -822,7 +827,7 @@ day 3: hero+spot=[t04 t10 t11 t12] trusted=4
 Apps under the default trusted paths are not seeds, so they land on New: 12 of them there is a plausible launch state. The [doc comment](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L248-L250) calls shelf order quality first, while New is ordered by age.
 </details>
 
-## gno.land/pkg/gnoweb/feature/store/view.go:338 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L338) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/view.go#L338) · Warning
+## gno.land/pkg/gnoweb/feature/store/view.go:338 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L338) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/view.go#L338) · Warning [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365689)
 `slices.Contains(pool, l)` checks the 12-app pool, filled from New first, rather than eligibility. 12 eligible apps on New keep the week's leading earned app out of it, and the hero falls back to the [daily rotation](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L300) labelled 'In the spotlight today'.
 
 <details><summary>repro</summary>
@@ -937,13 +942,13 @@ Missing test: only `ProposeHide` and `ProposeSpotlight` are executed through Gov
 
 Not posted: the same gap as the `admin.gno:54` section, PLAUSIBLE on the finder's read with no verifier run.
 
-## examples/gno.land/r/gnoland/store/v0/admin.gno:53 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/admin.gno#L53) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/admin.gno#L53) · Nit
+## examples/gno.land/r/gnoland/store/v0/admin.gno:53 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/admin.gno#L53) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/admin.gno#L53) · Nit [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365691)
 Nit: `ProposePause` promises voters a stop to listing updates, while [`SubmitRich`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/store.gno#L135) has no `paused` check and keeps changing a listing's icon and cover during a pause.
 
-## gno.land/pkg/gnoweb/feature/store/api.go:207 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/api.go#L207) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/api.go#L207) · Nit
+## gno.land/pkg/gnoweb/feature/store/api.go:207 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/api.go#L207) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/api.go#L207) · Nit [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365692)
 Nit: `paged` refuses only a page count below the page asked for, and a fresh page 1 can report more pages than the cached home count right after an app joins. Its [Next link](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/handler.go#L161) then leads to a Not found page from [`pageParam`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/handler.go#L123) until the home entry expires.
 
-## gno.land/pkg/gnoweb/feature/store/cover.go:101 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/cover.go#L101) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/cover.go#L101) · Nit
+## gno.land/pkg/gnoweb/feature/store/cover.go:101 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/cover.go#L101) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/cover.go#L101) · Nit [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365693)
 Nit: `utf8.DecodeRuneInString(p)` takes each word's first rune rather than its first letter or digit, and `(Beta) Swap` gets the icon `(S` rather than `BS`.
 
 <details><summary>cases</summary>
@@ -956,13 +961,13 @@ Added to [`TestInitials`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land
 ```
 </details>
 
-## gno.land/pkg/gnoweb/feature/store/frontend/store.css:145-147 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L145-L147) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L145) · Nit
+## gno.land/pkg/gnoweb/feature/store/frontend/store.css:145-147 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L145-L147) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L145) · Nit [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365694)
 Nit: On a phone this rule hides `.clock` and `.moment`. The [pulse](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/templates/pages.html#L11) then shows only its [live dot](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L112) on a chain with no recent listing or star, with no text beside it.
 
-## gno.land/pkg/gnoweb/feature/store/frontend/store.css:592-594 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L592-L594) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L592) · Nit
+## gno.land/pkg/gnoweb/feature/store/frontend/store.css:592-594 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L592-L594) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L592) · Nit [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365697)
 Nit: Only `.b-store-meta a` is lifted above the card's [stretched link](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L434-L437). So hover never shows the `title=` explanation on a card's [trust badge](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/frontend/store.css#L605), 'community' label or shortened path.
 
-## gno.land/pkg/gnoweb/feature/store/templates/parts.html:144 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/templates/parts.html#L144) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/templates/parts.html#L144) · Nit
+## gno.land/pkg/gnoweb/feature/store/templates/parts.html:144 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/templates/parts.html#L144) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/templates/parts.html#L144) · Nit [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365701)
 Nit: The promise holds only after 3 ranked stars. [`Claim`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/store.gno#L87-L89) leaves a package unconfirmed, and [`index`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L296) keeps it off every [Build shelf](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/shelves.gno#L88-L93) and builder total until then.
 
 ## SKIP gno.land/pkg/gnoweb/feature/store/view.go:281 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L281) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/view.go#L281) · Nit
@@ -970,10 +975,10 @@ Nit: the `featured` comment calls the hero trending only when it leads "outright
 
 Not posted: a finding about a code comment's own wording.
 
-## gno.land/pkg/gnoweb/feature/store/view.go:454 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L454) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/view.go#L454) · Nit
+## gno.land/pkg/gnoweb/feature/store/view.go:454 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L454) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/view.go#L454) · Nit [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365704)
 Nit: Activity [events](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/pulse.gno#L20-L24) carry no height. This line then keeps announcing that a seed app 'just joined' on an idle store, long after the deploy and until the next listing, update or milestone.
 
-## examples/gno.land/r/gnoland/store/v0/admin.gno:171 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/admin.gno#L171) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/admin.gno#L171) · Suggestion
+## examples/gno.land/r/gnoland/store/v0/admin.gno:171 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/admin.gno#L171) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/admin.gno#L171) · Suggestion [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365708)
 Suggestion: `picked` binds a pick to the folded title alone, and the app can rewrite its tagline and swap its cover after the vote while still under 'Picked by GovDAO'. I think `setPick` should record a hash of the tagline and effective cover, for `picked` to compare.
 
 <details><summary>repro</summary>
@@ -981,7 +986,7 @@ Suggestion: `picked` binds a pick to the folded title alone, and the app can rew
 A test that picks an app, re-registers it with the tagline `Official GovDAO airdrop, claim yours now`, then calls `SubmitRich` and skips `richDelay`, passes asserting the swapped tagline under `## Picked by GovDAO` and `picked(now)` still returning the app with the new cover. [`update`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L229) calls `dropPick` only when the folded title changes, which matches ADR-004's end triggers: hide, no longer a shown app, rename.
 </details>
 
-## examples/gno.land/r/gnoland/store/v0/api.gno:188 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/api.gno#L188) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/api.gno#L188) · Suggestion
+## examples/gno.land/r/gnoland/store/v0/api.gno:188 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/api.gno#L188) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/api.gno#L188) · Suggestion [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365711)
 Suggestion: `shownApp()` lets an app in a free g1 address namespace become the front page's 'just joined' moment, the slot the [`newApps` comment](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/front.gno#L39-L42) says those namespaces never earn. I think `writeActivity` should skip events from address namespaces, to match that comment.
 
 <details><summary>repro</summary>
@@ -989,16 +994,16 @@ Suggestion: `shownApp()` lets an app in a free g1 address namespace become the f
 Registering `gno.land/r/<g1 address>/app` leaves it out of New and makes `{"kind":"listed","slug":"anon-app"}` the first activity event in `api/v1/home`, which gnoweb's [`latestMoment`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L454) renders as `Anon App just joined`. ADR-004 defines the feed as the most recent events of confirmed, visible listings with no namespace rule, so the code matches its spec and only the comment disagrees.
 </details>
 
-## examples/gno.land/r/gnoland/store/v0/listing.gno:212 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L212) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L212) · Suggestion
+## examples/gno.land/r/gnoland/store/v0/listing.gno:212 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L212) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L212) · Suggestion [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365713)
 Suggestion: `visibleInNamespace(l.Namespace) >= maxPerNamespace` counts the three seeded listings under [`gnoland`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/seed.gno#L13-L15) and the three under [`nt`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/seed.gno#L21-L23) against the [cap of 5](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/store.gno#L44), leaving room for two more core realms in each. I think [`isCoreNamespace`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/front.gno#L98) should exempt these namespaces from the cap, as it does from the [builder rankings](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L362-L364).
 
-## examples/gno.land/r/gnoland/store/v0/listing.gno:488 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L488) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L488) · Suggestion
+## examples/gno.land/r/gnoland/store/v0/listing.gno:488 [gh](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L488) · [↗](../../../../../.worktrees/gno-review-6273/examples/gno.land/r/gnoland/store/v0/listing.gno#L488) · Suggestion [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365715)
 Suggestion: `l.restar` drops a ranked star without rechecking [`confirmStars`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L466-L468), and [`confirm`](https://github.com/gnolang/gno/blob/8ee3be106/examples/gno.land/r/gnoland/store/v0/listing.gno#L259-L263) never resets `Confirmed`, so a claimed listing stays on the shelves after its three backers unstar. I think `removeStar` should clear `Confirmed` once a claimed, not self-listed listing drops below `confirmStars`.
 
-## gno.land/pkg/gnoweb/feature/store/cache.go:57 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/cache.go#L57) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/cache.go#L57) · Suggestion
+## gno.land/pkg/gnoweb/feature/store/cache.go:57 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/cache.go#L57) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/cache.go#L57) · Suggestion [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365717)
 Suggestion: `c.group.DoChan` makes every caller a waiter, and singleflight [re-raises a panic in `load` with `go panic(e)`](https://github.com/golang/sync/blob/v0.21.0/singleflight/singleflight.go#L166-L167) on a goroutine no recover reaches, killing gnoweb. No input is known to reach such a panic, and I think the closure should recover it and return it as an error.
 
-## gno.land/pkg/gnoweb/feature/store/view.go:493 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L493) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/view.go#L493) · Suggestion
+## gno.land/pkg/gnoweb/feature/store/view.go:493 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L493) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/feature/store/view.go#L493) · Suggestion [posted](https://github.com/gnolang/gno/pull/6273#discussion_r4238365718)
 Suggestion: `TruncMiddle(ns, 6, 4)` keeps few enough characters for a vanity key search to find an address with another app's short path, against the [comment](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/view.go#L487-L488) saying truncation never hides a look-alike. I think showing more characters of each end puts the search out of reach.
 
 <details><summary>count</summary>
@@ -1013,6 +1018,3 @@ python3 -c 'print(2**(8*5))'
 1099511627776
 ```
 </details>
-
-## gno.land/pkg/gnoweb/handler_http.go:126 [gh](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/handler_http.go#L126) · [↗](../../../../../.worktrees/gno-review-6273/gno.land/pkg/gnoweb/handler_http.go#L126) · Suggestion
-Suggestion: `validate` checks neither `Meta.Domain` nor the leading slash of `StoreRealm`, so [`store.New`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/pkg/gnoweb/feature/store/feature.go#L57) panics without a domain and a slashless path never matches. I think `validate` should make both checks, a job only [`setupWeb`](https://github.com/gnolang/gno/blob/8ee3be106/gno.land/cmd/gnoweb/main.go#L326-L329) does today, and return the error from `NewHTTPHandler`.
