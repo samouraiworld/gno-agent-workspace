@@ -1,0 +1,49 @@
+{
+  "verdicts": [
+    {
+      "index": 1, "angle": "two versions",
+      "verify_by": "grep -n genesisDocKey tm2/pkg/bft/node/*_test.go shows only key comparisons (node_test.go:674, :711) and no raw write of a doc carrying AppState. Mutate node.go:1092 to `} else {` and run `go test ./tm2/pkg/bft/node -run 'LoadStateFromDBOrGenesisDocProvider|E2E|GenesisReset|SaveGenesisDoc'`: expect red, observe green.",
+      "check": "in a scratch worktree at 2b26f103e, node.go:1092 `} else if genDoc.AppState == nil {` replaced by `} else {`, then go test -count=1 ./tm2/pkg/bft/node, the whole package",
+      "state": "CONFIRMED", "band": "Missing test",
+      "file": "tm2/pkg/bft/node/node.go", "line": 1092,
+      "tldr": "no test pins the AppState == nil gate that keeps a pre-#1941 committed data dir off the reset",
+      "details": "With the gate widened to `} else {` the whole tm2/pkg/bft/node package passes. Every test seeds its persisted doc through saveGenesisDoc, which sets stripped.AppState = nil, so every persisted doc in the suite has a nil AppState and the widened branch takes exactly the paths the gated one does. A data dir committed before gnolang/gno#1941 has no height-0 key, and one whose doc was saved before gnolang/gno#5684 still carries AppState: only this gate keeps that dir off resetToGenesisDoc, which would rebuild its state record from the file. Fix, mechanical: a case writing amino.MarshalJSON of a doc with AppState set under genesisDocKey, a state record at LastBlockHeight 500 and no height-0 key, then asserting the boot keeps LastBlockHeight 500.",
+      "evidence": "mutated run: `ok  github.com/gnolang/gno/tm2/pkg/bft/node 2.229s`; unmutated named run: 17 PASS lines",
+      "repro_path": "", "base_behaves_the_same": false, "refuted_by": ""
+    },
+    {
+      "index": 1001, "angle": "reach",
+      "verify_by": "A scratch test in contribs/gnodev/pkg/dev calling newNodeConfig(tmcfg, \"dev\", \"gno.land\", gnoland.GnoGenesisState{InitialHeight: 100}) then gnoland.NewInMemoryNode: expect an 'InitialHeight mismatch' error at head 2b26f103e and a node with no genesis state at merge base cfcbaf484",
+      "check": "read of the gnodev path from --genesis-file to newNodeConfig: contribs/gnodev/setup_node.go:73-82 and contribs/gnodev/pkg/dev/node.go:341-346, 535-536, 553-562; grep InitialHeight in DefaultGenState",
+      "state": "REFUTED", "band": "Suggestion",
+      "file": "contribs/gnodev/pkg/dev/node.go", "line": 716,
+      "tldr": "gnodev never passes the file's app state to newNodeConfig: it keeps only its balances and txs, so no InitialHeight reaches InitChain",
+      "details": "setup_node.go copies state.Balances into nodeConfig.BalancesList (line 79) and state.Txs into nodeConfig.InitialTxs (line 82) and drops the rest of the app state, InitialHeight included. Every rebuildNode caller builds a fresh gnoland.DefaultGenState() and sets only Balances and Txs on it (node.go:341-342, 535-536, 553-554), and DefaultGenState sets no InitialHeight. The scratch test the candidate names calls newNodeConfig with an app state no gnodev caller builds, so the startup error it describes is unreachable from gnodev.",
+      "evidence": "grep -n: setup_node.go:79 `nodeConfig.BalancesList = state.Balances`, :82 `nodeConfig.InitialTxs = slices.Clone(stateTxs)`; node.go:341 `genesis := gnoland.DefaultGenState()`, :346 `err = n.rebuildNode(ctx, genesis)`; no InitialHeight in genesis.go DefaultGenState",
+      "repro_path": "", "base_behaves_the_same": true,
+      "refuted_by": "contribs/gnodev/pkg/dev/node.go:341-342 `genesis := gnoland.DefaultGenState()` / `genesis.Balances = n.config.BalancesList`"
+    },
+    {
+      "index": 3, "angle": "line by line",
+      "verify_by": "Read node.go:1114-1120 and resetToGenesisDoc (1146-1157): no logger call and no return value distinguishes a reset from a normal load; NewNode (node.go:415) logs nothing about it either",
+      "check": "read of node.go:1072-1157 and NewNode at node.go:408-425",
+      "state": "CONFIRMED", "band": "Suggestion",
+      "file": "tm2/pkg/bft/node/node.go", "line": 1119,
+      "tldr": "a reset replaces the persisted genesis doc and state record and leaves no line in the node's log",
+      "details": "LoadStateFromDBOrGenesisDocProvider takes no logger, and resetToGenesisDoc returns (state, genDoc, nil), the same shape as the normal load. NewNode calls it at node.go:415 and goes straight on to createAndStartProxyAppConns with no log line. An operator whose earlier boot failed before InitChain succeeded, and whose genesis.json changed fields other than chain id and app hash in between, sees a normal boot. Fix, a decision for the author: a returned flag or a logger parameter so NewNode logs the reset.",
+      "evidence": "node.go:415 `state, genDoc, err := LoadStateFromDBOrGenesisDocProvider(stateDB, genesisDocProvider)` followed by createAndStartProxyAppConns; no logger call between node.go:1072 and 1157",
+      "repro_path": "", "base_behaves_the_same": false, "refuted_by": ""
+    },
+    {
+      "index": 2, "angle": "two versions",
+      "verify_by": "Seed a memdb with saveGenesisDoc of a doc whose ChainID is \"\" (the pre-PR first-boot write order), then call LoadStateFromDBOrGenesisDocProvider with probeGenesisDocProvider(pk, 1): expect the boot to succeed or name the invalid persisted doc, observe the 'genesis chain id mismatch ... (\"\") ... (\"genesis-doc-test\")' error",
+      "check": "go test -run TestJudgeEmptyChainIDPersistedByOlderBinary -v -count=1 ./tm2/pkg/bft/node with tests/judge-2-empty-chain-id_test.go copied in, at 2b26f103e; grep ValidateAndComplete in gno.land/pkg/gnoland non-test files",
+      "state": "CONFIRMED", "band": "Nit",
+      "file": "tm2/pkg/bft/node/node.go", "line": 1101,
+      "tldr": "a data dir an older binary left with an empty persisted chain id stays unbootable after the file is fixed, until it is wiped",
+      "details": "The boot fails on the chain id check before genesisApplied is reached. The path is reachable through gnoland start: StreamingGenesisProvider runs no ValidateAndComplete (none in gno.land/pkg/gnoland outside tests), and the merge base saved the doc before MakeGenesisState validated it. The check is an unchanged context line, so the merge base fails the same way; the diff stops new dirs from reaching this state and does not heal old ones. The data dir never applied a genesis, so the wipe loses nothing: Nit. Fix, a decision for the author: let an empty persisted chain id fall through to the reset when the height-0 key is absent, or name the invalid persisted doc in the error.",
+      "evidence": "judge test log: `boot error: genesis chain id mismatch between persisted state (\"\") and source genesis (\"genesis-doc-test\"): the genesis file backing this data dir has changed`, PASS",
+      "repro_path": "tests/judge-2-empty-chain-id_test.go", "base_behaves_the_same": true, "refuted_by": ""
+    }
+  ]
+}

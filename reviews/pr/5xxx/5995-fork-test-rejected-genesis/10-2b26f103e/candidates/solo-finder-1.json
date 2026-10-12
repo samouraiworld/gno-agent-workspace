@@ -1,0 +1,100 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1092,
+      "angle": "two versions",
+      "summary": "only the AppState==nil gate keeps the reset off a pre-#1941 committed data dir, and no test pins it",
+      "failure_scenario": "A data dir that applied its genesis before gnolang/gno#1941 has no height-0 ABCI responses key, and its doc was persisted before gnolang/gno#5684, so the doc still carries AppState. The ADR's Consequences bullet says such a dir never reaches resetToGenesisDoc, and the only thing that makes that true is `} else if genDoc.AppState == nil {`. Every new test seeds its doc through saveGenesisDoc, which strips AppState, so none of them covers a persisted doc that carries one. Widen the line to `} else {` and they all stay green. The node would then rebuild the state record of a chain at height N from the genesis file, then panic in ReplayBlocks with StoreBlockHeight (N) > StateBlockHeight + 1, with the state record already overwritten.",
+      "verify_by": "grep -n genesisDocKey tm2/pkg/bft/node/*_test.go shows only key comparisons (node_test.go:674, :711) and no raw write of a doc carrying AppState. Mutate node.go:1092 to `} else {` and run `go test ./tm2/pkg/bft/node -run 'LoadStateFromDBOrGenesisDocProvider|E2E|GenesisReset|SaveGenesisDoc'`: expect red, observe green. The missing test writes amino.MarshalJSON of a doc with types.MockAppState under genesisDocKey, saves a state record at LastBlockHeight 500 with no height-0 key, boots with a changed InitialHeight, and asserts LastBlockHeight stays 500.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep genesisDocKey in tm2 tests: node_test.go:674 and :711 only, both `bytes.Equal(key, genesisDocKey)` inside injected-error DB wrappers; every seeded doc goes through saveGenesisDoc, which sets stripped.AppState = nil",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1101,
+      "angle": "two versions",
+      "summary": "a doc a pre-PR binary persisted without validation (empty chain id) is never healed: the reset sits behind the chain id equality check",
+      "failure_scenario": "A pre-PR binary boots a genesis.json with an empty chain_id. Its saveGenesisDoc persists the doc before MakeGenesisState rejects it, so ChainID is \"\" and the height-0 key is absent. The operator upgrades to this branch and fixes chain_id to \"x\". loadGenesisDoc then returns ChainID \"\", the check at node.go:1101 fails with `genesis chain id mismatch between persisted state (\"\") and source genesis (\"x\"): the genesis file backing this data dir has changed`, and the node never reaches genesisApplied or resetToGenesisDoc. The data dir stays unbootable until it is wiped. Validate-before-save only governs writes the new binary makes, and the ADR lists the height-0-key case from older binaries but not this one. Recovery is a wipe of a data dir that never applied a genesis.",
+      "verify_by": "Seed a memdb with saveGenesisDoc of a doc whose ChainID is \"\" (the pre-PR first-boot write order), then call LoadStateFromDBOrGenesisDocProvider with probeGenesisDocProvider(pk, 1): expect the boot to succeed or name the invalid persisted doc, observe the 'genesis chain id mismatch ... (\"\") ... (\"genesis-doc-test\")' error",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "node.go:1101 `if freshDoc.ChainID != genDoc.ChainID {` precedes genesisApplied (1114) and resetToGenesisDoc (1119); base first-boot order was saveGenesisDoc then sm.LoadStateFromDBOrGenesisDoc -> MakeGenesisState -> ValidateAndComplete (state.go:213)",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1119,
+      "angle": "line by line",
+      "summary": "the reset replaces the persisted genesis doc and state record silently, with no log line or signal to NewNode",
+      "failure_scenario": "A boot fails before InitChain succeeds, either refused or for a local reason such as the event store or proxy app. If genesis.json then changes (same chain id and app hash, but different validators, genesis_time or initial_height) before the restart, resetToGenesisDoc adopts the file's doc and rebuilds the state record. LoadStateFromDBOrGenesisDocProvider has no logger and returns nothing that says a reset happened, so the operator's log shows a normal boot with no trace that the doc the data dir held was replaced.",
+      "verify_by": "Read node.go:1114-1120 and resetToGenesisDoc (1146-1157): no logger call and no return value distinguishes a reset from a normal load; NewNode (node.go:415) logs nothing about it either",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "LoadStateFromDBOrGenesisDocProvider(stateDB, genesisDocProvider) takes no logger; resetToGenesisDoc returns (state, genDoc, nil) like the normal path",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "contribs/gnogenesis/internal/fork/test.go",
+      "line": 265,
+      "angle": "claims",
+      "summary": "tripwire comment says no current path skips a deliverable tx before the result handler",
+      "settled_by": "sed -n 725,860p gno.land/pkg/gnoland/app.go: the only return before `cfg.GenesisTxResultHandler(ctx, stdTx, res)` (app.go:859) is `if metadata != nil && metadata.Failed {` (app.go:824), which countDeliverableTxs excludes; the other returns at relative lines 42/63/121 are inside ctx-builder closures"
+    },
+    {
+      "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+      "line": 90,
+      "angle": "claims",
+      "summary": "ADR attributes the height-0 save to #1941 and the AppState strip to #5684",
+      "settled_by": "git log -S'SaveABCIResponses(h.stateDB, 0' -- replay.go -> 3aa0f0b7d feat(tm2): expose InitChain tx responses (#1941); git log -S'stripped.AppState = nil' -- node.go -> 5d0a4d703 (#5684)"
+    },
+    {
+      "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+      "line": 84,
+      "angle": "claims",
+      "summary": "ADR says a nil AppState now fails the handshake with `invalid AppState of type <nil>`",
+      "settled_by": "app.go:496-497 loadAppState default branch `return nil, fmt.Errorf(\"invalid AppState of type %T\", appState)`; %T of a nil interface prints <nil>, and replay.go now returns on res.IsErr()"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1130,
+      "angle": "claims",
+      "summary": "genesisApplied godoc says the height-0 responses are never pruned and are written only after InitChain succeeds",
+      "settled_by": "grep -rn 'ABCIResponsesKey' (non-test): store.go:179 Get, store.go:203 Set, node.go:1134 Has, no Delete; SaveABCIResponses callers: execution.go:100 (block heights) and replay.go:357 (height 0, after the res.IsErr and no-validators returns)"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 45,
+      "angle": "two versions",
+      "summary": "a sibling building AppState as *GnoGenesisState, or a reader asserting the pointer, breaks with the value change",
+      "settled_by": "grep -rn '&gnoland\\.GnoGenesisState\\|&GnoGenesisState\\b\\|AppState *= *&\\|AppState: *&' (non-test): no hits; the `.(*gnoland.GnoGenesisState)` asserts at integration/testscript_gnoland.go:287,509,554,648 read ts.Value(envKeyGenesis), not GenesisDoc.AppState; NewDefaultGenesisConfig callers are gnodev node.go:716 (overwrites AppState with a value) and one test"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_initial_height_test.go",
+      "line": 143,
+      "angle": "line by line",
+      "summary": "a refused InitChain could leave app writes in the shared DB that the app-hash comparison misses (dbadapter base store not hashed)",
+      "settled_by": "app.go:470-481 loadStdlibs wraps ctx.MultiStore() (deliverState cache) and MultiWrite()s into it, not the DB; baseapp InitChain's SetInitialVersion is in-memory only (rootmulti/store.go:330-340, iavl/store.go:147-154, bptree/store.go:75-81)"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 346,
+      "angle": "line by line",
+      "summary": "%w over res.Error, an abci.Error, may not be an error value",
+      "settled_by": "tm2/pkg/bft/abci/types/types.go:207-210 `type Error interface { AssertABCIError(); Error() string }`, so it satisfies error"
+    }
+  ]
+}

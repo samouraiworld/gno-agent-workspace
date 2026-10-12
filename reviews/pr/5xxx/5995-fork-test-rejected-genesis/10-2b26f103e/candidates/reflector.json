@@ -1,0 +1,11 @@
+{
+  "dropped": [],
+  "candidates": [],
+  "completeness": [
+    "Catalog: skills/invariant-catalog.md holds realm audit patterns and caller identity predicates only; no class applies to tm2 node boot or the gnogenesis fork test.",
+    "Sibling of the pointer AppState fix: grep for AppState assigned &GnoGenesisState in .go files at the head returns nothing.",
+    "Sibling of the InitChain response guard: replay.go:339 is the only non-test InitChainSync caller at the head.",
+    "Sibling of the saveGenesisDoc write error: state/store.go:134 db.SetSync discards its error, a settled store-wide convention.",
+    "c121978e7 now persists the doc ValidateAndComplete filled in, a completed GenesisTime included, where the merge base persisted the raw doc; read as an improvement, no candidate."
+  ]
+}

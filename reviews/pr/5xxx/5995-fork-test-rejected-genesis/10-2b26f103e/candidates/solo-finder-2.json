@@ -1,0 +1,70 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "contribs/gnodev/pkg/dev/node.go",
+      "line": 716,
+      "angle": "reach",
+      "summary": "gnodev wraps a --genesis-file app state in NewDefaultGenesisConfig with InitialHeight 0, so a fork-generated genesis, whose app_state carries initial_height, now stops gnodev at startup instead of booting an empty chain",
+      "failure_scenario": "gnogenesis fork generate writes appState.InitialHeight = N (contribs/gnogenesis/internal/fork/generate.go:457). gnodev's extractAppStateFromGenesisFile (contribs/gnodev/setup_node.go:143) keeps only the app state, and newNodeConfig (node.go:716) wraps it in NewDefaultGenesisConfig, whose doc InitialHeight is 0. applyInMemoryAppState then returns 'InitialHeight mismatch: GnoGenesisState.InitialHeight=N, GenesisDoc.InitialHeight=0', which ReplayBlocks now honours. rebuildNode, the startup path at node.go:346, returns 'unable to create a new node: InitChain rejected the genesis: ...', and gnodev does not start. At the merge base the same file started gnodev with stdlibs only and none of the file's balances or packages, so the session was already empty. Once the heights agree, a fork genesis (PastChainIDs plus gnodev's MockPV validator) would still trip the valoper coverage panic, which gnodev does not skip. The gap predates the diff, which turns a silently empty dev chain into a startup error.",
+      "verify_by": "A scratch test in contribs/gnodev/pkg/dev calling newNodeConfig(tmcfg, \"dev\", \"gno.land\", gnoland.GnoGenesisState{InitialHeight: 100}) then gnoland.NewInMemoryNode: expect an 'InitialHeight mismatch' error at head 2b26f103e and a node with no genesis state at merge base cfcbaf484",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "sed -n 716p node.go: 'genesis := gnoland.NewDefaultGenesisConfig(chainid, chaindomain)'; sed -n 457p generate.go: 'appState.InitialHeight = initialHeight'; setup_node.go:143-155 returns &state from doc.AppState and discards the doc; grep 'rebuildNode(' node.go: 346, 538, 562",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1079,
+      "angle": "removed",
+      "summary": "The not-found branch lets the file's doc through with no chain-identity check when a state record already exists. This is the 'neither' cell beside the read-error hardening.",
+      "settled_by": "Unreachable without an outside writer. The first boot writes the doc with SetSync (node.go:1089) before LoadStateFromDBOrGenesisDoc saves the first state record (node.go:1123). grep -rn 'genesisDoc' over *.go hits only node.go:1057, so no tool writes or deletes the key. contribs/gnobr/main.go:100-136 patches only the state record."
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1134,
+      "angle": "reach",
+      "summary": "genesisApplied probes a key that SaveABCIResponses writes with db.Set rather than SetSync, so a crash could lose the marker after InitChain succeeded.",
+      "settled_by": "store.go:203 is 'db.Set(CalcABCIResponsesKey(height), ...)'. On a fresh genesis, replay.go then runs sm.SaveState, whose doc says 'This flushes the writes (e.g. calls SetSync)'. That sync flushes the earlier Set on the log-ordered backends. On a non-fresh replay the key was already written by the first boot."
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 346,
+      "angle": "reach",
+      "summary": "Honouring res.IsErr() could stop production nodes from booting when StrictReplay refuses a genesis whose txs were all delivered.",
+      "settled_by": "grep -rn 'StrictReplay' outside _test.go hits only gno.land/pkg/gnoland/app.go (field and reads). No production config sets it, and gnoland start maps --skip-failing-genesis-txs to SkipFailingTxs (start.go:275), not StrictReplay."
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 45,
+      "angle": "removed",
+      "summary": "Other in-tree sites may build a *GnoGenesisState AppState, which loadAppState refuses and the handshake now stops on.",
+      "settled_by": "grep -rnE 'AppState:\\s*&|AppState\\s*=\\s*&|\\.AppState = &' over *.go returns no hit. gnodev overrides the default with a value (node.go:717 'genesis.AppState = appstate'). The integration testscript converts its *GnoGenesisState to a value before assigning it (testscript_gnoland.go:288-296)."
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 339,
+      "angle": "removed",
+      "summary": "Another InitChain caller could still read only the Go error and miss the response Error.",
+      "settled_by": "grep -rn '\\.InitChainSync(' outside _test.go hits only replay.go:339 and the appconn and local_client pass-throughs. kvstore/helpers.go:34 is a test-data initialiser. NewHandshaker has one caller, node.go:292."
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 398,
+      "angle": "removed",
+      "summary": "Some doc or comment outside the diff may still claim that tm2 discards ResponseInitChain.Error.",
+      "settled_by": "grep -rniE 'ResponseInitChain\\.Error|InitChain.*(silently|discard|ignor)' over *.go, *.md and *.txtar. It hits only the rewritten comments, the pr5995 ADR, gno.land/adr/pr5511 line 240 (which describes the BaseApp early return, still accurate) and tm2/adr/pr5949 (a historical record, not to be reopened)."
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 351,
+      "angle": "reach",
+      "summary": "A refused InitChain could leave persistent app writes, such as SetInitialVersion and storeConsensusParams, that a corrected retry inherits.",
+      "settled_by": "rootmulti SetInitialVersion only sets ms.initialVersion and the per-store in-memory fields (store.go:330-339). storeConsensusParams writes to the mounted main store, which reaches disk only on Commit. loadStdlibs MultiWrites into the deliverState cache (app.go:481), not the root store."
+    }
+  ]
+}
