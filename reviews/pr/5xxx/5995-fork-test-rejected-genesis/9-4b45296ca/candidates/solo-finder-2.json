@@ -1,0 +1,92 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 396,
+      "angle": "removed",
+      "summary": "The diff deletes the comment saying AppState may be nil in minimal testing setups, and loadAppState now stops boot on a nil AppState and on a *GnoGenesisState, two shapes that booted at the merge base, the second being the one the repo's own default emitted",
+      "failure_scenario": "An out-of-tree caller of the public gnoland.NewInMemoryNode builds its GenesisDoc with no AppState, the minimal setup the deleted comment (base app.go:396-397) names, or with &GnoGenesisState{...}, the shape NewDefaultGenesisConfig returned until this branch. At cfcbaf484 the InitChainer logged 'invalid AppState of type <nil>' and the node booted with stdlibs loaded and the valset seeded. At 4b45296ca the handshake returns 'InitChain rejected the genesis: invalid AppState of type <nil>' and the node never starts. The branch fixed its own constructor (node_inmemory.go) but not the decoder, so any other caller still using the old shape stops booting with no migration note. The ADR's Consequences name neither shape.",
+      "verify_by": "Read gno.land/pkg/gnoland/app.go:490-498 at head (the switch has only GnoGenesisState and *GenesisStateRef cases; default returns the error) and base app.go:396-397 (the deleted comment). Boot NewInMemoryNode with Genesis.AppState=nil at base and at head: base boots, head returns the handshake error. Fix: add `case nil:` (log a warning, apply an empty state) and `case *GnoGenesisState: return cfg.applyInMemoryAppState(ctx, *state, reqInitialHeight)` to loadAppState, or name both shapes under the ADR's Consequences.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "head app.go:497 `return nil, fmt.Errorf(\"invalid AppState of type %T\", appState)`; base app.go:396-397 `// load app state. AppState may be nil mostly in some minimal testing setups; // so log a warning when that happens.`; grep -rnE '&(gnoland\\.)?GnoGenesisState\\{' outside _test.go: no hits, so no in-tree caller breaks (CI green agrees)",
+      "repro_path": ""
+    },
+    {
+      "index": 1002,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1084,
+      "angle": "removed",
+      "summary": "No test covers the error check 4b45296ca adds to the first-boot saveGenesisDoc call. The only write-failure test exercises the reset caller.",
+      "failure_scenario": "Revert node.go:1084-1086 to a bare `saveGenesisDoc(stateDB, genDoc)` and every test in tm2/pkg/bft/node stays green. genesisDocSetErrDB (node_test.go:705) is armed only after the first LoadStateFromDBOrGenesisDocProvider call has returned, so it reaches only the reset branch. The commit says both callers fail the boot on a write error, but a test holds only one of them.",
+      "verify_by": "Mutate node.go:1084 to drop the error check, then run `go test ./tm2/pkg/bft/node -run 'TestLoadStateFromDBOrGenesisDocProvider|TestGenesisReset|TestE2E'`: expect a red test, observe all green. Add a case that sets genesisDocSetErrDB.fail before the first call and requires ErrorContains 'injected write error'.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep genesisDocSetErrDB tm2/pkg/bft/node/*_test.go: defined node_test.go:705, used once at :722 (TestLoadStateFromDBOrGenesisDocProvider_ResetDocWriteErrorFailsBoot), where d.fail is set only after the first call returned NoError",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 537,
+      "angle": "removed",
+      "summary": "assertAppHashEqualsOneFromState panics after the height-0 save, so it is a refusal that marks the genesis applied",
+      "settled_by": "sed -n 537,547p replay.go: it panics only on !bytes.Equal(appHash, state.AppHash), and the only correctable cause is the doc's app_hash. node.go:1101 refuses a fresh doc whose AppHash differs before genesisApplied is probed, so the reset could never take that correction, and moving the assert ahead of the save changes nothing"
+    },
+    {
+      "file": "tm2/pkg/bft/state/store.go",
+      "line": 82,
+      "angle": "removed",
+      "summary": "A failed read of the state record could be taken as an empty state and rebuilt from the genesis on the non-reset tail",
+      "settled_by": "sed -n 82,86p store.go: loadState does `buf, err := db.Get(key); if err != nil { panic(err) }`, so a failed read stops the boot and is never taken as an empty state"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1129,
+      "angle": "reach",
+      "summary": "A pruner deleting the height-0 ABCI responses would reopen the reset on a committed chain",
+      "settled_by": "grep -rn CalcABCIResponsesKey outside tests: store.go:179 (Get), store.go:203 (Set), node.go:1129 (Has); grep Delete/DeleteSync in tm2/pkg/bft/{state,node,consensus}: no hits"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 481,
+      "angle": "reach",
+      "summary": "App-side writes from a refused InitChain could survive in the app DB and change what the corrected retry computes",
+      "settled_by": "app.go:469-481: loadStdlibs MultiWrites into a cache of ctx.MultiStore(), which is the deliverState cache that is written only on Commit. rootmulti/store.go:330-334: SetInitialVersion only sets an in-memory field. baseapp.go storeConsensusParams writes only the main store's in-memory tree"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 45,
+      "angle": "reach",
+      "summary": "A caller of NewDefaultGenesisConfig type-asserting AppState as *GnoGenesisState would break on the value form",
+      "settled_by": "grep -rn NewDefaultGenesisConfig outside tests: only contribs/gnodev/pkg/dev/node.go:716, which overwrites genesis.AppState with a value at :717. grep for `AppState.(*` as a GnoGenesisState type assertion: no hits"
+    },
+    {
+      "file": "tm2/adr/adr-003-genesis-streaming-cache.md",
+      "line": 344,
+      "angle": "removed",
+      "summary": "ADR-003's sketch of LoadStateFromDBOrGenesisDocProvider shows only the AppState re-attach in the nil-AppState branch, which now resets",
+      "settled_by": "sed -n 344,352p adr-003: the block is labelled a sketch in a historical ADR. Per the delta's Calibration, the governing document the no-critique rule covers is the ADR"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1157,
+      "angle": "removed",
+      "summary": "Another reader of the persisted genesis doc could still take a read error as an absence",
+      "settled_by": "grep -rn 'genesisDocKey|\"genesisDoc\"|loadGenesisDoc|saveGenesisDoc' outside tests: every hit is in node.go (1057, 1073, 1084, 1146, 1156, 1157, 1174, 1181)"
+    },
+    {
+      "file": "contribs/gnogenesis/internal/fork/test.go",
+      "line": 273,
+      "angle": "removed",
+      "summary": "The rewritten guard message points at a --verbose flag that might not exist",
+      "settled_by": "grep RegisterFlags in fork/test.go: `fs.BoolVar(&c.verbose, \"verbose\", false, ...)`, and verbose switches nodeLogger to slog.Default()"
+    }
+  ]
+}

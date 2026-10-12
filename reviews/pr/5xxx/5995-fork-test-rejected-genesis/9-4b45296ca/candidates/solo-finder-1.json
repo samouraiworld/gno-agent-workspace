@@ -1,0 +1,99 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1116,
+      "angle": "lines",
+      "summary": "Once the height-0 key exists, a genesis file differing from the persisted doc in validators, genesis_time or initial_height is silently mixed: persisted metadata kept, the file's AppState adopted, nothing logged",
+      "failure_scenario": "Coordinated launch: validators boot early on genesis v1, InitChain succeeds and the height-0 responses are saved, no block yet. The coordinator ships v2 with the same chain_id and app_hash but a different validator set. An operator swaps genesis.json and restarts: genesisApplied is true, so line 1116 keeps the persisted doc's validators, genesis_time and initial_height and takes only v2's AppState. The app never committed, so InitChain runs again on that mix and the boot succeeds. No error or log line says the file's validators were ignored, and nodes that started fresh on v2 run a different validator set. The gate itself stays keyed on the height-0 marker; the gap is that the divergence goes unreported.",
+      "verify_by": "Go test in tm2/pkg/bft/node: LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk1, 100)); sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0)); call again with a provider returning pk2 as validator and AppState \"v2\": expect an error or a warning, observe err == nil, doc.Validators[0].PubKey == pk1 and doc.AppState == \"v2\"",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "Read node.go 1088-1117: the applied branch checks only ChainID (1096) and AppHash (1101), then sets genDoc.AppState = freshDoc.AppState (1116) with no comparison of Validators, GenesisTime, InitialHeight or ConsensusParams. ADR lines 40-41 state the persisted doc stays authoritative as before, so this behaviour predates the diff.",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1084,
+      "angle": "lines",
+      "summary": "The first-boot branch persists the genesis doc before MakeGenesisState validates it, unlike resetToGenesisDoc, so a chain_id that fails validation is pinned and the corrected file is refused",
+      "failure_scenario": "gnoland start reads genesis through StreamingGenesisProvider, which never calls ValidateAndComplete. A genesis.json with an empty chain_id, or one over 50 chars, is saved by saveGenesisDoc at line 1084. sm.LoadStateFromDBOrGenesisDoc then fails in MakeGenesisState with 'chain ID is empty'. The operator fixes chain_id and restarts: the persisted doc is found with nil AppState, and the ChainID check at 1096 refuses with 'genesis chain id mismatch ... the genesis file backing this data dir has changed'. The operator has to wipe a data dir that holds nothing committed. resetToGenesisDoc already validates before writing (TestGenesisResetKeepsGoodDocOnInvalidFile).",
+      "verify_by": "Go test in tm2/pkg/bft/node: a provider returning a doc with ChainID \"\" makes LoadStateFromDBOrGenesisDocProvider fail; a second call on the same db with ChainID \"fixed\" should succeed and instead fails with 'genesis chain id mismatch'. grep -n ValidateAndComplete gno.land/pkg/gnoland/*.go gno.land/cmd/gnoland/*.go (non-test) returns nothing",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grep for ValidateAndComplete in gno.land/pkg/gnoland and gno.land/cmd/gnoland non-test code: no hits; start.go:304 uses gnoland.StreamingGenesisProvider; node.go 1079-1087 save before sm.LoadStateFromDBOrGenesisDoc (1118) validates; store.go MakeGenesisState:213 is where ValidateAndComplete runs. Ordering predates the diff; recovery is wiping a never-booted data dir.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1074,
+      "angle": "lines",
+      "summary": "A backend whose Get errors on a missing key would now fail every first boot, since only errGenesisDocNotFound means absent",
+      "settled_by": "Read Get in every tm2/pkg/db backend: pebbledb.go:64 'if goerrors.Is(err, pebble.ErrNotFound) { return nil, nil }', go_level_db.go:54 same for leveldb ErrNotFound, mem_db.go:45 map lookup with nil error, boltdb.go:75, lmdbdb.go:120 and mdbxdb.go:121 return nil on not-found"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 383,
+      "angle": "lines",
+      "summary": "assertAppHashEqualsOneFromState panics after the height-0 save, marking a refused genesis applied",
+      "settled_by": "node.go:1101 'if !bytes.Equal(freshDoc.AppHash, genDoc.AppHash)' refuses any file whose app_hash differs, so a reset could never correct the hash this assert compares; the save order costs no correction"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 366,
+      "angle": "lines",
+      "summary": "NewValidatorSetFromABCIValidatorUpdates can panic after the height-0 save",
+      "settled_by": "baseapp.go:383-395 panics inside InitChainSync, before the save, unless res.Validators equals req.Validators element by element; gno.land returns req.Validators, which NewValidatorSet already built before InitChain"
+    },
+    {
+      "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+      "line": 83,
+      "angle": "claims",
+      "summary": "ADR says only RPC reads the stale validator and consensus-param records at the old InitialHeight",
+      "settled_by": "grep LoadValidators/LoadConsensusParams callers: rpc/core/status.go:94, consensus.go:26,91; validation.go:175 sits inside the commented-out VerifyEvidence; execution.go:280 'if block.Height > state.InitialHeight' reads block.Height-1, which the chain writes itself before reading"
+    },
+    {
+      "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+      "line": 84,
+      "angle": "claims",
+      "summary": "ADR says pre-gnolang/gno#1941 data dirs reach the reset only via a stripped doc, which gnolang/gno#5684 introduced later",
+      "settled_by": "git log -S: 3aa0f0b7d 2024-07-23 feat(tm2): expose InitChain tx responses (gnolang/gno#1941); 5d0a4d703 2026-05-18 stripped.AppState (gnolang/gno#5684); genesisDocKey present since 98cc986cb (gnolang/gno#585), so every pre-gnolang/gno#1941 dir persisted its doc with AppState"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 346,
+      "angle": "claims",
+      "summary": "Comment says InitChainSync passes the response through and never returns a Go error for res.Error",
+      "settled_by": "local_client.go:196-197 'res := app.Application.InitChain(req); return res, nil'; app_conn.go:66 'return app.appConn.InitChainSync(req)'; no other client implements InitChainSync"
+    },
+    {
+      "file": "contribs/gnogenesis/internal/fork/test.go",
+      "line": 266,
+      "angle": "claims",
+      "summary": "Tripwire comment says no current path skips a deliverable tx",
+      "settled_by": "deliverGenesisTx returns before GenesisTxResultHandler only at app.go:824 'if metadata != nil && metadata.Failed', which countDeliverableTxs excludes; every other path reaches cfg.GenesisTxResultHandler"
+    },
+    {
+      "file": "contribs/gnobr/main.go",
+      "line": 136,
+      "angle": "rollout",
+      "summary": "An out-of-node state writer could leave a committed chain without the height-0 key and trigger the reset",
+      "settled_by": "gnobr rewrites only the state record (sm.SaveState(stDB, state) at 136), trims the blockstore and wipes gnolang.db; it never deletes abciResponsesKey:0 or genesisDoc, so genesisApplied stays true after a rollback; no other non-test sm.SaveState/SaveABCIResponses caller outside tm2 state/consensus/node"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 45,
+      "angle": "lines",
+      "summary": "Switching NewDefaultGenesisConfig's AppState from pointer to value could break callers asserting the pointer",
+      "settled_by": "grep NewDefaultGenesisConfig: only contribs/gnodev/pkg/dev/node.go:716, which overwrites genesis.AppState at 717; grep 'AppState.(*' finds only *GenesisStateRef assertions"
+    }
+  ]
+}

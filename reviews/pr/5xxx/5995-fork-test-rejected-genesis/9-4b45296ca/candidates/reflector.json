@@ -1,0 +1,10 @@
+{
+  "candidates": [
+    {"index": 2001, "file": "tm2/pkg/bft/consensus/replay.go", "line": 383, "angle": "catalog",
+     "summary": "assertAppHashEqualsOneFromState panics after sm.SaveABCIResponses(h.stateDB, 0, ...) has written the height-0 marker, the one refusal on the genesis path left after the save, so a genesis whose app_hash disagrees with the app is marked applied before the boot stops",
+     "failure_scenario": "genesis.json carries an app_hash the app's Info does not return at height 0; InitChain succeeds, the height-0 responses are saved, then the storeBlockHeight == 0 case panics. The restart finds the marker and keeps the persisted doc, so a correction made in that file is ignored",
+     "verify_by": "sed -n 349,383p tm2/pkg/bft/consensus/replay.go for the order of the save and the panic; then sed -n 1096,1105p tm2/pkg/bft/node/node.go: is the only correction that clears the panic, a changed app_hash, refused whether the marker exists or not",
+     "band": "Warning", "fix_kind": "code", "checked": true, "run": false}
+  ],
+  "dropped": []
+}

@@ -1,0 +1,60 @@
+{
+  "verdicts": [
+    {
+      "index": 1002, "angle": "removed",
+      "verify_by": "Mutate node.go:1084 to drop the error check, then run go test ./tm2/pkg/bft/node: expect a red test, observe all green.",
+      "check": "in a scratch worktree at 4b45296ca, node.go:1084-1086 replaced by `_ = saveGenesisDoc(stateDB, genDoc)`, then go test -count=1 ./tm2/pkg/bft/node",
+      "state": "CONFIRMED", "band": "Missing test",
+      "file": "tm2/pkg/bft/node/node.go", "line": 1084,
+      "tldr": "no test fails the first boot on a failed genesis doc write; the only write-failure fixture is armed after the first load returned",
+      "details": "With the first-boot error check removed the whole tm2/pkg/bft/node package passes. genesisDocSetErrDB (node_test.go:705) is used once, at node_test.go:722, where d.fail is set only after the first LoadStateFromDBOrGenesisDocProvider call returned, so it reaches resetToGenesisDoc's write and never the first-boot one. saveGenesisDoc has two callers, node.go:1084 and node.go:1146, and only the second is pinned. Fix, mechanical: a case setting d.fail before the first call and requiring ErrorContains 'injected write error'.",
+      "evidence": "mutation A: `ok  github.com/gnolang/gno/tm2/pkg/bft/node 2.226s`; grep -rn 'saveGenesisDoc(': node.go:1084, node.go:1146, node_test.go:123",
+      "repro_path": "", "base_behaves_the_same": false, "refuted_by": ""
+    },
+    {
+      "index": 1, "angle": "lines",
+      "verify_by": "LoadStateFromDBOrGenesisDocProvider with validator pk1, SaveABCIResponses(0), then again with validator pk2 and AppState v2: expect an error or a warning, observe err nil, pk1 kept, AppState v2",
+      "check": "go test -count=1 -run TestJudge1AppliedMix -v ./tm2/pkg/bft/node with tests/judge-1-2-genesis-doc-probes_test.go copied in, at 4b45296ca and with tm2/pkg/bft/{node,consensus,state} checked out at cfcbaf484",
+      "state": "CONFIRMED", "band": "Suggestion",
+      "file": "tm2/pkg/bft/node/node.go", "line": 1116,
+      "tldr": "once the height-0 key exists, a genesis file with another validator set boots with the persisted validators and the file's AppState, and nothing reports the difference",
+      "details": "The applied branch compares only ChainID (node.go:1096) and AppHash (node.go:1101), then takes freshDoc.AppState at node.go:1116. The probe returns err=<nil>, the persisted pk1 validator and AppState v2, at the head and at the merge base alike: the behaviour predates the branch, which kept the applied branch as it was. Reaching it needs InitChain to have succeeded with no block committed and the file swapped in that window. Whether to log or refuse the divergence is a decision for the author; not in this change's scope.",
+      "evidence": "head: `JUDGE1 err=<nil> validators_from_persisted_pk1=true appstate=v2`; base: the same line",
+      "repro_path": "tests/judge-1-2-genesis-doc-probes_test.go", "base_behaves_the_same": true, "refuted_by": ""
+    },
+    {
+      "index": 1001, "angle": "removed",
+      "verify_by": "Boot NewInMemoryNode with Genesis.AppState=nil at base and at head: base boots, head returns the handshake error.",
+      "check": "GNOROOT=<worktree> go test -count=1 -run TestJudge1001NilAppState -v ./gno.land/pkg/gnoland with tests/judge-1001-nil-appstate_test.go copied in, at 4b45296ca and with the tree checked out at cfcbaf484",
+      "state": "CONFIRMED", "band": "Nit",
+      "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md", "line": 76,
+      "tldr": "an in-memory node given a nil AppState booted at the merge base and now stops in the handshake, and the ADR's Consequences do not name it",
+      "details": "loadAppState's switch is identical at both commits (head app.go:491-497, base app.go:504-510): nil and *GnoGenesisState fall to `invalid AppState of type %T`. The base ignored the response error; the head's res.IsErr() check at replay.go:346 aborts on it. The *GnoGenesisState half is named in the ADR's Decision, 'Pass the default genesis state by value', and the deleted app.go comment was already untrue at the base, where the nil case logged an error rather than a warning. No non-test caller in gno.land, contribs or tm2 passes a nil AppState. Rebanded from Suggestion: what remains is a Consequences bullet for out-of-tree NewInMemoryNode callers, or a `case nil` if the author wants that shape to keep booting; a decision for the author.",
+      "evidence": "head: `JUDGE1001 err=error during handshake: error on replay: InitChain rejected the genesis: invalid AppState of type <nil> node_built=false`; base: `JUDGE1001 err=<nil> node_built=true`",
+      "repro_path": "tests/judge-1001-nil-appstate_test.go", "base_behaves_the_same": false, "refuted_by": ""
+    },
+    {
+      "index": 2, "angle": "lines",
+      "verify_by": "a provider returning ChainID \"\" makes the first load fail; a second load on the same db with ChainID \"fixed\" fails with 'genesis chain id mismatch'",
+      "check": "go test -count=1 -run TestJudge2EmptyChainIDPinned -v ./tm2/pkg/bft/node with tests/judge-1-2-genesis-doc-probes_test.go copied in, at 4b45296ca and at cfcbaf484",
+      "state": "CONFIRMED", "band": "Nit",
+      "file": "tm2/pkg/bft/node/node.go", "line": 1084,
+      "tldr": "the first-boot branch persists the genesis doc before it is validated, so a doc with an invalid chain_id is pinned and the corrected file is refused as a changed genesis",
+      "details": "First load: `error in genesis file: Genesis doc must include non-empty chain_id`, after saveGenesisDoc at node.go:1084 already wrote the doc. Second load with chain_id fixed: `genesis chain id mismatch between persisted state (\"\") and source genesis (\"fixed\")`. resetToGenesisDoc runs sm.MakeGenesisState before its write (node.go:1142-1146), the shape this branch repeats without. Only a provider that skips ValidateAndComplete reaches it, since GenesisDocFromFile validates at types/genesis.go:178; the base behaves the same, and recovery is wiping a data dir with nothing committed, hence Nit. Fix, mechanical: build or validate the genesis state before saveGenesisDoc in the first-boot branch.",
+      "evidence": "head and base alike: `JUDGE2 first err=error in genesis file: Genesis doc must include non-empty chain_id` then `JUDGE2 second err=genesis chain id mismatch between persisted state (\"\") and source genesis (\"fixed\")`",
+      "repro_path": "tests/judge-1-2-genesis-doc-probes_test.go", "base_behaves_the_same": true, "refuted_by": ""
+    },
+    {
+      "index": 2001, "angle": "catalog",
+      "verify_by": "sed -n 349,383p tm2/pkg/bft/consensus/replay.go; sed -n 1096,1105p tm2/pkg/bft/node/node.go",
+      "check": "read of the save-then-assert order in ReplayBlocks and of the app_hash identity check in LoadStateFromDBOrGenesisDocProvider",
+      "state": "REFUTED", "band": "Warning",
+      "file": "tm2/pkg/bft/consensus/replay.go", "line": 383,
+      "tldr": "the app-hash panic does follow the height-0 save, but the only correction that clears it, a changed app_hash, is refused whether or not the genesis is marked applied",
+      "details": "assertAppHashEqualsOneFromState at replay.go:383 runs after sm.SaveABCIResponses, so the marker is written before the panic. Clearing the panic means changing the genesis app_hash, and node.go:1101 refuses a changed app_hash before genesisApplied is consulted at node.go:1109, so the marker changes nothing the operator can do: a wipe is needed either way.",
+      "evidence": "node.go:1101 `if !bytes.Equal(freshDoc.AppHash, genDoc.AppHash) {` precedes node.go:1109 `applied, aerr := genesisApplied(stateDB)`",
+      "repro_path": "", "base_behaves_the_same": true,
+      "refuted_by": "node.go:1101 if !bytes.Equal(freshDoc.AppHash, genDoc.AppHash) { return ... \"genesis app_hash mismatch ...\" }"
+    }
+  ]
+}
