@@ -1,0 +1,75 @@
+{
+ "candidates": [],
+ "dropped": [
+  {
+   "file": "tm2/pkg/bft/node/node.go",
+   "line": 1124,
+   "angle": "reach",
+   "summary": "a zero-tx genesis saves a nil height-0 value, which a Get-based Has could read as absent and reset a committed chain's state record",
+   "settled_by": "go test ./tm2/pkg/bft/node -run TestSoloEmptyGenesisMarker: 'zero-tx height-0 value: len=0 nil=true', then 'genesisApplied=true err=<nil>' on memdb, goleveldb, pebbledb, boltdb, lmdbdb and mdbxdb"
+  },
+  {
+   "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+   "line": 74,
+   "angle": "claims",
+   "summary": "the operator-retry consequence is pinned only against a mock app; gno.land's real InitChainer could leave app-side writes that break a retry on the same DB",
+   "settled_by": "tests/solo-finder-gnoland-retry_test.go, one memdb shared by a refused and a corrected NewInMemoryNode: '--- PASS' in all three shapes, first block at 100 (app side corrected), 1 (doc 100 to 1), 100 (doc 1 to 100)"
+  },
+  {
+   "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+   "line": 79,
+   "angle": "claims",
+   "summary": "'Only RPC reads those heights': a non-RPC reader of stale per-height validator records below InitialHeight",
+   "settled_by": "grep LoadValidators callers: state/validation.go:175 sits inside a /* */ block (VerifyEvidence commented out); state/execution.go:281 reads block.Height-1 only when block.Height > state.InitialHeight"
+  },
+  {
+   "file": "gno.land/pkg/gnoland/node_inmemory.go",
+   "line": 46,
+   "angle": "removed",
+   "summary": "a sibling constructor or consumer still building or asserting *GnoGenesisState after the default moved to a value",
+   "settled_by": "grep -rnE 'AppState(\\s*:|\\s*=)\\s*&' and 'AppState.(*' over the tree: no hit; the one non-test caller, contribs/gnodev/pkg/dev/node.go:717, overwrites AppState with a value"
+  },
+  {
+   "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+   "line": 31,
+   "angle": "claims",
+   "summary": "'every app's response passes' ReplayBlocks: another InitChain caller could still drop the response Error",
+   "settled_by": "grep '.InitChainSync(' non-test: tm2/pkg/bft/consensus/replay.go:339 is the only caller; grep 'ResponseInitChain{' non-test: gno.land/pkg/gnoland/app.go:401 is the only producer of an Error response"
+  },
+  {
+   "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+   "line": 82,
+   "angle": "claims",
+   "summary": "history claim that the height-0 save (gnolang/gno#1941) predates AppState stripping (gnolang/gno#5684)",
+   "settled_by": "git log -S 'SaveABCIResponses(h.stateDB, 0' -- replay.go: 3aa0f0b7d (gnolang/gno#1941); git log -S 'stripped.AppState = nil' -- node.go: 5d0a4d703 (gnolang/gno#5684)"
+  },
+  {
+   "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+   "line": 45,
+   "angle": "claims",
+   "summary": "execTest receives the refusal from NewInMemoryNode rather than from Start",
+   "settled_by": "tm2/pkg/bft/node/node.go:452 runs doHandshake inside NewNode, which NewInMemoryNode returns; the retry run logged 'error during handshake: error on replay: InitChain rejected the genesis: InitialHeight mismatch'"
+  },
+  {
+   "file": "gno.land/pkg/gnoland/app.go",
+   "line": 497,
+   "angle": "removed",
+   "summary": "the deleted note that AppState may be nil in minimal setups: a nil AppState now aborts boot with 'invalid AppState of type <nil>'",
+   "settled_by": "NewInMemoryNode callers (integration/node_testing.go, integration/process.go, gnodev dev/node.go:717, gnogenesis fork/test.go) all pass a GnoGenesisState value; a nil AppState left in a test setup fails that test in CI"
+  },
+  {
+   "file": "gno.land/pkg/gnoland/app.go",
+   "line": 563,
+   "angle": "two-versions",
+   "summary": "StrictReplay's refusal was discarded before and is now enforced, changing boot for any deployment that sets it",
+   "settled_by": "grep StrictReplay non-test: only app.go:321-329 (declaration) and 563/647 (reads); nothing outside tests sets it"
+  },
+  {
+   "file": "tm2/adr/pr5949_remove_secp256k1_validators.md",
+   "line": 71,
+   "angle": "removed",
+   "summary": "another ADR still says ResponseInitChain.Error is silently discarded by tm2",
+   "settled_by": "gno calibration: the ADR is the governing document the no-critique rule covers; it records PR 5949's own decision"
+  }
+ ]
+}

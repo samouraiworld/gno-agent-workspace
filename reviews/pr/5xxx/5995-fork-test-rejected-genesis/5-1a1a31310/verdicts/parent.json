@@ -1,0 +1,20 @@
+{
+  "verdicts": [
+    {
+      "index": 5,
+      "angle": "removed",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 239,
+      "tldr": "Handshake reads ResponseInfo without checking its Error, so an app refusing Info still completes the handshake; no in-tree app sets that field",
+      "details": "replay.go:239-243 checks only the Go error from InfoSync. A handshake against an app whose Info returns ResponseBase.Error completes with a nil error. No non-test Info implementation sets the field (BaseApp, kvstore, persistent_kvstore, counter, BaseApplication), so nothing reaches it today, and it predates the branch. Ships SKIP: no issue, for the same reason as round 3 row 1003.",
+      "evidence": "go test -overlay with tests/parent-5-info-error-ignored_test.go ./tm2/pkg/bft/consensus -run TestZZInfoErrorIgnored -v: 'handshake err=<nil>', --- PASS",
+      "check": "go test -count=1 -overlay <overlay adding tests/parent-5-info-error-ignored_test.go> ./tm2/pkg/bft/consensus/ -run TestZZInfoErrorIgnored -v",
+      "verify_by": "an app whose Info returns Error, run through NewHandshaker(...).Handshake",
+      "repro_path": "tests/parent-5-info-error-ignored_test.go",
+      "base_behaves_the_same": true,
+      "refuted_by": ""
+    }
+  ]
+}

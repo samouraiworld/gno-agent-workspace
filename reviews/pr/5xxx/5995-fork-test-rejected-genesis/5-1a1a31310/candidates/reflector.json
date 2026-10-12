@@ -1,0 +1,66 @@
+{
+  "candidates": [
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1106,
+      "angle": "claims",
+      "summary": "ADR Consequences 1-2 are proved only against pickyApp, an app with no store; gno.land's own app may not fail boot on a refused genesis or may not boot the corrected file on the same DB",
+      "failure_scenario": "gno.land InitChainer loads stdlibs and stores consensus params before loadAppState refuses an InitialHeight mismatch; a write that outlives the refusal would make the restart on the same DB diverge or fail",
+      "verify_by": "go test -run TestJudgeRejectedGenesisRestart -v ./gno.land/pkg/gnoland with tests/judge-r1-rejected-genesis-restart_test.go copied in, at head and at the merge base",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1124,
+      "angle": "claims",
+      "summary": "genesisApplied's godoc says height 0 of the ABCI responses is never pruned; a pruner deleting it would reset a committed chain's state record",
+      "failure_scenario": "any code deleting abciResponsesKey:0 makes genesisApplied false on a running chain, whose persisted doc has no AppState since gnolang/gno#5684, so resetToGenesisDoc rebuilds its state record",
+      "verify_by": "grep -rn 'CalcABCIResponsesKey' tm2 gno.land contribs outside _test.go for a Delete",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true
+    },
+    {
+      "file": "contribs/gnogenesis/internal/fork/test.go",
+      "line": 266,
+      "angle": "claims",
+      "summary": "the tripwire comment says no current path skips a deliverable tx; a deliverGenesisTx return before the result handler would make the guard fire on a valid genesis",
+      "failure_scenario": "a deliverGenesisTx early return other than metadata.Failed leaves processed < expected and fork test reports FAIL on a good genesis",
+      "verify_by": "awk over gno.land/pkg/gnoland/app.go deliverGenesisTx for every return before cfg.GenesisTxResultHandler, and both tx loops",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true
+    },
+    {
+      "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+      "line": 81,
+      "angle": "claims",
+      "summary": "ADR Consequence 5 orders gnolang/gno#1941 before gnolang/gno#5684 and says saveGenesisDoc began dropping AppState in gnolang/gno#5684",
+      "failure_scenario": "if gnolang/gno#5684 predates gnolang/gno#1941, a data dir applied between them carries a nil-AppState doc and no height-0 key, and reaches the reset on a committed chain",
+      "verify_by": "git merge-base --is-ancestor 3aa0f0b7d 5d0a4d703; git show of each for SaveABCIResponses(\u2026, 0, \u2026) and stripped.AppState = nil",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 239,
+      "angle": "removed",
+      "summary": "Handshake's InfoSync, the sibling ABCI call of the same handshake, still checks only the Go error and reads LastBlockHeight from a response whose Error it ignores",
+      "failure_scenario": "an app answering Info with ResponseBase.Error and a zero LastBlockHeight on a running chain sends the handshake to InitChain at appBlockHeight 0",
+      "verify_by": "an initChainApp-style app whose Info returns Error, run through NewHandshaker(...).Handshake; no in-tree app does so",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": false
+    }
+  ],
+  "dropped": [],
+  "completeness": [
+    "ADR Context, Decision and Consequences read line by line against the code: every runtime statement maps to one of candidates 1-4 or to a run listed in their verdicts; none failed.",
+    "Catalog: skills/invariant-catalog.md holds realm audit patterns and caller-identity predicates; the diff touches no .gno, GnoVM or stdlib code, so no class applies.",
+    "Sibling sweep by shape, an ABCI Sync call in the handshake whose response Error is unread: InitChainSync is fixed, InfoSync at replay.go:239 is candidate 5; the only non-test InitChainSync caller is replay.go:339.",
+    "Changed tests: TestHandshakeInitChainError, TestE2ERejectThenCorrectedGenesisBoots, the five LoadStateFromDBOrGenesisDocProvider tests and TestExecTest_InitialHeightMismatch pass at head."
+  ]
+}
