@@ -1,0 +1,54 @@
+{
+  "candidates": [],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/node/node_test.go",
+      "line": 606,
+      "angle": "removed",
+      "summary": "extracting seedCommittedChain out of CommittedStatePreserved and ProbeErrorKeepsCommittedState could leave either test no longer pinning the reset gate or the probe-error path",
+      "settled_by": "scratch tree at 4a3ca5bb6, go test ./tm2/pkg/bft/node -run 'TestLoadStateFromDBOrGenesisDocProvider|TestGenesisReset|TestE2EReject' -count=1: baseline ok; probe error mutated to 'return false, nil': '--- FAIL: TestLoadStateFromDBOrGenesisDocProvider_ProbeErrorKeepsCommittedState'; 'if !applied {' mutated to 'if !applied || true {': '--- FAIL: TestLoadStateFromDBOrGenesisDocProvider_AppliedGenesisWins', '--- FAIL: TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved'"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node_genesis_restart_test.go",
+      "line": 75,
+      "angle": "removed",
+      "summary": "with the boot-1 t.Logf gone, require.Error could pass on an unrelated boot failure and stop pinning the handshake fix",
+      "settled_by": "scratch tree, replay.go:346 mutated to 'if false && res.IsErr() {': 'node_genesis_restart_test.go:75: An error is expected but got nil', '--- FAIL: TestE2ERejectThenCorrectedGenesisBoots'; TestHandshakeInitChainError fails both subtests under the same mutation"
+    },
+    {
+      "file": "contribs/gnogenesis/internal/fork/test_test.go",
+      "line": 240,
+      "angle": "lines",
+      "summary": "folding require.Error into require.ErrorContains could let a nil error pass TestExecTest_InitialHeightMismatch",
+      "settled_by": "testify v1.11.1 assert/assertions.go:1691 'if !Error(t, theError, msgAndArgs...) { return false }': ErrorContains fails on a nil error first"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node_test.go",
+      "line": 680,
+      "angle": "catalog",
+      "summary": "'d, _ := probeGenesisDocProvider(pk, 100)()' discards an error (catalog: no swallowed errors)",
+      "settled_by": "sed -n 543,553p tm2/pkg/bft/node/node_test.go: the provider's only return is '&types.GenesisDoc{...}, nil' (line 553), so the discarded error is always nil"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 43,
+      "angle": "removed",
+      "summary": "the trimmed comment 'loadAppState rejects a *GnoGenesisState as an invalid AppState' could state something false",
+      "settled_by": "gno.land/pkg/gnoland/app.go:491-497: switch on GnoGenesisState and *GenesisStateRef only, 'default: return nil, fmt.Errorf(\"invalid AppState of type %T\", appState)'"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1118,
+      "angle": "removed",
+      "summary": "the trimmed genesisApplied comment claims the height-0 responses are saved only on InitChain success and never pruned; another writer or a delete would make it false",
+      "settled_by": "grep -rn 'SaveABCIResponses|CalcABCIResponsesKey' --include='*.go' tm2 gno.land contribs, non-test: writers are replay.go:353 (height 0, after the res.IsErr return at 346) and execution.go:100 (block.Height); no Delete of the key"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node_test.go",
+      "line": 606,
+      "angle": "catalog",
+      "summary": "parallel tests added in node and consensus packages could race on shared state (catalog: global mutable state and concurrency)",
+      "settled_by": "go test -race ./tm2/pkg/bft/node -run 'TestLoadStateFromDBOrGenesisDocProvider|TestGenesisReset|TestE2EReject' -count=1: 'ok 1.049s'; go test -race ./tm2/pkg/bft/consensus -run TestHandshakeInitChainError -count=1: 'ok 1.044s'"
+    }
+  ]
+}

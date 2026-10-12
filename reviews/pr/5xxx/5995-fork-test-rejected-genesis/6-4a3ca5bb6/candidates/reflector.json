@@ -1,0 +1,45 @@
+{
+  "candidates": [
+    {
+      "file": "tm2/pkg/bft/node/node_test.go",
+      "line": 611,
+      "angle": "tests",
+      "summary": "the extracted seedCommittedChain could stop CommittedStatePreserved or ProbeErrorKeepsCommittedState reddening when the seed loses the height-0 marker or the committed height",
+      "failure_scenario": "a helper whose seed no longer reaches the reset gate's committed branch leaves both tests green with the seed broken, so a later edit to the seed silently stops pinning the reset gate",
+      "verify_by": "bash tests/judge-1-seed-helper-mutations.sh: delete the helper's SaveABCIResponses line, then its LastBlockHeight line, expect FAIL each time",
+      "band": "Missing test",
+      "fix_kind": "none",
+      "checked": true
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay_test.go",
+      "line": 1206,
+      "angle": "claims",
+      "summary": "the trimmed TestHandshakeInitChainError header claims the rejection leaves the genesis ABCI responses unsaved; the test may not pin that",
+      "failure_scenario": "replay.go saving the height-0 responses before the res.IsErr() return would mark a refused genesis as applied, and a test that stays green under that order makes the header false",
+      "verify_by": "bash tests/judge-2-replay-save-order.sh: move the save above the res.IsErr() return, expect both subtests FAIL",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true
+    },
+    {
+      "file": "tm2/pkg/bft/node/node_genesis_restart_test.go",
+      "line": 62,
+      "angle": "removed",
+      "summary": "sibling of the dead 'if derr != nil' branch 4a3ca5bb6 dropped from TestGenesisResetKeepsGoodDocOnInvalidFile, left in the restart test's provider",
+      "failure_scenario": "a never-taken error branch in a test provider reads as a path the test exercises",
+      "verify_by": "sed -n 60,68p tm2/pkg/bft/node/node_genesis_restart_test.go: what the provider calls before the branch, and whether that call can return an error",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true
+    }
+  ],
+  "dropped": [],
+  "completeness": [
+    "Commit 4a3ca5bb6 read hunk by hunk for behaviour or test-strength change: no production line changes; node.go and node_inmemory.go lose comment lines only, and every remaining comment sentence was checked against the code (candidates 2 and the finder's drops at node.go:1118 and node_inmemory.go:43).",
+    "Test strength: the shared seed helper is candidate 1, the trimmed InitChain-error header candidate 2; the folded require.Error is settled by a run, assert.ErrorContains(fakeT, nil, ...) returning ok=false with the fake failed (tests/judge-errorcontains-nil_test.go), and TestExecTest_InitialHeightMismatch passes at head in 1.134s.",
+    "Sibling sweep by shape of the dropped dead branch, a test GenesisDocProvider checking an error its callee never returns: the only other 'if derr != nil' in tm2/pkg/bft/node tests is candidate 3.",
+    "Catalog: skills/invariant-catalog.md classes are gno VM, realm and stdlib invariants; 4a3ca5bb6 touches no .gno, GnoVM or stdlib code. The Error and panic handling class reaches the discarded error at node_test.go:680, settled by the finder: the provider's only return carries a nil error.",
+    "All changed tests pass at head: the node package's LoadStateFromDBOrGenesisDocProvider, GenesisReset and E2EReject tests, and TestHandshakeInitChainError."
+  ]
+}

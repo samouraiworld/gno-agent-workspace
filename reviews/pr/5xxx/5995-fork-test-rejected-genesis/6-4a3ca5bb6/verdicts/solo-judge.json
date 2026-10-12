@@ -1,0 +1,52 @@
+{
+  "verdicts": [
+    {
+      "index": 1,
+      "angle": "tests",
+      "verify_by": "bash tests/judge-1-seed-helper-mutations.sh: delete the helper's SaveABCIResponses line, then its LastBlockHeight line, expect FAIL each time",
+      "check": "bash tests/judge-1-seed-helper-mutations.sh in a scratch worktree at 4a3ca5bb6",
+      "state": "REFUTED",
+      "band": "Missing test",
+      "file": "tm2/pkg/bft/node/node_test.go",
+      "line": 611,
+      "tldr": "seedCommittedChain still pins both committed-chain tests: either seed line removed reddens them",
+      "details": "Removing the helper's height-0 marker (node_test.go:611) reddens CommittedStatePreserved; removing LastBlockHeight = 500 (612) reddens CommittedStatePreserved and ProbeErrorKeepsCommittedState. ProbeErrorKeepsCommittedState stays green without the marker, as before the extraction: its probe fails before the marker is read. Not causal, so no merge-base run.",
+      "evidence": "A: '--- FAIL: TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved', Messages 'a committed chain's state must not be rebuilt'; B: that FAIL plus '--- FAIL: TestLoadStateFromDBOrGenesisDocProvider_ProbeErrorKeepsCommittedState', Messages 'a failed probe must not rewrite the state record'",
+      "repro_path": "tests/judge-1-seed-helper-mutations.sh",
+      "base_behaves_the_same": null,
+      "refuted_by": "node_test.go:611 sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0)): deleting it fails CommittedStatePreserved"
+    },
+    {
+      "index": 2,
+      "angle": "claims",
+      "verify_by": "bash tests/judge-2-replay-save-order.sh: move the save above the res.IsErr() return, expect both subtests FAIL",
+      "check": "bash tests/judge-2-replay-save-order.sh in a scratch worktree at 4a3ca5bb6",
+      "state": "REFUTED",
+      "band": "Nit",
+      "file": "tm2/pkg/bft/consensus/replay_test.go",
+      "line": 1206,
+      "tldr": "TestHandshakeInitChainError reddens when the height-0 responses are saved before the rejection returns, so its header holds",
+      "details": "With sm.SaveABCIResponses(h.stateDB, 0, ...) moved above 'if res.IsErr() {' in replay.go, both subtests fail on the LoadABCIResponses(stateDB, 0) check at replay_test.go:1246 and 1259. The dropped sentence about InitChainSync being a pass-through survives at replay.go:344.",
+      "evidence": "'--- FAIL: TestHandshakeInitChainError/fresh_genesis', '--- FAIL: TestHandshakeInitChainError/hardfork_genesis_keeps_the_alignment_write', Messages 'genesis ABCI responses must not be saved after a rejected InitChain'; unmutated: ok",
+      "repro_path": "tests/judge-2-replay-save-order.sh",
+      "base_behaves_the_same": null,
+      "refuted_by": "replay_test.go:1246 _, loadErr := sm.LoadABCIResponses(stateDB, 0)"
+    },
+    {
+      "index": 3,
+      "angle": "removed",
+      "verify_by": "sed -n 60,68p tm2/pkg/bft/node/node_genesis_restart_test.go: what the provider calls before the branch, and whether that call can return an error",
+      "check": "sed -n 60,68p tm2/pkg/bft/node/node_genesis_restart_test.go: what the provider calls before the branch, and whether that call can return an error",
+      "state": "REFUTED",
+      "band": "Nit",
+      "file": "tm2/pkg/bft/node/node_genesis_restart_test.go",
+      "line": 62,
+      "tldr": "the restart test's provider checks the error of types.GenesisDocFromFile, which reads a file and can fail, so the branch is live",
+      "details": "Unlike probeGenesisDocProvider (node_test.go:542-554), whose only return is a doc and nil, this provider loads genesisFile from disk; a missing or malformed file returns that error, so the branch is not the shape 4a3ca5bb6 removed.",
+      "evidence": "node_genesis_restart_test.go:61-64: doc, derr := types.GenesisDocFromFile(genesisFile); if derr != nil { return nil, derr }",
+      "repro_path": "",
+      "base_behaves_the_same": null,
+      "refuted_by": "node_genesis_restart_test.go:61 doc, derr := types.GenesisDocFromFile(genesisFile)"
+    }
+  ]
+}
