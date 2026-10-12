@@ -41,14 +41,15 @@ flowchart TD
 ```
 
 - `genesisApplied` answers whether `abciResponsesKey:0` exists, with `stateDB.Has`; a read error is returned and fails the boot, so it never reads as "not applied".
-- A read error on the persisted genesis doc fails the boot too, so it never reads as "no doc" and lets the file replace that doc.
+- A read error on the persisted genesis doc fails the boot too, so it never reads as "no doc" and lets the file replace that doc; so does a failed write of the corrected doc during the reset.
+- A genesis left with no validators is refused before the height-0 save as well, so it can be corrected in place like any other refusal.
 - `resetToGenesisDoc` runs `sm.MakeGenesisState(freshDoc)`, then `saveGenesisDoc` and `sm.SaveState`, undoing the `InitialHeight` alignment `ReplayBlocks` persisted before the rejected `InitChain`.
 - `ReplayBlocks` aborts on `res.IsErr()` before `sm.SaveABCIResponses(h.stateDB, 0, ...)`, which keeps the marker meaning "InitChain succeeded".
 
 ## Read the code in this order
 
-1. [`replay.go` L346-L348](https://github.com/gnolang/gno/blob/87f41db347325ab339a33c87227443292d4f8e08/tm2/pkg/bft/consensus/replay.go#L346-L348): the abort. Without it the height-0 marker is written for a rejected genesis and the reset never fires.
-2. [`node.go` L1107-L1113](https://github.com/gnolang/gno/blob/87f41db347325ab339a33c87227443292d4f8e08/tm2/pkg/bft/node/node.go#L1107-L1113): the gate, reached on every restart, since the persisted doc never carries `AppState`.
+1. [`replay.go` L346-L348](https://github.com/gnolang/gno/blob/4b45296ca80ee11748e28dff02a178f56800aa38/tm2/pkg/bft/consensus/replay.go#L346-L348): the abort. Without it the height-0 marker is written for a rejected genesis and the reset never fires.
+2. [`node.go` L1109-L1115](https://github.com/gnolang/gno/blob/4b45296ca80ee11748e28dff02a178f56800aa38/tm2/pkg/bft/node/node.go#L1109-L1115): the gate, reached on every restart, since the persisted doc never carries `AppState`.
 
    ```go
    applied, aerr := genesisApplied(stateDB)
@@ -60,9 +61,9 @@ flowchart TD
    }
    ```
 
-3. [`node.go` L1126](https://github.com/gnolang/gno/blob/87f41db347325ab339a33c87227443292d4f8e08/tm2/pkg/bft/node/node.go#L1126): `genesisApplied`, the probe the gate trusts.
-4. [`app.go`](https://github.com/gnolang/gno/blob/87f41db347325ab339a33c87227443292d4f8e08/gno.land/pkg/gnoland/app.go): `InitChainer` returns the `loadAppState` error as `ResponseInitChain.Error`, which now stops boot; the valoper coverage check still panics.
-5. [`node_inmemory.go`](https://github.com/gnolang/gno/blob/87f41db347325ab339a33c87227443292d4f8e08/gno.land/pkg/gnoland/node_inmemory.go): the `GnoGenesisState` value fix.
+3. [`node.go` L1128](https://github.com/gnolang/gno/blob/4b45296ca80ee11748e28dff02a178f56800aa38/tm2/pkg/bft/node/node.go#L1128): `genesisApplied`, the probe the gate trusts.
+4. [`app.go`](https://github.com/gnolang/gno/blob/4b45296ca80ee11748e28dff02a178f56800aa38/gno.land/pkg/gnoland/app.go): `InitChainer` returns the `loadAppState` error as `ResponseInitChain.Error`, which now stops boot; the valoper coverage check still panics.
+5. [`node_inmemory.go`](https://github.com/gnolang/gno/blob/4b45296ca80ee11748e28dff02a178f56800aa38/gno.land/pkg/gnoland/node_inmemory.go): the `GnoGenesisState` value fix.
 
 ## What a user notices
 

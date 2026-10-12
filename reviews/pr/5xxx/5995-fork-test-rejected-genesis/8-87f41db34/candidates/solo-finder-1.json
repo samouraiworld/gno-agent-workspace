@@ -1,0 +1,77 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 353,
+      "angle": "lines",
+      "summary": "the height-0 key is saved before the 'validator set is nil' refusal, so a genesis refused for having no validators can never be corrected in place",
+      "failure_scenario": "genesis.json carries no validators (ValidateAndComplete allows it) and the app returns none (gnoland's InitChainer returns req.Validators). ReplayBlocks saves abciResponsesKey:0 at line 353, then returns 'validator set is nil in genesis and still empty after InitChain' at line 367. The operator adds a validator to genesis.json and restarts on the same data dir: genesisApplied reads true, the persisted doc with no validators wins, InitChain runs again on it and the boot fails with the same message on every restart until the data dir is wiped. The ADR's Consequences (line 76) says a corrected genesis.json boots on the same data dir when the chain id and app hash are unchanged; this refusal is the one the diff's sweep of 'refusal must not mark genesis applied' missed. Recovery is a wipe of a data dir holding nothing committed.",
+      "verify_by": "copy TestE2ERejectThenCorrectedGenesisBoots (tm2/pkg/bft/node/node_genesis_restart_test.go) with an app whose InitChain returns abci.ResponseInitChain{} and a provider that sets doc.Validators = nil on the first build and keeps them on the second; expect the second build to succeed, observe 'validator set is nil in genesis and still empty after InitChain'. Fix: move the validator-nil check above sm.SaveABCIResponses.",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "replay.go:353 sm.SaveABCIResponses(h.stateDB, 0, abciResponse) precedes replay.go:367 return nil, fmt.Errorf(\"validator set is nil in genesis and still empty after InitChain\"); types/genesis.go ValidateAndComplete rejects only zero-power validators, not an empty list",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1127,
+      "angle": "lines",
+      "summary": "a height-0 record with zero tx responses encodes to 0 bytes; a backend's Has (v != nil) could read it as absent and reset a committed chain",
+      "settled_by": "tests/solo-finder-1-empty-height0-record.go: len(Bytes())=0, yet after close+reopen genesisApplied=true on boltdb, goleveldb, lmdbdb, mdbxdb, pebbledb"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_initial_height_test.go",
+      "line": 129,
+      "angle": "claims",
+      "summary": "boot polls LastBlockHeight >= 999 and may compare app hashes read at different heights (999 vs proof block 1000)",
+      "settled_by": "tests/solo-finder-1-retry-test-height.go: first observed height=1000, app hash 38F9015A... unchanged over 8s; the proof block carries the post-999 hash, so either height yields the same hash"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1111,
+      "angle": "rollout",
+      "summary": "gnoland start's on-disk genesis cache could serve the refused file's app state after the operator corrects genesis.json",
+      "settled_by": "gno.land/pkg/gnoland/genesis_state_ref.go:332-336 hash, err := hashFile(genesisPath); finalDir := filepath.Join(cacheRoot, hash): a corrected file gets a new cache"
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 352,
+      "angle": "rollout",
+      "summary": "a refused hardfork boot's SetInitialVersion could persist and misalign a retry corrected to another InitialHeight",
+      "settled_by": "tm2/pkg/store/rootmulti/store.go:330-340 and iavl/store.go:147-154 set in-memory fields only (ms.initialVersion = v; st.initialVersion = v)"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 346,
+      "angle": "rollout",
+      "summary": "StrictReplay refusals that old binaries ignored now abort boots of production nodes joining an existing network",
+      "settled_by": "grep -rn StrictReplay gno.land contribs tm2 (non-test): only the field at app.go:329 and the checks at 563 and 647; nothing sets it"
+    },
+    {
+      "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+      "line": 83,
+      "angle": "claims",
+      "summary": "ADR orders #1941 (height-0 save) before #5684 (AppState stripped from the persisted doc)",
+      "settled_by": "git log -S: 3aa0f0b7d 2024-07-23 (#1941) adds SaveABCIResponses(h.stateDB, 0; 5d0a4d703 2026-05-18 (#5684) adds stripped.AppState = nil"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1123,
+      "angle": "claims",
+      "summary": "genesisApplied godoc: the height-0 responses are never pruned",
+      "settled_by": "grep -rn '.Delete(|DeleteSync(' tm2/pkg/bft/state tm2/pkg/bft/store tm2/pkg/bft/node (non-test): no hits"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 45,
+      "angle": "lines",
+      "summary": "another caller builds AppState as *GnoGenesisState and now fails to boot",
+      "settled_by": "grep -rn 'AppState: *&|AppState = &' over the tree: no hits; NewDefaultGenesisConfig's one other caller, contribs/gnodev/pkg/dev/node.go:716-717, replaces AppState with a GnoGenesisState value"
+    }
+  ]
+}

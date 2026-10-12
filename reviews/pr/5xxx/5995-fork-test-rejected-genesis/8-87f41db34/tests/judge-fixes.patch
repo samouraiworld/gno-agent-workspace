@@ -1,0 +1,58 @@
+diff --git a/tm2/pkg/bft/consensus/replay.go b/tm2/pkg/bft/consensus/replay.go
+index ff477bb86..3fdcad018 100644
+--- a/tm2/pkg/bft/consensus/replay.go
++++ b/tm2/pkg/bft/consensus/replay.go
+@@ -347,6 +347,10 @@ func (h *Handshaker) ReplayBlocks(
+ 			return nil, fmt.Errorf("InitChain rejected the genesis: %w", res.Error)
+ 		}
+ 
++		if wasStateFresh && len(res.Validators) == 0 && len(h.genDoc.Validators) == 0 {
++			return nil, fmt.Errorf("validator set is nil in genesis and still empty after InitChain")
++		}
++
+ 		// Save the results by height
+ 		abciResponse := sm.NewABCIResponsesFromNum(int64(len(res.TxResponses)))
+ 		copy(abciResponse.DeliverTxs, res.TxResponses)
+diff --git a/tm2/pkg/bft/node/node.go b/tm2/pkg/bft/node/node.go
+index 6490e9807..02b26aeef 100644
+--- a/tm2/pkg/bft/node/node.go
++++ b/tm2/pkg/bft/node/node.go
+@@ -1081,7 +1081,9 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
+ 		if err != nil {
+ 			return sm.State{}, nil, err
+ 		}
+-		saveGenesisDoc(stateDB, genDoc)
++		if err := saveGenesisDoc(stateDB, genDoc); err != nil {
++			return sm.State{}, nil, err
++		}
+ 	} else if genDoc.AppState == nil {
+ 		freshDoc, perr := genesisDocProvider()
+ 		if perr != nil {
+@@ -1141,7 +1143,9 @@ func resetToGenesisDoc(stateDB dbm.DB, genDoc *types.GenesisDoc) (sm.State, *typ
+ 	if err != nil {
+ 		return sm.State{}, nil, err
+ 	}
+-	saveGenesisDoc(stateDB, genDoc)
++	if err := saveGenesisDoc(stateDB, genDoc); err != nil {
++		return sm.State{}, nil, err
++	}
+ 	sm.SaveState(stateDB, state)
+ 	return state, genDoc, nil
+ }
+@@ -1167,14 +1171,14 @@ func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
+ 
+ // panics if failed to marshal the given genesis document.
+ // AppState is dropped before persisting (see LoadStateFromDBOrGenesisDocProvider).
+-func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
++func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) error {
+ 	stripped := *genDoc
+ 	stripped.AppState = nil
+ 	b, err := amino.MarshalJSON(&stripped)
+ 	if err != nil {
+ 		panic(fmt.Sprintf("Failed to save genesis doc due to marshaling error: %v", err))
+ 	}
+-	db.SetSync(genesisDocKey, b)
++	return db.SetSync(genesisDocKey, b)
+ }
+ 
+ // splitAndTrimEmpty slices s into all subslices separated by sep and returns a

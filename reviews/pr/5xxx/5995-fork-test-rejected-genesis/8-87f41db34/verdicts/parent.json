@@ -1,0 +1,20 @@
+{
+  "verdicts": [
+    {
+      "index": 2003,
+      "angle": "lines",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1145,
+      "tldr": "resetToGenesisDoc's sm.SaveState discards the write error, as every write in the state store does",
+      "details": "sm.SaveState returns nothing, and saveState discards the error db.SetSync returns at tm2/pkg/bft/state/store.go:134, which the DB interface declares at tm2/pkg/db/types.go:19. The store discards the error at all five of its write sites, 134, 203, 237, 330 and 403, so this is a store-wide convention predating the branch, not a defect the reset adds; the reset only joins the callers. Ships SKIP: out of this change's scope.",
+      "evidence": "grep -n 'db.Set(\\|db.SetSync(' tm2/pkg/bft/state/store.go: 134, 203, 237, 330, 403, none checked; tm2/pkg/db/types.go:18-19 Set and SetSync return error",
+      "check": "grep -n 'db.Set(\\|db.SetSync(' tm2/pkg/bft/state/store.go; grep -n 'SetSync' tm2/pkg/db/types.go",
+      "verify_by": "read store.go's write sites and the DB interface",
+      "repro_path": "",
+      "base_behaves_the_same": true,
+      "refuted_by": ""
+    }
+  ]
+}

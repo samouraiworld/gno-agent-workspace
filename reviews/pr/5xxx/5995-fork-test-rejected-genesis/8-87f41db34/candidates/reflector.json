@@ -1,0 +1,21 @@
+{
+  "candidates": [
+    {"index": 2001, "file": "tm2/pkg/bft/state/store.go", "line": 83, "angle": "catalog",
+     "summary": "the state record's read could take a Get error as an absent record and rebuild a committed chain's state from the genesis doc, the sibling of the persisted-doc read 87f41db34 made fail closed",
+     "failure_scenario": "db.Get(stateKey) returns an I/O error on a committed chain; loadState reads it as empty, LoadStateFromDBOrGenesisDoc builds a genesis state and the handshake replays from it",
+     "verify_by": "sed -n 82,90p tm2/pkg/bft/state/store.go: a Get error panics rather than returning an empty State",
+     "band": "Warning", "fix_kind": "code", "checked": true, "run": false},
+    {"index": 2003, "file": "tm2/pkg/bft/node/node.go", "line": 1145, "angle": "catalog",
+     "summary": "resetToGenesisDoc's sm.SaveState also drops its SetSync error (store.go:134), so a failed state write after a good doc write could leave the refused state record behind",
+     "failure_scenario": "Reset writes the corrected doc, the state SetSync fails silently; the next boot loads the state record aligned to the refused InitialHeight against the corrected doc",
+     "verify_by": "wrap memdb to fail SetSync on the state key once during the reset, then boot the corrected genesis through newNodeWithDBProvider with an app that accepts it and restart: expect the state record at the corrected InitialHeight. Read: replay.go:375 sm.SaveState(h.stateDB, state) in the wasStateFresh branch rewrites the record after a successful InitChain",
+     "band": "Suggestion", "fix_kind": "code", "checked": true, "run": false}
+  ],
+  "dropped": [],
+  "completeness": [
+    "Catalog walk: Determinism, Gas, Realm state safety, Caller and access control, Coin and banker, Storage deposit, VM-fault recoverability, VM semantics and Type-check touch no line of the diff. Error and panic handling is candidates 1001, 2001 and 2003. Twin input paths is gnoland start's streaming genesis path, decided as a separate issue and not reopened. Global mutable state: the finders' -race run over the new tests is in solo-finder-2's dropped rows.",
+    "Siblings of the response-error refusal, swept by shape: every return between InitChainSync and the end of the appBlockHeight == 0 branch of ReplayBlocks. One sits after sm.SaveABCIResponses(h.stateDB, 0, ...): the 'validator set is nil' return at replay.go:367, candidate 1.",
+    "Siblings of the fork test's transaction-count guard, swept by shape (len(...TxResponses), txCount, expected-vs-delivered comparisons) over contribs/gnogenesis, gno.land/pkg/gnoland, gno.land/cmd and tm2/pkg/bft/consensus outside tests: only progress counters in source_txs*.go and the mock app's index in replay.go:573-584. No second guard repeats the edited shape.",
+    "Tests angle: with the read-error guard of 87f41db34 disabled (if false && err != nil ...), TestLoadStateFromDBOrGenesisDocProvider_GenesisDocReadErrorFailsBoot fails; with the reset disabled (if false && !applied), the gnoland test TestNodeRejectedGenesisRetryMatchesFreshBoot from 5fa47bd8e fails. Both new tests pin their lines."
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1144,
+      "angle": "catalog",
+      "summary": "resetToGenesisDoc overwrites the persisted genesis doc through saveGenesisDoc, which drops the SetSync error (node.go:1177), so a failed overwrite leaves the refused doc in place while the state record and the handshake take the corrected one",
+      "failure_scenario": "Refused boot with genesis InitialHeight 1000; the operator corrects it to 100 and restarts. In the reset, SetSync(genesisDocKey) fails (I/O error) and is dropped, SaveState succeeds, the handshake applies the corrected doc held in memory and writes the height-0 key. The chain runs to height 500. On the next restart the height-0 key makes the persisted doc authoritative, and that doc is still the refused one at InitialHeight 1000. ReplayBlocks fix-a sees 500 < 999, realigns the state to 999 and saves it, then panics with StateBlockHeight (999) > StoreBlockHeight (500): the data dir no longer restarts. Before this diff saveGenesisDoc only wrote an absent key, so a dropped write was retried on the next boot; the overwrite is new. 87f41db34 made the read of the same doc fail closed, but the write still fails open.",
+      "verify_by": "sed -n 1139,1147p and 1171,1178p tm2/pkg/bft/node/node.go: saveGenesisDoc returns nothing and discards db.SetSync's error; sed -n 134p tm2/pkg/bft/state/store.go: saveState does the same. Run shape: wrap memdb so SetSync(genesisDocKey) fails once, refuse InitialHeight 1000, reset to 100, SaveABCIResponses(0), set LastBlockHeight 500, call LoadStateFromDBOrGenesisDocProvider again and read doc.InitialHeight: expect 100, observe 1000",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "node.go:1144 `saveGenesisDoc(stateDB, genDoc)`; node.go:1177 `db.SetSync(genesisDocKey, b)` with its error unchecked; store.go:134 `db.SetSync(key, state.Bytes())` likewise; dbm.DB declares `SetSync([]byte, []byte) error` (tm2/pkg/db/types.go:19)",
+      "repro_path": ""
+    },
+    {
+      "index": 1002,
+      "file": "tm2/adr/pr5949_remove_secp256k1_validators.md",
+      "line": 71,
+      "angle": "removed",
+      "summary": "pr5949's ADR still says ResponseInitChain.Error is silently discarded by tm2 and gives that as the reason the pubkey-type gate panics. The diff rewrote this claim in app.go:427 and app_test.go:411 but left this sentence",
+      "failure_scenario": "A maintainer revisiting the genesis pubkey-type gate (app.go:366-383) reads in its ADR that tm2 discards the response error, so a panic is the only abort. After this PR, ReplayBlocks returns `InitChain rejected the genesis` on res.IsErr(), so the stated reason is false, while the two in-code copies of that reason now say otherwise.",
+      "verify_by": "grep -rn 'silently' tm2/adr/pr5949_remove_secp256k1_validators.md; sed -n 343,349p tm2/pkg/bft/consensus/replay.go for the new res.IsErr() return",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "pr5949_remove_secp256k1_validators.md:71-72: '`ResponseInitChain.Error` is silently discarded by tm2, so the check **panics**'; the sweep for the rewritten claim (ResponseInitChain.Error / silently discard / replay.go:339) hits no other stale sentence outside this ADR",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1127,
+      "angle": "reach",
+      "summary": "a genesis with zero tx responses saves an empty height-0 value (len 0), which a backend's Has (v != nil) could read as not applied, so every restart would reset a committed chain's state record",
+      "settled_by": "go test ./tm2/pkg/bft/node -run TestProbeEmptyGenesisMarker (CGO_ENABLED=1, scratch worktree at 87f41db34): 'len(NewABCIResponsesFromNum(0).Bytes()) = 0', then memdb, pebbledb, boltdb, lmdbdb, mdbxdb and goleveldb each print 'genesisApplied=true ... after restart LastBlockHeight=500 AppHash=\"committed-app-hash\"'"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1074,
+      "angle": "reach",
+      "summary": "a backend whose Get errors on a missing key would now fail the first boot of a fresh data dir rather than take the provider path",
+      "settled_by": "read each backend's Get: goleveldb maps errors.ErrNotFound to nil,nil (go_level_db.go:54), pebble maps pebble.ErrNotFound to nil,nil (pebbledb.go:64), lmdb and mdbx return nil on IsNotFound (lmdbdb.go:120, mdbxdb.go:121), boltdb and memdb return nil,nil"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 348,
+      "angle": "reach",
+      "summary": "a refused InitChain could leave app-DB writes behind (BaseApp.InitChain runs SetInitialVersion and storeConsensusParams before the initChainer) that skew the retried boot on a persistent data dir",
+      "settled_by": "rootmulti/store.go:330-341 SetInitialVersion sets only in-memory fields; store.go:240-259 Commit drains the collector into one batch, and nothing commits after a refusal; loadStdlibs writes through msCache.MultiWrite into the deliverState cache (app.go:474-486)"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 348,
+      "angle": "reach",
+      "summary": "a refused boot's genesis tx events could be indexed by the event store (started before the handshake) and then duplicated by the corrected boot",
+      "settled_by": "grep -rn 'EventTx{' tm2 gno.land (non-test): fired only at tm2/pkg/bft/state/execution.go:420, the block path, never from InitChain"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 47,
+      "angle": "removed",
+      "summary": "another site building AppState as *GnoGenesisState, or asserting NewDefaultGenesisConfig's AppState as a pointer, would be refused, or panic, now that the refusal stops boot",
+      "settled_by": "grep -rnE 'AppState(:|\\s*=)\\s*&(gnoland\\.)?GnoGenesisState' returned nothing; every non-test AppState assignment (start.go:491, node_testing.go:74/139, testscript_gnoland.go:296, gnodev node.go:717 and node_state.go:133, gnogenesis) assigns a value; the only pointer assertions (.(*gnoland.GnoGenesisState)) are testscript env values, not AppState"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1126,
+      "angle": "reach",
+      "summary": "a pruner deleting ABCI responses by prefix would remove the height-0 marker and re-open the reset on a committed chain",
+      "settled_by": "grep -rn 'abciResponsesKey\\|PruneStates\\|pruneABCI\\|DiscardABCIResponses' (non-test): only the key builder at tm2/pkg/bft/state/store.go:35"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 348,
+      "angle": "removed",
+      "summary": "a live chain booted past a strict-replay refusal (which commits the delivered txs) would now refuse new nodes replaying its genesis",
+      "settled_by": "grep -rn StrictReplay (non-test, outside app.go): no setter anywhere; only tests enable it"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 348,
+      "angle": "removed",
+      "summary": "a sibling InitChain caller still ignores the response Error",
+      "settled_by": "grep -rn '\\.InitChain(\\|InitChainSync(' (non-test): replay.go:339 is the only consensus caller; local_client.go passes through; kvstore/helpers.go:34 is the example app's own setup"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node_test.go",
+      "line": 563,
+      "angle": "catalog",
+      "summary": "the new t.Parallel tests in tm2/pkg/bft/node and tm2/pkg/bft/consensus could race on shared state",
+      "settled_by": "go test -race -count=3 ./tm2/pkg/bft/node -run 'TestLoadStateFromDBOrGenesisDocProvider|TestGenesisResetKeepsGoodDocOnInvalidFile|TestE2ERejectThenCorrectedGenesisBoots' -> ok; ./tm2/pkg/bft/consensus -run 'TestHandshakeInitChainError|TestHandshakeGenesisResponseDeliverTx' -> ok"
+    }
+  ]
+}
