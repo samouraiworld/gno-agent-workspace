@@ -1,0 +1,161 @@
+{
+ "candidates": [
+  {
+   "index": 1,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+   "line": 181,
+   "angle": "reach",
+   "band": "Critical",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "summary": ":::details never calls Push/Pop from nestdepth.go, so nesting is unbounded and a ~180 KB realm page runs gnoweb out of memory",
+   "failure_scenario": "A realm whose Render returns strings.Repeat(\":::details a\\n\", 14000), 182 KB and under maxMarkdownRenderBytes (1 MiB, render.go:29), nests 14000 blocks. goldmark appends one lineStat per open block per line (parser.go:1106, reset only on a blank line), so memory and time grow with lines x depth: 10000 lines allocate 5.9 GiB in 2.3 s and 14000 lines crash the process with 'fatal error: runtime: out of memory' under a 6.1 GiB limit. Every visit to that page repeats it, and the crash takes gnoweb down for every user. The reviewer's 3.8 s at 20k understates it: memory runs out first. Push(pc) after parseOpenFence and Pop(pc) in Close cap it at 4 levels: 80000 lines take 96 MiB and 56 ms, and all goldens pass.",
+   "verify_by": "cp projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/solo-finder-nest-oom_test.go gno.land/pkg/gnoweb/markdown/solo_nest_oom_test.go && go test ./gno.land/pkg/gnoweb/markdown/ -run TestSoloDetailsNestBounded -v: head FAIL details=4000 alloc_MiB=989 for 52 KB; with Push/Pop PASS details=4 alloc_MiB=4. SOLO_N=10000,14000 with solo-finder-details-shapes_test.go -run TestSoloProbeQuadratic shows the OOM. Merge base, via -overlay: 80000 lines take 53 MiB",
+   "evidence": "head: n=2500 alloc_MiB=405 0.16s; n=5000 alloc_MiB=1546 0.56s; n=10000 alloc_MiB=5893 2.27s; n=14000 'fatal error: runtime: out of memory'. base 02606904e: n=80000 alloc_MiB=53 37ms. head+Push/Pop: n=80000 details_open=4 alloc_MiB=96 56ms; go test ./gno.land/pkg/gnoweb/markdown/ ok",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/solo-finder-nest-oom_test.go"
+  },
+  {
+   "index": 2,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+   "line": 212,
+   "angle": "lines",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "summary": "a `:::` line inside a fenced code block closes the details, which leaves the fence open, so the rest of the page renders as one <pre>",
+   "failure_scenario": "A realm wraps user-supplied code as ':::details Source\\n```\\n%s\\n```\\n:::'. A code line made only of colons closes the details because Continue runs on the outer block before the fence. The code fence then stays open to the end of the document: 'after', the stray closer and '## Footer' all render inside <pre><code>. The realm cannot pick a safe colon count for content it does not control. The fix suggested in review also exempts KindHTMLBlock, which regresses ':::details A\\n<div>x</div>\\n:::\\n\\n## Footer': an HTML block of type 6/7 runs to the next blank line, so it swallows the closer and folds the footer into the details. Exempting KindFencedCodeBlock alone passes both cases and every golden.",
+   "verify_by": "cp projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/solo-finder-fence-close_test.go gno.land/pkg/gnoweb/markdown/solo_fence_close_test.go && go test ./gno.land/pkg/gnoweb/markdown/ -run TestSoloDetails -v: head FenceKeepsColons FAIL; reviewer fix (fenced+HTML) HTMLLineThenClose FAIL; fenced-only fix both PASS and TestGnoExtension ok",
+   "evidence": "head output: <details ...><pre><code></code></pre></div></details> then <pre><code>after\\n:::\\n## Footer\\n</code></pre>. Reviewer fix: --- FAIL: TestSoloDetailsHTMLLineThenClose. Fenced-only: --- PASS both, TestGnoExtension ok",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/solo-finder-fence-close_test.go"
+  },
+  {
+   "index": 3,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+   "line": 92,
+   "angle": "reach",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "summary": "`:::details` and `:::` pass through sanitize.Block and sanitize.BlockRich untouched, so user content can fold a realm's own content or break out of its details",
+   "failure_scenario": "isExtDelimiter (gnovm/stdlibs/chain/markdown/markdown.go:548) matches only <gno-...> and </gno-...>, and Block already escapes headings, quotes and list markers. A user comment 'hi\\n\\n:::details nothing to see' run through sanitize.Block into a template followed by '## Footer' and a [Withdraw](...$help&func=Withdraw) tx link renders the footer and the tx link inside a closed <details> labelled 'nothing to see'. BlockRich does the same. A comment 'hello\\n:::\\ninjected after breakout' inside the realm's own ':::details Comments\\n%s\\n:::' closes the realm's block early, renders the injected text as top-level page content and leaves the realm's closer as a stray ':::'. Visitors lose sight of content the realm meant to show, a tx link included, with no sign it was hidden. The fix is either a <gno-details> tag, which the existing check already covers and which matches columns, forms, foreign and frame, or extending isExtDelimiter in the native stdlib along with sanitize fixtures.",
+   "verify_by": "cp projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/solo-finder-sanitize-details-{fold,fold-rich,breakout}.txtar into gno.land/pkg/gnoweb/markdown/golden/sanitize/ (as zz-solo-details-*.txtar) and go test ./gno.land/pkg/gnoweb/markdown/ -run 'TestSanitizeIntegration$': passes with output.html showing <h2>Footer</h2> and the Withdraw link inside <details class=\"gno-details\">",
+   "evidence": "fold: output.md keeps ':::details nothing to see' verbatim; output.html <details class=\"gno-details\"><summary>...nothing to see</summary><div><h2>Footer</h2><p><a href=\"/r/test$help&amp;func=Withdraw\">Withdraw... </div></details>. breakout: </details><p>injected after breakout</p><p>:::</p><h2>Footer</h2>",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/solo-finder-sanitize-details-fold.txtar"
+  },
+  {
+   "index": 4,
+   "file": "gno.land/pkg/gnoweb/markdown/golden/ext_details/valid_codefence_colons.md.txtar",
+   "line": 1,
+   "angle": "tests",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "summary": "the 17 goldens cover happy paths only: no case pins the nest cap, a fence holding `:::`, sanitize behaviour, embedding in other blocks or a perf bound",
+   "failure_scenario": "Nothing in golden/ext_details or golden/sanitize fails on candidates 1 to 3. Missing cases: a fence containing `:::` under a 3-colon block; ':::details A\\n<div>x</div>\\n:::' (it guards against exempting HTML blocks); equal-length nesting; a 5th level falling through plus a mixed alert, columns, details chain; details inside an alert, a blockquote, a list item and <gno-columns>, including an unclosed one that swallows </gno-columns> and the footer (observed); <gno-foreign>; CRLF; top-level stray `:::`; sanitize fixtures for the opener and the closer under Block and BlockRich; a long-run allocation guard like solo-finder-nest-oom_test.go. There is no ext_details_test.go.",
+   "verify_by": "ls gno.land/pkg/gnoweb/markdown/golden/ext_details/ (17 files, none of the shapes above); grep -l ':::' gno.land/pkg/gnoweb/markdown/golden/sanitize/*.txtar returns none at head; ls gno.land/pkg/gnoweb/markdown/ext_details_test.go fails",
+   "evidence": "",
+   "repro_path": ""
+  },
+  {
+   "index": 5,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+   "line": 212,
+   "angle": "claims",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "summary": "the first sufficient fence closes the outermost open details, unlike the pandoc convention the ADR names, so nesting only works with colon counts that strictly decrease inward",
+   "failure_scenario": "':::details A\\n:::details B\\nx\\n:::\\ny\\n:::' closes A and B on the first ':::', and 'y' plus the last ':::' render outside as <p>y\\n:::</p>. Pandoc closes the innermost div. An inner block that uses more colons (':::details O\\n::::details I\\nx\\n::::\\ny\\n:::') also closes both on '::::'. The ADR documents the early close but calls it pandoc's. Letting the innermost open details own a fence line (the same Continue site as candidate 2) gives pandoc nesting and keeps the more-colons trick for code.",
+   "verify_by": "go test -run TestSoloProbeShapes -v with projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/solo-finder-details-shapes_test.go: shapes equal_nest and longer_inner",
+   "evidence": "equal_nest and longer_inner both end with </details>\\n</div>\\n</details>\\n<p>y\\n:::</p>",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/solo-finder-details-shapes_test.go"
+  },
+  {
+   "index": 6,
+   "file": "gno.land/pkg/gnoweb/markdown/ext.go",
+   "line": 88,
+   "angle": "reach",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "summary": "ExtDetails is registered on the outer instance only, not in buildInnerForeignMarkdown, so inside <gno-foreign> the block renders as a literal paragraph while alerts and columns render",
+   "failure_scenario": "'<gno-foreign>\\n:::details X\\nbody\\n:::\\n</gno-foreign>' renders <p>:::details X\\nbody\\n:::</p> inside the foreign body, while the alert in cross_foreign_alert.md.txtar renders. The ADR does not state the exclusion. Registering it at ext_foreign.go:450 is safe only after Push/Pop lands, since Seed carries the depth into the inner context.",
+   "verify_by": "sed -n 438,459p gno.land/pkg/gnoweb/markdown/ext_foreign.go (no ExtDetails); TestSoloProbeShapes shape foreign_details",
+   "evidence": "foreign_details output: <div class=\"gno-foreign__body\">\\n<p>:::details X\\nbody\\n:::</p>",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/solo-finder-details-shapes_test.go"
+  },
+  {
+   "index": 7,
+   "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+   "line": 3319,
+   "angle": "lines",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "summary": "`display: flex` with `gap` on the summary makes each inline child a flex item, so emphasis, links or code in a summary get an 8px gap instead of a space",
+   "failure_scenario": "':::details Closed **bold** summary' renders 'Closed', 'bold' and 'summary' as three flex items separated by var(--g-space-2), with the collapsible spaces dropped. Wrapping the summary's inline content in a <span> inside the renderer (detailsSummaryOpen, detailsSummaryClose, detailsSummaryDefault) keeps the chevron layout. .gno-alert > summary (06-blocks.css:3211-3214) uses the same flex and gap.",
+   "verify_by": "render ':::details Closed **bold** summary' in gnoweb with a headful browser and inspect the gap around <strong>",
+   "evidence": "",
+   "repro_path": ""
+  },
+  {
+   "index": 8,
+   "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+   "line": 3325,
+   "angle": "lines",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "summary": "`user-select: none` on the summary stops visitors from copying summary text such as an address, a version or a log name",
+   "failure_scenario": "A summary like ':::details g1abc... payout log' cannot be selected or copied. .gno-alert > summary does not set user-select.",
+   "verify_by": "grep -n 'user-select' gno.land/pkg/gnoweb/frontend/css/06-blocks.css: 3325 (details) and 3387 (.b-doc-example), none in .gno-alert 3194-3246",
+   "evidence": "",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/adr/pr5593_gnoweb_details_block.md",
+   "line": 55,
+   "angle": "claims",
+   "summary": "ADR names the docs realm at examples/gno.land/r/docs/markdown/markdown.gno",
+   "settled_by": "ls examples/gno.land/r/docs/markdown -> 'No such file or directory'; the diff edits examples/quarantined/...; the only fix is prose, which is never a candidate"
+  },
+  {
+   "file": "gno.land/adr/pr5593_gnoweb_details_block.md",
+   "line": 53,
+   "angle": "claims",
+   "summary": "ADR: details uses the same block-parser priority (799) as alerts",
+   "settled_by": "grep Prioritized ext_alert.go -> 448: util.Prioritized(NewAlertParser(), 799); ext_details.go:300 Prioritized(NewDetailsParser(), 799): holds"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+   "line": 99,
+   "angle": "lines",
+   "summary": "CRLF input could leave \\r in the fence or summary",
+   "settled_by": "TestSoloProbeShapes crlf: ':::details A\\r\\nbody\\r\\n:::\\r\\nafter\\r\\n' renders <details>..<p>body</p></div></details><p>after</p>"
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/public/main.css",
+   "line": 1,
+   "angle": "reach",
+   "summary": "generated main.css stale after the master merge",
+   "settled_by": "grep -o counts: head gno-frame=20 gno-details=20, base gno-frame=20 gno-details=0"
+  },
+  {
+   "file": "misc/gnoe2e/testdata/tour.txtar",
+   "line": 1,
+   "angle": "reach",
+   "summary": "red main / test (TestScenarios/tour) caused by this diff",
+   "settled_by": "grep -n -i 'details|:::|docs/markdown|collaps|summary' misc/gnoe2e/testdata/tour.txtar returns nothing; the diff touches no misc/gnoe2e file; not attributed (no merge-base run found via gh run list --commit 02606904e)"
+  }
+ ]
+}

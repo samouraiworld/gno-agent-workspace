@@ -1,0 +1,11 @@
+{
+ "candidates": [],
+ "dropped": [],
+ "completeness": [
+  "Round-2 fix pinned: dropping ' - segment.Padding' from ext_details.go:193-194 turns TestDetailsTabPadding/list_tab red ('mmary text' where '</svg>Summary text</summary>' is expected), so the test guards the fix.",
+  "Sibling sweep by shape for indentation measured by counting spaces: grep 'pos < 4|IndentWidth|segment.Padding|segment.Start +' over gno.land/pkg/gnoweb/markdown/*.go finds the two space-only loops at ext_details.go:153 and :173, both candidate 3, while ext_alert.go:104, 136 and 337 measure with util.IndentWidth(line, reader.LineOffset()); ext_icons.go:197 and ext_emphasis.go:79 are inline and not the shape.",
+  "Trust-boundary sweep: <gno-foreign> is the only block whose body another party writes; candidate 1 covers it, and the judge extended it to a foreign block nested in a list inside the details (tests/judge-1-foreign-in-list_test.go), which escapes the same way, so the exemption has to walk the last-descendant chain rather than the direct child.",
+  "Catalog walked: Error & panic handling cleared for the opener, the finder's 2368-shape matrix reporting panics=0 at the head; Global mutable state cleared as in round 2 (ExtDetails is a pointer to an empty struct); Determinism, Gas, Realm state, Caller, Coin, Storage deposit, VM fault, VM semantics and Type-check do not apply to a gnoweb renderer.",
+  "Not read this round: the ADR and the quarantined docs realm (cold)."
+ ]
+}

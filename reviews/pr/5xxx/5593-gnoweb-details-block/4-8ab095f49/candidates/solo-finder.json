@@ -1,0 +1,65 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 216,
+      "angle": "reach",
+      "summary": "a `:::` line inside a <gno-foreign> body closes the enclosing :::details, and the rest of the foreign bytes render as the realm's own markdown, a working gno-form included",
+      "failure_scenario": "A realm folds another party's content: `:::details Comments\\n\\n<gno-foreign>\\n<their bytes>\\n</gno-foreign>\\n\\n:::`. Their bytes carry `hello\\n:::\\n<gno-form exec=\"Withdraw\">…</gno-form>`. detailsParser.Continue runs before foreignParser.Continue, matches `:::`, and closes the details together with the foreign block, so every later foreign line is parsed by the outer instance: the realm page shows a form posting to the realm's own Withdraw, which the sandbox never allows (buildInnerForeignMarkdown leaves ExtForms out, and ext_foreign.go:267 states no other block parser sees body lines). The realm's own closer becomes a stray `:::` paragraph. At the merge base the same page keeps the bytes opaque. Same mechanism as the open code-fence thread, but the fix suggested there exempts only KindFencedCodeBlock and KindHTMLBlock, so applied as written it leaves this sandbox escape open: the foreign node kind has to be exempted too, with a golden for it.",
+      "verify_by": "cp tests/solo-finder-foreign-escape_test.go gno.land/pkg/gnoweb/markdown/zz_foreign_escape_test.go && go test ./gno.land/pkg/gnoweb/markdown/ -run TestSoloForeignEscape -v at 8ab095f49 (expect FAIL: details_foreign renders <form) and at 02606904e (expect PASS)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head: '--- FAIL: TestSoloForeignEscape', 'details_foreign: foreign bytes rendered a gno-form'; output closes '<p>hello</p> … </details>' then '<form class=\"gno-form\" method=\"post\" action=\"/r/test\"' with 'Exec: Withdraw'. Control foreign_only at head: '<!-- raw HTML omitted -->', no form. Merge base via go test -overlay: '--- PASS', details_foreign keeps '<div class=\"gno-foreign\" role=\"group\">' and the form stays stripped.",
+      "repro_path": "tests/solo-finder-foreign-escape_test.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3332,
+      "angle": "lines",
+      "summary": "the chevron rule `& > summary > svg` also matches a <gno-icon /> placed in the summary, so the author's icon renders rotated -90deg in a closed block, shrunk to 16px and greyed",
+      "failure_scenario": "`:::details <gno-icon name=\"star\" /> Logs` renders `<summary><svg><use href=\"#ico-arrow\"></use></svg><svg class=\"gno-icon\" …> Logs</summary>`: both svgs are direct children of summary, and `.c-realm-view .gno-details>summary>svg` (0,2,2) outranks `.gno-icon`, so the icon takes rotate(-90deg), width 16px and the secondary text colour. A reader sees the icon sideways while the fold is closed and watches it spin upright on click. The alert summary already carves this case out with `svg:not(.gno-icon)` (06-blocks.css:3221); `& > svg:first-child` or `:not(.gno-icon)` on the base and `[open]` rules fixes it.",
+      "verify_by": "cp gno.land/pkg/gnoweb/public/main.css beside tests/solo-finder-icon-rotated.html; chromium --headless --disable-gpu --dump-dom file://…/solo-finder-icon-rotated.html | grep -A3 '<pre id=\"out\">': expect transform none for #closed .gno-icon, observe matrix(0, -1, 1, 0, 0, 0)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "'closed gno-icon transform=matrix(0, -1, 1, 0, 0, 0) width=16px color=rgb(88, 88, 88)', 'open gno-icon transform=matrix(1, 0, 0, 1, 0, 0) width=16px', 'alert gno-icon transform=none width=18.3906px color=rgb(9, 9, 9)'. Markup is head's renderer output from go test. Merge base public/main.css: grep -c gno-details answers 0.",
+      "repro_path": "tests/solo-finder-icon-rotated.html"
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 153,
+      "angle": "reach",
+      "summary": "the opener and the closer count only spaces as indentation, so a tab inside the 3-column indent after a container is missed and `> \\t:::` never closes the block",
+      "failure_scenario": "In `> :::details A\\n> body\\n> \\t:::\\n> after`, the closer sits 2 columns in (a tab after the space following `>`), which goldmark's fenced code accepts, but isCloseFence stops at the tab, so `:::` and `after` fold into the block as one paragraph `body\\n:::\\nafter`; `- :::details A\\n  body\\n  \\t:::` does the same in a list. The opener at ext_details.go:173 has the same gap: 92 of 2368 container and indent shapes open a fenced code block on the line and no details. ext_alert.go and goldmark's fenced code measure with util.IndentWidth(line, reader.LineOffset()). This is the tab sibling the round-2 Padding fix did not sweep; the Padding fix itself holds on every shape.",
+      "verify_by": "cp tests/solo-finder-tab-indent_test.go gno.land/pkg/gnoweb/markdown/zz_tab_indent_test.go && go test ./gno.land/pkg/gnoweb/markdown/ -run 'TestProbe(TabMatrix|TabCloser)' -v: diverge=92, and the closer cases print 'body\\n:::\\nafter' in one <p>",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "'cases=2368 panics=0 mangled=0 diverge=92'; e.g. 'DIVERGE fenced=true details=false \"1. item\\n   \\t:::details Summary\"'; TestProbeTabCloser for '> :::details A\\n> body\\n> \\t:::\\n> after\\n' renders '<p>body\\n:::\\nafter</p>' inside the details, while '>\\t:::' (padding) closes correctly.",
+      "repro_path": "tests/solo-finder-tab-indent_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 193,
+      "angle": "lines",
+      "summary": "the segment.Padding subtraction in the summary offsets could mis-slice or panic on another container and indent shape than the three TestDetailsTabPadding covers",
+      "settled_by": "go test -run TestProbeTabMatrix over 2368 shapes (12x12 container prefixes x 8 indents plus list and quote continuations, with and without a trailing newline, source cap == len): 'cases=2368 panics=0 mangled=0 diverge=92'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 32,
+      "angle": "catalog",
+      "summary": "package-level detailsKeyword and detailsOpenFlag byte slices shared by concurrent renders (global mutable state class)",
+      "settled_by": "read of diff.md 1926-2013: the only uses are bytes.HasPrefix(trimmed[n:], detailsKeyword), bytes.HasPrefix(rest, detailsOpenFlag) and len(...), none writes; the parser keeps its fence on the DetailsBlock node and its depth on the per-parse context"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+Repro (sanitize.Block/BlockRich let a :::details opener or a bare ::: closer through; gnovm/stdlibs/chain/markdown isExtDelimiter matches only <gno-...>). From a plain clone at fbd2bc968:
+  cp <this file> gno.land/pkg/gnoweb/markdown/golden/sanitize/zz-solo-details-fold-rich.txtar
+  go test ./gno.land/pkg/gnoweb/markdown/ -run 'TestSanitizeIntegration$' -count=1   # PASS: output.html below is what head renders
+TestSanitizeCoverageTableMatchesCorpus fails once the file is added (corpus count), unrelated to the finding.
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: # Vault\n\n%s\n\n## Footer\n\n[Withdraw](/r/test$help&func=Withdraw)
+-- input.md --
+hi
+
+:::details nothing to see
+-- output.md --
+
+
+hi
+
+:::details nothing to see
+
+-- output.html --
+<h1>Vault</h1>
+<p>hi</p>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>nothing to see</summary>
+<div>
+<h2>Footer</h2>
+<p><a href="/r/test$help&amp;func=Withdraw">Withdraw<span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a></p>
+</div>
+</details>

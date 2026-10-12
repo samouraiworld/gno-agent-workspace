@@ -1,0 +1,21 @@
+{
+ "dropped": [],
+ "candidates": [
+  {"index": 5, "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css", "line": 1876, "angle": "siblings",
+   "summary": "7d570a0c7 adds :not(.gno-icon) to the .gno-details chevron selectors; the .b-accordion summary chevron selectors at 1876 and 1892 repeat the shape without it",
+   "failure_scenario": "A <gno-icon> inside a .b-accordion summary would rotate with the chevron on [open]",
+   "verify_by": "git log -L1875,1876:gno.land/pkg/gnoweb/frontend/css/06-blocks.css (predates the diff?); grep -rn b-accordion gno.land/pkg/gnoweb (who fills its summary?)",
+   "band": "Nit", "fix_kind": "code"},
+  {"index": 6, "file": "gno.land/pkg/gnoweb/markdown/ext_details.go", "line": 208, "angle": "siblings",
+   "summary": "Same shape as candidate 3 on the other half of the round-3 guard: does any test pin the !fn.Closed condition of the foreign exemption?",
+   "failure_scenario": "Dropping '!fn.Closed' would keep a details open after a closed <gno-foreign>, with every test green",
+   "verify_by": "replace 'ok && !fn.Closed' with 'ok && fn != nil' at ext_details.go:208 in a scratch tree, go test ./gno.land/pkg/gnoweb/markdown",
+   "band": "Missing test", "fix_kind": "test"},
+  {"index": 7, "file": "gno.land/pkg/gnoweb/markdown/ext_details.go", "line": 205, "angle": "siblings",
+   "summary": "The foreign exemption exists only in detailsParser.Continue; does another container parser in the package close on a line tag while a <gno-foreign> body is open inside it?",
+   "failure_scenario": "A closer tag inside a foreign body nested in columns or a frame would end the outer container",
+   "verify_by": "read every func (...) Continue( in gno.land/pkg/gnoweb/markdown/*.go for one that closes on a line while holding children",
+   "band": "Nit", "fix_kind": "code"}
+ ],
+ "completeness": "Catalog: skills/invariant-catalog.md classes cover GnoVM, stdlib and realm code; this round's range touches gnoweb markdown and CSS only, so no class applies. Angles on round 3: candidates 1 and 2 cover the foreign exemption's cost and correctness, 3 and 4 the IndentWidth guards; 5 to 7 sweep the siblings of the three edited shapes."
+}

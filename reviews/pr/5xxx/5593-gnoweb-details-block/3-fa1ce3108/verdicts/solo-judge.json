@@ -1,0 +1,50 @@
+[
+ {
+  "index": 1,
+  "angle": "lines",
+  "state": "CONFIRMED",
+  "band": "Warning",
+  "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+  "line": 193,
+  "verify_by": "cp tests/solo-finder-tab-padding-render_test.go gno.land/pkg/gnoweb/solo_tab_padding_render_test.go && go test ./gno.land/pkg/gnoweb/ -run TestSoloRenderRealmTabDetails -v; same file via go test -overlay at the merge base; then tests/judge-1-padding-fix.patch and rerun with tests/solo-finder-tab-padding_test.go",
+  "tldr": "a :::details opener on a tab-entered line drops the summary's first bytes, and at a page's end RenderRealm panics",
+  "details": "PeekLine returns the line with segment.Padding spaces prepended for a tab the container consumed, and Open counts them in pos and sStart, then adds segment.Start without subtracting Padding (ext_details.go:193-194), so the summary segment sits Padding bytes right of the text. '- item\\n\\t:::details Summary text\\n\\tbody' renders 'mmary text'; the same line ending a 64-byte page (cap == len, as handler_http.go:471 builds it with []byte(mdContent)) slices to [:66] and panics, and gnoweb has no recover outside tests, so that page fails for every viewer. goldmark's atx heading subtracts segment.Padding (parser/atx_heading.go:105-106). The merge base renders the same input as plain text. Fix is mechanical: subtract segment.Padding on both lines.",
+  "evidence": "Head: mid_page 'len=46 cap=48', '<summary><svg><use href=\"#ico-arrow\"></use></svg>mmary text</summary>', 'summary text mangled'; page_end_64 'len=64 cap=64', 'RenderRealm panicked: runtime error: slice bounds out of range [:66] with capacity 64'. TestSoloDetailsTabPadding: quote_tab, alert_tab, list_tab_continuation FAIL 'mmary text', both controls PASS. Merge base 02606904e via -overlay: both subtests PASS, '<li>item'. With '- segment.Padding' on 193-194: TestSoloRenderRealmTabDetails PASS both, go test ./gno.land/pkg/gnoweb/markdown/ ok 5.925s (finder's tab test included).",
+  "repro_path": "tests/solo-finder-tab-padding-render_test.go",
+  "base_behaves_the_same": false,
+  "refuted_by": "",
+  "fix": "mechanical"
+ },
+ {
+  "index": 2,
+  "angle": "reach",
+  "state": "CONFIRMED",
+  "band": "Missing test",
+  "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+  "line": 226,
+  "verify_by": "Make Close a no-op at ext_details.go:226 and run go test ./gno.land/pkg/gnoweb/markdown/ without the finder's test, then with tests/solo-finder-tab-padding_test.go -run TestSoloDetailsDepthBalanced",
+  "tldr": "nothing in the package fails when Close stops calling Pop",
+  "details": "With Close reduced to {} the whole markdown package stays green, so the depth leak that would refuse every gno-* block after the fourth sequential details on a page is unpinned. The finder's TestSoloDetailsDepthBalanced turns all seven shapes red under the same mutation and passes at head, so it is the paste-ready test.",
+  "evidence": "Mutated: 'go test ./gno.land/pkg/gnoweb/markdown/' -> 'ok ... 6.103s'. Mutated with finder test: '--- FAIL: TestSoloDetailsDepthBalanced', subtests sequential_6, then_alerts, closed, unclosed, in_quote_lazy, in_list_ends, over_cap FAIL. Head: all 7 PASS.",
+  "repro_path": "tests/solo-finder-tab-padding_test.go",
+  "base_behaves_the_same": true,
+  "refuted_by": "",
+  "fix": "mechanical"
+ },
+ {
+  "index": 3,
+  "angle": "lines",
+  "state": "CONFIRMED",
+  "band": "Nit",
+  "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+  "line": 3316,
+  "verify_by": "Render the valid_inline_summary shape inside .c-realm-view with public/main.css in chromium, force the .tooltip::after hover state (opacity, visibility, scale) and screenshot with and without .gno-details{overflow:visible}",
+  "tldr": "overflow: hidden on .gno-details cuts the external-link tooltip of a closed block's summary in half",
+  "details": ".tooltip is position: relative inside the summary and its ::after is position: absolute; top: 100%, so its containing block is inside the details box and overflow: hidden clips it at the card's bottom border when the block is closed. The hover state only toggles opacity, visibility and scale, so forcing those in a stylesheet stands in for the hover; the clip is layout. Removing overflow trades the rounded-corner clip it serves (round 1 row 9), so the fix is the author's decision.",
+  "evidence": "tests/judge-3-tooltip-clip.png: the 'External link' box is cut at the card's bottom edge, text half visible; tests/judge-3-tooltip-overflow-visible.png: same page with overflow: visible shows the whole box below the card.",
+  "repro_path": "tests/judge-3-tooltip-clip.html",
+  "base_behaves_the_same": true,
+  "refuted_by": "",
+  "fix": "decision"
+ }
+]

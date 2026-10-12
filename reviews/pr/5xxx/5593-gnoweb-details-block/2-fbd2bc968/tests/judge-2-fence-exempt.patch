@@ -1,0 +1,13 @@
+--- a/gno.land/pkg/gnoweb/markdown/ext_details.go
++++ b/gno.land/pkg/gnoweb/markdown/ext_details.go
+@@ -213,6 +213,10 @@
+ // Continue implements parser.BlockParser.
+ func (p *detailsParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
+ 	line, _ := reader.PeekLine()
++	// A `:::` line inside an open code fence is code, not this block's closer.
++	if lb := pc.LastOpenedBlock().Node; lb != nil && lb.Kind() == ast.KindFencedCodeBlock {
++		return parser.Continue | parser.HasChildren
++	}
+ 	if isCloseFence(line, node.(*DetailsBlock).Fence) {
+ 		// Consume the fence up to its newline only; the block loop advances
+ 		// the newline. Advancing the whole line would swallow the next one.

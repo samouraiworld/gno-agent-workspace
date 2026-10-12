@@ -1,0 +1,10 @@
+{
+ "candidates": [],
+ "dropped": [],
+ "completeness": [
+  "Catalog walked: Error & panic handling is candidate 1 (RenderRealm panics on a tab-entered :::details at page end); Global mutable state cleared, ExtDetails and defaultDetailsParser are pointers to struct{} with no fields (ext_details.go:84-86, 295-298); Determinism, Gas, Realm state, Caller, Coin, Storage deposit, VM fault, VM semantics, Type-check do not apply to a gnoweb renderer.",
+  "Sibling sweep by shape for a block segment built from PeekLine indices plus segment.Start: grep 'segment.Start|seg.Start|.Padding' over gno.land/pkg/gnoweb/markdown/*.go finds only ext_details.go:193-194 among block parsers (ext_icons.go:197 and ext_emphasis.go:79 are inline), so no sibling repeats the unpadded shape.",
+  "Sibling sweep of the depth-balance test shape: TestFrameNestDepthBalanced (ext_frame_test.go:58) is the only test asserting Get(pc)==0 after a parse; alert, columns, foreign and details carry none. The details gap is candidate 2; the other three predate the diff and are not in scope.",
+  "Not read this round: the ADR and the quarantined docs realm (cold), whose claims angle no finder ran."
+ ]
+}

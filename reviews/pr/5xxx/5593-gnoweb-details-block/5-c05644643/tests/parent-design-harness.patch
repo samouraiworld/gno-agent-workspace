@@ -1,0 +1,102 @@
+--- a/gno.land/pkg/gnoweb/markdown/ext_details.go
++++ b/gno.land/pkg/gnoweb/markdown/ext_details.go
+@@ -47,6 +47,8 @@
+ 	// uses more colons than its content is not closed early by a shorter
+ 	// inner fence.
+ 	Fence int
++	// closing is set by the closer parser; the next Continue closes.
++	closing bool
+ }
+ 
+ // KindDetailsBlock is the AST kind for DetailsBlock.
+@@ -202,22 +204,75 @@
+ // Continue implements parser.BlockParser.
+ func (p *detailsParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
+ 	line, _ := reader.PeekLine()
+-	// An open <gno-foreign> body owns its lines: a `:::` there is the
+-	// foreign party's text, never this block's closer.
+-	for c := node.LastChild(); c != nil; c = c.LastChild() {
+-		if fn, ok := c.(*ForeignNode); ok && !fn.Closed {
++	d := node.(*DetailsBlock)
++	switch zzDesign {
++	case "E":
++		if d.closing {
++			return parser.Close
++		}
++		return parser.Continue | parser.HasChildren
++	case "A":
++		for c := node.LastChild(); c != nil; c = c.LastChild() {
++			if fn, ok := c.(*ForeignNode); ok && !fn.Closed {
++				return parser.Continue | parser.HasChildren
++			}
++		}
++	case "B":
++		if _, ok := pc.LastOpenedBlock().Node.(*ForeignNode); ok {
+ 			return parser.Continue | parser.HasChildren
+ 		}
++	case "C":
++		if last := pc.LastOpenedBlock().Node; last != nil && last != node {
++			switch last.(type) {
++			case *ast.FencedCodeBlock, *ast.HTMLBlock, *ForeignNode:
++				return parser.Continue | parser.HasChildren
++			}
++		}
+ 	}
+-	if w, pos := util.IndentWidth(line, reader.LineOffset()); w <= 3 && isCloseFence(line[pos:], node.(*DetailsBlock).Fence) {
+-		// Consume the fence up to its newline only; the block loop advances
+-		// the newline. Advancing the whole line would swallow the next one.
++	if w, pos := util.IndentWidth(line, reader.LineOffset()); w <= 3 && isCloseFence(line[pos:], d.Fence) {
+ 		reader.AdvanceToEOL()
+ 		return parser.Close
+ 	}
+ 	return parser.Continue | parser.HasChildren
+ }
+ 
++var zzDesign = "E"
++
++type detailsCloser struct{ ast.BaseBlock }
++
++var kindDetailsCloser = ast.NewNodeKind("DetailsCloser")
++
++func (n *detailsCloser) Kind() ast.NodeKind            { return kindDetailsCloser }
++func (n *detailsCloser) Dump(source []byte, level int) { ast.DumpHelper(n, source, level, nil, nil) }
++
++type detailsCloseParser struct{}
++
++func (detailsCloseParser) Trigger() []byte { return []byte{':'} }
++func (detailsCloseParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
++	d, ok := parent.(*DetailsBlock)
++	if zzDesign != "E" || !ok || d.closing {
++		return nil, parser.NoChildren
++	}
++	line, _ := reader.PeekLine()
++	w, pos := util.IndentWidth(line, reader.LineOffset())
++	if w > 3 || !isCloseFence(line[pos:], d.Fence) {
++		return nil, parser.NoChildren
++	}
++	d.closing = true
++	reader.AdvanceToEOL()
++	return &detailsCloser{}, parser.NoChildren
++}
++func (detailsCloseParser) Continue(ast.Node, text.Reader, parser.Context) parser.State {
++	return parser.Close
++}
++func (detailsCloseParser) Close(node ast.Node, _ text.Reader, _ parser.Context) {
++	if p := node.Parent(); p != nil {
++		p.RemoveChild(p, node)
++	}
++}
++func (detailsCloseParser) CanInterruptParagraph() bool { return true }
++func (detailsCloseParser) CanAcceptIndentedLine() bool { return false }
++
+ // Close implements parser.BlockParser.
+ func (p *detailsParser) Close(node ast.Node, reader text.Reader, pc parser.Context) { Pop(pc) }
+ 
+@@ -298,6 +353,7 @@
+ 	m.Parser().AddOptions(
+ 		parser.WithBlockParsers(
+ 			util.Prioritized(NewDetailsParser(), 799),
++			util.Prioritized(detailsCloseParser{}, 798),
+ 		),
+ 	)
+ 	m.Renderer().AddOptions(

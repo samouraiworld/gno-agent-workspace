@@ -1,0 +1,87 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 207,
+      "angle": "reach",
+      "summary": "the foreign exemption walks the whole last-descendant chain, closed nodes included, on every line, so render time grows with nesting depth times line count",
+      "failure_scenario": "A realm returns ':::details a\\n' + '>'x40000 + '\\n' + '\\n'x200000 + ':::\\n' (240 KB, under maxMarkdownRenderBytes). The blockquotes close on the first blank line, but Continue still walks all 40000 closed nodes for each of the 200000 blank lines: the page takes 23 s to render against 0.56 s for the same bytes without the opener, quadrupling with each doubling; the 1 MiB cap allows minutes. The same text in a <gno-foreign> body hits the inner instance, which now loads ExtDetails.",
+      "verify_by": "cp tests/solo-finder-walk-cost_test.go gno.land/pkg/gnoweb/markdown/ && go test ./gno.land/pkg/gnoweb/markdown -run TestZZWalkCost -v: FAIL at c05644643, PASS with ext_details.go from 8ab095f49",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "c05644643: 'D=10000 N=50000 plain=37.9ms details=1.32s', 'D=20000 N=100000 plain=142ms details=5.50s', 'D=40000 N=200000 plain=524ms details=23.15s'. ext_details.go at 8ab095f49: 'D=40000 N=200000 plain=569ms details=559ms'. Replacing the loop with 'if _, ok := pc.LastOpenedBlock().Node.(*ForeignNode); ok { return parser.Continue | parser.HasChildren }' (a ForeignNode opens with NoChildren, so an open one is always the last opened block): 'D=20000 N=100000 plain=149.8ms details=153.5ms', and 'go test -run ^Test[^Z] ./gno.land/pkg/gnoweb/markdown' reads ok, both valid_foreign_colons goldens included.",
+      "repro_path": "tests/solo-finder-walk-cost_test.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 208,
+      "angle": "lines",
+      "summary": "the exemption trusts ForeignNode.Closed, which stays false when a blockquote or list closes the foreign, so the details' own ':::' closer is taken as text and the rest of the page folds into the block",
+      "failure_scenario": "':::details A\\n> <gno-foreign>\\n> text\\n\\n:::\\n\\nfooter\\n': the blank line closes the blockquote and with it the unclosed foreign, through foreignParser.Close, which never sets Closed. On the ':::' line Continue still finds the ForeignNode on the chain, so ':::' renders as a literal paragraph and 'footer' (a realm's footer, its tx links) sits inside the collapsed details. Same output for '- <gno-foreign>\\n  text\\n\\n:::' in a list, where the foreign is still open when the list closes on the ':::' line itself. Before 87aa65612 all three shapes close the details and render footer outside.",
+      "verify_by": "cp tests/solo-finder-stale-foreign_test.go gno.land/pkg/gnoweb/markdown/ && go test ./gno.land/pkg/gnoweb/markdown -run TestZZStaleForeign -v: both subtests FAIL at c05644643, PASS with ext_details.go from 8ab095f49",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "c05644643, quote_blank: '<blockquote>…</blockquote>\\n<p>:::</p>\\n<p>footer</p>\\n</div>\\n</details>'; list_blank and quote_noblank render the same. ext_details.go at 8ab095f49: all three end '</details>\\n<p>footer</p>'. The pc.LastOpenedBlock() form from candidate 1 fixes quote_blank ('--- PASS: TestZZStaleForeign/quote_blank') but not list_blank ('--- FAIL: TestZZStaleForeign/list_blank'): there the foreign is open and its list closes only after the outer Continue has run, so the line never reaches the foreign.",
+      "repro_path": "tests/solo-finder-stale-foreign_test.go"
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details_test.go",
+      "line": 1,
+      "angle": "catalog",
+      "summary": "nothing pins the new 'w <= 3' guard in Continue: no fixture puts a four-column ':::' inside an open details",
+      "failure_scenario": "Dropping 'w <= 3 &&' from ext_details.go:212 makes a details body line '    :::' (an indented code sample) close the block, and every golden and TestDetails* stays green: invalid_indented_code indents the opener as well, so the details never opens, and valid_indented_close and valid_tab_close only cover closers that must close.",
+      "verify_by": "delete 'w <= 3 && ' at ext_details.go:212, go test ./gno.land/pkg/gnoweb/markdown: expect a red golden, observe green; the fix is a golden ':::details A\\nbody\\n\\n    :::\\nafter\\n:::' rendering the indented line as <pre><code>",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -l over golden/ext_details for a line opening with four spaces, a tab or space-tab before ':::' returns only invalid_indented_code.md.txtar, whose opener is also indented.",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 165,
+      "angle": "lines",
+      "summary": "the 'w > 3' guard in Open cannot fire: goldmark skips any parser whose CanAcceptIndentedLine is false before calling Open on such a line",
+      "failure_scenario": "goldmark v1.8.2 parser.go:962 computes the same IndentWidth on the same reader state and parser.go:989 'if w > 3 && !bp.CanAcceptIndentedLine() { continue }' skips this parser, so Open never sees w > 3 and the branch is dead; pc.BlockOffset() already holds pos.",
+      "verify_by": "sed -n 960,992p $(go env GOMODCACHE)/github.com/yuin/goldmark@v1.8.2/parser/parser.go; plant panic(\"reached\") in the branch and run go test ./gno.land/pkg/gnoweb/markdown: expect green",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "parser.go:989 reads 'if w > 3 && !bp.CanAcceptIndentedLine() {' then 'continue'; ext_details.go CanAcceptIndentedLine returns false.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext.go",
+      "line": 88,
+      "angle": "reach",
+      "summary": "another goldmark instance listing gno-* extensions one by one might miss ExtDetails",
+      "settled_by": "grep -rn 'ExtAlerts.Extend|ExtColumns.Extend|NewGnoExtension(' --include='*.go' (non-test) returns only ext.go:85, ext_foreign.go:450 and render_config.go:42, and both lists now call ExtDetails.Extend"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/public/main.css",
+      "line": 1,
+      "angle": "lines",
+      "summary": "main.css might not carry the :not(.gno-icon) selectors from 7d570a0c7",
+      "settled_by": "grep -o in public/main.css returns '.c-realm-view .gno-details>summary>svg:not(.gno-icon){...transform:rotate(-90deg)...}' and '.gno-details[open]>summary>svg:not(.gno-icon){transform:rotate(0)}'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 182,
+      "angle": "reach",
+      "summary": "summary offset 'segment.Start + pos + sStart - segment.Padding' could go below segment.Start if pos were smaller than the padding",
+      "settled_by": "util.IndentWidth consumes every leading space or tab, padding spaces included, and parseOpenFence matched only when line[pos] is ':', so pos >= Padding; TestDetailsTabPadding quote_tab, alert_tab and list_tab pass at c05644643 ('go test -run ^Test[^Z]' ok)"
+    }
+  ]
+}

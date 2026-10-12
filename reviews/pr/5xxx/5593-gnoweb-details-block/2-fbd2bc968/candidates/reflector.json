@@ -1,0 +1,36 @@
+{
+ "completeness": [
+  "Catalog: its classes are GnoVM, gas, realm state and banker invariants; the diff is gnoweb Go, CSS and one quarantined docs realm returning a Render string. Only global mutable state applies: defaultDetailsParser and detailsKeyword/detailsOpenFlag are package-level but never written after init, ext_details.go:31-34,86. No candidate needed.",
+  "Sibling sweep by shape: every goldmark instance that registers ExtAlerts, grep 'ExtAlerts.Extend' over *.go minus tests: ext.go:85 and ext_foreign.go:450. ext.go:88 registers ExtDetails; ext_foreign.go has no ExtDetails, which is candidate 6. No third instance.",
+  "Sibling sweep of the nest cap: the block parsers calling Push/Pop are alerts, columns, foreign and frames per nestdepth.go:1-24; details is the one block container added without it, candidate 1.",
+  "Hot CSS file, overflow signal: .gno-details sets overflow: hidden at 06-blocks.css:3316; candidate 9 checks it clips nothing.",
+  "Containment: an unclosed :::details inside <gno-columns> swallows </gno-columns> and the footer (finder shape columns_details_unclosed); candidate 10 checks whether the diff causes it."
+ ],
+ "dropped": [],
+ "candidates": [
+  {
+   "index": 9,
+   "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+   "line": 3316,
+   "angle": "lines",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "summary": "overflow: hidden on .gno-details could clip a wide table or code block placed inside it, with no scrollbar",
+   "failure_scenario": "A realm puts a wide table or a long code line inside :::details; the container's overflow: hidden cuts the right edge off and the visitor cannot scroll to it.",
+   "verify_by": "grep the gnoweb CSS for the table and pre rules that decide whether a child can grow past its container: 05-composition.css:470-476 and 494-509"
+  },
+  {
+   "index": 10,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+   "line": 218,
+   "angle": "reach",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "summary": "an unclosed :::details inside a <gno-columns> column swallows </gno-columns> and every line after it",
+   "failure_scenario": "'<gno-columns>\\n:::details A\\nleft\\n</gno-columns>\\n\\n## Footer\\n' renders the closing tag as omitted raw HTML and ## Footer inside the details, inside the column.",
+   "verify_by": "TestSoloProbeShapes columns_details_unclosed, then the same shape with an unclosed ``` fence in place of the details (projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5593-gnoweb-details-block/2-fbd2bc968/tests/judge-2-fence-shapes_test.go, cols_fence_unclosed)"
+  }
+ ]
+}

@@ -1,0 +1,17 @@
+diff --git a/gno.land/pkg/gnoweb/markdown/ext_details.go b/gno.land/pkg/gnoweb/markdown/ext_details.go
+index 34ecfc9d7..45b5c2025 100644
+--- a/gno.land/pkg/gnoweb/markdown/ext_details.go
++++ b/gno.land/pkg/gnoweb/markdown/ext_details.go
+@@ -204,10 +204,8 @@ func (p *detailsParser) Continue(node ast.Node, reader text.Reader, pc parser.Co
+ 	line, _ := reader.PeekLine()
+ 	// An open <gno-foreign> body owns its lines: a `:::` there is the
+ 	// foreign party's text, never this block's closer.
+-	for c := node.LastChild(); c != nil; c = c.LastChild() {
+-		if fn, ok := c.(*ForeignNode); ok && !fn.Closed {
+-			return parser.Continue | parser.HasChildren
+-		}
++	if _, ok := pc.LastOpenedBlock().Node.(*ForeignNode); ok {
++		return parser.Continue | parser.HasChildren
+ 	}
+ 	if w, pos := util.IndentWidth(line, reader.LineOffset()); w <= 3 && isCloseFence(line[pos:], node.(*DetailsBlock).Fence) {
+ 		// Consume the fence up to its newline only; the block loop advances

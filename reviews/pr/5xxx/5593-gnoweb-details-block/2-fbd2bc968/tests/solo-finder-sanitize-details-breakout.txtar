@@ -1,0 +1,27 @@
+Repro (sanitize.Block/BlockRich let a :::details opener or a bare ::: closer through; gnovm/stdlibs/chain/markdown isExtDelimiter matches only <gno-...>). From a plain clone at fbd2bc968:
+  cp <this file> gno.land/pkg/gnoweb/markdown/golden/sanitize/zz-solo-details-breakout.txtar
+  go test ./gno.land/pkg/gnoweb/markdown/ -run 'TestSanitizeIntegration$' -count=1   # PASS: output.html below is what head renders
+TestSanitizeCoverageTableMatchesCorpus fails once the file is added (corpus count), unrelated to the finding.
+// MARKDOWNFUNC: Block
+// CONTEXT: :::details Comments\n%s\n:::\n\n## Footer
+-- input.md --
+hello
+:::
+injected after breakout
+-- output.md --
+
+
+hello
+:::
+injected after breakout
+
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>Comments</summary>
+<div>
+<p>hello</p>
+</div>
+</details>
+<p>injected after breakout</p>
+<p>:::</p>
+<h2>Footer</h2>

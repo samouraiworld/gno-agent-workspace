@@ -1,0 +1,72 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 193,
+      "angle": "lines",
+      "summary": "Open builds the summary segment from indices into PeekLine's padded line without subtracting segment.Padding, so a :::details entered through a tab loses the summary's first bytes and reads past the line, and past the page's end panics RenderRealm",
+      "failure_scenario": "A realm page whose list item continues on a tab-indented line ('- item\\n\\t:::details Summary text\\n\\tbody'), or a '>\\t:::details' line in a blockquote or alert, renders the summary as 'mmary text': PeekLine prepends Padding spaces that Open counts into pos and then adds to segment.Start, so the segment is shifted Padding bytes right. When that line ends the page and the source has cap == len (GetMarkdownView's []byte(mdContent) on a 64-byte page), the segment ends past the buffer and RenderRealm panics 'slice bounds out of range [:66] with capacity 64', so the page fails to render for every viewer. goldmark's own atx heading subtracts segment.Padding (parser/atx_heading.go:105-106). Catalog class: Error & panic handling. At the merge base the same input renders as plain text.",
+      "verify_by": "cp tests/solo-finder-tab-padding-render_test.go gno.land/pkg/gnoweb/solo_tab_padding_render_test.go && go test ./gno.land/pkg/gnoweb/ -run TestSoloRenderRealmTabDetails -v (head: mid_page 'mmary text', page_end_64 panic; base via -overlay: PASS); then subtract segment.Padding at ext_details.go:193-194 and rerun tests/solo-finder-tab-padding_test.go: PASS",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head, go1.25.9: TestSoloRenderRealmTabDetails/mid_page 'len=46 cap=48' output '<summary><svg><use href=\"#ico-arrow\"></use></svg>mmary text</summary>' FAIL 'summary text mangled'; page_end_64 'len=64 cap=64' 'RenderRealm panicked: runtime error: slice bounds out of range [:66] with capacity 64'. Segment probe: '>\\t:::details Summary text\\n>\\tbody' seg=[15,27) value=\"mmary text\\n>\". TestSoloDetailsTabPadding: control_quote_space and control_heading_quote_tab PASS, quote_tab, alert_tab, list_tab_continuation FAIL with 'mmary text'. Merge base 02606904e via go test -overlay: both subtests PASS, output '<li>item\\n:::details Summary text</li>'. Head with '- segment.Padding' on lines 193-194: TestSoloDetails(TabPadding|DepthBalanced) ok, go test ./gno.land/pkg/gnoweb/markdown/ ok.",
+      "repro_path": "tests/solo-finder-tab-padding-render_test.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 226,
+      "angle": "reach",
+      "summary": "No test pins Close's Pop: deleting it leaves TestDetailsNestBounded and every ext_details golden green, while a page with five consecutive :::details blocks would render the fifth onward as raw text",
+      "failure_scenario": "Mutation: make Close a no-op. TestDetailsNestBounded still counts MaxGnoNestDepth blocks (4000 nested openers stop at 4 either way); valid_nest_cap nests 5 and expects the 5th refused either way; valid_consecutive and valid_no_summary open only 2 sequential blocks. The docs realm's 'Collapsible blocks' section opens 5 in sequence and would lose its last one, and every gno-* block after a fourth details on a page (alert, frame, columns, foreign) would be refused. ext_frame_test.go:79-86 already asserts Get(pc)==0 after a parse for frame shapes; no input there contains :::details.",
+      "verify_by": "Delete Pop(pc) from Close at ext_details.go:226 and run go test ./gno.land/pkg/gnoweb/markdown/: expect a red test, observe none; tests/solo-finder-tab-padding_test.go TestSoloDetailsDepthBalanced (sequential_6, then_alerts) turns red under that mutation",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -c ':::details' golden/ext_details/*.txtar: max 6 in valid_nest_cap (nested), sequential max 2; ext_frame_test.go depth-zero inputs contain no ':::'. TestSoloDetailsDepthBalanced PASS at head (all 7 shapes back to depth 0), so it pins Pop once added.",
+      "repro_path": "tests/solo-finder-tab-padding_test.go"
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3316,
+      "angle": "lines",
+      "summary": "overflow: hidden on .gno-details clips the external-link tooltip of a link in a closed block's summary",
+      "failure_scenario": "':::details See [docs](https://example.com)' renders a '.link-external.tooltip' span inside <summary> (golden valid_inline_summary). .tooltip is position: relative and its ::after is position: absolute; top: 100%, about 30px tall, while the summary has 12px of bottom padding. With the block closed the details box ends at the summary, so overflow: hidden cuts the tooltip at the card's bottom border; the same holds for a tooltip on the body's last line. Round 1 row 9 cleared overflow only for wide tables.",
+      "verify_by": "Render ':::details See [docs](https://example.com)\\nbody\\n:::' in gnoweb, hover the external-link glyph with the block closed under xvfb-run chromium, and compare the tooltip's getBoundingClientRect().bottom with the details element's bottom",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "diff.md context: '.c-realm-view .tooltip' sets 'position: relative' and '&::after' sets 'position: absolute' 'top: 100%'; 06-blocks.css:3316 'overflow: hidden;' inside '.gno-details {' at 3311; golden valid_inline_summary output carries 'link-external tooltip' inside <summary>.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 186,
+      "angle": "reach",
+      "summary": "Push in Open could be left unmatched when a details block ends by a lazy blockquote end, a list end, EOF, or a refused opener at the cap",
+      "settled_by": "go test ./gno.land/pkg/gnoweb/markdown/ -run TestSoloDetailsDepthBalanced -v at head: closed, unclosed, over_cap, in_quote_lazy, in_list_ends, sequential_6, then_alerts all PASS with Get(pc)==0 and the alert after five closed details rendered"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/public/main.css",
+      "line": 1,
+      "angle": "reach",
+      "summary": "main.css not rebuilt after user-select was dropped from the summary rule",
+      "settled_by": "grep -o '\\.gno-details>summary{[^}]*}' main.css: '.gno-details>summary{align-items:center;cursor:pointer;display:flex;font-weight:var(--g-font-bold);gap:var(--g-space-2);list-style:none;padding:var(--g-space-3) var(--g-space-4)}', no user-select"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_foreign.go",
+      "line": 451,
+      "angle": "catalog",
+      "summary": "ExtDetails registered per foreign render could share mutable state across concurrent renders",
+      "settled_by": "ext_details.go: defaultDetailsParser is an empty struct and detailsKeyword/detailsOpenFlag/KindDetailsBlock/ExtDetails are never written after init; NewDetailsHTMLRenderer builds a fresh renderer per Extend. Other catalog classes (determinism, gas, realm state, caller, banker, deposit, VM) are untouched by a gnoweb renderer and a quarantined docs string"
+    }
+  ]
+}
