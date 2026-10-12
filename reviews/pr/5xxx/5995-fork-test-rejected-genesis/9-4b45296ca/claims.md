@@ -52,7 +52,7 @@ Hit rate per tier, from the rows above: hot 3/4 confirmed over 3 files, warm 1/1
 | c121978e7 | 2 | The first boot runs `ValidateAndComplete` before `saveGenesisDoc`, so a doc with no chain id is never persisted; `TestLoadStateFromDBOrGenesisDocProvider_FirstBootInvalidDocNotPersisted` fails with the check removed, on `genesis chain id mismatch between persisted state ("")` |
 | 2b26f103e | 1001 | The ADR's Consequences, the body and the overview say a `NewInMemoryNode` genesis with a nil `AppState` now fails the handshake |
 
-Row 2 predates the branch, base and head alike, and was fixed here on the author's word. Row 1 stays, held for the author: it predates the branch, base and head alike, and needs a file swapped after `InitChain` succeeded and before the first block committed, when the replay at app height 0 (replay.go:323-332) pairs the persisted validators with the file's app state.
+Row 2 predates the branch, base and head alike, and was fixed here on the author's word. Row 1 stays, on the author's word: it predates the branch, base and head alike, and needs a file swapped after `InitChain` succeeded and before the first block committed, when the replay at app height 0 (replay.go:323-332) pairs the persisted validators with the file's app state.
 
 ## Retro
 

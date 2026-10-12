@@ -47,7 +47,7 @@ Hit rate per tier, from the rows above: hot 3/3 confirmed over 4 files, warm 0/0
 | --- | --- | --- |
 | 5d27c66b4 | 1 | `TestLoadStateFromDBOrGenesisDocProvider_LegacyDocKeepsCommittedState` writes a doc carrying `AppState` under `genesisDocKey`, a state record at height 500 and no height-0 key; with the gate widened to `} else {` it fails, 500 against 0 |
 
-Rows 2 and 3 are held for the author. Row 2 predates the branch, base and head alike, and a dir that never applied a genesis loses nothing to a wipe. Row 3 asks for a log line, which needs a logger or a returned flag on `LoadStateFromDBOrGenesisDocProvider`, a signature change.
+Rows 2 and 3 stay, on the author's word. Row 2 predates the branch, base and head alike, and a dir that never applied a genesis loses nothing to a wipe. Row 3 asks for a log line, which needs a logger or a returned flag on `LoadStateFromDBOrGenesisDocProvider`, a signature change.
 
 ## Retro
 
