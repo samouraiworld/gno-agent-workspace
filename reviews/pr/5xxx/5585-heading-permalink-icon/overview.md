@@ -4,7 +4,7 @@ PR: [gnolang/gno#5585](https://github.com/gnolang/gno/pull/5585)
 
 ## TLDR
 
-Before, realm and readme headings carried an `id` from `parser.WithAutoHeadingID()`, and nothing on the page linked to it: the only way to a section link was the ToC sidebar. Now `GnoExtension` loads `ExtHeading`, a renderer that replaces goldmark's heading renderer and closes every heading holding an `id` and at least one child with an `<a class="heading-anchor">` pointing at that `id`. The anchor reuses the `#ico-link` icon and the `Permalink` label of the `ui/pkg_anchor` template, and CSS shows it on heading hover, on keyboard focus, and always where nothing hovers. The request is [#5579](https://github.com/gnolang/gno/issues/5579).
+Before, realm and readme headings carried an `id` from `parser.WithAutoHeadingID()`, and nothing on the page linked to it: the only way to a section link was the ToC sidebar. Now `GnoExtension` loads `ExtHeading`, a renderer that replaces goldmark's heading renderer and closes every heading holding an `id` and at least one child with an `<a class="heading-anchor">` pointing at that `id`. The anchor reuses the `#ico-link` icon and the `Permalink` label of the `ui/pkg_anchor` template, and CSS shows it on heading hover, on keyboard focus, and always where nothing hovers. A word joiner opens the anchor and the anchor does not wrap, so on a narrow screen the icon carries the heading's last word rather than wrapping alone. The request is [#5579](https://github.com/gnolang/gno/issues/5579).
 
 ## Before and after
 
@@ -13,7 +13,7 @@ The rendered markup of `## Title`, before then after:
 | | HTML |
 | --- | --- |
 | Before | `<h2 id="title">Title</h2>` |
-| After | `<h2 id="title">Title<a href="#title" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>` |
+| After | `<h2 id="title">Title<a href="#title" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>` |
 
 | Where it enters | Before | After |
 | --- | --- | --- |
@@ -44,16 +44,16 @@ flowchart LR
 
 ## Read the code in this order
 
-1. [`markdown/ext_heading.go`](https://github.com/gnolang/gno/blob/2eff8be62a7b0da76461157130f35d49d9775973/gno.land/pkg/gnoweb/markdown/ext_heading.go#L21-L44): the whole renderer. If the guard is wrong, a heading either loses its link or shows an icon next to nothing.
+1. [`markdown/ext_heading.go`](https://github.com/gnolang/gno/blob/9a416aa0b17166fc9d824611f79770abff481320/gno.land/pkg/gnoweb/markdown/ext_heading.go#L21-L45): the whole renderer. If the guard is wrong, a heading either loses its link or shows an icon next to nothing.
    ```go
    id, _ := n.AttributeString("id")
    if idBytes, ok := id.([]byte); ok && len(idBytes) > 0 && n.HasChildren() {
    ```
-2. [`markdown/ext.go`](https://github.com/gnolang/gno/blob/2eff8be62a7b0da76461157130f35d49d9775973/gno.land/pkg/gnoweb/markdown/ext.go#L96-L97): where `GnoExtension` loads it. Every `RenderRealm` caller goes through here.
-3. [`render_config.go`](https://github.com/gnolang/gno/blob/2eff8be62a7b0da76461157130f35d49d9775973/gno.land/pkg/gnoweb/render_config.go#L36): production's `parser.WithAutoHeadingID()`, which supplies the `id` the anchor needs.
-4. [`frontend/css/05-composition.css`](https://github.com/gnolang/gno/blob/2eff8be62a7b0da76461157130f35d49d9775973/gno.land/pkg/gnoweb/frontend/css/05-composition.css#L654-L694): the anchor's styling, scoped to `.c-realm-view` and `.c-readme-view`, hidden at `opacity: 0` until hover or `:focus-visible`, and shown under `@media (hover: none)`.
-5. [`markdown/ext_test.go`](https://github.com/gnolang/gno/blob/2eff8be62a7b0da76461157130f35d49d9775973/gno.land/pkg/gnoweb/markdown/ext_test.go#L45): the golden harness now parses with auto heading IDs, which is why most fixtures under `golden/` gained an `id` and the anchor; [`golden/ext_heading/all_cases.md.txtar`](https://github.com/gnolang/gno/blob/2eff8be62a7b0da76461157130f35d49d9775973/gno.land/pkg/gnoweb/markdown/golden/ext_heading/all_cases.md.txtar) is the new fixture.
-6. [`adr/pr5585_heading_anchor_links.md`](https://github.com/gnolang/gno/blob/2eff8be62a7b0da76461157130f35d49d9775973/gno.land/adr/pr5585_heading_anchor_links.md): the alternatives, wrapping the text in the link among them.
+2. [`markdown/ext.go`](https://github.com/gnolang/gno/blob/9a416aa0b17166fc9d824611f79770abff481320/gno.land/pkg/gnoweb/markdown/ext.go#L96-L97): where `GnoExtension` loads it. Every `RenderRealm` caller goes through here.
+3. [`render_config.go`](https://github.com/gnolang/gno/blob/9a416aa0b17166fc9d824611f79770abff481320/gno.land/pkg/gnoweb/render_config.go#L36): production's `parser.WithAutoHeadingID()`, which supplies the `id` the anchor needs.
+4. [`frontend/css/05-composition.css`](https://github.com/gnolang/gno/blob/9a416aa0b17166fc9d824611f79770abff481320/gno.land/pkg/gnoweb/frontend/css/05-composition.css#L654-L696): the anchor's styling, scoped to `.c-realm-view` and `.c-readme-view`, hidden at `opacity: 0` until hover or `:focus-visible`, and shown under `@media (hover: none)`.
+5. [`markdown/ext_test.go`](https://github.com/gnolang/gno/blob/9a416aa0b17166fc9d824611f79770abff481320/gno.land/pkg/gnoweb/markdown/ext_test.go#L45): the golden harness now parses with auto heading IDs, which is why most fixtures under `golden/` gained an `id` and the anchor; [`golden/ext_heading/all_cases.md.txtar`](https://github.com/gnolang/gno/blob/9a416aa0b17166fc9d824611f79770abff481320/gno.land/pkg/gnoweb/markdown/golden/ext_heading/all_cases.md.txtar) is the new fixture.
+6. [`adr/pr5585_heading_anchor_links.md`](https://github.com/gnolang/gno/blob/9a416aa0b17166fc9d824611f79770abff481320/gno.land/adr/pr5585_heading_anchor_links.md): the alternatives, wrapping the text in the link among them.
 
 ## What a user notices
 
