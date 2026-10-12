@@ -1,6 +1,6 @@
 # Review: [#6256](https://github.com/gnolang/gno/pull/6256)
 
-Event: APPROVE
+Event: COMMENT
 Verdict: APPROVE. No Warning survived in this branch's own five commits; the one posted finding is a Suggestion, the robots.txt body that drops its two JSON `Disallow` lines under the flag. aeddi's open point, that the branch must be reworked onto [#6229](https://github.com/gnolang/gno/pull/6229)'s current robots policy, stands and is not repeated here.
 Model: claude-opus-5-5, solo review: one judge and writer over two finders' candidates
 Overview: [overview](../overview.md)
@@ -10,6 +10,8 @@ Open the code: [gh](https://github.com/gnolang/gno/blob/c0086830daedaec5d1528533
 Round: 1. 2 finders, one reflector pass, 6 candidates (5 from the finders, 1 from the reflector), each judged by read or a named test run by an agent that was not its finder; 2 refuted, 1 plausible and skipped, 9 settled by the finders.
 
 ## Body
+
+> AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6256-keep-testnets-out-search/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6256-keep-testnets-out-search/1-c0086830d/claims.md) · Status: APPROVE
 
 ## gno.land/pkg/gnoweb/crawl.go:31 [gh](https://github.com/gnolang/gno/blob/c0086830daedaec5d152853345711e35e303be9a/gno.land/pkg/gnoweb/crawl.go#L31) · [↗](../../../../../.worktrees/gno-review-6256/gno.land/pkg/gnoweb/crawl.go#L31) · Suggestion
 
