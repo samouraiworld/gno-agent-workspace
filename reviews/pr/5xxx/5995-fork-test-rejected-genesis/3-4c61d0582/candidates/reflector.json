@@ -1,0 +1,28 @@
+{
+  "candidates": [
+    {
+      "index": 2001,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1088,
+      "angle": "rollout",
+      "summary": "A committed chain whose state DB never got abciResponsesKey:0, a genesis applied before the height-0 save landed in 3aa0f0b7d (gnolang/gno#1941, 2024-07-23), is reset to its genesis state record on the first boot of this binary",
+      "failure_scenario": "A data dir whose InitChain ran under a tm2 older than 3aa0f0b7d has 500 committed blocks and no height-0 ABCI responses. The persisted genesis doc has no AppState, so the re-invoke branch runs, genesisApplied finds no key and returns false, and resetToGenesisDoc persists LastBlockHeight 0 over the real record; the handshake then panics on StoreBlockHeight > StateBlockHeight + 1 on every boot. The merge base keeps LastBlockHeight 500.",
+      "verify_by": "cp tests/judge-2001-no-height0-marker-resets-state.go tm2/pkg/bft/node/zz_no_marker_test.go && go test ./tm2/pkg/bft/node -run TestJudgeNoHeight0MarkerKeepsState -v -count=1: FAIL at head (0), PASS at the merge base via -overlay (500); git log -S'SaveABCIResponses(h.stateDB, 0' -- tm2/pkg/bft/consensus/replay.go names 3aa0f0b7d",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: 'boot err=<nil>; persisted LastBlockHeight=0 AppHash=\"\"' FAIL; base cfcbaf484: 'persisted LastBlockHeight=500 AppHash=\"committed-app-hash\"' PASS",
+      "repro_path": "tests/judge-2001-no-height0-marker-resets-state.go"
+    }
+  ],
+  "dropped": [],
+  "completeness": [
+    "Sibling sweep of the added res.IsErr() guard by shape, every <X>Sync( call on the handshake and block-execution path followed by a Go-error check alone: replay.go:239 InfoSync, execution.go:170 and :452 CommitSync, :238 BeginBlockSync, :257 EndBlockSync. Only Commit has a live producer of ResponseBase.Error (baseapp.go:987), candidate 1003; BaseApp.Info, BeginBlock and EndBlock set no Error (awk over their bodies printed nothing).",
+    "Apps returning ResponseInitChain with Error, which now abort boot: gno.land app.go:401 (loadAppState failure, the intended abort, including StrictReplay and an invalid AppState type), BaseApp.InitChain passing the initChainer's Error through (baseapp.go:373); non-test tm2 apps (kvstore, BaseApplication) return an empty response. Test apps setting Error: only the two new tests.",
+    "Sibling sweep of the NewDefaultGenesisConfig pointer fix by shape, &GnoGenesisState{ anywhere: parity_test.go:53 and fork/inspect_test.go only, none passed to InitChain as AppState.",
+    "Tests the diff adds, reddened by mutation: dropping the res.IsErr() block turns both TestHandshakeInitChainError subtests red; dropping the genesisApplied gate turns TestLoadStateFromDBOrGenesisDocProvider_RejectedGenesisRetry red and leaves TestE2ERejectThenCorrectedGenesisBoots green (candidate 2).",
+    "Pruning of the height-0 marker the gate relies on: CalcABCIResponsesKey has one writer (store.go:203) and no delete anywhere in tm2 or gno.land, so the comment's 'never pruned' holds at the head.",
+    "Invariant catalog: Error & panic handling is the class the diff touches (genesisApplied swallowing the Has error, candidates 1 and 1001); determinism, gas, realm state, caller, coin, storage deposit and VM classes do not apply to tm2 boot code; pickyApp.seen is appended and read on one goroutine through the local client, no shared state."
+  ]
+}

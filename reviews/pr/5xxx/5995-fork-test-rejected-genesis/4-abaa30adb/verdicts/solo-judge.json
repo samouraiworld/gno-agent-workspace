@@ -1,0 +1,34 @@
+{
+  "verdicts": [
+    {
+      "index": 1,
+      "angle": "reach",
+      "verify_by": "test in tm2/pkg/bft/node: LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1)), then the same db with probeGenesisDocProvider(pk, 100); compare sm.LoadValidators/LoadConsensusParams at 1, 2, 100, 101 against a db that booted 100 directly",
+      "check": "go test -overlay ov-head.json -run 'TestJudgeStaleValsetAfterReset$' ./tm2/pkg/bft/node/ (tests/judge-1-stale-valset_test.go)",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1129,
+      "tldr": "after a reset from InitialHeight 1 to 100, the node still answers the validator set at heights 1 and 2 and the consensus params at height 1, where a node that booted the corrected file errors",
+      "details": "The rejected first boot runs sm.LoadStateFromDBOrGenesisDoc, whose saveState writes validatorsKey:1 and consensusParamsKey:1 (nextHeight == InitialHeight, store.go:121-127) and validatorsKey:2 (store.go:133). resetToGenesisDoc only calls saveGenesisDoc and sm.SaveState for the new heights, so those keys survive. The RPC Validators and ConsensusParams handlers bound the height with getHeightWithMin(..., 1) and the current height, so once the chain passes height 2 /validators?height=1 returns the rejected genesis's set. VerifyEvidence, the one consensus reader of old heights, is commented out at validation.go:165, so the effect is two nodes of one chain answering the same RPC query differently. Fix: in resetToGenesisDoc, load the old state and delete its records at old InitialHeight and InitialHeight+1 before saving the new one; that needs an exported deleter in tm2/pkg/bft/state.",
+      "evidence": "h=1 reset: `vals=1 err=<nil> params_err=<nil>`, fresh: `Could not find validator set for height #1`, `Could not find consensus params for height #1`; h=2 reset: `vals=1 err=<nil>`, fresh: `Could not find validator set for height #2`; h=100 and h=101 identical on both. --- PASS",
+      "repro_path": "tests/judge-1-stale-valset_test.go",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 2,
+      "angle": "rollout",
+      "verify_by": "at merge base cfcbaf484: handshake against initChainApp returning ResponseInitChain.Error, then probe abciResponsesKey:0; at head: the same handshake, and TestLoadStateFromDBOrGenesisDocProvider_AppliedGenesisWins for the persisted doc winning once the key exists",
+      "check": "go test -overlay ov-base.json -run 'TestJudgeRejectedInitChainMarker$' ./tm2/pkg/bft/consensus/ at cfcbaf484 and abaa30adb (tests/judge-2-base-saves-rejected_test.go); go test -run 'TestLoadStateFromDBOrGenesisDocProvider_AppliedGenesisWins$' ./tm2/pkg/bft/node/ at abaa30adb",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1111,
+      "tldr": "a data dir where the pre-PR binary booted past a rejected InitChain already holds abciResponsesKey:0, so this binary keeps its stale genesis doc and the only recovery is a wipe",
+      "details": "At the merge base a rejecting app leaves the handshake green and saves the height-0 ABCI responses, because ReplayBlocks has no res.IsErr() check. genesisApplied (node.go:1110-1115) reads that key as applied, so after the upgrade the persisted doc wins over the corrected file, as AppliedGenesisWins pins, and InitChain runs again with the old InitialHeight and the fresh AppState and is now rejected. Nothing was committed by a node stopped before its first block, so the cost is wiping the data dir, which the overview's Upgrading section already states. No code change; a line in the pull request body would reach operators who never open the overview.",
+      "evidence": "base: handshake err=<nil>, height-0 marker present=true; head: handshake err=error on replay: InitChain rejected the genesis: InitialHeight mismatch, height-0 marker present=false; AppliedGenesisWins --- PASS",
+      "repro_path": "tests/judge-2-base-saves-rejected_test.go",
+      "base_behaves_the_same": false
+    }
+  ]
+}

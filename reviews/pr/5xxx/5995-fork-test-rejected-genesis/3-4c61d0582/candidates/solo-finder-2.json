@@ -1,0 +1,86 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1106,
+      "angle": "rollout",
+      "summary": "genesisApplied reads a failed Has as 'genesis not applied', so one read error at boot rebuilds and persists genesis state over a running chain's state record",
+      "failure_scenario": "A validator at height 500 restarts and the backend's read of abciResponsesKey:0 returns an I/O or corruption error (pebble and LMDB Has both go through Get and surface it). genesisApplied returns false, resetToGenesisDoc runs MakeGenesisState and SaveState, and the state record is persisted with LastBlockHeight=InitialHeight-1 and the genesis AppHash, all with no error returned. The handshake then lands in the storeBlockHeight > stateBlockHeight+1 panic in ReplayBlocks (replay.go:393, read, not run). Every later boot reads the overwritten record and panics the same way, so the validator cannot restart without a resync. At the merge base this path never probes Has, and the stored state survives.",
+      "verify_by": "cp tests/solo-finder-2-has-error-resets-state.go tm2/pkg/bft/node/zz_has_error_test.go && go test ./tm2/pkg/bft/node -run TestZZHasErrorResetsCommittedChain -v -count=1: expect FAIL at head (persisted LastBlockHeight 0) and PASS at the merge base (500)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head 4c61d0582: 'boot err=<nil>; persisted LastBlockHeight=0 AppHash=\"\"', expected 500 actual 0, --- FAIL. base cfcbaf484 via go test -overlay: 'persisted LastBlockHeight=500 AppHash=\"committed-app-hash\"', --- PASS",
+      "repro_path": "tests/solo-finder-2-has-error-resets-state.go"
+    },
+    {
+      "index": 1002,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1088,
+      "angle": "rollout",
+      "summary": "Data dirs where the pre-upgrade binary ran a rejected InitChain already carry the height-0 marker, so the reset never fires for them and a corrected genesis.json is ignored for every doc field except AppState",
+      "failure_scenario": "A validator runs the current release (the merge base) against a hardfork genesis with GenesisDoc.InitialHeight=100 and GnoGenesisState.InitialHeight=999. That release drops InitChain's Error and saves abciResponsesKey:0 anyway (base replay.go:339-347), and no block commits yet. The operator upgrades to this binary, sets both InitialHeights to 999 in genesis.json and restarts on the same data dir. genesisApplied is true, so the persisted doc (InitialHeight=100) is paired with the fresh AppState, and InitChain refuses again with 'GenesisDoc.InitialHeight=100' while the file on disk says 999. The retry-with-a-corrected-genesis path this diff adds does not reach data dirs the previous image touched, and nothing tells the operator to wipe. Corrected validators or genesis time are taken from the stale doc silently.",
+      "verify_by": "read: base tm2/pkg/bft/consensus/replay.go:339-347 saves height-0 without checking res.Error; head node.go:1088-1091 keeps the DB doc once height-0 exists. run: boot the merge-base node on a pickyApp-rejected genesis (InitialHeight 42), then the head node on the corrected doc (1) against the same data dir; expect app.seen to end in 42, not 1",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 1003,
+      "file": "tm2/pkg/bft/state/execution.go",
+      "line": 170,
+      "angle": "removed",
+      "summary": "Sibling of the InitChain fix: ApplyBlock and ExecCommitBlock check only CommitSync's Go error and drop ResponseCommit.Error, which baseapp.Commit sets",
+      "failure_scenario": "A tm2 BaseApp without a mounted 'base' store returns ResponseCommit{Error: 'baseapp expects MultiStore with base Store'} with empty Data (baseapp.go:987). execution.go:170 and :452 log 'Committed state' and carry the empty app hash into state, so the chain continues on a wrong app hash instead of halting. This is latent today: gno.land, the only in-tree BaseApp user, mounts baseKey (app.go:107).",
+      "verify_by": "sed -n 168,180p and 450,458p tm2/pkg/bft/state/execution.go: no res.IsErr() after CommitSync; sed -n 985,989p tm2/pkg/sdk/baseapp.go: res.Error set",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1106,
+      "angle": "rollout",
+      "summary": "a zero-tx genesis stores an empty height-0 value that some backend's Has reports as absent, resetting a running chain on every boot",
+      "settled_by": "probe on all 6 backends after close and reopen, len(NewABCIResponsesFromNum(0).Bytes())=0: 'boltdb/goleveldb/lmdbdb/mdbxdb/pebbledb after reopen genesisApplied=true Get(nil?)=false'; memdb true"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 46,
+      "angle": "removed",
+      "summary": "another caller still builds a *GnoGenesisState or nil AppState, which now aborts boot instead of booting empty",
+      "settled_by": "grep -rn -E '(\\.AppState *=|AppState: )' non-test go: every assignment is a GnoGenesisState value or *GenesisStateRef (gnodev node.go:717 overrides NewDefaultGenesisConfig's with a value; gnogenesis DefaultGenesis uses DefaultGenState())"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 347,
+      "angle": "removed",
+      "summary": "another in-tree app returns ResponseInitChain.Error on an ordinary genesis and now refuses to boot",
+      "settled_by": "grep for ResponseInitChain with Error: only gno.land/pkg/gnoland/app.go:401 outside tests; baseapp.InitChain only forwards initChainer's response"
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 352,
+      "angle": "rollout",
+      "summary": "SetInitialVersion from a rejected InitChain persists into the corrected retry",
+      "settled_by": "rootmulti/store.go:330, iavl/store.go:147, bptree/store.go:75: SetInitialVersion only sets in-memory fields; nothing is written to the DB"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1088,
+      "angle": "rollout",
+      "summary": "a pre-#1941 data dir with committed blocks but no height-0 key enters the reset",
+      "settled_by": "git log -S: height-0 save added in 3aa0f0b7d (2024-07-23), AppState stripped from the persisted doc in 5d0a4d703 (2026-05-18); a doc persisted earlier carries a gno.land AppState, so the genDoc.AppState == nil branch is never entered for it"
+    }
+  ]
+}

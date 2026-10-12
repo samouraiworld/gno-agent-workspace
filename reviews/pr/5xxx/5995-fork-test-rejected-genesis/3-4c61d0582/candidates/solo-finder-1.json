@@ -1,0 +1,71 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1106,
+      "angle": "catalog: error & panic handling / lines",
+      "summary": "genesisApplied treats a failing stateDB.Has as 'genesis not applied', so a read error on restart sends a running chain through resetToGenesisDoc, which overwrites its persisted state record with the genesis state",
+      "failure_scenario": "A node with 500 committed blocks restarts and stateDB.Has(abciResponsesKey:0) returns an error (I/O error, corruption). genesisApplied returns false, LoadStateFromDBOrGenesisDocProvider calls resetToGenesisDoc, and sm.SaveState persists LastBlockHeight=0 and an empty AppHash over the real record. The handshake then panics on StoreBlockHeight (500) > StateBlockHeight + 1 (1). Every later restart, after the read error has cleared, loads the overwritten record and panics the same way, so the operator has to repair the state DB by hand or resync. At the merge base the same restart keeps LastBlockHeight 500. Returning the error from genesisApplied, or treating an error as applied, stops this.",
+      "verify_by": "Drop tests/solo-finder-1-has-error-resets-state.go into tm2/pkg/bft/node/ and run go test ./tm2/pkg/bft/node/ -run TestSoloFinder1_HasError -v -count=1. It wraps the DB so Has fails, after saving the height-0 responses and a state at height 500. Expect LastBlockHeight 500 to survive; at the head it reads 0, persisted.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head 4c61d0582: 'returned err=<nil> LastBlockHeight=0' / 'persisted after restart: LastBlockHeight=0 AppHash=\"\"'; merge base cfcbaf484 node.go, same test: 'returned err=<nil> LastBlockHeight=500' / 'persisted after restart: LastBlockHeight=500 AppHash=\"committed-app-hash\"'",
+      "repro_path": "tests/solo-finder-1-has-error-resets-state.go"
+    },
+    {
+      "index": 2,
+      "file": "tm2/pkg/bft/node/node_genesis_restart_test.go",
+      "line": 38,
+      "angle": "reach / tests",
+      "summary": "TestE2ERejectThenCorrectedGenesisBoots never restarts against the same data dir: cfg.ResetTestRoot gives DBBackend memdb, and DefaultDBProvider opens a fresh NewMemDB on every NewNode, so the second build starts empty and never reaches the reset branch",
+      "failure_scenario": "Delete the 'if !genesisApplied(stateDB) { return resetToGenesisDoc(stateDB, freshDoc) }' block in node.go and the test stays green: build(1) finds no persisted genesis doc, takes the first-boot branch, and InitChain sees InitialHeight 1. Only the unit test TestLoadStateFromDBOrGenesisDocProvider_RejectedGenesisRetry pins the reset, and it never runs a handshake. The end-to-end reject-then-correct path the test header describes stays unpinned.",
+      "verify_by": "Read: tm2/pkg/bft/config/toml.go:95 ResetTestRoot uses TestConfig(), config.go:334 sets DBBackend memdb, memdb's registered creator returns NewMemDB() per call, and node.go DefaultNewNodeWithGenesisProvider passes DefaultDBProvider. Mutation to confirm: remove node.go:1088-1090 and run go test ./tm2/pkg/bft/node -run TestE2ERejectThenCorrectedGenesisBoots; predicted green. Fix shape: set config.DBBackend to pebbledb, or pass a DBProvider that returns one shared memdb per ID across both builds.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1105,
+      "angle": "reach: extremes",
+      "summary": "a genesis with zero tx responses stores an empty height-0 blob (amino of ABCIResponses{} is 0 bytes), which a backend whose Has is Get()!=nil could read as absent, so every restart would reset the state",
+      "settled_by": "go test ./tm2/pkg/bft/node -run TestSoloFinder1_EmptyGenesisResponsesHas: 'len(NewABCIResponsesFromNum(0).Bytes()) = 0 (nil=true)', then memdb, pebbledb, goleveldb, boltdb, lmdbdb and mdbxdb each print 'Has=true err=<nil> genesisApplied=true'"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1088,
+      "angle": "reach: restart states",
+      "summary": "a data dir created before height-0 ABCI responses were saved could reach the reset branch with committed blocks",
+      "settled_by": "git log -S'SaveABCIResponses(h.stateDB, 0' gives 3aa0f0b7d 2024-07-23 (#1941); git log -S'genDoc.AppState == nil' gives 5d0a4d703 2026-05-18 (#5684). The reset sits inside the AppState==nil branch, and only post-#5684 data dirs persist a nil AppState for a gno.land genesis, by which point height 0 was already saved."
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1104,
+      "angle": "reach: restart states",
+      "summary": "height-0 ABCI responses pruned on a long-running chain, so genesisApplied flips to false",
+      "settled_by": "grep -rn 'CalcABCIResponsesKey' (non-test) gives only store.go:34/179/203 and node.go:1105: no delete or prune of the key anywhere"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 346,
+      "angle": "reach: callers",
+      "summary": "an in-tree gno.land boot path with a nil or *GnoGenesisState AppState that used to boot past the ignored Error and now aborts",
+      "settled_by": "Every non-test GenesisDoc literal in gno.land/contribs/misc sets AppState (node_testing.go:120, node_inmemory.go:37, common/config.go:31; genesis_state_ref.go:339 and start.go:423 assign it at :353 and :491). grep '\\.\\(\\*(gnoland\\.)?GnoGenesisState\\)' only hits ts.Value(envKeyGenesis), never AppState. The only non-test returns of ResponseInitChain with Error are gno.land app.go:401 (persistent_kvstore.go:119 and application.go:64 return none)."
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1088,
+      "angle": "reach: partial boot",
+      "summary": "on a retry the gnoland streaming provider serves a stale cached AppState for a corrected genesis file",
+      "settled_by": "gno.land/pkg/gnoland/genesis_state_ref.go:336 'finalDir := filepath.Join(cacheRoot, hash)': the cache dir is keyed on the source hash, so a corrected file maps to a new cache"
+    }
+  ]
+}

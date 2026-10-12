@@ -1,0 +1,85 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1129,
+      "angle": "reach",
+      "summary": "the reset rewrites the state record but leaves the rejected genesis's per-height validator and consensus-param records, so a node whose corrected genesis starts higher answers RPC queries for heights the chain never had",
+      "failure_scenario": "Hardfork genesis.json with GenesisDoc initial_height unset (1) and app_state initial_height 100. First boot: MakeGenesisState + saveState write validatorsKey:1 (full set), validatorsKey:2 and consensusParamsKey:1; InitChain rejects with 'InitialHeight mismatch'. Operator sets initial_height 100 and restarts: resetToGenesisDoc writes the records at 100/101 and deletes nothing. Once the chain runs, /validators?height=1 and /consensus_params?height=1 pass getHeightWithMin(..., 1) and return the rejected genesis's set with success, where a node that booted the corrected file directly answers NoValSetForHeightError: two nodes of one chain answer the same query differently.",
+      "verify_by": "test in tm2/pkg/bft/node: LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1)), then the same db with probeGenesisDocProvider(pk, 100); require.Error(sm.LoadValidators(db, 1)) and observe it returns the set. Read half: sed -n 107,134p tm2/pkg/bft/state/store.go; sed -n 17,27p tm2/pkg/bft/rpc/core/consensus.go; sed -n 156,171p tm2/pkg/bft/rpc/core/blocks.go",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "store.go saveState: 'if nextHeight == state.InitialHeight { saveValidatorsInfo(db, nextHeight, nextHeight, state.Validators) ... saveConsensusParamsInfo(db, nextHeight, nextHeight, ...)' then 'saveValidatorsInfo(db, nextHeight+1, ...)'; consensus.go Validators: 'height, err := getHeight(height, heightPtr)' then 'sm.LoadValidators(env.StateDB, height)'; blocks.go getHeight is getHeightWithMin(currentHeight, heightPtr, 1); resetToGenesisDoc (node.go:1123-1131) only calls saveGenesisDoc and sm.SaveState.",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1111,
+      "angle": "rollout",
+      "summary": "a data dir where a pre-PR binary ignored a rejected InitChain already carries the height-0 marker, so after the upgrade a corrected genesis is treated as applied and the stale doc is kept",
+      "failure_scenario": "Pre-PR binary boots a genesis whose InitialHeight the app rejects; base replay.go ignores ResponseInitChain.Error and saves the height-0 ABCI responses and the state. Operator stops the node before the first block, upgrades to this head and corrects genesis.json. genesisApplied reads true, the persisted doc (old InitialHeight) is paired with the fresh AppState, InitChain rejects again with 'InitialHeight mismatch', and no edit to the file helps; only wiping the data dir boots. If the old binary already committed a block the chain is running on the broken state and needs the wipe regardless.",
+      "verify_by": "at merge base cfcbaf484: handshake against initChainApp returning ResponseInitChain.Error, then sm.LoadABCIResponses(stateDB, 0) succeeds; at head: LoadStateFromDBOrGenesisDocProvider on that db with a provider carrying the corrected InitialHeight returns the persisted (old) InitialHeight",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true,
+      "run": false,
+      "evidence": "diff.md replay.go hunk: base runs 'res, err := proxyApp.Consensus().InitChainSync(req); if err != nil { return nil, err }' then 'sm.SaveABCIResponses(h.stateDB, 0, abciResponse)' with no res.IsErr() check (added at head lines 844-849); head node.go:1111 'ok, err := stateDB.Has(sm.CalcABCIResponsesKey(0))' is the only applied signal. Recovery is a data-dir wipe with nothing committed, so the band is Nit.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoland/app_test.go",
+      "line": 411,
+      "angle": "removed",
+      "summary": "the TestInitChainer_PanicsOnValoperCoverageFailure doc comment still says consensus/replay.go:339-342 silently discards ResponseInitChain.Error, which the diff makes false",
+      "settled_by": "grep -rniE 'silently discard|replay\\.go:3[34][0-9]' gives 'app_test.go:411: // panic, not via the ResponseInitChain.Error field that tm2's' and ':412: // consensus/replay.go:339-342 silently discards.'; the only fix is the comment's wording, which this round does not return"
+    },
+    {
+      "file": "tm2/adr/pr5949_remove_secp256k1_validators.md",
+      "line": 71,
+      "angle": "removed",
+      "summary": "ADR text (and gno.land/adr/pr5511_chain_upgrade_genesis_replay.md:240) states ResponseInitChain.Error is silently discarded",
+      "settled_by": "same grep: 'pr5949_remove_secp256k1_validators.md:71: as with the existing valoper-coverage assertion, `ResponseInitChain.Error` is silently'; an ADR is the governing document the no-critique rule covers"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 470,
+      "angle": "rollout",
+      "summary": "a rejected InitChain persists stdlib writes into the app DB that the tm2-side reset does not undo, contradicting 'nothing is committed'",
+      "settled_by": "sed -n 466,472p app.go: 'ms := ctx.MultiStore()' / 'msCache := ms.MultiCacheWrap()'; the MultiWrite at :481 lands in the deliverState cache, which only Commit writes to the DB"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 563,
+      "angle": "removed",
+      "summary": "StrictReplay now really refuses boot; an in-tree deployment setting it with failing genesis txs would stop booting",
+      "settled_by": "grep -rn StrictReplay non-test .go: only app.go:321,329,422,563,647; nothing sets it outside tests"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 46,
+      "angle": "removed",
+      "summary": "a caller of NewDefaultGenesisConfig type-asserts AppState as *GnoGenesisState and breaks on the value",
+      "settled_by": "grep NewDefaultGenesisConfig( gives contribs/gnodev/pkg/dev/node.go:716 (overrides with 'genesis.AppState = appstate', a value) and node_initial_height_test.go:87; the only '.(*gnoland.GnoGenesisState)' asserts are testscript env values (testscript_gnoland.go:287), which assign 'cfg.Genesis.AppState = genesis' as a value"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node_genesis_restart_test.go",
+      "line": 81,
+      "angle": "lines",
+      "summary": "the e2e test never stops n, so a listener bound in NewNode would make later package tests hit address-in-use",
+      "settled_by": "grep 'Listen(' node.go: 'node.go:665: if err := n.transport.Listen(*addr)', enclosing function 'node.go:624: func (n *Node) OnStart() error'; NewNode binds nothing"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1129,
+      "angle": "lines",
+      "summary": "resetToGenesisDoc writes the doc and the state with two separate syncs; a crash between leaves the new doc beside the old state record",
+      "settled_by": "node.go:1092-1093 'if !applied { return resetToGenesisDoc(stateDB, freshDoc) }' re-runs on every boot until the height-0 key exists, so the next boot rewrites both from the provider and converges"
+    }
+  ]
+}

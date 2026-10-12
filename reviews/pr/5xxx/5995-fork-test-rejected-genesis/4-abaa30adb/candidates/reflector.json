@@ -1,0 +1,11 @@
+{
+  "candidates": [],
+  "dropped": [],
+  "completeness": [
+    "InitChain consumers: replay.go:339 is the only non-test InitChainSync caller and InitChainAsync has none, so the res.IsErr() guard has no unguarded sibling (grep -rn '\\.InitChainSync(\\|InitChainAsync(' outside _test.go).",
+    "Pointer AppState: no other site builds AppState as &GnoGenesisState (grep -rnE 'AppState(: | =) *&(gnoland\\.)?GnoGenesisState' returns nothing), so the node_inmemory.go fix has no sibling.",
+    "Nil AppState: loadAppState's default case rejects nil and that error now aborts boot; the nil sites found (app_test.go:364, gnogenesis txs/balances tests, baseapp_test.go:371) call InitChainer or edit a file and never boot a node.",
+    "Stale per-height records (candidate 1) reach consensus only through VerifyEvidence, which sits inside a block comment at validation.go:165; the reach is RPC (/validators, /consensus_params) and status.go:94.",
+    "Round 3 row 2001 (not reopened): saveGenesisDoc began stripping AppState in 5d0a4d703 (2026-05-18), after the height-0 save landed in 3aa0f0b7d (2024-07-23), so a pre-3aa0f0b7d data dir carries AppState in its persisted doc and skips the reset branch unless its genesis had a null app_state."
+  ]
+}
