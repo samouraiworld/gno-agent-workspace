@@ -6,6 +6,53 @@ PR: [gnolang/gno#6262](https://github.com/gnolang/gno/pull/6262)
 
 On a `/r/<ns>/…` or `/p/<ns>/…` page, the breadcrumb's first chip was a plain link to `/r/` or `/p/`. It is now a `<button>` opening a native popover, `#kind-switch-menu`, with up to three links: the matching path on the other side when one exists, the namespace page `/u/<ns>`, and the old listing. The match is by path only: `/r/alice/golf/game` looks for packages under `/p/alice/golf`. The lookup runs beside the page's own queries and is cached a minute per project root.
 
+## Re-verify since round 2
+
+Round 2 reviewed `8abf28b`; the head is now
+[`7f6ac52a4`](https://github.com/gnolang/gno/commit/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d),
+eight author commits and one master merge later, the merge conflicting only in
+the generated `main.css`. CI at the head: 79 success, 2 skipped. Every line
+link here pins `7f6ac52a4`.
+
+1. **`$state` pages now wait on the lookup**,
+   [`handler_http.go:330`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/handler_http.go#L330),
+   from `252237b02`. The lookup starts only once `State.Handle` returns a
+   view, so json, fragment and rate-limited answers pay nothing, but a `$state`
+   page now waits up to `counterpartGrace`, 300 ms, after its own queries
+   instead of alongside them. The comment at
+   [`counterpart.go:28-33`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/counterpart.go#L28-L33)
+   states the trade. Decide whether it is acceptable.
+2. **The in-flight cap**,
+   [`counterpart.go:40`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/counterpart.go#L40)
+   and
+   [`:274-278`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/counterpart.go#L274-L278),
+   from `1672ab64a`: an `atomic.Int32` inside the singleflight call caps
+   lookups at 4, a view past the cap gets no link, and the error is not cached.
+3. **A cut listing names no single package**,
+   [`counterpart.go:134`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/counterpart.go#L134)
+   and
+   [`:229`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/counterpart.go#L229),
+   from `9b8f20231`, and the count shows a `+` whenever the listing was cut,
+   [`:191`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/counterpart.go#L191),
+   from `aa4438fef`.
+4. **`isUnder` rewritten not to allocate**,
+   [`counterpart.go:176-178`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/counterpart.go#L176-L178),
+   from `dfc319554`. The before is
+   `p == dir || strings.HasPrefix(p, dir+"/")`; check the after is the same
+   predicate.
+5. **Your two round-2 findings**, both answered by `a778e138f`: the twinless
+   walk now links `$source#subpackages` with the count when two or more
+   children match,
+   [`counterpart.go:121-144`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/counterpart.go#L121-L144),
+   and the menu's path line prints the plain path while the href keeps the
+   anchor,
+   [`header.html:255`](https://github.com/gnolang/gno/blob/7f6ac52a4e4e99bddd2b9665cdbf48d1390ec57d/gno.land/pkg/gnoweb/components/layouts/header.html#L255).
+   The author names `TestCounterpart_LinkOpensWhatItCounts` as the test.
+
+Also since round 2: `86a7d1478` keeps the menu inside a 320 px screen, and
+`7f6ac52a4` is `go fix` on a test. gfanton's CHANGES_REQUESTED, at
+`a778e138f`, still stands.
+
 ## What the switch is
 
 A menu on the `r`/`p` chip that jumps from a realm to the pure packages of the same project directory, or back. Nothing on chain ties the two sides, so the label says "Matching", never "related".

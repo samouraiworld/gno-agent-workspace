@@ -9,6 +9,23 @@ After, both home files open on a three-column "Start here" block (use, build, jo
 `pages/ecosystem.md` describes GnoSwap as live on mainnet.
 The files only reach visitors once the infra copies them as `home-override.md`.
 
+## Re-verify since round 1
+
+Nothing in the code. Round 1 reviewed `c2e4e02`; the head
+[`d23b842a5`](https://github.com/gnolang/gno/commit/d23b842a5722912237a0829c5c89715357c361bf)
+only merges master, cleanly, and the branch's patch-id is the same at both
+commits. CI at the head: 79 success, 4 skipped.
+
+1. **Your `/newsletter` Suggestion** on
+   [`redirect.go:10`](https://github.com/gnolang/gno/blob/d23b842a5722912237a0829c5c89715357c361bf/gno.land/pkg/gnoweb/redirect.go#L10)
+   is open: the author is checking with marketing whether the Mailchimp list
+   stays.
+2. **Your round's verdict was APPROVE, posted as COMMENT.** aeddi approved at
+   the head with five Nits. One rests on a fact your round did not check:
+   Adena v1.22.2 makes `onyx-1` its primary testnet, so the faucet step at
+   [`home.testnet.md:22-24`](https://github.com/gnolang/gno/blob/d23b842a5722912237a0829c5c89715357c361bf/misc/deployments/home-alias/home.testnet.md#L22-L24)
+   could follow a wallet link.
+
 ## Before and after
 
 | Place | Before | After |

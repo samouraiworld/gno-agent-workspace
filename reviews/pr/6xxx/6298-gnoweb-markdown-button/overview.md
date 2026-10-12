@@ -17,6 +17,42 @@ or `BlockRich` can never render one. It supersedes
 [#4481](https://github.com/gnolang/gno/pull/4481), whose `{Label | options}(url)`
 shorthand and `<tag>text</tag>` form are gone.
 
+## Re-verify since round 2
+
+Round 2 reviewed `a4be1f6`; the head is now
+[`f1e104d98`](https://github.com/gnolang/gno/commit/f1e104d9832219cd51f5f2efce34f46cd27a97b4),
+four author commits and two master merges later. CI at the head: 92 success,
+4 skipped.
+
+1. **The backslash guard in `Parse`**,
+   [`ext_buttons.go:166-177`](https://github.com/gnolang/gno/blob/f1e104d9832219cd51f5f2efce34f46cd27a97b4/gno.land/pkg/gnoweb/markdown/ext_buttons.go#L166-L177),
+   from `38875d0bd`, is code no round has read. It answers gfanton's finding
+   that a line ending in `\` plus two spaces, or in `\\\`, lets goldmark eat
+   the escape sanitize puts before `<gno-button`. Check that an odd run of
+   backslashes before `<` returns nil and an even run still parses. Its two
+   goldens are `block-gno-button-after-backslash-hard-break.txtar` and
+   `block-gno-button-after-three-backslashes.txtar` under `golden/sanitize/`.
+2. **Your round-1 Warning is now answered in the ADR**,
+   [`prxxxx_gnoweb_button.md:249-251`](https://github.com/gnolang/gno/blob/f1e104d9832219cd51f5f2efce34f46cd27a97b4/gno.land/adr/prxxxx_gnoweb_button.md#L249-L251),
+   from `48b553a23`: the gap before the chain/markdown upgrade is accepted, not
+   gated, since sanitized text can already carry a plain link to the same
+   `$help` destination. Decide whether that closes the Warning holding the
+   verdict at NEEDS DISCUSSION.
+3. **The master merge `e5fbea2bd`** brought in #6297, `<gno-icon />`, and
+   #6299, `<gno-frame>`. Its conflict hunks are `ext.go`, which loads both
+   `ExtIcons` and `ExtButtons` and still keeps the button out of the foreign
+   sandbox; the `scanGnoTag` comment in `utils.go`; the case counts in
+   `SANITIZE.md`, which `TestSanitizeCoverageTableMatchesCorpus` checks; two
+   sanitize goldens; and the generated `main.css`. `f1e104d98` then rewrites
+   the ADR's icon note to match master's line-start escape.
+4. **Your round-2 Nit** on
+   [`isVisibleRune`](https://github.com/gnolang/gno/blob/f1e104d9832219cd51f5f2efce34f46cd27a97b4/gno.land/pkg/gnoweb/markdown/ext_buttons.go#L121)
+   is `b7007b8f8`: your suggestion applied as written, and
+   `invalid_label_invisible.md.txtar` carries all six runes. A glance is
+   enough.
+
+gfanton's CHANGES_REQUESTED, at `48b553a23`, still stands.
+
 ## What the button is
 
 A realm writes one tag, on its own line or inside a sentence, and gnoweb shows
