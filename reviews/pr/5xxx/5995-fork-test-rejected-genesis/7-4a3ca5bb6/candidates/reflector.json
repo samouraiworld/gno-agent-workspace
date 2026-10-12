@@ -1,0 +1,11 @@
+{
+  "candidates": [],
+  "dropped": [],
+  "completeness": [
+    "Response-error consumers, swept by shape (InitChainSync( and .InitChain( outside tests): replay.go:339 is the only consumer of a ResponseInitChain at boot; kvstore/helpers.go:34 is an example helper. No sibling repeats the unchecked shape.",
+    "Pointer AppState, swept by shape (&GnoGenesisState{ and &gnoland.GnoGenesisState{ over the tree): parity_test.go:53 and inspect_test.go:15,55,70 hand the pointer to amino parity and inspectReport, never to a boot. No sibling of the NewDefaultGenesisConfig fix.",
+    "Height-0 marker the reset gate trusts: SaveABCIResponses is called at replay.go:353 for height 0 and execution.go:100 for block heights; nothing in tm2/pkg/bft/state deletes or prunes the key, so genesisApplied's 'never prunes them' holds.",
+    "Read error taken as absence, swept by shape over the gate's reads: loadState (state/store.go:83-86) panics on a Get error, so it is not a sibling; loadGenesisDoc's Get error is, and is candidate 2.",
+    "Catalog: Error & panic handling is the class the diff sweeps; its unlisted members (Info Error, CommitSync Error) are settled rows. Determinism, gas, realm state, caller identity, coins, storage deposit, VM semantics and preprocess do not apply to this diff. Global state: the new node tests use one memdb each and TestE2ERejectThenCorrectedGenesisBoots is serial."
+  ]
+}

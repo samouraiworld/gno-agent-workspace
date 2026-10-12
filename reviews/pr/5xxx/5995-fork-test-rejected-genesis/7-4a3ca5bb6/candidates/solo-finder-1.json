@@ -1,0 +1,85 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 580,
+      "angle": "claims",
+      "summary": "The genesis refusals the ADR and the new fork test rely on (InitialHeight mismatch, validateSignerInfo) run only on the in-memory AppState path; applyStreamingAppState, which `gnoland start` uses, runs neither, so production boots a genesis the fork test now fails",
+      "failure_scenario": "Hardfork genesis with app_state.initial_height=999 and initial_height=100 (or with colliding SignerInfo account numbers). `gnogenesis fork test` replays it as a GnoGenesisState value and now fails with 'InitialHeight mismatch'. `gnoland start` loads the same file through StreamingGenesisProvider -> *GenesisStateRef -> applyStreamingAppState, which never compares initial_height and never calls validateSignerInfo (its only caller is app.go:523), so InitChain returns OK and the node boots. With colliding SignerInfo the production node boots and zeroes the original account's balance, the corruption validateSignerInfo's own comment says it exists to stop. The fork test and the production node give opposite verdicts on one file, and the ADR's statement that gno.land's InitChainer refuses these genesis files holds for the in-memory path only.",
+      "verify_by": "go test ./gno.land/pkg/gnoland -run TestSoloFinder1_InitialHeightMismatch -v -count=1 with tests/solo-finder-1-streaming-initial-height.go copied in: the in-memory response IsErr, the streaming response IsOK. Also grep -rn 'validateSignerInfo(' gno.land: its only call is app.go:523, on the in-memory path.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head 4a3ca5bb6: 'in-memory (fork test path):  IsErr=true err=InitialHeight mismatch: GnoGenesisState.InitialHeight=999, GenesisDoc.InitialHeight=100' / 'streaming (gnoland start path): IsErr=false err=<nil>'. The merge base cfcbaf484 gives the same response-level output through a go -overlay run, so the streaming gap predates the diff. Before this PR both paths booted, because the handshake ignored the error. With the PR's IsErr check, the fork test now refuses the file while production still boots it. grep: validateSignerInfo( is called only at app.go:523.",
+      "repro_path": "tests/solo-finder-1-streaming-initial-height.go"
+    },
+    {
+      "index": 2,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1073,
+      "angle": "lines",
+      "summary": "A read error on the persisted genesis doc is treated as 'no doc': the file's doc overwrites it with no chain-id or app-hash check. This is the read-error-as-absence class the diff guards against for genesisApplied, and this sibling was missed",
+      "failure_scenario": "Committed chain (height-0 key present, LastBlockHeight 500), and genesis.json edited afterwards. At boot, db.Get(genesisDocKey) returns an I/O error. loadGenesisDoc wraps it as 'error while getting Genesis doc', and the caller's `if err != nil` branch calls the provider and runs saveGenesisDoc(stateDB, fileDoc). The persisted doc is replaced by the edited file's doc, skipping the ChainID/AppHash guards and the 'once applied, the persisted doc stays authoritative' rule the PR documents. Every later boot then treats the replaced doc as authoritative. The PR fails the boot on a Has error for exactly this reason (TestLoadStateFromDBOrGenesisDocProvider_ProbeErrorKeepsCommittedState), but not on a Get error one line above.",
+      "verify_by": "Add a getErrDB wrapper to tm2/pkg/bft/node/node_test.go that fails Get(genesisDocKey) once. Run seedCommittedChain, then call LoadStateFromDBOrGenesisDocProvider with a provider whose ChainID is different: expect an error, observe nil and a persisted doc carrying the new ChainID.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1121,
+      "angle": "lines",
+      "summary": "Has on an empty-valued height-0 ABCI responses key (0-tx genesis) might read false on some backend and reset a running chain",
+      "settled_by": "pebbledb.go:60-78: Get returns make([]byte, len(res)), which is non-nil even at length 0, and Has is `v != nil`. mem_db.go:50-57: Has is `_, ok := db.db[...]`. lmdb and bolt Get use slices.Clone of the stored slice. Every shipped backend reads a present key as present."
+    },
+    {
+      "file": "tm2/adr/pr5995_initchain_rejection_aborts_boot.md",
+      "line": 80,
+      "angle": "claims",
+      "summary": "The ADR's ordering claim (height-0 save in #1941 before the nil-AppState persisted doc in #5684) might be wrong, which would expose running data dirs to the reset",
+      "settled_by": "git log -S'SaveABCIResponses(h.stateDB, 0' gives 3aa0f0b7d 2024-07-23 (#1941). git log -S'AppState = nil' -- node.go gives 5d0a4d703 2026-05-18 (#5684) as the first commit."
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1117,
+      "angle": "claims",
+      "summary": "The genesisApplied godoc says the height-0 responses are never pruned",
+      "settled_by": "grep -rn 'abciResponsesKey|CalcABCIResponsesKey' over tm2, gno.land and contribs: only store.go Set/Get and node.go Has; no Delete anywhere."
+    },
+    {
+      "file": "gno.land/pkg/gnoland/genesis_state_ref.go",
+      "line": 328,
+      "angle": "two-versions",
+      "summary": "The on-disk streaming genesis cache might hand back the stale doc after the operator corrects genesis.json, defeating the reset",
+      "settled_by": "LoadStreamingGenesisDoc keys the cache by hashFile(genesisPath) (genesis_state_ref.go:332-336), so a corrected file gets a new cache directory."
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 481,
+      "angle": "two-versions",
+      "summary": "Writes from a rejected InitChain (stdlibs) might persist in the app DB and pollute the retry after a reset",
+      "settled_by": "loadStdlibs MultiWrites into ctx.MultiStore(), which is BaseApp's deliverState cache over cms (app.go:469-481). Nothing reaches the DB before Commit, and a rejected genesis never commits."
+    },
+    {
+      "file": "contribs/gnogenesis/internal/fork/test.go",
+      "line": 204,
+      "angle": "claims",
+      "summary": "The tripwire comment says no current path skips a deliverable tx",
+      "settled_by": "app.go:549-552: the loop calls deliverGenesisTx for every tx. deliverGenesisTx returns before the handler only on metadata.Failed (app.go:824) and otherwise calls cfg.GenesisTxResultHandler (app.go:859)."
+    },
+    {
+      "file": "tm2/pkg/bft/state/store.go",
+      "line": 84,
+      "angle": "lines",
+      "summary": "A state-record read error inside LoadStateFromDBOrGenesisDoc might be read as an empty state and rebuild a committed chain",
+      "settled_by": "store.go:83-86: loadState panics on a db.Get error and never returns an empty State."
+    }
+  ]
+}

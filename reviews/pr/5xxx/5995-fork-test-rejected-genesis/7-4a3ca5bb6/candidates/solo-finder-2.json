@@ -1,0 +1,86 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gno.land/pkg/gnoland/genesis_state_ref.go",
+      "line": 488,
+      "angle": "reach",
+      "summary": "gnoland start's streaming genesis loader drops initial_height, so the InitialHeight refusal and corrected-genesis restart this PR builds never reach a production node",
+      "failure_scenario": "gnoland start loads genesis only through StreamingGenesisProvider -> LoadStreamingGenesisDoc (start.go:304). decodeTopLevelField models genesis_time, chain_id, consensus_params, validators, app_hash; initial_height hits default and is dropped with a Warn. A hardfork genesis with initial_height 100 boots with GenesisDoc.InitialHeight 0, so it starts at height 1. Its InitChain goes through applyStreamingAppState, which never compares GnoGenesisState.InitialHeight. The PR's case is an operator fixing initial_height in genesis.json and restarting on the same data dir; under gnoland start that edit changes nothing, and the mismatch this PR makes fatal is never raised. gnogenesis fork test decodes the file with amino and replays at 100, so its PASS on a hardfork genesis does not predict gnoland start. Predates the PR: the base has the same switch at genesis_state_ref.go:486-490. The defect is in merged code but no adversary can exploit it, since the operator writes the genesis. The parent routes it per Calibration, as an issue draft.",
+      "verify_by": "copy tests/solo-finder-2-streaming-initial-height.go to gno.land/pkg/gnoland/zzrepro/repro_test.go; go test ./gno.land/pkg/gnoland/zzrepro/ -run TestStreamingDropsInitialHeight -v -count=1: expect equal heights, observe 100 vs 0",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "WARN ignoring unknown top-level genesis field field=initial_height; GenesisDocFromFile.InitialHeight=100 LoadStreamingGenesisDoc.InitialHeight=0; --- FAIL: TestStreamingDropsInitialHeight. GenesisDoc models it: tm2/pkg/bft/types/genesis.go:50 `InitialHeight int64 json:\"initial_height,omitempty\"`. Base worktree carries the same default branch at genesis_state_ref.go:488-490.",
+      "repro_path": "tests/solo-finder-2-streaming-initial-height.go"
+    },
+    {
+      "index": 1002,
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 580,
+      "angle": "removed",
+      "summary": "applyStreamingAppState, gnoland start's InitChain path, skips the InitialHeight-mismatch check and the validateSignerInfo preflight that applyInMemoryAppState runs, so fork test and gnoland start refuse different genesis files",
+      "failure_scenario": "The ADR names an InitialHeight mismatch and a rejected SignerInfo as refusals that now stop the node. Only applyInMemoryAppState runs them (app.go:506, 523). applyStreamingAppState (app.go:580-655) checks only decode errors, missing small fields and gas_replay_mode. On a SignerInfo collision, fork test (in-memory) now FAILs, while gnoland start boots the same genesis and applies the colliding account number. The preflight's own comment (app.go:517-522) says that silently zeroes the original account's balance. TestExecTest_InitialHeightMismatch pins a fork-test FAIL on a genesis gnoland start accepts. Predates the PR. In scope because the diff sweeps the refusal class and this production sibling has none.",
+      "verify_by": "build a hardfork genesis with two SignerInfo entries claiming one account number for different addresses; run gnogenesis fork test (expect FAIL: genesis SignerInfo collision); boot it through LoadStreamingGenesisDoc + InitChainer (gnoland start path) and read the first address's balance: expect boot refused, observe boot and a zeroed balance",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 1003,
+      "file": "tm2/pkg/bft/node/node_genesis_restart_test.go",
+      "line": 39,
+      "angle": "reach",
+      "summary": "the reject-then-correct restart is only tested against a stateless pickyApp; no test drives gno.land's real InitChainer through a refused boot and a corrected restart on one persistent data dir",
+      "failure_scenario": "Before refusing, gno.land's InitChain loads stdlibs, writes valset params, stores consensus params and, for InitialHeight > 1, calls cms.SetInitialVersion. The E2E test's app keeps no state, so it cannot show that none of this survives on disk into the retry. A read suggests none does: SetInitialVersion only sets an in-memory field (bptree mutable_tree.go:744), and loadStdlibs MultiWrites into the deliverState cache. Nothing pins that, though: a later change that persists any of it would leave the corrected restart with a different app hash and no test failing.",
+      "verify_by": "in-memory node with a persistent goleveldb DB: boot a genesis the gno.land InitChainer refuses (GnoGenesisState.InitialHeight mismatch), correct it, boot again on the same DB; compare the first block's AppHash with a fresh-DB boot of the corrected genesis",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/state/execution.go",
+      "line": 238,
+      "angle": "removed",
+      "summary": "sibling of the replay.go fix: ResponseBeginBlock/ResponseEndBlock Error not checked after BeginBlockSync/EndBlockSync",
+      "settled_by": "grep -rnE 'Response(BeginBlock|EndBlock)\\{' tm2/pkg/sdk gno.land/pkg (non-test) returns only gno.land/pkg/gnoland/app.go:1016-1128 `return abci.ResponseEndBlock{}` with no Error set; latent in the same way as the settled Commit/Info rows, and no in-tree app sets either field"
+    },
+    {
+      "file": "tm2/pkg/bft/consensus/replay.go",
+      "line": 346,
+      "angle": "reach",
+      "summary": "a fresh node joining a running chain whose genesis InitChain refused under strict replay now aborts at the handshake",
+      "settled_by": "grep -rn 'StrictReplay:\\|StrictReplay =\\|\\.StrictReplay = ' (non-test) returns nothing; production never sets StrictReplay, so the strict-replay refusal never fires outside tests"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/node_inmemory.go",
+      "line": 45,
+      "angle": "removed",
+      "summary": "another in-process caller passing *GnoGenesisState as AppState, which loadAppState now turns into a fatal refusal",
+      "settled_by": "grep -rnE 'AppState\\s*(:|=)\\s' (non-test) lists only values or derefs: fork/generate.go:386 `newGenDoc.AppState = *appState`, gnodev node.go:717 `genesis.AppState = appstate` (GnoGenesisState), integration node_testing.go:139 and testscript_gnoland.go:296 values"
+    },
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 1323,
+      "angle": "reach",
+      "summary": "the corrected-genesis restart reads a stale streaming genesis cache",
+      "settled_by": "genesis_state_ref.go:336 `finalDir := filepath.Join(cacheRoot, hash)` with hash from hashFile(genesisPath): an edited file misses the cache and is re-read"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 499,
+      "angle": "reach",
+      "summary": "gno.land app state written by a refused InitChain persists into the retry",
+      "settled_by": "tm2/pkg/bptree/mutable_tree.go:744-746 `t.initialVersion = version` (memory only); app.go:469-481 loadStdlibs MultiWrites into ctx.MultiStore(), the deliverState cache, which reaches disk only on Commit"
+    }
+  ]
+}

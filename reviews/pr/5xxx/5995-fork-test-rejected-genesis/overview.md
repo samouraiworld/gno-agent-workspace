@@ -46,8 +46,8 @@ flowchart TD
 
 ## Read the code in this order
 
-1. [`replay.go` L346-L348](https://github.com/gnolang/gno/blob/4a3ca5bb6ae549bc5da177ae7e6c96e53756d8eb/tm2/pkg/bft/consensus/replay.go#L346-L348): the abort. Without it the height-0 marker is written for a rejected genesis and the reset never fires.
-2. [`node.go` L1101-L1107](https://github.com/gnolang/gno/blob/4a3ca5bb6ae549bc5da177ae7e6c96e53756d8eb/tm2/pkg/bft/node/node.go#L1101-L1107): the gate, reached on every restart, since the persisted doc never carries `AppState`.
+1. [`replay.go` L346-L348](https://github.com/gnolang/gno/blob/9961c0ee4951da958911cb42cc251a68127ad660/tm2/pkg/bft/consensus/replay.go#L346-L348): the abort. Without it the height-0 marker is written for a rejected genesis and the reset never fires.
+2. [`node.go` L1101-L1107](https://github.com/gnolang/gno/blob/9961c0ee4951da958911cb42cc251a68127ad660/tm2/pkg/bft/node/node.go#L1101-L1107): the gate, reached on every restart, since the persisted doc never carries `AppState`.
 
    ```go
    applied, aerr := genesisApplied(stateDB)
@@ -59,14 +59,15 @@ flowchart TD
    }
    ```
 
-3. [`node.go` L1120](https://github.com/gnolang/gno/blob/4a3ca5bb6ae549bc5da177ae7e6c96e53756d8eb/tm2/pkg/bft/node/node.go#L1120): `genesisApplied`, the probe the gate trusts.
-4. [`app.go`](https://github.com/gnolang/gno/blob/4a3ca5bb6ae549bc5da177ae7e6c96e53756d8eb/gno.land/pkg/gnoland/app.go): `InitChainer` returns the `loadAppState` error as `ResponseInitChain.Error`, which now stops boot; the valoper coverage check still panics.
-5. [`node_inmemory.go`](https://github.com/gnolang/gno/blob/4a3ca5bb6ae549bc5da177ae7e6c96e53756d8eb/gno.land/pkg/gnoland/node_inmemory.go): the `GnoGenesisState` value fix.
+3. [`node.go` L1120](https://github.com/gnolang/gno/blob/9961c0ee4951da958911cb42cc251a68127ad660/tm2/pkg/bft/node/node.go#L1120): `genesisApplied`, the probe the gate trusts.
+4. [`app.go`](https://github.com/gnolang/gno/blob/9961c0ee4951da958911cb42cc251a68127ad660/gno.land/pkg/gnoland/app.go): `InitChainer` returns the `loadAppState` error as `ResponseInitChain.Error`, which now stops boot; the valoper coverage check still panics.
+5. [`node_inmemory.go`](https://github.com/gnolang/gno/blob/9961c0ee4951da958911cb42cc251a68127ad660/gno.land/pkg/gnoland/node_inmemory.go): the `GnoGenesisState` value fix.
 
 ## What a user notices
 
 - A node operator whose genesis the app refuses sees boot fail with the app's message, per node, instead of a node that starts with an empty app state.
 - That operator can edit `genesis.json` and restart on the same data dir; the corrected `InitialHeight`, validators and genesis time are used, as long as `ChainID` and `AppHash` are unchanged.
+- Both hold for the in-memory node `gnogenesis fork test` boots. `gnoland start` reads the genesis through a streaming loader that drops `initial_height` and runs neither refusal, so it boots such a genesis from height 1; the change leaves that path as it is.
 
 ## Upgrading
 
