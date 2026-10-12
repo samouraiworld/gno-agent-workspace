@@ -1,0 +1,66 @@
+{
+  "verdicts": [
+    {
+      "index": 1, "angle": "reach", "state": "REFUTED", "band": "Suggestion",
+      "file": "contribs/gnodev/setup_web.go", "line": 30,
+      "verify_by": "grep -rn 'NoIndex\\|no-index' contribs/gnodev; read misc/loop/docker-compose.yml:51-67 for what serves staging.gno.land",
+      "check": "grep -rn 'NoIndex\\|no-index' contribs/gnodev | wc -l; sed -n 51,67p misc/loop/docker-compose.yml",
+      "tldr": "staging.gno.land is served by the gnoweb binary, which has the flag, not by gnodev",
+      "details": "gnodev does expose no NoIndex (0 hits), but the failure scenario's stake, staging staying indexed for lack of a flag, does not hold: the in-tree staging deployment runs the gnoweb image behind Host(`staging.gno.land`). A gnodev flag would serve a caller the repo does not show.",
+      "evidence": "grep count 0 in contribs/gnodev; misc/loop/docker-compose.yml:52 'image: ghcr.io/gnolang/gno/gnoweb:master', :67 'rule=Host(`www.staging.gno.land`) || Host(`staging.gno.land`)'",
+      "repro_path": "", "base_behaves_the_same": true,
+      "refuted_by": "misc/loop/docker-compose.yml:52 image: ghcr.io/gnolang/gno/gnoweb:master serves staging.gno.land (:67), and cmd/gnoweb carries -no-index"
+    },
+    {
+      "index": 1001, "angle": "reach", "state": "CONFIRMED", "band": "Suggestion",
+      "file": "misc/loop/docker-compose.yml", "line": 55,
+      "verify_by": "grep -n 'no-index' misc/loop/docker-compose.yml returns nothing at c0086830d",
+      "check": "sed -n 45,70p misc/loop/docker-compose.yml; grep -n 'no-index' misc/loop/docker-compose.yml",
+      "tldr": "the staging.gno.land gnoweb command (misc/loop/docker-compose.yml:55-61) has no --no-index, so staging stays indexed after the merge",
+      "details": "The gnoweb service runs gnoweb:master with --bind, --remote, --chainid=staging, --with-analytics, --faucet-url and --help-remote, routed from Host(`staging.gno.land`). NoIndex defaults to false (app.go:66-68), so the redeployed master image serves staging without X-Robots-Tag. Extends aeddi section 4 bullet 1 by naming the file. The file is outside the diff: a Body bullet.",
+      "evidence": "grep -n 'no-index' misc/loop/docker-compose.yml: no output; sed -n 51,67p shows the command block and the traefik Host rule",
+      "repro_path": "", "base_behaves_the_same": true, "refuted_by": ""
+    },
+    {
+      "index": 2, "angle": "lines", "state": "CONFIRMED", "band": "Suggestion",
+      "file": "gno.land/pkg/gnoweb/crawl.go", "line": 31,
+      "verify_by": "read crawl.go:27-34; go test ./gno.land/pkg/gnoweb/ -run TestHandlerRobotsTXT",
+      "check": "go test -count=1 ./gno.land/pkg/gnoweb/ -run TestHandlerRobotsTXT -v in the solo-judge scratch tree",
+      "tldr": "under -no-index robots.txt drops the Disallow for /search.json and /status.json, the two node-querying JSON endpoints, though neither carries a page whose noindex a crawler must see",
+      "details": "crawl.go:31 assigns the body outright instead of appending Allow to the default, so a -no-index deployment invites crawlers onto /search.json (two vm/qpaths queries) and /status.json (a node status query). The test's rationale 'A Disallow would hide the noindex header' holds for pages; a JSON endpoint is never indexed. Not a regression: the merge base served no robots.txt.",
+      "evidence": "crawl.go:28 'body := \"User-agent: *\\nDisallow: /search.json\\nDisallow: /status.json\\n\"', :31 'body = \"# Not indexed: ...\\nUser-agent: *\\nAllow: /\\n\"'; TestHandlerRobotsTXT/noindex_still_allows_crawling PASS pins that body (crawl_test.go:47)",
+      "repro_path": "", "base_behaves_the_same": false, "refuted_by": ""
+    },
+    {
+      "index": 1002, "angle": "removed", "state": "CONFIRMED", "band": "Suggestion",
+      "file": "gno.land/pkg/gnoweb/realm_directory.go", "line": 30,
+      "verify_by": "read client.go:230-234 and gno.land/pkg/sdk/vm/handler.go:199-215; search open PRs for the fix",
+      "check": "sed -n 225,240p gno.land/pkg/gnoweb/client.go; sed -n 198,215p gno.land/pkg/sdk/vm/handler.go; gh pr diff 6231 | grep limit",
+      "tldr": "/search.json reads a qpaths listing capped at 1000, since ListPaths never forwards its limit; this predates the branch and gnolang/gno#6231 already forwards it",
+      "details": "client.go:233 calls c.query(ctx, qpath, []byte(prefix), 0) and drops limit; vm pathsLimit defaults to 1_000 without ?limit= (handler.go:200,209). realm_directory.go and handler_search.go are unchanged by this branch (/search.json is mounted at the merge base, app.go:223), so the defect predates it. An open fix exists: gnolang/gno#6231's client.go appends '?limit=' when limit > 0. Not posted on this PR.",
+      "evidence": "handler.go:200 'const defaultLimit = 1_000', :209 'limit := defaultLimit'; gh pr diff 6231: '+\tif limit > 0 {' '+\t\tqpath += \"?limit=\" + strconv.Itoa(limit)'",
+      "repro_path": "", "base_behaves_the_same": true, "refuted_by": ""
+    },
+    {
+      "index": 1003, "angle": "removed", "state": "REFUTED", "band": "Suggestion",
+      "file": "gno.land/pkg/gnoweb/crawl.go", "line": 120,
+      "verify_by": "grep sitemap in the merge base's app.go; read aeddi's review section 2",
+      "check": "grep -n 'sitemap\\|robots.txt\\|search.json' <base>/gno.land/pkg/gnoweb/app.go",
+      "tldr": "already named by aeddi (section 2, sitemap bullet 3: N sequential RPC queries with no cache), and nothing was removed against the merge base, which has no sitemap",
+      "details": "The singleflight path the candidate calls removed belonged to this branch's own earlier commit; the merge base mounts only /search.json. The cost left, three qfile queries per uncached GET behind Cache-Control max-age=3600, is the point aeddi already raised as low risk. Dropped as already named.",
+      "evidence": "base app.go grep: only ':223 mux.Handle(\"/search.json\", ...)'; aeddi-review.md:37 'Each request makes N sequential RPC queries with no cache'",
+      "repro_path": "", "base_behaves_the_same": true,
+      "refuted_by": "aeddi-review.md:37 names the uncached per-request queries; merge base app.go mounts no /sitemap.xml"
+    },
+    {
+      "index": 2001, "angle": "reach", "state": "PLAUSIBLE", "band": "Suggestion",
+      "file": "misc/deployments/home-alias/docker-compose.yml", "line": 8,
+      "verify_by": "grep -n 'no-index' over the three files; whether they still serve a public host",
+      "check": "grep -n 'gnoweb\\|no-index' misc/deployments/{test2,test3}.gno.land/docker-compose.yml misc/deployments/home-alias/docker-compose.yml",
+      "tldr": "home-alias, test2 and test3 compose files also run gnoweb without --no-index; whether any still serves a public host is not in the repo",
+      "details": "The flag is absent from all three by grep. home-alias is marked dev only; test2 and test3 are retired testnet names whose liveness this round cannot settle. Still to run: ask which of them are deployed.",
+      "evidence": "grep: gnoweb services at test2:35, test3:38, home-alias:4, none carrying no-index",
+      "repro_path": "", "base_behaves_the_same": true, "refuted_by": ""
+    }
+  ]
+}

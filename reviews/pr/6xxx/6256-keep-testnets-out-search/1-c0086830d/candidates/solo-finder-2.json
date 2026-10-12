@@ -1,0 +1,86 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "misc/loop/docker-compose.yml",
+      "line": 55,
+      "angle": "reach",
+      "summary": "The in-tree staging.gno.land gnoweb deployment never passes --no-index, so merging leaves staging indexed. This extends aeddi section 4, bullet 1 by naming the config that misses the flag.",
+      "failure_scenario": "misc/loop/docker-compose.yml runs ghcr.io/gnolang/gno/gnoweb:master behind the traefik rule Host(`www.staging.gno.land`) || Host(`staging.gno.land`) (line 67), using the command at lines 55-61: --bind, --remote, --chainid=staging, --with-analytics, --faucet-url, --help-remote. Once the PR merges, the master image picks up the code but not the flag. staging.gno.land then serves no X-Robots-Tag and an 'index, follow' meta, which is the indexed testnet the PR exists to prevent. The default stays off by design (app.go:66-68), so the switch has to be set in this file.",
+      "verify_by": "grep -n 'no-index' misc/loop/docker-compose.yml returns nothing at c0086830d; after the merge and redeploy, curl -sI https://staging.gno.land/ shows no X-Robots-Tag",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "sed -n 51,62p misc/loop/docker-compose.yml: 'image: ghcr.io/gnolang/gno/gnoweb:master' ... 'command:' '- --bind=0.0.0.0:8888' '- --remote=traefik:26657' '- --chainid=staging' '- --with-analytics' '- --faucet-url=https://faucet-api.staging.gno.land' '- --help-remote=https://rpc.staging.gno.land'. The file was last touched by 04231a461 on 2026-03-16, 'chore(staging): Updating references to staging.gno.land (#5278)'. main.go defines all of its flags (chainid:203, with-analytics:238), so the file is current. misc/deployments/home-alias/docker-compose.yml is marked 'just for dev purpose' and also lacks the flag.",
+      "repro_path": ""
+    },
+    {
+      "index": 1002,
+      "file": "gno.land/pkg/gnoweb/realm_directory.go",
+      "line": 30,
+      "angle": "removed",
+      "summary": "Commit 83f84dfe6 fixed the 1000-path cap for the sitemap only. /search.json still reads the same capped dir.Paths listing, so r/gnoland/* and every realm sorting after the cut drop out of search. This extends gfanton's crawl.go:88 thread to the sibling consumer it left.",
+      "failure_scenario": "On a chain with more than 1000 realms, rpcClient.ListPaths drops its limit argument (client.go:230-234 calls c.query(ctx, qpath, []byte(prefix), 0)), so the node's default cap of 1000 applies. /search.json (handler_search.go:27, dir.Paths) then lists only the first 1000 keys in order, and r/g1... user realms sort before r/gnoland, r/sys and the rest. The search box silently stops offering /r/gnoland/home, /r/gnoland/pages and r/sys/*, with no error or log, which is the failure 83f84dfe6 fixed for the sitemap. This predates the diff: realm_directory.go:26-29 already documents the cap, and mainnet holds 369 realms (gfanton), so it is latent there. It is in scope because the diff swept this class and missed this member.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb/ with a ListPaths stub that returns the first 1000 of 1001 sorted /r/ paths, where /r/gnoland/home sorts last; GET /search.json through handlerSearchJSON(newRPCRealmDirectory(stub, ...)); expect /r/gnoland/home, observe it absent",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "client.go:230-234: 'func (c *rpcClient) ListPaths(ctx context.Context, prefix string, limit int) ... res, err := c.query(ctx, qpath, []byte(prefix), 0)', where limit is never used. realm_directory.go:26-30: 'the current RPC client does not forward it to the node, so the node's default cap (1000) effectively governs'. handler_search.go:27: 'realms, packages, err := dir.Paths(r.Context())'.",
+      "repro_path": ""
+    },
+    {
+      "index": 1003,
+      "file": "gno.land/pkg/gnoweb/crawl.go",
+      "line": 120,
+      "angle": "removed",
+      "summary": "Commit 83f84dfe6 swapped the shared searchDir for direct adpcli.ListFiles calls, which dropped the singleflight group and semaphore the sitemap used to inherit. Concurrent sitemap hits now fan out to one qfile query per realm each. This extends aeddi section 2 (Sitemap, bullet 3, 'N sequential RPC queries with no cache') with the guard that was removed.",
+      "failure_scenario": "Before 83f84dfe6, handlerSitemapXML took the searchDir instance /search.json also uses (app.go diff, mux.Handle(\"/sitemap.xml\", ...searchDir) -> adpcli). Its Paths() call sits behind sf.Do(\"paths\") and a searchMaxConcurrentQueries semaphore, so a burst of concurrent sitemap and search hits shared one in-flight fetch of 2 RPCs (handler_search.go:11). Now each GET /sitemap.xml runs one sequential vm/qfile query per distinct alias realm, with no coalescing and no bound. A cold-CDN burst of K requests becomes 3K concurrent queries with the default aliases, and K times R with operator aliases spanning R realms. What is lost is the coalescing that the realm directory's own comment says exists so that 'a cold edge cache cannot amplify a burst of clients into a burst of RPC calls'. The per-request cost is still below that of one realm page render, which is why this is a Suggestion.",
+      "verify_by": "Unit test: wrap countingFileLister with a mutex and a barrier, fire 10 concurrent GET /sitemap.xml at handlerSitemapXML. Expect 40 ListFiles calls (10 requests x 4 realms in the test aliases), against 4 if sitemapAliases ran under a singleflight.Group keyed on \"sitemap\".",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "git show 83f84dfe6 -- app.go: '-\tmux.Handle(\"/sitemap.xml\", handlerSitemapXML(logger, sitemapOrigin, cfg.Aliases, searchDir))' '+\t... adpcli))'. realm_directory.go:32-35: 'the group coalesces concurrent /search.json hits so a cold edge cache cannot amplify a burst of clients into a burst of RPC calls'. crawl.go:119-120: 'for realm, realmAliases := range byRealm { _, err := client.ListFiles(ctx, realm, 0)'.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/crawl.go",
+      "line": 120,
+      "angle": "reach",
+      "summary": "ListFiles gets '/r/...' without the chain domain, so every alias realm would read as absent on a real node.",
+      "settled_by": "sed -n 213-217p client.go: 'pkgPath := strings.Trim(path, \"/\")' 'fullPath := fmt.Sprintf(\"%s/%s\", c.domain, pkgPath)'. The domain is prepended, the same way the GetSourceView and GetDirectoryView callers pass gnourl.Path."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/crawl.go",
+      "line": 122,
+      "angle": "reach",
+      "summary": "A parked (inert) alias realm answers vm/qfile on a real node, so the sitemap would list a page that shows 'pending approval'. The test relies on the mock alone.",
+      "settled_by": "sdk/vm/keeper.go:1942 QueryFile reads 'store.GetMemPackageAll(dirpath)', the live key space, while inert packages sit in GetInertPackage. keeper_inert.go:592-595: 'vm/qpkg_json and vm/qfile both answer \"package not found\"'. That maps to ErrClientPackageNotFound (client.go:380-386), so the mock matches the chain."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/app.go",
+      "line": 257,
+      "angle": "reach",
+      "summary": "A response written outside NewRouter's mux would miss the -no-index X-Robots-Tag.",
+      "settled_by": "main.go:438-465: SecureHeadersMiddleware only calls w.Header().Set(...) and then next.ServeHTTP(w, r), with no early return. main.go:348-367 mounts nothing beside 'app', and grep for gnoweb.NewRouter across the tree finds only main.go:348."
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 189,
+      "angle": "removed",
+      "summary": "A doc or comment still names the old -noindex flag after the f448ac406 rename.",
+      "settled_by": "grep -rn -- '-noindex\\b|-no-index' over every .md and over the code finds only the '-no-index' spellings at app.go:249, handler_http.go:257 and handler_http_test.go:2466."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/app.go",
+      "line": 254,
+      "angle": "reach",
+      "summary": "Rebasing onto #6229's head would register /robots.txt or /sitemap.xml twice and panic in ServeMux at startup.",
+      "settled_by": "git grep -n 'robots.txt|sitemap' ea1c620f7 -- gno.land/pkg/gnoweb gno.land/cmd/gnoweb (non-test) finds only a comment at page_kind.go:46 ('anything that lists pages, such as a sitemap'), with no mux registration."
+    }
+  ]
+}

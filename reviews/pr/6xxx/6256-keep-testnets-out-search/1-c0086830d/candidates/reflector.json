@@ -1,0 +1,25 @@
+{
+  "completeness": [
+    "reach: the deployment sweep behind 1001 stopped at misc/loop; the other in-tree gnoweb compose files repeat the same command shape without --no-index (filed as 2001).",
+    "catalog: the PR is gnoweb tooling, outside the catalog's gating (gno code). Determinism walked anyway: sitemapAliases iterates the byRealm map, so which realm's error reaches the log varies run to run, but the returned paths go through slices.Sort (crawl.go:129); no output path depends on map order. Global mutable state: noIndexMiddleware and handlerRobotsTXT build their body once per router, no package var is written. Error handling: the two `_ =` are on ResponseWriter.Write, the usual shape.",
+    "siblings of edited tests: TestHandlerRobotsTXT pins all three bodies with assert.Equal on the whole string, so no subtest repeats the shape loosely; the live-header-map shape of crawl_test.go is aeddi's point and not refiled."
+  ],
+  "candidates": [
+    {
+      "index": 2001,
+      "file": "misc/deployments/home-alias/docker-compose.yml",
+      "line": 8,
+      "angle": "reach",
+      "summary": "Three more in-tree gnoweb compose files run without --no-index: home-alias (chainid=staging, pointed at rpc.gno.land), test2.gno.land and test3.gno.land. This sharpens 1001 with the rest of the sweep.",
+      "failure_scenario": "If any of these is still deployed on a public host, it keeps serving index, follow after the merge, the same as staging.",
+      "verify_by": "grep -n 'no-index' over each file returns nothing; whether test2/test3/home-alias still serve a public host is infra the repo does not show",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grep over misc/deployments/{test2,test3}.gno.land/docker-compose.yml shows a gnoweb service with --bind/--remote/--help-chainid and no --no-index; home-alias/docker-compose.yml:5-10 runs gnoweb:master with --chainid=staging, header comment marks it dev only",
+      "repro_path": ""
+    }
+  ],
+  "dropped": []
+}

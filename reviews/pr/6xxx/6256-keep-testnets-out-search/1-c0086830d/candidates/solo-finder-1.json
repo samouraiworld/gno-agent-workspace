@@ -1,0 +1,64 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "contribs/gnodev/setup_web.go",
+      "line": 30,
+      "angle": "reach",
+      "summary": "-no-index is reachable only from cmd/gnoweb: gnodev builds its gnoweb with NewDefaultAppConfig and exposes no flag for AppConfig.NoIndex, so `gnodev staging`, documented as tuned for server use, cannot opt out of search",
+      "failure_scenario": "A staging deployment served by `gnodev staging` (docs/resources/gnodev.md:53, 'tuned for server use', with -web-analytics flags) runs setupGnoWebServer, which sets UnsafeHTML, Analytics, NodeRemote, ChainID and RemoteHelp and never NoIndex; the PR body's own target, 'Staging and old testnets are indexed and compete with gno.land', stays indexed with no flag the operator can pass. Whether staging.gno.land runs gnodev or a separate gnoweb is infra the repo does not show.",
+      "verify_by": "grep -rn 'NoIndex\\|no-index' contribs/gnodev returns 0 hits; sed -n 13,40p contribs/gnodev/setup_web.go shows appcfg built without NoIndex; ask the author which binary serves staging.gno.land's web UI",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn 'NoIndex\\|no-index\\|CanonicalOrigin' contribs/gnodev | wc -l -> 0; setup_web.go:18-30 builds appcfg and calls gnoweb.NewRouter(logger, appcfg) with no NoIndex; docs/resources/gnodev.md:53 '`gnodev staging` is tuned for server use'",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/crawl.go",
+      "line": 31,
+      "angle": "lines",
+      "summary": "under -no-index robots.txt replaces the whole body, dropping the Disallow lines for /search.json and /status.json that every indexable deployment gets, though neither is a page whose noindex a crawler needs to see",
+      "failure_scenario": "A -no-index testnet is recrawled so crawlers pick up the noindex; its robots.txt now reads only 'Allow: /', so a crawler may fetch /search.json (realm directory fan-out over the node) and /status.json (node status query), the two node-querying endpoints the indexable default disallows. The rationale in the test ('A Disallow would hide the noindex header') holds for pages, not for these JSON endpoints, which are never indexed; keeping the two Disallow lines under -no-index costs nothing in de-indexing. Not a regression against the merge base, which served no robots.txt.",
+      "verify_by": "read crawl.go:27-34: the noindex case assigns body outright instead of appending; go test ./gno.land/pkg/gnoweb/ -run TestHandlerRobotsTXT/noindex pins the body without the Disallow lines",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "crawl.go:28 body := \"User-agent: *\\nDisallow: /search.json\\nDisallow: /status.json\\n\"; crawl.go:31 body = \"# Not indexed: ...\\nUser-agent: *\\nAllow: /\\n\" (overwrites, no Disallow kept)",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/crawl.go",
+      "line": 125,
+      "angle": "claims",
+      "summary": "rpcClient.ListFiles has no 'not available' string fallback (File() at client.go:195 has one), so on a node returning an untyped not-found for qfile a missing alias realm would 502 the whole sitemap, against the comment's 'every node version answers it'",
+      "settled_by": "git log -S'InvalidPackageError{}, \"package %q is not available\"' -- gno.land/pkg/sdk/vm/keeper.go -> 59595d429 2025-07-16; git tag --contains 59595d429 -> chain/gnoland1.0, chain/gnoland1.1, chain/mainnet, chain/pearl, chain/sapphire: every chain tag answers the typed InvalidPackageError that rpcClient.query maps to ErrClientPackageNotFound"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/crawl.go",
+      "line": 82,
+      "angle": "lines",
+      "summary": "sitemap lists the alias key while the page's canonical might name the resolved realm path, so the sitemap would publish non-canonical URLs",
+      "settled_by": "handler_http.go:336 setHeadMetadata(&indexData, headURL, ...) builds the canonical from headURL; handler_http_test.go:2443 asserts `<link rel=\"canonical\" href=\"https://gno.land/about\" />` for the GnowebPath alias /about -> /r/gnoland/pages:p/about"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/app.go",
+      "line": 254,
+      "angle": "reach",
+      "summary": "#6229's head might register its own /robots.txt, so this PR's mux.Handle(\"/robots.txt\") would panic on duplicate pattern after the rebase",
+      "settled_by": "git grep -n 'robots.txt\\|sitemap\\|mux.Handle(' ea1c620f7 -- gno.land/pkg/gnoweb/app.go -> routes /, /faucet, chroma, assets, /status.json, /liveness, /ready, /search.json only; no /robots.txt or /sitemap.xml"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 258,
+      "angle": "lines",
+      "summary": "under -no-index a later HeadData reassignment or NoIndex=false write could leave the meta at 'index, follow' while the header says noindex",
+      "settled_by": "grep -rn 'HeadData = \\|\\.NoIndex\\b' gno.land/pkg/gnoweb (non-test) -> only handler_http.go:250 struct init, :258 seed, :411 and :1469 '= true'; no reassignment or false write; every IndexLayout render (handler_http.go:298, 364, 423) uses Get's indexData"
+    }
+  ]
+}
