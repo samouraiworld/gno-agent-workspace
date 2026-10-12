@@ -46,7 +46,9 @@ Hit rate per tier, from the rows above: hot 0/0 confirmed over 0 files, warm 4/4
 | e753cd391 | 1, 1001 | `genesisApplied` returns `(bool, error)` and `LoadStateFromDBOrGenesisDocProvider` returns a failed `Has`; `TestLoadStateFromDBOrGenesisDocProvider_ProbeErrorKeepsCommittedState` ports the repro and fails with the error swallowed again |
 | abaa30adb | 2 | `TestE2ERejectThenCorrectedGenesisBoots` builds both boots through `NewNode` on one set of memdb databases, and fails with the reset gate at `node.go:1088` removed |
 
-Rows 1002, 1003 and 2001 are left for the author: each is a decision, not a mechanical fix.
+Rows 1002 and 2001 are left for the author: each is a decision, not a mechanical fix.
+
+Row 1003 gets no issue. On master at 02606904e, `BaseApp.Commit` sets `ResponseCommit.Error` only when the base store is missing, and `LoadLatestVersion` and `LoadVersion` both run `initFromMainStore`, which returns `baseapp expects MultiStore with 'base' Store` first (`tm2/pkg/sdk/baseapp.go:178-182`). An app that loads never reaches that branch, so dropping the field costs nothing a node can hit. The `"err", res` log key at `execution.go:511` stays a one-line nit for whoever next edits that function.
 
 ## Retro
 
