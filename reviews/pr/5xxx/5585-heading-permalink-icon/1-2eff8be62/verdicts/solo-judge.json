@@ -1,0 +1,50 @@
+[
+  {
+    "index": 1, "angle": "lines",
+    "check": "go test -run TestJudgeLoneHeadingAnchor -v over five headings in the production parser config (auto heading IDs), tests/judge-1-lone-anchor_test.go copied into the markdown package",
+    "verify_by": "sed -n '/-- output.html --/,$p' gno.land/pkg/gnoweb/markdown/golden/ext_frame/heading_inline_tag.md.txtar: expect the h2 to hold only the omitted-HTML comment and the heading-anchor",
+    "state": "CONFIRMED", "band": "Nit",
+    "file": "gno.land/pkg/gnoweb/markdown/ext_heading.go", "line": 34,
+    "tldr": "the `n.HasChildren()` guard puts a permalink in a heading whose only children render nothing visible, a heading the ToC drops for having no title",
+    "details": "Three headings render as a lone link icon at head: `## </gno-frame>` and `## <span></span>` (raw HTML omitted in safe mode) and `## <gno-icon name=\"nope\" />` (unknown-name comment). Each has children, so ext_heading.go:34 passes, while TocInspect returns no item for any of them. The godoc at ext_heading.go:11-12 says the anchor closes headings with an id and some content. Base renders the same headings empty, with no anchor: no `heading-anchor` string exists under gno.land/pkg/gnoweb at the merge base. Swapping the guard for `len(nodeText(source, n)) > 0`, the ToC's own test, fixes these three and breaks golden ext_icons/valid_setext_heading.md, whose unlabelled icon-only heading is visible but has no text, so the predicate is the author's choice. Cost to a reader: an empty heading showing a link icon, always on touch screens.",
+    "evidence": "head: \"## </gno-frame>\" html=<h2 id=\"gno-frame\"><!-- raw HTML omitted --><a href=\"#gno-frame\" class=\"heading-anchor\" ...></a></h2> toc=[]; \"## <gno-icon name=\\\"nope\\\" />\" html=<h2 id=\"heading\"><!-- gno-icon: unknown name \"nope\" --><a href=\"#heading\" class=\"heading-anchor\" ...></a></h2> toc=[]; \"## <span></span>\" same shape, toc=[]; \"##\" html=<h2 id=\"heading\"></h2>; \"## Title\" toc=[\"Title\"]. nodeText guard: judge test PASS, TestGnoExtension/ext_icons/valid_setext_heading.md FAIL (anchor dropped after an unlabelled icon).",
+    "repro_path": "tests/judge-1-lone-anchor_test.go", "base_behaves_the_same": false,
+    "fix": "decision"
+  },
+  {
+    "index": 2, "angle": "removed",
+    "check": "renderMarkdown(\"Welcome to MyRealm\\n===\\n\") at head, second block of tests/judge-1-lone-anchor_test.go",
+    "verify_by": "render through renderMarkdown at head and check the output still contains `<h1>Welcome to MyRealm</h1>`",
+    "state": "REFUTED", "band": "Missing test",
+    "file": "gno.land/pkg/gnoweb/markdown/sanitize_integration_test.go", "line": 472,
+    "tldr": "the sanitize test renderer enables no auto heading IDs, so headings carry no id and no anchor and the htmlMustNot shape still matches",
+    "details": "renderMarkdown builds goldmark.New with Strikethrough, Table, Footnote and TaskList and no parser.WithAutoHeadingID (sanitize_integration_test.go:342-349); ext_heading.go:34 writes the anchor only when an id exists.",
+    "evidence": "the sibling assertion in TestJudgeLoneHeadingAnchor raised no error: output contains <h1>Welcome to MyRealm</h1>",
+    "repro_path": "tests/judge-1-lone-anchor_test.go", "base_behaves_the_same": true,
+    "refuted_by": "sanitize_integration_test.go:342 `m := goldmark.New(goldmark.WithExtensions(...))` with no parser options"
+  },
+  {
+    "index": 3, "angle": "catalog",
+    "check": "read ext_heading.go:15 and :46-55",
+    "verify_by": "read ext_heading.go:46-55",
+    "state": "REFUTED", "band": "Nit",
+    "file": "gno.land/pkg/gnoweb/markdown/ext_heading.go", "line": 49,
+    "tldr": "ExtHeading points at a fieldless struct that nothing writes",
+    "details": "headingExtension and headingRenderer are empty structs; Extend only registers a new renderer on the goldmark instance passed in.",
+    "evidence": "ext_heading.go:15 `type headingRenderer struct{}`, :46 `type headingExtension struct{}`",
+    "repro_path": "", "base_behaves_the_same": true,
+    "refuted_by": "ext_heading.go:46 `type headingExtension struct{}`"
+  },
+  {
+    "index": 4, "angle": "catalog",
+    "check": "grep goldmark renderer/renderer.go and renderer/html/html.go in the module the head go.mod resolves",
+    "verify_by": "goldmark renderer.go Flush return",
+    "state": "REFUTED", "band": "Nit",
+    "file": "gno.land/pkg/gnoweb/markdown/ext_heading.go", "line": 36,
+    "tldr": "a write error is kept by the bufio writer and returned by Render's Flush",
+    "details": "The discarded returns follow goldmark's own heading renderer; the error surfaces from Render.",
+    "evidence": "renderer/renderer.go:173 `return writer.Flush()`; renderer/html/html.go:317 `_, _ = w.WriteString(\"<h\")`",
+    "repro_path": "", "base_behaves_the_same": true,
+    "refuted_by": "goldmark renderer/renderer.go:173 `return writer.Flush()`"
+  }
+]

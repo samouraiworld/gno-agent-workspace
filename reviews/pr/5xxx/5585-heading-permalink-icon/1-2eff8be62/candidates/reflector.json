@@ -1,0 +1,42 @@
+{
+  "candidates": [
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/sanitize_integration_test.go",
+      "line": 472,
+      "angle": "removed",
+      "summary": "sibling of the ids_test.go assertion the diff rewrote: TestBlockRichSetextCannotReachRealm's htmlMustNot values keep the bare `<h1>Welcome to MyRealm</h1>` shape, which an anchored heading would never match, so the negative assertions could go vacuous",
+      "failure_scenario": "If renderMarkdown produced ids, a setext heading reaching realm chrome would render `<h1 id=...>Welcome to MyRealm<a ... heading-anchor ...></h1>`, NotContains would pass, and the sanitizer regression the test guards would ship green.",
+      "verify_by": "render \"Welcome to MyRealm\\n===\\n\" through renderMarkdown at head and check the output still contains `<h1>Welcome to MyRealm</h1>` (tests/judge-1-lone-anchor_test.go, second block)",
+      "band": "Missing test",
+      "fix_kind": "code",
+      "checked": true
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_heading.go",
+      "line": 49,
+      "angle": "catalog",
+      "summary": "catalog class global mutable state: package-level `var ExtHeading` shared by every goldmark instance and parallel test",
+      "failure_scenario": "A field written on ExtHeading at Extend time would race across parallel renders.",
+      "verify_by": "read ext_heading.go:46-55: headingExtension and headingRenderer have no fields and Extend writes nothing on the receiver",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true
+    },
+    {
+      "index": 4,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_heading.go",
+      "line": 36,
+      "angle": "catalog",
+      "summary": "catalog class error handling: every write in headingRenderer.render discards its error with `_, _ =`",
+      "failure_scenario": "A failed write to the response would be swallowed and a truncated page reported as rendered.",
+      "verify_by": "goldmark renderer/renderer.go:173 `return writer.Flush()`: the bufio writer keeps its first error and Render returns it; html.go:317 uses the same `_, _ = w.WriteString(\"<h\")` form",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true
+    }
+  ],
+  "dropped": [],
+  "completeness": "Catalog classes Determinism, Gas, Realm state, Caller, Coin, Storage deposit, VM-fault, VM semantics and Type-check do not apply to a gnoweb HTML renderer and CSS change; Global mutable state and Error handling are candidates 3 and 4. Sibling sweep by shape: `min(len(svg)` and `<use href=\\\"#ico-` over every *_test.go hits only ext_icons_test.go:171, the edited line; `<hN>text</hN>` over *_test.go and *.txtar outside the markdown goldens hits only sanitize_integration_test.go, candidate 2. The lines angle came back with one candidate; candidate 1's run widened it to `## <span></span>` and an unknown gno-icon name."
+}

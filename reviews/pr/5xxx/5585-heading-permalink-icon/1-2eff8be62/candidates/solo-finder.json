@@ -1,0 +1,70 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_heading.go",
+      "line": 34,
+      "angle": "lines",
+      "summary": "the anchor guard tests n.HasChildren(), not visible content, so a heading whose only child is omitted raw HTML renders as a lone permalink icon",
+      "failure_scenario": "A realm heading made only of a tag safe mode drops, `## </gno-frame>` or a mistyped `## <gno-icon name=\"nope\" />`, renders `<h2 id=\"gno-frame\"><!-- raw HTML omitted --><a href=\"#gno-frame\" class=\"heading-anchor\" ...></a></h2>` (golden ext_frame/heading_inline_tag.md.txtar, output line). The reader sees an empty heading holding only a link icon, always visible on touch, and the ToC drops it since it has no title. The ADR and PR body say the anchor closes headings with 'some content'.",
+      "verify_by": "sed -n '/-- output.html --/,$p' gno.land/pkg/gnoweb/markdown/golden/ext_frame/heading_inline_tag.md.txtar: expect the h2 to hold only the omitted-HTML comment and the heading-anchor",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "golden at head: <h2 id=\"gno-frame\"><!-- raw HTML omitted --><a href=\"#gno-frame\" class=\"heading-anchor\" aria-label=\"Permalink\">...</a></h2>",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/js/controller-observer.ts",
+      "line": 43,
+      "angle": "reach",
+      "summary": "scroll-spy querySelectorAll('a[href^=\"#\"]') could pick up every new heading anchor",
+      "settled_by": "grep -rn 'data-controller=\"[^\"]*observer' components: only components/views/overview.html:101 <nav class=\"b-pkg-subheader\" ... data-controller=\"observer\">, which holds no rendered markdown"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/05-composition.css",
+      "line": 670,
+      "angle": "lines",
+      "summary": "focus outline token undefined would drop the focus ring (the maintainer's earlier --s-color-border-brand finding)",
+      "settled_by": "grep -- '--s-color-text-link:' 02-tools.css:88 and :219 defined; --g-space-1 at 01-settings.css:173; --g-border-radius-sm at 01-settings.css:251; compiled main.css carries outline:2px solid var(--s-color-text-link)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext.go",
+      "line": 76,
+      "angle": "reach",
+      "summary": "anchors could land in a container the new CSS does not scope, showing always-visible full-size icons",
+      "settled_by": "every RenderRealm caller (handler_http.go:471, 550, 832, 992) renders into c-realm-view (view_realm.go:54, user.html:56) or c-readme-view (overview.html:151, directory.html:50, view_source.go:41); doc view uses documentationGM without GnoExtension (render.go:101-108)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_heading.go",
+      "line": 38,
+      "angle": "reach",
+      "summary": "#ico-link sprite could be absent on some pages, leaving an empty svg",
+      "settled_by": "components/layouts/index.html:14 {{ template \"ui/icons\" -}}; components/ui/icons.html:123 <symbol id=\"ico-link\">"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_heading.go",
+      "line": 23,
+      "angle": "lines",
+      "summary": "\"0123456\"[n.Level] could index out of range for a synthetic heading",
+      "settled_by": "grep 'NewHeading' over gno.land/ non-test Go: no hit; headings come only from goldmark ATX/setext parsers (levels 1-6), same index goldmark's own renderHeading uses"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_foreign.go",
+      "line": 438,
+      "angle": "removed",
+      "summary": "sandboxed <gno-foreign> headings could miss or duplicate anchors",
+      "settled_by": "ext_foreign.go:435-454 inner instance enables no auto heading IDs and does not load ExtHeading, so foreign headings carry neither id nor anchor"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/public/main.css",
+      "line": 1,
+      "angle": "removed",
+      "summary": "maintainer's review flagged a main.css conflict with master",
+      "settled_by": "gh pr view 5585 --json mergeable: MERGEABLE; gh api compare 02606904e...master: ahead_by 0"
+    }
+  ]
+}
