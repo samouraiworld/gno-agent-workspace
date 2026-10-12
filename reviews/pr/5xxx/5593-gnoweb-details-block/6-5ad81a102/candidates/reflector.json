@@ -1,0 +1,24 @@
+{
+ "dropped": [],
+ "candidates": [
+  {
+   "index": 6,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+   "line": 136,
+   "angle": "siblings",
+   "summary": "A details opener left unclosed in a column ends at the next gno-columns marker, but its gno-* depth level is held until the end of the page",
+   "failure_scenario": "A realm writes three columns, each opening <gno-details> and never closing it. takeBlocks stops each block at the next <gno-columns-sep /> or </gno-columns>, yet no Pop runs until Transform at EOF, so after the grid the depth is 3. A later grid holding a > [!NOTE] alert reaches depth 4 and the alert is refused. ext_frame gives its level back at parse time when a columns tag ends a frame (endFrame in frameParser.Open); detailsParser.Open returns nil on a non-details line and never sees the grid marker. Candidate 1 is the same leak through a blockquote or list item end; fixing the container case leaves this one, whose parent is the document.",
+   "verify_by": "cp tests/judge-reflector-column-depth_test.go gno.land/pkg/gnoweb/markdown/zz_column_depth_test.go && cd gno.land/pkg/gnoweb/markdown && go test -run TestJudgeColumnDepth -count=1 -v . : expect the later alert in both cases; observe it refused in /unclosed",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true
+  }
+ ],
+ "completeness": [
+  "Round 5 threads rechecked against the tag design: nest cap holds (Push at ext_details.go:145, TestDetailsNestBounded), its close-side quadratic is candidate 2; code fence and HTML block hold (markers are leaves, goldens valid_codefence_close and valid_html_block_holds_close); sanitizer holds for top-level tags (isExtDelimiter covers <gno-details>, five sanitize fixtures) and leaks depth through BlockRich quotes (candidate 1); foreign registration holds (ext_foreign.go:451); summary flex holds (<span> at ext_details.go:274,280); user-select is gone from 06-blocks.css 3311-3364; pandoc nesting holds (innermost same-parent opener pairs first, ext_details.go:152); missing goldens are candidates 4 and 5.",
+  "Sibling of the edited guard: the refused opener kept on the stack (ext_details.go:148-150) is repeated for the cap-refused opener only; the malformed opener is candidate 3; ext_frame counts both (frameRefusedKey, ext_frame.go:251,262).",
+  "Sibling by shape of the end-of-region Pop: frame pops at parse time on a grid tag (ext_frame.go:149-158); details pops only at EOF (ext_details.go:201), so two region ends leak: container end (candidate 1) and grid marker (candidate 6).",
+  "Extension enumeration sweep: grep ExtColumns and ExtDetails over non-test .go returns ext.go:79/88 and ext_foreign.go:448/451 only, both carry details.",
+  "Invariant catalog: the Go side holds no map iteration, no runtime-mutated package var (field-less structs, context key set at init), no swallowed error; the .gno change is docs text in a quarantined realm string. No class applies."
+ ]
+}

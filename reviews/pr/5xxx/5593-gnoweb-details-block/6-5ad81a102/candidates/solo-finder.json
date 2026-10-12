@@ -1,0 +1,130 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 145,
+      "angle": "reach",
+      "summary": "An opener left unclosed in a blockquote or list item keeps its gno-* depth level until the end of the page, past its container, so four of them refuse every gno-* block rendered after them",
+      "failure_scenario": "A realm renders a user comment through sanitize.BlockRich, then its own <gno-columns> grid, a > [!WARNING] alert and a <gno-details summary=\"Admin\"> block. The comment is four lines of `> <gno-details>` (or `- <gno-details>`), which BlockRich passes unescaped. Each opener Pushes; the blockquote ends without a close, nothing Pops until Transform at EOF, so depth stays at 4. The realm's grid is refused and falls to a raw HTML block that swallows its A|||B body, the alert renders as a plain quote reading `[!WARNING]`, and the realm's own details renders as a comment with its body unfolded. A realm author's own unclosed openers in list items do the same. This contradicts the SANITIZE.md BlockRich row (\"the realm's own block and what follows it stay out of reach\") and the ADR sanitizer bullet; TestDetailsDepthBalanced only reads the depth after the EOF pop, so it stays green. An unclosed `> <gno-columns>` holds nothing in the same position. ext_details.go is absent at the merge base 02606904e.",
+      "verify_by": "cp tests/solo-finder-depth-leak_test.go gno.land/pkg/gnoweb/markdown/zz_depth_leak_test.go && cd gno.land/pkg/gnoweb/markdown && go test -run TestDetailsDepthLeak -count=1 -v . : expect the realm grid, alert and Admin details to render after 4 unclosed quoted openers; observe all three refused",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Run at 5ad81a102 with go test -overlay against the head worktree (1.7G free on disk, no scratch tree copy). TestDetailsDepthLeakRaw/quote_x4 and /list_items_x4 FAIL: `realm grid refused`, `realm alert refused`, `realm details refused`; /control and /quote_x1 PASS. TestDetailsDepthLeakBlockRich/quote_x4 and /list_x4 FAIL the same way with BlockRich output `\\n\\n> <gno-details>\\n> <gno-details>\\n> <gno-details>\\n> <gno-details>\\n\\n`; Block escapes the same input to `\\> <gno-details>` and passes. Raw output for quote_x4: `<!-- raw HTML omitted -->` where the grid was, `<blockquote><p>[!WARNING]`, `<!-- unexpected/invalid details tag omitted -->\\n<p>secret</p>`.",
+      "repro_path": "tests/solo-finder-depth-leak_test.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 153,
+      "angle": "reach",
+      "summary": "Every close tag scans the whole details stack, refused openers included, so closes whose parent matches no opener cost n*m and a 960 KB page takes about 1 s to parse",
+      "failure_scenario": "A realm returns 32000 `><gno-details>` lines followed by 32000 `</gno-details>` lines, 960 KB, under the 1 MiB render cap. Four openers are accepted, the rest stay on the stack as refused; the openers' parent is the blockquote and the closes' parent is the document, so each close walks all 32000 entries and matches none. Each gnoweb render of that page spends about 0.85 s of CPU against about 22 ms for the same bytes with matching parents, growing x4 per doubling. Round 5's blocking nest-cap thread was the same quadratic class (3.8 s at 260 KB); TestDetailsNestBounded covers openers only, with no closes and no time bound.",
+      "verify_by": "cp tests/solo-finder-close-scan_test.go gno.land/pkg/gnoweb/markdown/zz_close_scan_test.go && cd gno.land/pkg/gnoweb/markdown && go test -run TestDetailsCloseScan -count=1 -v . : expect cross_parent within 5x of same_parent; observe 39x",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Run at 5ad81a102 via go test -overlay: n=4000 same 2.6ms cross 11.6ms; n=8000 same 5.1ms cross 53.6ms; n=16000 same 10.1ms cross 207ms; n=32000 same 21.6ms cross 841ms. `cross_parent 841.474109ms is 39x same_parent 21.576445ms at n=32000`, FAIL. An earlier run of the same shapes gave 1.03 s at n=32000.",
+      "repro_path": "tests/solo-finder-close-scan_test.go"
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 97,
+      "angle": "removed",
+      "summary": "A malformed opener never goes on the details stack, so its own close tag pairs with the enclosing opener and ends the outer block early",
+      "failure_scenario": "Inside <gno-details summary=\"Outer\">, an author writes `<gno-details summary=\"Inner\" open=\"true\">` (the HTML habit) or misspells `sumary`. parseDetailsLineTag returns detailsTagInvalid, Open never pushes it, and the following `</gno-details>` pairs with Outer: Outer closes after the inner body, `outer body` renders outside the collapsible, and Outer's real close renders as a stray comment. The diff keeps a cap-refused opener on the stack precisely so its close cannot close an accepted block (the ADR's depth-cap bullet), and ext_frame counts attribute-refused openers in frameRefusedKey for the same reason; the malformed member of that class was missed.",
+      "verify_by": "cp tests/solo-finder-malformed-inner_test.go gno.land/pkg/gnoweb/markdown/zz_malformed_inner_test.go && cd gno.land/pkg/gnoweb/markdown && go test -run TestDetailsMalformedInner -count=1 -v . : expect `outer body` inside the Outer block; observe it after </details>",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Run at 5ad81a102 via go test -overlay: /valid PASS, /frame_sibling PASS (`<gno-frame bogus>`'s close stays a comment, `outer body` stays in the section), /open_valued and /misspelled FAIL with `</div>\\n</details>\\n<p>outer body</p>\\n<!-- unexpected/invalid details tag omitted -->`.",
+      "repro_path": "tests/solo-finder-malformed-inner_test.go"
+    },
+    {
+      "index": 4,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 230,
+      "angle": "lines",
+      "summary": "No test pins the stop at a gno-columns or gno-frame marker, nor the transformer running after the frame transformer",
+      "failure_scenario": "Deleting the `k == KindGnoColumn || k == KindGnoFrame` break, or moving the details transformer from 502 to before the frame transformer's 501, keeps every test green: no golden or unit test puts <gno-details> beside <gno-columns> or <gno-frame>. A regression would let a details block split a grid or a frame, writing <details> across the grid's open and close divs. Round 5's missing-goldens thread asked for details in a column, an unclosed one beside </gno-columns>, and a mixed alert, columns, details depth chain.",
+      "verify_by": "grep -l 'gno-columns\\|gno-frame' golden/ext_details/* ext_details_test.go returns nothing; then delete the break at ext_details.go:230 and run go test ./gno.land/pkg/gnoweb/markdown: expect red, observe green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep of golden/ext_details, golden/ext_columns and golden/ext_frame for files carrying both gno-details and gno-columns/gno-frame/||| returned nothing; ext_details_test.go (read whole) has three tests, none with a grid or frame.",
+      "repro_path": ""
+    },
+    {
+      "index": 5,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 135,
+      "angle": "lines",
+      "summary": "No golden feeds CRLF line endings through the tag markers",
+      "failure_scenario": "Tag recognition depends on util.TrimRightSpace stripping the trailing \\r before scanGnoTag requires the tag to end the line; a change there would turn every CRLF tag line into a paragraph with no test going red. Round 5's missing-goldens thread listed CRLF input.",
+      "verify_by": "grep -rlP '\\r' golden/ext_details/ returns nothing; add a golden whose input uses \\r\\n and check it renders the same as valid_basic",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rlP '\\r' golden/ext_details/ returned no file; ext_details_test.go has no CRLF case.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 24,
+      "angle": "removed",
+      "summary": "Round 5 thread: a close line inside a fenced code block or HTML block closes the details",
+      "settled_by": "go test -count=1 ./gno.land/pkg/gnoweb/markdown at 5ad81a102: `ok ... 5.376s`, which runs goldens valid_codefence_close and valid_html_block_holds_close; markers are leaves, so a line inside a fence never reaches detailsParser.Open"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_foreign.go",
+      "line": 451,
+      "angle": "reach",
+      "summary": "Round 5 thread: extension missing from buildInnerForeignMarkdown, and any other extension enumeration missing it",
+      "settled_by": "grep -rn 'ExtAlerts\\.Extend\\|ExtFrames\\.Extend' --include='*.go' (non-test) returns only ext.go:85 and ext_foreign.go:450, and the diff adds ExtDetails.Extend(m) beside both"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 274,
+      "angle": "removed",
+      "summary": "Round 5 threads: summary flex gap around inline children, and user-select: none on the summary",
+      "settled_by": "renderer writes `<summary><svg>…</svg><span>` and `</span></summary>` (ext_details.go:274,280), and the summary is escaped plain text; awk over the 06-blocks.css hunk shows no user-select among the added lines"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 152,
+      "angle": "removed",
+      "summary": "Round 5 thread: equal-length fences close the outer block, unlike pandoc",
+      "settled_by": "close tags are unnamed and Open walks the stack from the top (ext_details.go:152), so the innermost same-parent opener pairs first; golden valid_nested passes in the green package run"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 230,
+      "angle": "reach",
+      "summary": "User content inside a realm's details could end it early with a stray grid or frame marker",
+      "settled_by": "probe at 5ad81a102: BlockRich and Block both escape `</gno-columns>` and `</gno-frame>` to `\\</gno-…>`, and a bare `|||` stays a paragraph; every case printed `tail-inside-details=true`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 106,
+      "angle": "catalog",
+      "summary": "Global mutable state: package-level vars in the new extension",
+      "settled_by": "ext_details.go read whole: detailsStackKey and the tag prefixes are set once at init, detailsParser, detailsASTTransformer, detailsRendererHTML and details are field-less structs, and the stack lives on the per-parse parser.Context"
+    },
+    {
+      "file": "gno.land/adr/pr5593_gnoweb_details_block.md",
+      "line": 59,
+      "angle": "removed",
+      "summary": "Docs still naming the removed :::details syntax",
+      "settled_by": "grep -rln ':::details' over *.md, *.gno, *.go at head returns only the ADR, whose mentions sit in Alternatives Considered as the rejected design"
+    }
+  ]
+}
