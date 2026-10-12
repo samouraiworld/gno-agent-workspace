@@ -47,8 +47,9 @@ No candidate added by the completeness pass; each sweep below settled its class.
 | --- | --- | --- |
 | 5fa47bd8e | 1003 | `TestNodeRejectedGenesisRetryMatchesFreshBoot` in `gno.land/pkg/gnoland/node_initial_height_test.go` boots a genesis the real InitChainer refuses, corrects the doc's `InitialHeight` and boots again on the same DB, and compares the app hash at block 999 with a fresh DB's; it fails with the reset gate removed |
 | 9961c0ee4 | 1, 1001 | the ADR's Consequences name the streaming path `gnoland start` takes, which drops `initial_height` and runs neither refusal |
+| 87f41db34 | 2 | `LoadStateFromDBOrGenesisDocProvider` fails the boot on a read error of the persisted genesis doc and takes the first-boot path only on a missing key; `TestLoadStateFromDBOrGenesisDocProvider_GenesisDocReadErrorFailsBoot` fails with the guard removed, and a fresh-agent pass returned no Critical or Warning |
 
-Rows 1, 1001 and 1002 predate the branch and stay unfixed here: `issue.md` beside this file drafts them as one issue, reproduced on master at 02606904e, and the pull request body now says `gnoland start` takes that path. Row 2, a failed read of the persisted genesis doc taken as "no doc" in `LoadStateFromDBOrGenesisDocProvider`, predates the branch and waits on the author's decision.
+Rows 1, 1001 and 1002 predate the branch and stay unfixed here: `issue.md` beside this file drafts them as one issue, reproduced on master at 02606904e, and the pull request body now says `gnoland start` takes that path. Row 2 predates the branch too; the author chose to fix it here, in 87f41db34.
 
 ## Retro
 
