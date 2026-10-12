@@ -1,4 +1,5 @@
 # Review: [#6256](https://github.com/gnolang/gno/pull/6256)
+Posted: https://github.com/gnolang/gno/pull/6256#pullrequestreview-5487214035
 
 Event: COMMENT
 Verdict: APPROVE. No Warning survived in this branch's own five commits; the one posted finding is a Suggestion, the robots.txt body that drops its two JSON `Disallow` lines under the flag. aeddi's open point, that the branch must be reworked onto [#6229](https://github.com/gnolang/gno/pull/6229)'s current robots policy, stands and is not repeated here.
@@ -13,7 +14,7 @@ Round: 1. 2 finders, one reflector pass, 6 candidates (5 from the finders, 1 fro
 
 > AI review, claude-opus-5-5, standard review, [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6256-keep-testnets-out-search/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6256-keep-testnets-out-search/1-c0086830d/claims.md) · Status: APPROVE
 
-## gno.land/pkg/gnoweb/crawl.go:31 [gh](https://github.com/gnolang/gno/blob/c0086830daedaec5d152853345711e35e303be9a/gno.land/pkg/gnoweb/crawl.go#L31) · [↗](../../../../../.worktrees/gno-review-6256/gno.land/pkg/gnoweb/crawl.go#L31) · Suggestion
+## gno.land/pkg/gnoweb/crawl.go:31 [gh](https://github.com/gnolang/gno/blob/c0086830daedaec5d152853345711e35e303be9a/gno.land/pkg/gnoweb/crawl.go#L31) · [↗](../../../../../.worktrees/gno-review-6256/gno.land/pkg/gnoweb/crawl.go#L31) · Suggestion [posted](https://github.com/gnolang/gno/pull/6256#discussion_r4245250447)
 
 Suggestion: under `-no-index` this assignment drops the `Disallow` lines for `/search.json` and `/status.json`, which query the node and are never indexed. Keeping both beside `Allow: /` leaves every page crawlable.
 
