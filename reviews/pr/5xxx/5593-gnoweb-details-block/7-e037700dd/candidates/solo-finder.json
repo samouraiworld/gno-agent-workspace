@@ -1,0 +1,56 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 139,
+      "angle": "lines",
+      "summary": "A lazy continuation line starting with `<` ends a details block opened in a blockquote or list item while that container stays open, so its close tag no longer pairs and the rest of the container falls inside the fold",
+      "failure_scenario": "`> <gno-details summary=\"S\">` / `> body` / `<b>lazy</b> line` / `> </gno-details>` / `> after`: goldmark offers the unprefixed `<` line to Open with the document as parent before it settles on a lazy paragraph continuation, so releaseDetails drops the blockquote's entry and gives its level back while the blockquote stays open. `> </gno-details>` then finds an empty stack and renders as `<!-- unexpected/invalid details tag omitted -->`, and `after` moves inside the fold, hidden while it is collapsed. The same happens in a list item when a wrapped line opens on an autolink (`<https://gno.land/r/docs> for details.`). Repeating the shape (`> <gno-details>` / `> p` / `<i>x</i>`, 10 times) renders 10 nested details where the control with a plain lazy line stops at MaxGnoNestDepth, 4, against the ADR's Pairing and Depth cap bullets and TestDetailsNestBounded's claim.",
+      "verify_by": "Copy tests/solo-finder-lazy-release_test.go to gno.land/pkg/gnoweb/markdown/zz_solo_finder_lazy_test.go and run go test -count=1 -v ./gno.land/pkg/gnoweb/markdown -run 'TestSoloFinderLazy$': bq_lazy and list_lazy print `<p>after</p>` before `</div></details>` with 1 stray tag, where bq_control and list_control (lazy line not opening on `<`) print it after `</details>` with 0; nest_lazy opens 10 details, nest_control 4",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "At e037700dd: `== bq_control (depth after parse 0, details opened 1, stray tags 0)` renders `</details>` then `<p>after</p>` inside `<blockquote>`; `== bq_lazy (depth after parse 0, details opened 1, stray tags 1)` renders `<!-- unexpected/invalid details tag omitted -->` then `<p>after</p>` then `</div>` `</details>`; list_lazy the same inside `<li>`; list_lazy_autolink stray tags 1; `== nest_control (... details opened 4, stray tags 6)`; `== nest_lazy (... details opened 10, stray tags 0)`.",
+      "repro_path": "tests/solo-finder-lazy-release_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/quarantined/gno.land/r/docs/markdown/markdown.gno",
+      "line": 1041,
+      "angle": "claims",
+      "summary": "the sentence says a close tag inside a code block stays part of the code, but the example after it shows only nesting",
+      "settled_by": "sed -n 1041,1055p markdown.gno: the ±±±markdown fence right after the sentence holds two `</gno-details>` lines that render as code, so the sample itself shows the claim"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/css/06-blocks.css",
+      "line": 3351,
+      "angle": "removed",
+      "summary": "b2fc6b550 drops font-weight and cursor: pointer from the details summary",
+      "settled_by": "grep -n summary frontend/css/*.css: 04-elements.css:101-102 `summary {` `cursor: pointer;` and 05-composition.css:401-403 `summary {` `font-weight: var(--g-font-bold);` `cursor: pointer;` cover both"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext.go",
+      "line": 111,
+      "angle": "reach",
+      "summary": "the details parser is recorded into the math extension's block starters, and its Open could leave depth or stack state on the real context when math probes a line",
+      "settled_by": "ext_math.go:574-583 probeContext.Set is a no-op on a fresh parser.NewContext, so the probe's Push and pc.Set store nothing; TestSoloFinderLazyPeers prints depth 0 for math_holds_details_line, math_inside_details and math_close_after_details_close, and a `<gno-details>` line ending display math matches the documented block-start trade-off at ext_math.go:634-637"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 166,
+      "angle": "reach",
+      "summary": "the `<` and `>` Trigger at priority 498 runs before the button tag-line parser (899) and could change how `<gno-button />` parses",
+      "settled_by": "TestSoloFinderBtn: `<gno-button href=\"/r/x\" label=\"L\" />` renders `<p><a href=\"/r/x\">L</a></p>` at document level, in a blockquote and inside a details block alike"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 74,
+      "angle": "catalog",
+      "summary": "uppercase `</GNO-DETAILS>` in user content could pass the sanitizer while the parser accepts it case-insensitively",
+      "settled_by": "gnovm/stdlibs/chain/markdown/markdown.go:574 `return hasCaseInsensitivePrefix(rest, \"gno-\")`"
+    }
+  ]
+}

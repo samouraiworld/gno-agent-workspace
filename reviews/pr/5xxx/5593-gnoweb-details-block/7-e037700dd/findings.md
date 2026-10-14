@@ -1,0 +1,17 @@
+# Findings in posting order, from round assemble: 2 to post, 0 SKIP, 1 refuted kept out
+
+## gno.land/pkg/gnoweb/markdown/ext_details.go:139 [gh](https://github.com/gnolang/gno/blob/e037700ddd8261bbc7660382d4953a978b630e55/gno.land/pkg/gnoweb/markdown/ext_details.go#L139) · Warning
+State: CONFIRMED, band: Warning, angle: lines
+TL;DR: an unprefixed line opening on `<` inside a quoted or listed details block releases that block while its container stays open, so the close tag goes stray, the rest of the container folds, and nesting escapes MaxGnoNestDepth
+Check: Copy tests/solo-finder-lazy-release_test.go to gno.land/pkg/gnoweb/markdown/zz_solo_finder_lazy_test.go and run go test -count=1 -v ./gno.land/pkg/gnoweb/markdown -run 'TestSoloFinderLazy$'; then tests/judge-1-lazy-curve_test.go and tests/judge-1-sanitize-lazy-nest.txtar under -update-golden-tests
+Details: Goldmark tries to open new blocks for a line that fails its container's Continue before it settles on a lazy paragraph continuation, so detailsParser.Open runs releaseDetails with the document as parent; the loop at line 139 finds the blockquote or list item not holding the document, drops the entry and Pops its level, yet the line then joins the paragraph and the container stays open. The later `> </gno-details>` finds no entry whose parent is the blockquote and renders as a stray comment, and takeBlocks moves every following sibling in the container under the opener, hidden while it is collapsed. Each lazy line gives one level back, so depth grows with the input: 10, 100 and 1000 quoted openers all render, against 4 for a plain lazy line. Sanitized BlockRich content reaches it: 8 user openers under the realm's own details render 9 nested blocks, while the realm's block and its `## Footer` stay outside. The file is new, so the merge base renders `<gno-details>` as omitted raw HTML.
+Evidence: bq_lazy (stray tags 1): `<!-- unexpected/invalid details tag omitted -->` then `<p>after</p>` then `</div>` `</details>`; bq_control (stray tags 0): `</details>` then `<p>after</p>`; list_lazy and list_lazy_autolink stray tags 1; TestJudgeLazyCurve: `n=10 lazy opened=10 control opened=4`, `n=100 lazy opened=100 control opened=4`, `n=1000 lazy opened=1000 control opened=4`; BlockRich golden zzjudge-lazy-nest: 9 `<details class="gno-details">`, `<h2>Footer</h2>` after the realm's `</details>`
+Artifact: tests/solo-finder-lazy-release_test.go
+
+## gno.land/pkg/gnoweb/markdown/ext_details_test.go:26 [gh](https://github.com/gnolang/gno/blob/e037700ddd8261bbc7660382d4953a978b630e55/gno.land/pkg/gnoweb/markdown/ext_details_test.go#L26) · Missing test
+State: CONFIRMED, band: Missing test, angle: tests
+TL;DR: no details test puts a lazy continuation line inside a quoted or listed block, so the cap and pairing tests stay green over candidate 1
+Check: go test -count=1 -v ./gno.land/pkg/gnoweb/markdown -run 'TestDetails|TestJudgeLazyCurve' with tests/judge-1-lazy-curve_test.go copied in
+Details: TestDetailsNestBounded repeats document-level openers and TestDetailsReleasedWithContainer ends the container for real; neither feeds an unprefixed `<` line, and both pass while the lazy shape nests 1000 deep. The BlockRich fixture blockrich-gno-details-in-blockquote has no lazy-line sibling, where gno-frame has blockrich-gno-frame-ctx-lazy-quote.
+Evidence: --- PASS: TestDetailsNestBounded, --- PASS: TestDetailsReleasedWithContainer (list, quote); TestJudgeLazyCurve n=1000 lazy opened=1000
+Artifact: tests/judge-1-lazy-curve_test.go

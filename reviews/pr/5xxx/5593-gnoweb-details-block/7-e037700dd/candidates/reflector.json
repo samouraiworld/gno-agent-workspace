@@ -1,0 +1,29 @@
+{
+  "candidates": [
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details_test.go",
+      "line": 26,
+      "angle": "tests",
+      "summary": "No test feeds the release a lazy continuation line: TestDetailsNestBounded and TestDetailsReleasedWithContainer stay green while a quoted opener followed by an unprefixed `<` line nests past MaxGnoNestDepth",
+      "failure_scenario": "Repeat `> <gno-details>` / `> p` / `<i>x</i>` n times: 10, 100 and 1000 openers all render, where the cap is 4; every TestDetails* test passes at the head",
+      "verify_by": "go test -count=1 -v ./gno.land/pkg/gnoweb/markdown -run 'TestDetails|TestJudgeLazyCurve' with tests/judge-1-lazy-curve_test.go copied in: TestDetails* PASS and the curve prints lazy opened=n for n=10,100,1000",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_details.go",
+      "line": 228,
+      "angle": "reach",
+      "summary": "A details opener interrupting a paragraph splits an upstream `$$` display-math span across it",
+      "failure_scenario": "`$$` / `a` / `<gno-details>` / `b` / `$$` renders `$$ a` as a paragraph and the closing `$$` inside the fold",
+      "verify_by": "tests/judge-3-peers_test.go, cases math_list_interrupt and math_details_interrupt: compare with a list item interrupting the same span",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true
+    }
+  ],
+  "dropped": []
+}

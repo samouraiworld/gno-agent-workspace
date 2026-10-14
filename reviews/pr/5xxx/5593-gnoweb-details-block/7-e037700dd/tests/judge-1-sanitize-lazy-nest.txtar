@@ -1,0 +1,27 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: <gno-details summary="Comments">\n%s\n</gno-details>\n\n## Footer
+-- input.md --
+> <gno-details>
+> p
+<i>x</i>
+> <gno-details>
+> p
+<i>x</i>
+> <gno-details>
+> p
+<i>x</i>
+> <gno-details>
+> p
+<i>x</i>
+> <gno-details>
+> p
+<i>x</i>
+> <gno-details>
+> p
+<i>x</i>
+> <gno-details>
+> p
+<i>x</i>
+> <gno-details>
+> p
+<i>x</i>
