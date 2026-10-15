@@ -79,6 +79,11 @@ The catalog the core's finders walk, passed as the workflow's `catalog` argument
 - Example-package tests on a branch that also modifies a stdlib: run `gno test` with `GNOROOT=<worktree-root>`, else new stdlib symbols fail preprocessing (`name X not declared`).
 - gno's `Merge Requirements` bot is a commit status, not a check run.
 - Live-boot targets here: `contribs/gnodev`, `gnovm/cmd/gno`, `gnovm/pkg/packages`, `gno.land/pkg/gnoweb`. Boot from the worktree and exercise the changed behavior (gnodev plus `curl` for gnoweb; a real external gno workspace, e.g. `github.com/samouraiworld/gnodaokit`, for loader and tooling changes).
+- The page angle covers `misc/deployments/home-alias/**`, `examples/gno.land/r/gnoland/home/` and `gno.land/pkg/gnoweb/{components,frontend,public}/`, rendered from the worktree's own gnoweb, never the live site, which may run an older one. A throwaway `main` in an untracked dot-directory of the worktree serves any markdown through the real templates: wire it as `app.go` `NewRouter` does, `NewHTMLRenderer`, `NewHTTPHandler` with `Aliases: map[string]gnoweb.AliasTarget{}` and `AssetHandler`, over this client. Capture each page at 1280 and 1440 wide, base and head, with `chromium --headless --window-size=<w>,1250 --screenshot=<file> <url>`, and read its Contents rail as well as its body.
+  ```go
+  type fixture struct{ *gnoweb.MockClient; body []byte }
+  func (f *fixture) Realm(context.Context, string, string) ([]byte, error) { return f.body, nil }
+  ```
 - `gno test` never runs an `Example_*` function that takes a parameter or returns a value: `isExampleFunc` in `gnovm/pkg/test/test.go` excludes it, and `// Output:` plays no part. An example body taking `cur realm` is unexecuted whatever the suite reports, so the core's sentinel rule applies to it.
 - No txtar can observe a block gas price change: `testscript_gnoland.go` pins genesis `InitialGasPrice` to a zero amount, and `calcBlockGasPrice` in `tm2/pkg/sdk/auth/keeper.go` returns early on it every block. And `gnokey query params/<key>` echoes raw store bytes through `GetBytes`, never the decoded struct, so a query after a `SetString` proves nothing about decoding.
 
