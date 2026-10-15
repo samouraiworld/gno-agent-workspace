@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/cmd/calibrate/reflect_bench_test.go",
+      "line": 54,
+      "angle": "catalog",
+      "summary": "the stamped bench that sets objectInfo's flat 1200 price passes a TypedValue with no T, so declaredTypeName returns early and the typed path every production call takes is never measured",
+      "failure_scenario": "BenchmarkNative_Reflect_ObjectInfo_Stamped stores gno.TypedValue{V: PointerValue{...}} with T nil. In X_objectInfo, declaredTypeName(v) then fails the *PointerType assertion and returns \"\" at once, so the dt.PkgPath+\".\"+Name concat and the fourth non-empty Go2GnoValue string never run. The realm lookup is also warmed (tx.GetPackageRealm), so GetRealmByID is always a cache hit. A gno call always carries T, so native_gas.go's line 'the stamped path sets the price' rests on a bench that leaves out part of the stamped path",
+      "verify_by": "add a bench case with T: &gno.PointerType{Elt: &gno.DeclaredType{PkgPath: reflectBenchPkgPath, Name: \"Account\"}} and a cold-cache variant without tx.GetPackageRealm; go test ./gnovm/cmd/calibrate -run x -bench Reflect_ObjectInfo; compare ns/op against the 1196ns behind Base 1200",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "reflect_bench_test.go:54 `m.Blocks[0].Values[0] = gno.TypedValue{V: gno.PointerValue{TV: &hiv.Value, Base: hiv}}` (no T); reflect.go:133-135 `pt, ok := t.(*gno.PointerType); if !ok { return \"\" }`",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 222,
+      "angle": "catalog",
+      "summary": "the address preimage writes PkgID with the debug Stringer's spelling, `RID%X` uppercase, while Object.ID() returns lowercase hex with no prefix, so hashing \"objectid:\" + ID() as the ADR reads gives a different address",
+      "failure_scenario": "ADR section 1 says the address hashes `objectid:<pkgid>:<newtime>`, and reflect.gno says addr is 'derived from id'. id is oid.String() = hex.EncodeToString(Hashlet) + \":\" + NewTime (ownership.go MarshalAmino, lowercase, no prefix). The preimage uses oid.PkgID.String() = fmt.Sprintf(\"RID%X\", ...) (realm.go:74-76). An indexer or wallet that derives an object's address from Object.ID() off-chain, as the ADR describes, gets a different g1 address, and nothing tells it the address is wrong. The godoc names the PkgID encoding as consensus state, yet that encoding comes from a debug Stringer. The filetests' golden g1 addresses pin today's spelling, so CI catches a later change. This is shared with #6139's preimage, so the parent reconciles the two",
+      "verify_by": "go test snippet: compare crypto.AddressFromPreimage([]byte(\"objectid:\"+oid.String())) against gno.DeriveObjectCryptoAddr(oid) for oid {PkgIDFromPkgPath(\"gno.land/r/demo/reflectid\"), 8}: expect them to differ; read realm.go:74 and ownership.go:47-49 for the two spellings",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "realm.go:74-76 `return fmt.Sprintf(\"RID%X\", pid.Hashlet[:])`; ownership.go MarshalAmino `pid := hex.EncodeToString(oid.PkgID.Hashlet[:]); return fmt.Sprintf(\"%s:%d\", pid, oid.NewTime)`; ADR line 51 `objectid:<pkgid>:<newtime>`",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 26,
+      "angle": "catalog",
+      "summary": "X_objectInfo follows DeriveObjectCryptoAddr's godoc and guards only IsFinalized, but the callee also panics with a bare Go panic on a zero PkgID, which IsFinalized does not cover",
+      "failure_scenario": "DeriveObjectCryptoAddr panics on `!oid.IsFinalized() || oid.PkgID.IsZero()`, and its godoc tells callers to check IsFinalized instead of relying on the panic. A stamped ID with a zero PkgID would pass X_objectInfo's guard and raise an uncatchable Go panic out of a user-callable native. That shape is unreachable on chain today: assignNewObjectID sets PkgID before NewTime (realm.go:1995-2003). So the second half of the guard is dead for this caller, and the godoc's 'use IsFinalized' advice covers only half of it",
+      "verify_by": "grep every SetNewTime/SetObjectID site in gnovm/pkg/gnolang for one that stamps NewTime with a zero PkgID: realm.go:2031 and :2041 only, both after the PkgID fix-up at :1995",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "realm.go:1995-2003 `if oid.PkgID.IsZero() { oo.SetPkgID(rlm.ID) ... }` precedes the only SetNewTime calls at :2031/:2041",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 36,
+      "angle": "catalog",
+      "summary": "caller and access control: realm B instantiating realm A's exported type could mint objects whose Of().PkgPath() reports A, forging provenance",
+      "settled_by": "grep -n 'stampPkgID(' gnovm/pkg/gnolang/*.go: every object kind ownObject returns is stamped with a nil type. alloc.go:787 `alloc.stampPkgID(&hiv.ObjectInfo, nil)`, values.go:2261/2301/2340 for BoundMethodValue, op_expressions.go:791 for FuncValue. So PkgID is alloc.currentRealmID, the allocating realm, and never the realm that declared the type"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 93,
+      "angle": "catalog",
+      "summary": "gas: Base 1200 SizeFlat while declaredTypeName and creatingRealmPath return strings that scale with the declared type name and realm path",
+      "settled_by": "gonative.go:92 `tv.V = alloc.NewString(rv.String())` charges each returned string via AllocateString, and machine.go:201 `mm.Alloc.SetGasMeter(vmGasMeter)` makes that allocation charge gas (alloc.go:431 `ConsumeGas(allocGas(size), \"memory allocation\")`; allocGasTable 1MB = 195342), so the length-scaled part is billed per byte outside the flat base"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 108,
+      "angle": "catalog",
+      "summary": "determinism: GetRealmByID gas depends on cacheRealms state, which could differ across nodes",
+      "settled_by": "store.go:272 BeginTransaction builds `cacheRealms: make(map[PkgID]*Realm)` per transaction, and store.go:1501 ClearObjectCache resets it before each message (keeper.go:401), so a lookup's hit or miss is a function of the transaction alone; a miss goes through GetPackageRealm, whose backend read and amino decode are store-gas charged (store.go:469-474)"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 108,
+      "angle": "catalog",
+      "summary": "VM-fault recoverability: creatingRealmPath -> pkgPathFromPkgID -> GetObject raises a bare Go panic for a stamped object whose package value is not in the store, for example a MsgRun ephemeral package",
+      "settled_by": "machine.go runMemPackage calls m.Store.SetCachePackage(pv) even with save=false (keeper.go:1623 RunMemPackage(memPkg, false)), so the run package resolves by oid. realm.go:2004-2011 re-stamps any object carrying an ephemeral PkgID into the attaching realm, and every stamped PkgID belongs to a realm, /p/ or stdlib package that is persisted"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 222,
+      "angle": "catalog",
+      "summary": "coin & banker: an object address could collide with a package or storage-deposit address",
+      "settled_by": "grep 'AddressFromPreimage(' over the tree: every other preimage starts with \"pkgPath:\", a fixed collector name (params.go:223/230, auth/params.go:81) or amino pubkey bytes (threshold_pubkey.go:247). None can begin with \"objectid:\", so the spaces are disjoint"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 222,
+      "angle": "catalog",
+      "summary": "decay: the preimage depends on PkgID.String(), so a cosmetic change to that Stringer would silently move every object address",
+      "settled_by": "grep -n 'g1[a-z0-9]{38}' gnovm/tests/files/zrealm_reflect_*.gno: object addresses are pinned under `// Output:` (zrealm_reflect_objectid.gno:67-71, zrealm_reflect_identity.gno:88-91), so a Stringer change turns TestFiles red; this is kept only as the ID-spelling Suggestion"
+    }
+  ]
+}

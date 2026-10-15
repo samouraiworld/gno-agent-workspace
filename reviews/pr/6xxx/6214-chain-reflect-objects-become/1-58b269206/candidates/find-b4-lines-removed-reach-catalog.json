@@ -1,0 +1,76 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/tests/files/zrealm_reflect_foreign_finalize.gno",
+   "line": 30,
+   "angle": "reach",
+   "summary": "the foreign-finalize fixture hands crossrealm an object its own init finalize already stamped, so the foreign tick branch it claims to exercise never runs",
+   "failure_scenario": "`theirs` is a package var initialised at deploy, so reflectcross's own init finalize stamps it (id ...:4) before main; SetFooer then only stores a reference to a real object and assignNewObjectID's touchForeignRealm branch (realm.go:2036-2039) is never reached. Replacing that branch so the tick comes from the finalizing realm's clock keeps the test green, while a fresh object then takes crossrealm's tick :47 under reflectcross's PkgID, an id reflectcross's own clock can mint again later: the shared-address failure the test header says it guards.",
+   "verify_by": "at 58b269206: sed -i '2038s/targetRlm = rlm.touchForeignRealm(store, oid.PkgID)/_ = rlm.touchForeignRealm(store, oid.PkgID)/' gnovm/pkg/gnolang/realm.go; cd gnovm/pkg/gnolang && go test . -v -run 'TestFiles/zrealm_reflect_(foreign_finalize|zprobe_foreign)': expect the PR fixture red, observe PASS; the probe (fresh object created in main, handed to crossrealm) goes red",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": true,
+   "evidence": "unmutated probe: `theirs stamped before SetFooer: true 02889f73...:4`, `fresh stamped by foreign finalize: true ...:10 gno.land/r/demo/reflectcross2`. Mutated: `--- PASS: TestFiles/zrealm_reflect_foreign_finalize.gno`, `--- FAIL: TestFiles/zrealm_reflect_zprobe_foreign.gno` with `+fresh stamped by foreign finalize: true 02889f73...:47`.",
+   "repro_path": "tests/b4-lines-removed-reach-catalog-foreign-finalize-unreached.gno"
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_reflect_identity.gno",
+   "line": 49,
+   "angle": "reach",
+   "summary": "the kinds fixture pins three true shapes; bound method values, new(T), &packageVar and /p/ or stdlib func values answer ok=true with no test, though the ADR says no answer may ever be withdrawn",
+   "failure_scenario": "ADR section 4 lists 'func value or bound method, persisted -> true' and calls withdrawing any answer incompatible because the address is by then in a balance. No PR test touches a BoundMethodValue (grep BoundMethod over every PR test: no hit), so deleting `case *gno.BoundMethodValue` from ownObject (reflect.go:83) keeps the whole suite green and silently strips the address from every stored method value; the same holds for new(T), which this fixture's own comment names, for &gv, and for /p/ and stdlib func values, which today answer ok with PkgPath gno.land/p/nt/ufmt/v0 and strings.",
+   "verify_by": "delete the `case *gno.BoundMethodValue:` arm in gnovm/stdlibs/chain/reflect/reflect.go, then go test ./gnovm/stdlibs/chain/reflect && go test ./gnovm/pkg/gnolang -run 'TestFiles/zrealm_reflect': expect red, observe green; the shapes probe goes red",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "grep -n 'BoundMethod\\|new(' over zrealm_reflect_*.gno, reflect_test.go, reflect_bench_test.go: only the comment at zrealm_reflect_identity.gno:42. Shapes probe at head: `new(inner) ok: true`, `&gv ok: true`, `bound method ok: true ... #16`, `p/ func ok: true has: true pkg: gno.land/p/nt/ufmt/v0`, `stdlib func ok: true has: true pkg: strings`.",
+   "repro_path": "tests/b4-lines-removed-reach-catalog-identity-shapes.gno"
+  },
+  {
+   "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+   "line": 65,
+   "angle": "reach",
+   "summary": "a map is a reference object like a func value, yet ownObject gives it no identity, and the stated reason (a map by value may be a copy) does not hold for maps",
+   "failure_scenario": "A realm stores `registry = map[string]int{}`; every holder shares the one *MapValue persisted under one ObjectID, and TypedValue.Copy copies only BigintValue, *ArrayValue and *StructValue (values.go:1339), never a map. reflect.Of(registry) still answers ok=false, HasIdentity=false, 'no identity of its own', so a stored map cannot be addressed the way a stored callback is; reflect.gno:106 and ADR section 4 group map with struct and array copies, which is the reason given for the exclusion.",
+   "verify_by": "run the shapes probe: `map ok: false has: false`; read values.go:1339-1352 for the copy cases",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "probe: `map             ok: false has: false pkg:  type:  str: <no object>`; values.go Copy switch: BigintValue, *ArrayValue, *StructValue, default `cp = tv`.",
+   "repro_path": "tests/b4-lines-removed-reach-catalog-identity-shapes.gno"
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_reflect_proposal_fund.gno",
+   "line": 8,
+   "angle": "lines",
+   "summary": "the flagship example sells an object address as a proposal's fund and renders a funds link, without saying coins sent there can never be released",
+   "failure_scenario": "The header says the fund 'becomes a place on chain where value sits' and Links renders `funds: /accounts/<addr>`; a realm copying it invites deposits, but banker.SendCoins panics unless from == the realm's package address (banker.gno:237), so every coin sent to the proposal address is locked for good. The package doc (reflect.gno:28-31) says 'receives and does not release'; the example omits it.",
+   "verify_by": "grep -n 'release\\|cannot' gnovm/tests/files/zrealm_reflect_proposal_fund.gno: no warning; sed -n 233,240p gnovm/stdlibs/chain/banker/banker.gno",
+   "band": "Suggestion",
+   "fix_kind": "comment",
+   "checked": true,
+   "run": false,
+   "evidence": "banker.gno:237 `if b.pkgAddr != from {` panics; reflect.gno:28 'It cannot yet spend'.",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go",
+   "line": 238,
+   "angle": "removed",
+   "summary": "a new genesis stdlib moves every pinned apphash; a sibling pin the diff missed",
+   "settled_by": "grep -rn --include='*_test.go' -E 'Hash\\s*=\\s*\"[0-9a-f]{64}\"' gno.land tm2/pkg/sdk: only apphash_crossrealm38_test.go:238, the one the diff re-pinned"
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_reflect_foreign_finalize.gno",
+   "line": 36,
+   "angle": "catalog",
+   "summary": "touchForeignRealm may mint from a stale copy of the creating realm, so a foreign-finalized object and a later own-finalized one share a tick",
+   "settled_by": "store.go GetRealmByID reads ds.cacheRealms first, the per-tx single *Realm; probe: `fresh ... :10`, `other stamped by own finalize: true ...:12`, `ids differ: true`"
+  }
+ ]
+}

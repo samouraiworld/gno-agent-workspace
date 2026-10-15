@@ -1,0 +1,47 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 198,
+      "angle": "removed (class sweep)",
+      "band": "Suggestion",
+      "summary": "RegisterExtension freezes the hook's kind so an entry cannot re-key itself, but checks view.ExtensionKind() and view.TokenID() only once; the published view keeps answering live, so GetExtension(key, k) can hand out a view that now reports another kind or another token",
+      "failure_scenario": "Issuer registers a view whose ExtensionKind and TokenID read through pointers (the shiftyExtension shape token_test uses for the hook), then changes them. tok.ExtensionView(\"aux\") and grc721reg.GetExtension(key, \"aux\") return a view whose ExtensionKind() is \"mock\" and whose TokenID() is another collection's ID; a consumer that trusts the registration check (\"view belongs to another token\") reads the wrong collection. The diff swept this class for the hook (registeredExtension.kind) and left the view's two self-reports unfrozen.",
+      "verify_by": "Add to token_test.gno: a shiftyView{kind *string, tid *string}; RegisterExtension(shiftyExtension{&k}, shiftyView{&k2,&tid}) with k2==k and tid==tok.ID(); then set k2=\"mock\", tid=\"other\"; assert tok.ExtensionView(\"aux\").ExtensionKind()==\"aux\" and TokenID()==tok.ID(); observe both fail.",
+      "fix_kind": "code",
+      "checked": false,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 33,
+      "angle": "lines (dead parameter)",
+      "band": "Suggestion",
+      "summary": "Register's slug is validated and emitted in the register event, and nothing else: it is not the key, not stored, not returned by Get or GetRegistry, and not rendered, so a consumer of the registry can never resolve or display it",
+      "failure_scenario": "A realm registers with slug \"cool-apes\"; Get(\"cool-apes\"), Render and GetRegistry know nothing of it, and only an indexer replaying events sees it. The parameter costs callers a validation panic (slug too long, invalid character) for a value with no on-chain reader.",
+      "verify_by": "grep -n slug examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno: hits only at 33 (signature), 38-39 (validate), 72 (event attr), 291-298 (validateSlug).",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'slug' grc721reg.gno returned lines 33, 38, 39, 57 (comment), 72, 291, 292, 293, 296, 298; no registry.Set, Get or render use",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno",
+      "line": 555,
+      "angle": "shape nobody ran (cross-transaction persistence)",
+      "band": "Missing test",
+      "summary": "Every grc721reg test runs inside one test function under testing.SetRealm; no txtar or filetest has an issuer realm package register its token in init and then mint or attach an extension in a later transaction while a separate consumer realm reads GetExtension, the shape grc20reg pins in grc20_registry_wrappers.txtar",
+      "failure_scenario": "The token and its ledger are handed to grc721reg's registry.Set in the issuer's init; whether the issuer can still Mint and RegisterExtension on objects grc721reg now references, and whether a consumer realm can call a view method across the boundary in a later tx, is asserted nowhere. TestRegisteredCollectionStaysLive claims late attach reaches consumers but never crosses a transaction or a persisted realm boundary.",
+      "verify_by": "Write gno.land/pkg/integration/testdata/grc721_registry.txtar modeled on grc20_registry_wrappers.txtar: addpkg an issuer realm whose init does NewToken, NewRoyalty and grc721reg.Register; gnokey maketx call a Mint wrapper in a later tx; addpkg a consumer realm calling grc721reg.GetExtension(key, \"royalty\").(*royalty.Royalty).RoyaltyInfo; run go test ./gno.land/pkg/integration -run TestTestdata/grc721_registry and expect every step OK.",
+      "fix_kind": "test",
+      "checked": false,
+      "run": false,
+      "evidence": "grep -rln grc721reg over examples and gno.land/pkg/integration/testdata: only grc721reg's own files and a tellers.gno comment; grc20reg has foo20, wugnot and grc20_registry_wrappers.txtar",
+      "repro_path": ""
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+   "line": 128,
+   "angle": "claims",
+   "summary": "Object equality depends on the pointer's static type, so one object yields unequal Objects and the docs' 'comparable and safe as a map key' / 'equal iff they name the same object' fails",
+   "failure_scenario": "A persisted tok := &Token{} read as reflect.Of(tok), reflect.Of((*Alias)(tok)) with type Alias Token, and reflect.Of((*struct{ n int })(tok)) gives three Objects with one Address() but Type() 'b3eq.Token', 'b3eq.Alias' and '', because declaredTypeName reads tv.T (the pointer's type) rather than the heap item's own value type. a == b and a == c are false and a map[reflect.Object]bool takes three entries for one object. A realm deduping or registering objects by Object, as docs/resources/gno-stdlibs.md:740 and the ADR line 80 invite, admits the same object again under each pointer type, with ok true every time. Inference, not run: a caller in another realm can do the same with type Alias victim.Token, since the conversion only needs identical underlying types. Fix: take typ from the heap item's own TypedValue (hiv.Value.T) in X_objectInfo, which also makes the type P *Token unwrap unnecessary.",
+   "verify_by": "cp tests/b3-claims-object-equality.gno gnovm/tests/files/zrealm_b3claims_equality.gno && cd gnovm/pkg/gnolang && go test -run 'TestFiles/zrealm_b3claims_equality' -count=1 . ; passes at head with 'a == b: false a == c: false' and 'map entries for one object: 3'",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "Filetest at 58b269206 passes with Output: 'ok: true true true' / 'same address: true true' / 'a == b: false a == c: false' / 'types: gno.land/r/demo/b3eq.Token | gno.land/r/demo/b3eq.Alias |' / 'map entries for one object: 3'",
+   "repro_path": "tests/b3-claims-object-equality.gno"
+  },
+  {
+   "file": "gnovm/tests/files/zrealm_reflect_foreign_finalize.gno",
+   "line": 30,
+   "angle": "claims",
+   "summary": "The foreign-finalize filetest never reaches touchForeignRealm: 'theirs' is a package var, stamped by this realm at package load before SetFooer runs",
+   "failure_scenario": "The PR body and the author's reply to clockworkgr say this test covers the touchForeignRealm branch of assignNewObjectID (realm.go:2036-2038). But theirs = &fooer{n: 2} is a package-level var, and package-level objects are already stamped when main starts (zrealm_reflect_identity.gno prints an address for its package var 'standalone' on main's first line). So crossrealm.SetFooer(cross(cur), theirs) at line 36 hands over an already-finalized object, assignNewObjectID never runs for it, and the Output is identical whether that branch takes the tick from the creating realm or the persisting one. The duplicate-address regression the test header describes goes uncaught. Fix: allocate theirs inside main before SetFooer.",
+   "verify_by": "Plant panic(\"touchForeignRealm reached\") before targetRlm = rlm.touchForeignRealm(store, oid.PkgID) at gnovm/pkg/gnolang/realm.go:2038, then go test ./gnovm/pkg/gnolang -run 'TestFiles/zrealm_reflect_foreign_finalize' -count=1: expect green, so the test pins nothing. Move theirs into main and re-run: expect the sentinel to fire.",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  },
+  {
+   "file": "gnovm/adr/chain_reflect_object_identity.md",
+   "line": 164,
+   "angle": "claims",
+   "summary": "The ADR says GnoTypeExpression maps the any parameter to gno.AnyT(), but the generated binding emits gno.X(\"any\")",
+   "failure_scenario": "The ADR's Consequences says the Gno side's any maps to gno.AnyT(). gnovm/stdlibs/generated.go for chain/reflect.objectInfo carries {NameExpr: *gno.Nx(\"p0\"), Type: gno.X(\"any\")}, which is what the PR body says. A reader checking the no-genstd-change argument against the ADR looks for code that does not exist.",
+   "verify_by": "grep -n 'chain/reflect' -A22 gnovm/stdlibs/generated.go | grep p0 ; expect gno.X(\"any\"), not gno.AnyT()",
+   "band": "Nit",
+   "fix_kind": "comment",
+   "checked": true,
+   "run": false,
+   "evidence": "generated.go:1210 '{NameExpr: *gno.Nx(\"p0\"), Type: gno.X(\"any\")},'",
+   "repro_path": ""
+  },
+  {
+   "file": "docs/resources/gno-stdlibs.md",
+   "line": 748,
+   "angle": "claims",
+   "summary": "'PkgPath is the realm that created the object' is false for adopted objects: the VM re-stamps their PkgID to the persisting realm, so PkgPath names a realm that did not create them",
+   "failure_scenario": "assignNewObjectID (realm.go:1995-2027) re-stamps PkgID to the finalizing realm for an object with a zero PkgID (allocated outside a realm context), an ephemeral /e/<addr>/run PkgID (gnokey maketx run), or a stdlib PkgID. A user's maketx run script that builds &foo.Token{...} (the StructValue keeps foo's PkgID by type-driven stamping, the heap item takes the run PkgID) and hands it to r/foo gets it adopted, after which Of(tok).PkgPath() == \"gno.land/r/foo\" and Type() == \"gno.land/r/foo.Token\", the same answer as a Token r/foo minted itself. The ADR section 3 presents PkgPath as answering 'which realm created this'. Unrun: the filetest harness treats /e/ as non-realm and rejects cross there. Fix: describe PkgPath as the realm whose clock minted the identity and which owns the object, as reflect.gno:179 half does.",
+   "verify_by": "txtar under gno.land/pkg/integration/testdata: add a realm r/foo with an exported Token type and a crossing Register(cur realm, t *Token) that stores t; gnokey maketx run a script doing foo.Register(cross, &foo.Token{}); then a call in r/foo printing reflect.Of(stored).PkgPath(). Expect gno.land/r/foo although the run script created it",
+   "band": "Nit",
+   "fix_kind": "comment",
+   "checked": true,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  },
+  {
+   "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+   "line": 83,
+   "angle": "claims",
+   "summary": "HasIdentity is true for a bound method value or method expression that no realm boundary will ever stamp, so the documented 'not yet, ask again after the boundary' never resolves",
+   "failure_scenario": "With tok persisted, reflect.Of(tok.Method) and reflect.Of((*Token).Method) both return ok false and HasIdentity true. Each evaluation of tok.Method allocates a fresh BoundMethodValue that is never persisted unless stored, so every later call gives the same answer. A realm following the docs (gno-stdlibs.md:777, reflect.gno:70-74: retry after the boundary, or refuse and split the work across two calls) retries or refuses forever. The docs table only promises true/true for a stored bound method, so this is a semantics gap and not a wrong address.",
+   "verify_by": "Filetest with a persisted tok := &Token{} and func (t *Token) Method(): print reflect.Of(tok.Method) ok and reflect.HasIdentity(tok.Method), in main and again after a crossing call returns. Expect 'ok: false has: true' in both",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "Probe run at head (scratch filetest, not kept): 'tok.Method fresh ok: false has: true pkg:  type:' and '(*Token).Method ok: false has: true pkg:  type:', while 'bm stored ok: true has: true' for the same bound method kept in a package var",
+   "repro_path": ""
+  },
+  {
+   "file": "gnovm/adr/chain_reflect_object_identity.md",
+   "line": 50,
+   "angle": "claims",
+   "summary": "The consensus preimage is objectid:RID<UPPERHEX>:<n> through PkgID.String(), not objectid:<ID()>, so an address cannot be recomputed from the ID() spelling the docs offer for storage dumps",
+   "failure_scenario": "DeriveObjectCryptoAddr hashes \"objectid:\" + oid.PkgID.String() + \":\" + NewTime (misc.go:222). PkgID.String() is fmt.Sprintf(\"RID%X\", ...) (realm.go:75), while Object.ID() and the store key use MarshalAmino's lowercase hex with no prefix (ownership.go:48). An indexer following the ADR's 'derived by hashing objectid:<pkgid>:<newtime>' and the docs' 'ID ... for matching against a storage dump' computes sha256(\"objectid:\" + ID()) and gets a different address for every object. The ADR should state the exact bytes, since it calls the layout consensus state.",
+   "verify_by": "Read misc.go:222, realm.go:74-75 and ownership.go:47-49; or in a Go test print gno.DeriveObjectCryptoAddr(oid) next to crypto.AddressFromPreimage([]byte(\"objectid:\"+oid.String())) for one oid: expect two different addresses",
+   "band": "Nit",
+   "fix_kind": "comment",
+   "checked": true,
+   "run": false,
+   "evidence": "misc.go:222 'objectid:' + oid.PkgID.String(); realm.go:75 'return fmt.Sprintf(\"RID%X\", pid.Hashlet[:])'; ownership.go:48 'pid := hex.EncodeToString(oid.PkgID.Hashlet[:])'",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "docs/resources/gno-stdlibs.md",
+   "line": 740,
+   "angle": "claims",
+   "summary": "A realm can mint a non-zero Object with a positional composite literal",
+   "settled_by": "scratch filetest reflect.Object{\"RID00:1\", ...}: 'implicit assignment to unexported field in struct literal of type chain/reflect.Object' (preprocess.go)"
+  },
+  {
+   "file": "docs/resources/gno-stdlibs.md",
+   "line": 740,
+   "angle": "claims",
+   "summary": "A realm can forge an Object by converting a local struct with the same unexported field names",
+   "settled_by": "scratch filetest reflect.Object(mine{...}): 'cannot convert ... (of type gno.land/r/demo/b3forge.mine) to type chain/reflect.Object'"
+  },
+  {
+   "file": "docs/resources/gno-stdlibs.md",
+   "line": 744,
+   "angle": "claims",
+   "summary": "Object address may collide with a package or storage-deposit address",
+   "settled_by": "grep AddressFromPreimage: misc.go:199/234 'pkgPath:' + path, misc.go:242/249 'pkgPath:' + path + '.storageDeposit', misc.go:222 'objectid:' prefix; the prefixes differ at byte 0"
+  },
+  {
+   "file": "gnovm/adr/chain_reflect_object_identity.md",
+   "line": 174,
+   "angle": "claims",
+   "summary": "Preimage may differ from #6139 despite 'taken from #6139 unchanged'",
+   "settled_by": "gh api pulls/6139/files misc.go patch line 22: 'crypto.AddressFromPreimage([]byte(\"objectid:\" + objectID.PkgID.String() + \":\" + strconv.FormatUint(objectID.NewTime, 10)))', the same expression as misc.go:222"
+  },
+  {
+   "file": "docs/resources/gno-stdlibs.md",
+   "line": 780,
+   "angle": "claims",
+   "summary": "new(T) may not yield a standalone heap item, contradicting HasIdentity's 'new(T), &T{...}'",
+   "settled_by": "scratch filetest: 'new(Token) ok: true has: true pkg: gno.land/r/demo/b3eq type: gno.land/r/demo/b3eq.Token'"
+  },
+  {
+   "file": "docs/resources/gno-stdlibs.md",
+   "line": 802,
+   "angle": "claims",
+   "summary": "The docs Usage example (Proposal.Address via reflect.Of) may not compile or satisfy Addressable",
+   "settled_by": "scratch filetest with the example body verbatim and 'var ad reflect.Addressable = prop': 'doc example address non-empty: true'"
+  },
+  {
+   "file": "gnovm/adr/chain_reflect_object_identity.md",
+   "line": 178,
+   "angle": "claims",
+   "summary": "GetFirstObject panic claims, declareWith ParentLoc, GetIsReal, Re_gnoStdPkgPath, linkFunctions_TypedValue, expectedCrossrealm38Hash, PkgID flag nibble and the grc20 Transfer signature may be misdescribed",
+   "settled_by": "ownership.go:400 GetFirstObject panics 'cannot handle RefValue{PkgPath}' and 'invalid usage of GetFirstObject() on heap item'; types.go:1531 'case *PackageNode, *FileNode: // keep blank.'; ownership.go:289 'return oi.ID.IsFinalized()'; mempackage.go:62 Re_name with '/' only; misc/genstd/testdata/linkFunctions_TypedValue exists; apphash_crossrealm38_test.go:238 const present; realm.go:89-93 flag bits; p/nt/grc20/v0/tellers.gno:163 'Transfer(_ int, rlm realm, to address, amount int64)'"
+  }
+ ]
+}

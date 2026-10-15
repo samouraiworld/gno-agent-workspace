@@ -1,0 +1,118 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 146,
+      "angle": "removed",
+      "summary": "No test pins the limit in ExtensionKindsUpTo. Deleting the break leaves every grc721 and grc721reg test green.",
+      "failure_scenario": "Delete token.gno:146-148 (the `limit > 0 && len(kinds) == limit` break). ExtensionKindsUpTo(9) and ExtensionKindsUpTo(17) then return every registered kind, so publishedKinds walks the issuer's whole extension list on every Render page entry and on every Register, and no test fails. token_test.gno never calls ExtensionKindsUpTo. grc721reg_test.gno:348-350 says the walk bound 'is not observable from here'. TestExtensionCountIsCapped only asserts results that the inner `i == maxBadges` break in extensionBadges and the `len(kinds) > maxEventKinds` check would produce anyway.",
+      "verify_by": "grep -rn 'ExtensionKindsUpTo' examples --include='*_test.gno' (no hit). Then delete token.gno:146-148 and run gno test ./examples/gno.land/p/demo/tokens/grc721/ ./examples/gno.land/r/demo/defi/grc721reg/: a pinning test should go red, but every test passes. A pinning test: register three extensions, then assert len(tok.ExtensionKindsUpTo(2)) == 2 and len(tok.ExtensionKindsUpTo(0)) == 3.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep for ExtensionKindsUpTo in *_test.gno returned only maxBadges hits in grc721reg_test.gno, none calling it; grc721reg_test.gno:348-350: 'The walk bound publishedKinds takes is a gas ceiling and is not observable from here.'",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 208,
+      "angle": "removed",
+      "summary": "No test pins that a rejected view leaves no entry. Moving the append above the view checks keeps TestRegisterExtensionRejectsAForeignView green.",
+      "failure_scenario": "Suppose a refactor appends the entry before it validates the view. A mismatched or foreign view is then registered first and the panic comes after. A caller that recovers keeps the bad entry, and so tok.ExtensionView(kind) hands grc721reg consumers a view that belongs to another token. uassert.PanicsWithMessage recovers, and so would an issuer realm that wraps registration in recover. The test asserts only the two panic messages and never checks tokA.ExtensionKinds() or ExtensionView after them.",
+      "verify_by": "Move token.gno:208 above line 198 and run gno test ./examples/gno.land/p/demo/tokens/grc721/ -run TestRegisterExtensionRejectsAForeignView. The test should go red; it stays green. Pinning assertion: uassert.Equal(t, 0, len(tokA.ExtensionKinds())) after both panics.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -A12 TestRegisterExtensionRejectsAForeignView | grep -c ExtensionKinds -> 0",
+      "repro_path": ""
+    },
+    {
+      "file": "gnolang/gno#6075 PR description",
+      "line": 10,
+      "angle": "removed",
+      "summary": "The description still describes the closed #6074 design: it registers `*collection.Collection`, lists a `GetToken` lookup, and says the PR stays a draft until #6074 merges. A test comment still names collection.KindsUpTo.",
+      "failure_scenario": "Register takes `*grc721.Token` (grc721reg.gno:33), and grc721reg has no GetToken. Its exported functions are Register, Unregister, Get, MustGet, GetExtension, GetExtensionKinds, GetRegistry and Render. #6074 is CLOSED unmerged and isDraft is false. A reviewer reads about a type and a function that are not in the tree, and a squash merge carries them into master history. The diff removed 'the collection facade' from the tellers.gno:15 SECURITY comment, but grc721reg_test.gno:314 still reads 'The filter that moved inline from collection.KindsUpTo', a symbol of the package that never landed.",
+      "verify_by": "gh pr view 6075 -R gnolang/gno --json body,isDraft; gh pr view 6074 -R gnolang/gno --json state; grep -n '^func [A-Z]' examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno; grep -rn 'KindsUpTo' examples --include='*.gno' | grep -v ExtensionKindsUpTo",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "body line 10: 'a realm registers its own `*collection.Collection`'; line 13: '`Get` / `MustGet` / `GetToken` / `GetExtension`'; line 20: 'Draft until #6074 merges'; isDraft false; 6074 state CLOSED; exported funcs list has no GetToken; grc721reg_test.gno:314 names collection.KindsUpTo",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 155,
+      "angle": "removed",
+      "summary": "ExtensionView makes every registered view public through *Token. RegisterExtension's doc does not say so, and grc721reg's tests register a hook as its own view, which hands its OnMint, OnTransfer and OnBurn to any realm.",
+      "failure_scenario": "In the base, a view stayed with the issuer: NewEnumerable returned a fresh view and nothing on *Token reached it. Now tok.ExtensionView(kind) and grc721reg.GetExtension(key, kind) return the view to any realm that holds the published *Token. Suppose an issuer copies grc721reg_test.gno:277 `ledger.RegisterExtension(view, view)` with a real hook. Realm B can type-assert GetExtension(key, kind) to grc721.Extension and call OnBurn(tid). That method call on a real receiver stamped to realm A borrows A's storage realm (docs/resources/gno-interrealm-v2.md:76-77). B therefore mutates A's extension state, for example desyncing an enumerable-style index, with no mint or burn. token.gno:183 describes the view only as 'the read-view the extension publishes'.",
+      "verify_by": "Filetest: realm A declares a type whose OnBurn increments a counter, calls RegisterExtension(v, v) and exports the *Token. Realm B calls tok.ExtensionView(kind).(grc721.Extension).OnBurn(\"1\") and reads the counter. If views were safe this would panic with a realm-write error; instead the counter increments. Fix: reject a view that is also a hook with `if _, ok := view.(Extension); ok { panic(...) }`, or state in the doc that the view is public and must expose no writes.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grc721reg_test.gno:25-30 stubView implements ExtensionKind, TokenID, OnMint, OnTransfer, OnBurn; :277, :355, :502 call RegisterExtension(view, view); interrealm-v2.md:77 'Stdlib//p/ method on real foreign-stamped receiver | shifts to receiver's stamp (borrow rule #2)'",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 79,
+      "angle": "removed",
+      "summary": "ExtensionKindsUpTo applies its limit before the view filter. The register event and the index badges therefore drop kinds that have a view when they were registered after enough view-less hooks, and the maxEventKinds cap stops applying.",
+      "failure_scenario": "Case 1: an issuer registers 17 hook-only extensions (nil view) and then royalty.NewRoyalty. publishedKinds(token, maxEventKinds+1) walks only the 17 view-less kinds and returns none, so the register event carries no `extension` attribute, and Render's walk of maxBadges+1 = 9 shows '_core only_'. GetExtensionKinds walks without a limit and reports royalty. Case 2: 16 view-less kinds followed by 17 kinds with views. The walk keeps 1 kind, so the `> maxEventKinds` panic never fires although 17 views are published.",
+      "verify_by": "Add a grc721reg_test case: 17 calls to ledger.RegisterExtension(&stubView{\"h\"+i, token.ID()}, nil), then royalty.NewRoyalty(ledger, 1000), then Register. Assert that GetExtensionKinds(key) contains royalty while Render(key) contains '_core only_'.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grc721reg.gno:79-81 'kinds := publishedKinds(token, maxEventKinds+1); if len(kinds) > maxEventKinds'; :278-281 'for _, kind := range token.ExtensionKindsUpTo(limit) { if token.ExtensionView(kind) == nil { continue }'; token.gno:146 breaks on len(kinds) == limit before any filter",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 194,
+      "angle": "removed",
+      "summary": "The rewritten duplicate check compares the stored kind instead of calling e.ExtensionKind() live; one kind per ledger might no longer hold",
+      "settled_by": "sed -n '193,196p;211,214p' token.gno: 'if _, ok := led.lookupExtension(kind); ok { panic(\"grc721: extension kind already registered: \" + kind) }' and lookupExtension 'if e.kind == kind { return e, true'; the kind is stored at :208, so uniqueness holds on the stored kind and TestRegisterExtensionFreezesTheKind pins the change"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 240,
+      "angle": "removed",
+      "summary": "The hook fan-out rewritten from ext.OnX to e.hook.OnX might miss a site that changes ownership",
+      "settled_by": "grep 'owners\\.Set|owners\\.Remove|totalSupply =' grc721 non-test -> token.gno:237 (Mint), 266 (Burn), 381 (transfer); grep '\\.extensions\\b' -> loops at 240, 269, 383, one after each write"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/tellers.gno",
+      "line": 15,
+      "angle": "removed",
+      "summary": "The diff dropped 'the collection facade' from the SECURITY list of places that publish *Token; another doc might still name it",
+      "settled_by": "grep -rn -i facade over p/demo/tokens/grc721, r/demo/defi/grc721reg and docs: no hit (the remaining stale mention, collection.KindsUpTo at grc721reg_test.gno:314, is folded into the PR-description candidate)"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 184,
+      "angle": "removed",
+      "summary": "The RegisterExtension(ext) to RegisterExtension(ext, view) signature change might leave a caller on the old shape",
+      "settled_by": "grep -rn RegisterExtension head (*.gno, *.md, *.go, *.txtar): every call passes two arguments: enumerable/token.gno:20, metadata/token.gno:22, royalty/token.gno:28, filetests/veto_no_event_filetest.gno:30, grc721reg_test.gno:277/320/355/502; no doc hit outside grc721/types.gno:38,46, which name it without arguments"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 189,
+      "angle": "removed",
+      "summary": "The new led.token == nil panic might break a caller that registered on a tokenless ledger, which the base allowed",
+      "settled_by": "grep -rn 'PrivateLedger{' examples -> token.gno:47 (inside NewToken, which sets the token) and token_test.gno:766 (the new test) only"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/metadata/token.gno",
+      "line": 40,
+      "angle": "removed",
+      "summary": "The metadata view is now public through *Token, and TokenMetadata returns a Data whose Attributes slice aliases the stored one",
+      "settled_by": "grep '^func (d \\*\\?Data)|^func (.*Trait)' metadata/*.gno: no method on Data or Trait, so no borrow rule applies and a foreign realm can only assign directly into realm-A-owned storage, which the VM's realm write check rejects; the base handed the same aliased Data to whoever held the view"
+    }
+  ]
+}

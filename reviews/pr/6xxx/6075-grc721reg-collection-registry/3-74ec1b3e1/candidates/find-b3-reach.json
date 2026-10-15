@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 278,
+      "angle": "reach",
+      "summary": "publishedKinds applies its limit to all registered kinds before dropping view-less ones, so a view-less kind early in registration order lets Register skip the maxEventKinds cap, drop published kinds from the register event, and makes the badge row show '_core only_' or leave out the elision mark",
+      "failure_scenario": "Issuer registers one hook-only extension (RegisterExtension(hook, nil)) and then 17 extensions with views. Register(cross(cur), token, \"\") does not panic 'too many extensions', even though GetExtensionKinds returns 17 > maxEventKinds=16. The register event carries 16 'extension' attrs and k116 is missing, so an indexer reading the event gets an incomplete extension set with no error. With nine hook-only kinds first and one viewed kind, Render(key) shows '_core only_' for a collection that publishes a view. With one hook-only kind and nine viewed kinds, the page shows 8 badges and no '…'. The publishedKinds godoc ('at most limit kinds that carry a read-view', 'does not depend on the order the issuer registered them') and the TestExtensionCountIsCapped header ('the event refuses more than maxEventKinds') both fail for this shape.",
+      "verify_by": "cp tests/b3-reach-viewless-cap.gno examples/gno.land/r/demo/defi/grc721reg/z_reach_filetest.gno; cd examples && gno test -v ./gno.land/r/demo/defi/grc721reg. It passes against the golden Output/Events, which record A registered with 17 published kinds, a register event with 16 extension attrs, B 'core only: true', and C '8 badges, elided mark: false'.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Output: 'A registered, published kinds: 17' / 'B published kinds: 1' / 'B page says core only: true' / 'C published kinds: 9' / 'C badges: 8 elided mark: false'. Events: 3 register events with 16, 1 and 9 extension attrs; grep -c '\"value\": \"k116\"' = 0.",
+      "repro_path": "tests/b3-reach-viewless-cap.gno"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno",
+      "line": 351,
+      "angle": "reach",
+      "summary": "No test registers through a sub-identity (cur.Sub), although Register accepts one because IsUser() is false for a sub and keys the entry on its synthesized 'host#subpath' path",
+      "failure_scenario": "Register's identity checks (the prev.IsUser rejection, the Token.ID prefix check, fqname.Parse in the render) are tested only with plain code realms. A sub-identity key such as gno.land/r/x#dao.SUB, or a subpath containing '.', goes through no test. The b3-reach-subrealm-key run shows this path renders and attributes differently from a plain realm key.",
+      "verify_by": "grep -n 'Sub(' examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno returns nothing; the sub-identity filetest tests/b3-reach-subrealm-key.gno registers through cross(sub) and passes",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep for 'Sub(\\|RegisterExtension(.*nil)' in the test file matched only line 320 (the viewless hook), with no Sub( call",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 60,
+      "angle": "reach",
+      "summary": "The Token.ID prefix check lets sub-identity 'a' register the collection of sibling sub-identity 'a.x' whose symbol is 'x', listing it under the wrong issuer",
+      "failure_scenario": "Host realm R mints subs R#a.x and R#a. R#a.x creates token 'x' (ID R#a.x.x.0000000). Register(cross(R#a), tok, \"\") builds key R#a.x, and the ID starts with 'R#a.x.', so it is accepted. The index lists R#a as the issuer of a collection that R#a.x created. Sub paths allow '.' inside a segment, and validSymbol allows lowercase, so the extra '.' segments line up. This is limited to sub-identities of one host.",
+      "verify_by": "cp tests/b3-reach-subrealm-key.gno examples/gno.land/r/demo/defi/grc721reg/z_reachsub_filetest.gno; cd examples && gno test -v ./gno.land/r/demo/defi/grc721reg. The golden Output shows 'token id: gno.land/r/demo/regsub#a.x.x.0000000' and 'key: gno.land/r/demo/regsub#a.x'.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "// token id: gno.land/r/demo/regsub#a.x.x.0000000 / // key:      gno.land/r/demo/regsub#a.x / index row '[gno.land/r/demo/regsub#a](/r/demo/regsub#a).x'",
+      "repro_path": "tests/b3-reach-subrealm-key.gno"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 204,
+      "angle": "reach",
+      "summary": "The index 'info' link puts a sub-identity key's raw '#' into the URL, so a browser cuts the link at the fragment and the page shows 'Unknown collection'",
+      "failure_scenario": "A sub-identity registers (accepted, since IsUser() is false). The index emits [info](/r/demo/defi/grc721reg:gno.land/r/demo/regsub#dao.SUB). The browser treats '#dao.SUB' as a fragment, and Render('gno.land/r/demo/regsub') returns 'Unknown collection: gno\\.land/r/demo/regsub'. fqname.Parse also splits a subpath containing '.' at the wrong dot in rlmLink.",
+      "verify_by": "Same filetest: the golden Output carries the info link with a raw '#' and the line 'Unknown collection: gno\\.land/r/demo/regsub' for the cut path.",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "// - **DAO** - [gno.land/r/demo/regsub#dao](/r/demo/regsub#dao).SUB - _core only_ - [info](/r/demo/defi/grc721reg:gno.land/r/demo/regsub#dao.SUB) ... // Unknown collection: gno\\.land/r/demo/regsub",
+      "repro_path": "tests/b3-reach-subrealm-key.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 106,
+      "angle": "reach",
+      "summary": "Unregister from an EOA or another realm could compute a key that removes a foreign entry",
+      "settled_by": "fqname.Construct(pkgpath, name) returns pkgpath+\".\"+name (fqname.gno), so an EOA's empty PkgPath gives '.'+symbol, which never matches a registered key. Sub paths use '#', and pkg paths never contain '#', so no cross-realm prefix exists. TestUnregisterFromUserRealm covers the EOA case."
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 265,
+      "angle": "reach",
+      "summary": "An issuer-supplied extension kind with a newline or backtick could inject markdown into the badge row",
+      "settled_by": "md.InlineCode calls sanitize.InlineCode (sanitize.gno:1430), which folds newlines (foldNewlinesAndSeparators) and picks a fence with markdown.CodeFence wide enough for the content"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 179,
+      "angle": "reach",
+      "summary": "A visitor's ?size= could widen the index page past pageSize",
+      "settled_by": "renderIndex builds the Pager as a struct literal with SizeQueryParam unset, and pager.ParseQuery reads size only when p.SizeQueryParam != \"\" (pager.gno:210); TestRenderIndexPaginates asserts Render(\"?size=1000\") == Render(\"\")"
+    }
+  ]
+}

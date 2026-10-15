@@ -1,0 +1,31 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 222,
+      "angle": "reach (ephemeral run realm)",
+      "band": "Warning",
+      "summary": "An object stamped by an ephemeral /e/<addr>/run realm's own clock gets an address from a clock that does not persist past the tx, so two maketx run txs by the same user can mint the same ObjectID and the same address for different objects, against 'Two objects never share one'",
+      "failure_scenario": "assignNewObjectID re-stamps run-realm objects only when a different, real realm persists them (realm.go `oid.PkgID != rlm.ID && isPkgEphemeralFromPkgID`); when the run realm itself finalizes, `targetRlm.Time++; oo.SetNewTime(targetRlm.Time)` uses a clock that isPkgEphemeralFromPkgID's own comment says does not persist past the tx. Run script 1 and run script 2 each do p := &T{}, cross once so the run realm finalizes, then emit reflect.Of(p).Address(): both runs print the same address, and coins sent to it in run 1 are credited to an address run 2 also reports as its object.",
+      "verify_by": "txtar under gno.land/pkg/integration/testdata: two `gnokey maketx run` scripts from the same key, each allocating &T{}, making a crossing call that returns, then println(reflect.Of(p)) ; compare the two printed ids/addresses (expect equal if the defect holds); also check whether Of reaches ok=true at all in a run realm",
+      "fix_kind": "code",
+      "checked": false,
+      "run": false,
+      "evidence": ""
+    },
+    {
+      "file": "gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go",
+      "line": 196,
+      "angle": "catalog (consensus/upgrade)",
+      "band": "Suggestion",
+      "summary": "Adding the chain/reflect stdlib moves the genesis app hash (the test's own expected hash is bumped), so a running chain needs a coordinated upgrade path for a stdlib absent from its state; the PR names no such path",
+      "failure_scenario": "The diff replaces expectedCrossrealm38Hash acd1f9ce... with 9d4ab6d9... because reflect.gno's bytes enter genesis state. An existing network upgraded to this binary has no chain/reflect mempackage in its store; the first realm importing it either fails to resolve the import or loads it lazily into state at that height, and nodes that upgraded at different heights would disagree.",
+      "verify_by": "grep how stdlibs are written to state (gno.land/pkg/sdk/vm keeper LoadStdlib / initStdlibs) and whether an existing store missing a stdlib loads it on demand; run an addpkg importing chain/reflect against a store initialised at the base commit",
+      "fix_kind": "none",
+      "checked": true,
+      "run": false,
+      "evidence": "diff hunk: `-const expectedCrossrealm38Hash = \"acd1f9ce...\"` `+// Bumped by adding the chain/reflect stdlib. Its reflect.gno source bytes are committed into genesis state`"
+    }
+  ]
+}

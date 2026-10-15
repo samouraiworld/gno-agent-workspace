@@ -1,0 +1,76 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/cmd/calibrate/reflect_bench_test.go",
+      "line": 54,
+      "angle": "lines",
+      "summary": "the stamped benchmark passes the param with a nil T, so declaredTypeName returns \"\" at its first type assertion and the run that prices the native never builds the type name",
+      "failure_scenario": "Every real call is Of(&T{}): the any param carries T = *PointerType{Elt: *DeclaredType}, so declaredTypeName (reflect.go:127-143) concatenates dt.PkgPath + \".\" + dt.Name and the wrapper pushes a non-empty r3. The bench sets gno.TypedValue{V: PointerValue{...}} with no T, so t.(*gno.PointerType) fails and \"\" comes back. The header says the stamped path is measured including 'read the declared type's name' (line 8) and that the harness 'builds the shape the native receives from Gno' (line 28); neither holds, so the 1196ns median behind Base 1200 omits that branch and a change making it expensive leaves the bench unchanged",
+      "verify_by": "in a scratch worktree set T: &gno.PointerType{Elt: &gno.DeclaredType{PkgPath: reflectBenchPkgPath, Name: \"Token\", Base: &gno.StructType{}}} on line 54, then go test ./gnovm/cmd/calibrate -run '^$' -bench 'Reflect_ObjectInfo_Stamped' -count 5 before and after; also plant panic(\"reached\") after the PointerType assertion in declaredTypeName and confirm the unmodified bench stays green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "reflect_bench_test.go:54 reads `m.Blocks[0].Values[0] = gno.TypedValue{V: gno.PointerValue{TV: &hiv.Value, Base: hiv}}` (no T); reflect.go:133-136 `pt, ok := t.(*gno.PointerType); if !ok { return \"\" }`",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 217,
+      "angle": "lines",
+      "summary": "the shared primitive is exported as DeriveObjectCryptoAddr while coupled #6139 exports the same body as DeriveObjectIDCryptoAddr at the same insertion point, so the 'interchangeable' claim holds for the preimage but not for the symbol",
+      "failure_scenario": "Both PRs insert a function after DerivePkgCryptoAddr in misc.go with an identical guard and the identical preimage expression \"objectid:\" + PkgID.String() + \":\" + strconv.FormatUint(NewTime, 10). Whichever lands second hits a textual conflict, and a resolution keeping both leaves two exported gnolang functions with one body, each with callers and tests (reflect_test.go:332-349 here) bound to its own name",
+      "verify_by": "gh pr diff 6139 -R gnolang/gno | grep -n 'func DeriveObject' ; grep -n 'func DeriveObject' gnovm/pkg/gnolang/misc.go in the head worktree",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "#6139 diff line 2075: `+func DeriveObjectIDCryptoAddr(objectID ObjectID) crypto.Address {`; head misc.go:217: `func DeriveObjectCryptoAddr(oid ObjectID) crypto.Address {`",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 157,
+      "angle": "lines",
+      "summary": "the price comment inverts its own ratio: the M1 reads 1.16-1.41x the table on the reference rows, the table is 0.71-0.87x of the M1, not the other way round",
+      "failure_scenario": "The comment gives reference rows 52 / 208 / 3268ns measured against table values 45 / 148 / 2631 and concludes 'this machine reads 0.71-0.87x of the table'. 45/52 = 0.865, 148/208 = 0.712, 2631/3268 = 0.805: those are table over machine, and the machine reads 1.156-1.405x the table. The conclusion that the unscaled 1196ns median overcharges still follows, but a maintainer re-fitting the row from the stated ratio would scale the wrong way",
+      "verify_by": "python3 -c 'print(45/52,148/208,2631/3268,52/45,208/148,3268/2631)'; grep the table for ChainID (45), getSessionInfo (148), pubKeyAddress (2631)",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "python3 printed 0.8653846153846154 0.7115384615384616 0.805079559363525 1.1555555555555554 1.4054054054054055 1.242113264918282; native_gas.go:125 pubKeyAddress Base 2631, :158 ChainID Base 45, :161 getSessionInfo Base 148",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 218,
+      "angle": "lines",
+      "summary": "DeriveObjectCryptoAddr also panics on a zero PkgID, while its only caller X_objectInfo guards on IsFinalized alone, so a finalized ID with a zero PkgID would raise a Go panic inside the native",
+      "settled_by": "grep -rn 'SetNewTime(' gnovm/pkg returns only realm.go:2031 and realm.go:2041, both inside assignNewObjectID, which sets PkgID (realm.go:1995-2028 `if oid.PkgID.IsZero() { oo.SetPkgID(rlm.ID)`) before either stamp; a finalized ID with a zero PkgID cannot be built"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 220,
+      "angle": "lines",
+      "summary": "the preimage might differ from #6139's despite the comment saying it was taken unchanged",
+      "settled_by": "gh pr diff 6139 line 2080: `return crypto.AddressFromPreimage([]byte(\"objectid:\" + objectID.PkgID.String() + \":\" + strconv.FormatUint(objectID.NewTime, 10)))`, the same expression as head misc.go:220"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 220,
+      "angle": "lines",
+      "summary": "the preimage encodes PkgID through its debug Stringer (RID%X), so a change to PkgID.String() would move every object address with no test failing",
+      "settled_by": "golden addresses pin the preimage: zrealm_reflect_objectid.gno:68-71 `Account#8 (g1delmyrysc3x2xdq92j2ttmykkfj5rs6r682dw0)`, plus zrealm_reflect_identity.gno:89-91 and zrealm_reflect_proposal_fund.gno:133"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 157,
+      "angle": "lines",
+      "summary": "the bench warms the realm cache (tx.GetPackageRealm at reflect_bench_test.go:43), so a cold creatingRealmPath lookup on chain could cost CPU the flat row never charges",
+      "settled_by": "store.go GetPackageRealm on a cache miss charges `gas := overflow.Mulp(ds.gasConfig.GasAminoDecode, store.Gas(len(bz))); ds.consumeGas(gas, GasAminoDecodeDesc)` and reads through ds.baseStore.Get(ds.gctx, ...), so the cold path is store-metered, as the bench header says"
+    }
+  ]
+}

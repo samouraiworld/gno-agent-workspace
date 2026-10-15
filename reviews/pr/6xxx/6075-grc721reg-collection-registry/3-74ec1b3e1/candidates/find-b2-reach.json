@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 278,
+      "angle": "reach",
+      "summary": "publishedKinds cuts the ExtensionKindsUpTo(limit) window before dropping view-less hooks, so a view-less hook registered first hides published kinds from the badges and the register event, and lets Register past its maxEventKinds guard",
+      "failure_scenario": "Issuer registers one view-less hook (RegisterExtension(h, nil)) and then 9 published views: Render(key) shows 8 badges and no ellipsis, though GetExtensionKinds returns 9. With 9 view-less hooks then 1 view, the page says _core only_. With 1 view-less hook then 17 views, Register succeeds (no 'too many extensions') and the register event lists 16 of 17 kinds, which an indexer reads as complete. The 953cd82e5 Collection counted views only (avl of views), so this is new in this round's refactor.",
+      "verify_by": "cp tests/b2-reach-viewless-window.gno into examples/gno.land/r/demo/defi/grc721reg/zz_reach_window_test.gno; cd examples && gno test ./gno.land/r/demo/defi/grc721reg -run TestReachViewless -v: all three must pass, observe all three FAIL",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TestReachViewlessHidesEllipsis: 'published kinds: 9' 'badges rendered: 8, ellipsis: false' FAIL; TestReachViewlessShowsCoreOnly: 'published kinds: 1' 'should be false - a collection with a published kind must not render as core only' FAIL; TestReachViewlessPassesEventCap: 'registered gno.land/r/demo/reach_eventcap.CAP with 17 published kinds' 'func should abort' FAIL",
+      "repro_path": "tests/b2-reach-viewless-window.gno"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 156,
+      "angle": "reach",
+      "summary": "Token.ExtensionView is a linear scan of the extension slice, and publishedKinds calls it once per kind, so grc721reg.GetExtensionKinds costs O(n^2) in an extension count the issuer sets, extensions added after Register included",
+      "failure_scenario": "An issuer registers its collection, then attaches n view-bearing extensions (the registry keeps the live token, so the maxEventKinds cap never sees them). Every GetExtensionKinds(key) by another realm then walks ExtensionKindsUpTo(0) and does a lookupExtension per kind: read cost 12.6M gas at n=100, 38.7M at 200, 134.2M at 400, 481.8M at 800 (ratio per doubling 3.1, 3.5, 3.6, tending to 4). The 953cd82e5 Collection held views in an avl.Tree, so lookup was O(log n) and the read linear.",
+      "verify_by": "cp tests/b2-reach-kinds-quadratic.gno into examples/gno.land/r/demo/defi/grc721reg/zz_reach_quad_test.gno; cd examples && gno test ./gno.land/r/demo/defi/grc721reg -run TestReachQuad -v; read cost = GAS(Read<n>) - GAS(Setup<n>), linear would double per doubling",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Setup100 10681972 / Read100 23233124; Setup200 34893567 / Read200 73549297; Setup400 121396005 / Read400 255597039; Setup800 446929296 / Read800 928771352: read deltas 12.55M, 38.66M, 134.20M, 481.84M",
+      "repro_path": "tests/b2-reach-kinds-quadratic.gno"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 146,
+      "angle": "reach",
+      "summary": "No test pins ExtensionKindsUpTo's limit: deleting the break leaves every test green, so the bound that keeps Render and Register cost fixed is unguarded",
+      "failure_scenario": "Mutate token.gno:146-148 to drop the break: ExtensionKindsUpTo returns every kind. TestExtensionCountIsCapped stacks maxBadges+2 kinds, and extensionBadges still prints 8 badges plus the ellipsis; its event half stacks maxEventKinds+1 and still aborts. No test in grc721 or elsewhere calls ExtensionKindsUpTo directly (grep returns nothing), so the regression ships green.",
+      "verify_by": "delete lines 146-148 of token.gno (the limit check and break), run gno test ./gno.land/p/demo/tokens/grc721/... ./gno.land/r/demo/defi/grc721reg: expect a failure, observe none; grep -rn ExtensionKindsUpTo --include='*_test.gno' examples returns no hit",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 198,
+      "angle": "reach",
+      "summary": "RegisterExtension accepts the hook itself as its view, which hands its exported OnMint/OnTransfer/OnBurn to every realm through Token.ExtensionView and grc721reg.GetExtension; the registry tests use exactly that shape",
+      "failure_scenario": "An issuer copies grc721reg_test.gno:277/355/502 and calls ledger.RegisterExtension(x, x) with a stateful hook. Any realm then does GetExtension(key, kind), asserts the result to grc721.Extension and calls OnMint/OnBurn directly; the write commits under the issuer's realm by borrow rule, corrupting the extension's state without a ledger operation. Before this PR no hook was reachable from *Token. The in-tree royalty, metadata and enumerable keep hook and view distinct.",
+      "verify_by": "filetest: an issuer realm registers a counting hook as its own view and registers in grc721reg; a second realm calls GetExtension(key, kind).(grc721.Extension).OnMint(addr, \"x\"); read the hook's counter back from the issuer realm",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 144,
+      "angle": "reach",
+      "summary": "ExtensionKindsUpTo/ExtensionView deref tok.ledger and would panic on a zero Token reaching the registry",
+      "settled_by": "grc721reg.gno Register: 'if !strings.HasPrefix(token.ID(), key+\".\") { panic(...) }' rejects id \"\", and only NewToken sets fields (all unexported), so a nil-ledger Token never reaches Get/Render"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 265,
+      "angle": "reach",
+      "summary": "an extension kind with a newline or backticks injects markdown into the registry index",
+      "settled_by": "sanitize.gno:1430 InlineCode: 'content = foldNewlinesAndSeparators(content, ' ')' and 'fence := markdown.CodeFence(content, 1)' fold breaks and widen the fence"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 184,
+      "angle": "reach",
+      "summary": "RegisterExtension's new signature breaks an un-updated caller",
+      "settled_by": "grep -rn RegisterExtension over the whole head tree (.gno, .txtar, .md, .go): every call site passes two arguments (royalty/metadata/enumerable token.gno, veto_no_event_filetest.gno, both test files)"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/tellers.gno",
+      "line": 7,
+      "angle": "reach",
+      "summary": "tellers.gno hunk changes behaviour",
+      "settled_by": "bundle-2-blank.md shows only blanked (comment) lines changed in tellers.gno; head sed -n '1,30p' shows the hunk is the CallerTeller doc comment"
+    }
+  ]
+}

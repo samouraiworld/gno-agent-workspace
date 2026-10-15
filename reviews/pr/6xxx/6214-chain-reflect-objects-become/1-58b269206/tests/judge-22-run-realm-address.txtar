@@ -1,0 +1,67 @@
+# Asserts that two `gnokey maketx run` transactions never report one
+# reflect.Of address: the run script's own objects stay ok=false, and an
+# object a realm keeps takes that realm's clock, :8 then :10. Passes at 58b269206.
+#
+# Run: from a gno checkout:
+# gh pr checkout 6214 -R gnolang/gno && git checkout 58b269206
+# curl -fsSL -o gno.land/pkg/integration/testdata/judge-22-run-realm-address.txtar \
+#   https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6214-chain-reflect-objects-become/1-58b269206/tests/judge-22-run-realm-address.txtar
+# go test ./gno.land/pkg/integration/ -run 'TestTestdata/judge-22-run-realm-address$' -count=1 -v
+# rm gno.land/pkg/integration/testdata/judge-22-run-realm-address.txtar
+
+loadpkg gno.land/r/demo/xr $WORK/xr
+
+gnoland start
+
+# first run: nothing the script owns gets an id, before or after a crossing call
+gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 50000000 -max-deposit 100000000ugnot -chainid tendermint_test test1 $WORK/run/probe.gno
+stdout 'pkgvar-after-ping ok: false has: true pkg:  id:  addr: '
+stdout 'local-after-ping ok: false has: true pkg:  id:  addr: '
+# the object xr keeps is stamped by xr's own persisted clock
+stdout 'kept ok: true has: true pkg: gno.land/r/demo/xr id: 0081c10c878dff32ed133ac2927e4ab831ca9fef:8 addr: g142tvvyw72lsnqyye0rgf3jktprucr6fm7t8dd6'
+
+# second run, same script and key: a new id and a new address
+gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 50000000 -max-deposit 100000000ugnot -chainid tendermint_test test1 $WORK/run/probe.gno
+stdout 'pkgvar-after-ping ok: false has: true pkg:  id:  addr: '
+stdout 'kept ok: true has: true pkg: gno.land/r/demo/xr id: 0081c10c878dff32ed133ac2927e4ab831ca9fef:10 addr: g1l8xp32fghjfxwv2y0jwkyvtpy8eje7aengaee5'
+! stdout 'g142tvvyw72lsnqyye0rgf3jktprucr6fm7t8dd6'
+
+-- xr/gnomod.toml --
+module = "gno.land/r/demo/xr"
+gno = "0.9"
+-- xr/xr.gno --
+package xr
+
+var kept []*int
+
+func Ping(cur realm) {}
+
+func Keep(cur realm, n *int) { kept = append(kept, n) }
+
+-- run/probe.gno --
+package main
+
+import (
+	"chain/reflect"
+
+	"gno.land/r/demo/xr"
+)
+
+type T struct{ n int }
+
+var p = &T{n: 1}
+
+func show(label string, v any) {
+	o, ok := reflect.Of(v)
+	println(label, "ok:", ok, "has:", reflect.HasIdentity(v), "pkg:", o.PkgPath(), "id:", o.ID(), "addr:", o.Address())
+}
+
+func main(cur realm) {
+	q := &T{n: 2}
+	n := new(int)
+	xr.Ping(cross(cur))
+	show("pkgvar-after-ping", p)
+	show("local-after-ping", q)
+	xr.Keep(cross(cur), n)
+	show("kept", n)
+}

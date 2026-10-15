@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 37,
+      "angle": "catalog",
+      "summary": "Object.typ comes from the static type of the pointer the caller passes (declaredTypeName(v) reads tv.T), so one object yields several unequal Objects",
+      "failure_scenario": "p := &T{X: 1} persisted; a realm dedupes by Object (map[reflect.Object]int, one vote or claim per object). The caller passes p, (*U)(p) with `type U T`, and (*struct{ X int })(p), all Go-legal conversions to the same object. Of returns the same ID and Address for all three but Type T / U / \"\", so a == b is false and the map holds 3 keys for one object. Type() reports the caller-chosen U, not the object's declared type. This contradicts reflect.gno:47-48, which says two Objects are equal if and only if they name the same object and are safe as a map key.",
+      "verify_by": "cp tests/b1-catalog-object-type-varies.gno gnovm/tests/files/zrealm_reflect_b1_typevaries.gno && go test ./gnovm/pkg/gnolang -run 'TestFiles/zrealm_reflect_b1_typevaries' -v; the pinned Output passes with `a == b: false a == c: false` and `distinct keys for one object: 3`",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "PASS on head 58b269206 with Output: `same address: true true` / `same id: true true` / `types: gno.land/r/demo/reflectb1.T | gno.land/r/demo/reflectb1.U |` / `a == b: false a == c: false` / `distinct keys for one object: 3`",
+      "repro_path": "reviews/pr/6xxx/6214-chain-reflect-objects-become/1-58b269206/tests/b1-catalog-object-type-varies.gno"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 143,
+      "angle": "catalog",
+      "summary": "objectInfo has a flat gas price (native_gas.go:157 SizeFlat, documented as not scaling with caller input), but declaredTypeName builds PkgPath+\".\"+Name on every call, so its cost grows with the length of the declared type's name",
+      "failure_scenario": "A realm declares a type with a long name; gno has no identifier length cap, and MaxTxBytes is 1MB. It then calls reflect.Of in a loop. Each call pays 1200 flat gas plus allocGas(len) for the returned string through Go2GnoValue/alloc.NewString, while the Go-side concat does another allocation and copy of the same size that nothing bills.",
+      "verify_by": "Benchmark X_objectInfo on one stamped object with a DeclaredType Name of 8 B, 1 KB, 64 KB and 1 MB (go test ./gnovm/stdlibs/chain/reflect -bench ... -benchtime 2000x). Compare each result with 1200 + allocGas(len) from alloc.go:206.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "BenchmarkB1ObjectInfoTypeNameLen/8 3359 ns/op, /1024 3089 ns/op, /65536 96604 ns/op, /1048576 827394 ns/op (Ryzen 7840HS). Charged gas is about 11.8k at 64 KB and about 196.5k at 1 MB (allocGasTable[16]=10611, [20]=195342), so this machine runs 4-8x over the charge at extreme name lengths.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 112,
+      "angle": "catalog",
+      "summary": "creatingRealmPath returns \"\" for objects persisted by non-realm packages, which would collide with a user caller's empty cur.Previous().PkgPath()",
+      "settled_by": "filetest probe on head: `io.EOF ok: true pkgPath: [io]`, `strings.Contains ok: true pkgPath: [strings]`, `caller pkgPath: [] matches io.EOF creator: false`"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 26,
+      "angle": "catalog",
+      "summary": "X_objectInfo guards only IsFinalized (NewTime != 0), while DeriveObjectCryptoAddr also panics on a zero PkgID; a bare Go panic would escape the VM",
+      "settled_by": "grep SetNewTime over gnovm/pkg/gnolang non-test code finds only realm.go:2031 and realm.go:2041, both inside assignNewObjectID after realm.go:1995-2003 stamps a zero PkgID with rlm.ID; ownership.go:65 is the unmarshal of a full id"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 37,
+      "angle": "catalog",
+      "summary": "the foreign-finalize tick (touchForeignRealm) could be minted again by the creating realm's own later finalize, giving two objects one address",
+      "settled_by": "filetest probe: object handed to crossrealm.SetFooer then own object stamped through stepOwn(cross(cur)): `fresh: 010f...815:8`, `own: 010f...815:10`, `distinct: true`"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 83,
+      "angle": "catalog",
+      "summary": "bound method values or closures nested in a struct or array might never be stamped, so HasIdentity says 'not yet' forever",
+      "settled_by": "filetest probe after init persistence: `bound ptr method ok: true`, `bound value method ok: true`, `closure in struct ok: true`, `closure in array ok: true`"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.gno",
+      "line": 229,
+      "angle": "catalog",
+      "summary": "new chain/reflect stdlib symbols might not resolve under gno lint (type-check class)",
+      "settled_by": "gno lint on a package importing chain/reflect: exit 0; with a bogus reflect.NoSuchSymbol it reports `undefined: reflect.NoSuchSymbol (code=gnoTypeCheckError)`"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect_test.go",
+      "line": 333,
+      "angle": "catalog",
+      "summary": "t.Parallel in TestDeriveObjectCryptoAddrIsDeterministic could race with shared fixtures (global mutable state class)",
+      "settled_by": "go test -race -count=1 ./gnovm/stdlibs/chain/reflect: `ok github.com/gnolang/gno/gnovm/stdlibs/chain/reflect 1.047s`"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 108,
+      "angle": "catalog",
+      "summary": "GetRealmByID gas depends on cacheRealms state, which could differ across nodes (determinism class)",
+      "settled_by": "store.go:272 BeginTransaction builds `cacheRealms: make(map[PkgID]*Realm)` per transaction, so a cache hit or miss is the same on every node"
+    }
+  ]
+}

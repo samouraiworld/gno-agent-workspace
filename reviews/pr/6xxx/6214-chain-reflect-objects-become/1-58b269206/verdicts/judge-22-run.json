@@ -1,0 +1,19 @@
+{
+ "verdicts": [
+  {
+   "index": 22,
+   "angle": "reach (ephemeral run realm)",
+   "state": "REFUTED",
+   "band": "Warning",
+   "file": "gnovm/pkg/gnolang/misc.go",
+   "line": 222,
+   "verify_by": "txtar tests/judge-22-run-realm-address.txtar: gnoland start, the same gnokey maketx run script twice from test1; the script crosses into gno.land/r/demo/xr, prints reflect.Of of its own package var and local, then hands a new(int) to xr.Keep and prints reflect.Of of it",
+   "tldr": "no maketx run object ever reports an address from the run realm's clock: the script's own objects stay ok=false, and an object a realm keeps is stamped by that realm's persisted clock",
+   "details": "Vm Run calls m.RunMemPackage(memPkg, false) (keeper.go:1623), so the run package is never made real and its realm finalize stamps nothing: reflect.Of on the script's package var and on a local returns ok=false after a crossing call returns. A run package cannot declare a crossing function of its own ('crossing function (realm first argument) declared in non-realm package'), so no frame of the script finalizes its own realm mid-transaction. An object the script hands to a realm is adopted by assignNewObjectID (realm.go:2004-2010) and takes that realm's counter, which persists: run 1 reports xr id :8, run 2 reports :10, two addresses.",
+   "evidence": "go test ./gno.land/pkg/integration/ -run 'TestTestdata/judge-22-run-realm-address$' -count=1 -p 1 -parallel 1 -v at 58b269206: PASS; run 1 'pkgvar-after-ping ok: false', 'local-after-ping ok: false', 'kept ok: true ... id: 0081c10c...:8 addr: g142tvvyw72lsnqyye0rgf3jktprucr6fm7t8dd6'; run 2 'kept ok: true ... id: 0081c10c...:10 addr: g1l8xp32fghjfxwv2y0jwkyvtpy8eje7aengaee5'",
+   "repro_path": "tests/judge-22-run-realm-address.txtar",
+   "base_behaves_the_same": null,
+   "refuted_by": "keeper.go:1623 `_, pv := m.RunMemPackage(memPkg, false)`; realm.go:2004 `} else if oid.PkgID != rlm.ID && isPkgEphemeralFromPkgID(store, oid.PkgID) {` then `oo.SetPkgID(rlm.ID)`"
+  }
+ ]
+}

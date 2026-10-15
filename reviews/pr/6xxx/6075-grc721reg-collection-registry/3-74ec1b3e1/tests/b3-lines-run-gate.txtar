@@ -1,0 +1,33 @@
+# b3-lines-run-gate: does the prev.IsUser() gate at grc721reg.gno:51 stop a
+# gnokey maketx run script from listing a collection, the round-2 Critical?
+# Green means the gate holds.
+#
+# Repro from a plain clone of gnolang/gno at 74ec1b3e1ad9406d645443fffbca8ae277b8edf7:
+#
+#   cp b3-lines-run-gate.txtar gno.land/pkg/integration/testdata/zz_b3_run_gate.txtar
+#   go test -v -run 'TestTestdata/zz_b3_run_gate' ./gno.land/pkg/integration/
+#   rm gno.land/pkg/integration/testdata/zz_b3_run_gate.txtar
+
+loadpkg gno.land/p/demo/tokens/grc721
+loadpkg gno.land/r/demo/defi/grc721reg
+
+gnoland start
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 200000000 -chainid=tendermint_test test1 $WORK/plant.gno
+stderr 'registration requires a persistent realm'
+
+gnokey query vm/qrender --data 'gno.land/r/demo/defi/grc721reg:'
+stdout 'No registered collection.'
+
+-- plant.gno --
+package main
+
+import (
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/r/demo/defi/grc721reg"
+)
+
+func main(cur realm) {
+	token, _ := grc721.NewToken("Definitely Not A Scam", "GNOT", 0, cur)
+	println(grc721reg.Register(cross(cur), token, ""))
+}

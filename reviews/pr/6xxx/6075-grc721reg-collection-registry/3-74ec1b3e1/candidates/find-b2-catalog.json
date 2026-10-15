@@ -1,0 +1,76 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 198,
+      "angle": "catalog",
+      "summary": "RegisterExtension accepts the hook object as its own view, and Token.ExtensionView hands that view to any realm holding the *Token, so any realm can call OnMint/OnTransfer/OnBurn on the extension",
+      "failure_scenario": "An issuer registers one type as both hook and view, the shape this PR's own grc721reg_test stubView uses at grc721reg_test.gno:277, 355 and 502 (RegisterExtension(view, view)). Any realm then calls grc721reg.GetExtension(key, kind), or tok.ExtensionView(kind) on the published *Token, asserts .(grc721.Extension) and calls OnMint/OnBurn. Method dispatch commits the writes in the issuer realm, so the extension's per-token state (an index, a veto list, per-token cleanup) moves while the ledger does not. Before the diff, the []Extension slice had no getter. The fix is a guard at token.gno:198, `if _, isHook := view.(Extension); isHook { panic(...) }`, plus a separate view type at the three stubView sites.",
+      "verify_by": "Copy the helper realm and filetest per the header of tests/b2-catalog-view-hook-leak_filetest.gno, then run gno test ./gno.land/r/tests/issuer6075/ -v from examples. It passes with the counter moved and the supply unchanged. With the isHook guard inserted at token.gno:198, the issuer's init panics.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "At head: 'before: mints 1 burns 0 supply 1' / 'view found: true' / 'view is a hook: true' / 'after: mints 2 burns 1 supply 1' / '--- PASS: ... storage: gno.land/r/tests/issuer6075:+10b'. With the guard: 'gno.land/r/tests/issuer6075:0: grc721: view must not carry the hooks' and FAIL at registration.",
+      "repro_path": "reviews/pr/6xxx/6075-grc721reg-collection-registry/3-74ec1b3e1/tests/b2-catalog-view-hook-leak_filetest.gno"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 278,
+      "angle": "catalog",
+      "summary": "publishedKinds windows ExtensionKindsUpTo over every kind, then drops the view-less ones, so one view-less hook lets a 17-view collection past the maxEventKinds cap and removes the badge truncation mark",
+      "failure_scenario": "A collection registers one view-less hook (nil view, the shape TestViewlessKindIsNotPublished uses) and then 17 view-bearing kinds. publishedKinds(token, 17) sees the hook plus 16 views, so len is 16 and Register does not abort with 'too many extensions'. The register event then carries 16 of the 17 kinds with nothing marking the cut. With one hook plus 9 views, extensionBadges gets 8 kinds and no '…', so Render shows a truncated badge row as complete. The core's ExtensionKindsUpTo (token.gno:142) counts kinds with no view, so the window and the filter disagree. The fix is a core variant that counts only kinds with a view.",
+      "verify_by": "Copy tests/b2-catalog-published-kinds-window_test.gno into grc721reg and run gno test ./gno.land/r/demo/defi/grc721reg/ -run TestB2PublishedKindsWindow -v from examples. The control with 17 views aborts. With one view-less hook first, Register succeeds and the badge mark is gone.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "'cap bypass: registered gno.land/r/demo/reg_window.WIN with 17 published kinds; window saw 16' / 'badge ctl: published 9 truncation mark true' / 'badge one-silent: published 9 truncation mark false' / 'badge one-silent row: `k0` `k1` `k2` `k3` `k4` `k5` `k6` `k7`' / '--- PASS: TestB2PublishedKindsWindow'",
+      "repro_path": "reviews/pr/6xxx/6075-grc721reg-collection-registry/3-74ec1b3e1/tests/b2-catalog-published-kinds-window_test.gno"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 142,
+      "angle": "catalog",
+      "summary": "ExtensionKindsUpTo treats a non-positive limit as no limit, and grc721reg.GetExtensionKinds passes 0 and then runs a linear ExtensionView lookup for each kind, so reading one collection's kinds costs O(n^2) in an issuer-chosen count",
+      "failure_scenario": "A collection registers n extensions. Any realm calling grc721reg.GetExtensionKinds(key) in a transaction runs ExtensionKindsUpTo(0), which is O(n), then token.ExtensionView(kind) for each kind (grc721reg.gno:279), each a lookupExtension scan. The read costs about n^2/2 iterations and the caller pays the gas. A limit that a computation drives to 0 fails open to every kind.",
+      "verify_by": "Grep the callers: grc721reg.gno:158 calls publishedKinds(v, 0) and grc721reg.gno:279 calls token.ExtensionView(kind) inside the loop. Time GetExtensionKinds at n=100 and n=1000 and confirm the gas grows about 100x.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 194,
+      "angle": "catalog",
+      "summary": "re-entrancy: the duplicate-kind check runs before view.ExtensionKind()/TokenID() execute caller-supplied code, so a re-entrant registration of the same kind could append two entries",
+      "settled_by": "Re-entry needs the *PrivateLedger. sed -n 184p token.gno: 'func (led *PrivateLedger) RegisterExtension(ext Extension, view ExtensionView) {'. A holder of that ledger can already Mint or ImpersonateTeller (tellers.gno:90), so the reordering grants no capability it lacks."
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 155,
+      "angle": "catalog",
+      "summary": "exported-pointer-leak: ExtensionView might publish a shipped extension's write surface",
+      "settled_by": "In the extension subpackages, NewMetadata, NewRoyalty and NewEnumerable call coreLedger.RegisterExtension(led, view) with distinct Ledger and view objects, and the view types (*Metadata, *Royalty, *Enumerable) carry only read methods. Only an issuer-written hook-as-view type leaks, which is the first candidate."
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 144,
+      "angle": "catalog",
+      "summary": "determinism of the extension iteration order",
+      "settled_by": "token.gno:144 'for _, e := range tok.ledger.extensions {' ranges over a slice in registration order, not a map, and publishedKinds calls sort.Strings."
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/tellers.gno",
+      "line": 23,
+      "angle": "catalog",
+      "summary": "tellers.gno change",
+      "settled_by": "In bundle-2-blank.md lines 23-29, the only tellers.gno hunk changes blank (comment) lines. CallerTeller code is unchanged."
+    }
+  ]
+}

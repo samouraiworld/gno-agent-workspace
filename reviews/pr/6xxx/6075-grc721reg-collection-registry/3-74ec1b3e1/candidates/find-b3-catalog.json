@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 79,
+      "angle": "catalog",
+      "summary": "the too-many-extensions cap and the register event's kind list count only the published kinds inside the first maxEventKinds+1 raw kinds, so a view-less hook in that window lets an over-cap set register and drops a published kind from the event",
+      "failure_scenario": "an issuer registers one view-less hook (RegisterExtension(hook, nil), the shape veto_no_event_filetest uses) and then 17 published views; publishedKinds(token, 17) walks the hook plus 16 views, returns 16, the len > maxEventKinds guard passes, Register succeeds, and the register event carries 16 extension attributes while GetExtensionKinds reports 17; with 17 hooks first the event lists none, and an indexer reading the event cannot tell",
+      "verify_by": "copy tests/b3-catalog-viewless-window_test.gno into examples/gno.land/r/demo/defi/grc721reg/zz_catalog_test.gno at 74ec1b3e1 and run gno test ./gno.land/r/demo/defi/grc721reg -v -run TestCatalogEventCapBypassedByHook from examples/: expect an abort on too many extensions, observe a successful Register",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestCatalogEventCapBypassedByHook: \"Register accepted 17 published kinds (cap 16); event lists 16\"; TestExtensionCountIsCapped, with views only, still aborts",
+      "repro_path": "reviews/pr/6xxx/6075-grc721reg-collection-registry/3-74ec1b3e1/tests/b3-catalog-viewless-window_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 246,
+      "angle": "catalog",
+      "summary": "extensionBadges decides elision from the published count inside a raw window of maxBadges+1, so a view-less hook in the window drops a published kind with no elision mark, and past the window the badge subset follows registration order although the publishedKinds godoc says sorting makes it independent of that order",
+      "failure_scenario": "an issuer registers one view-less hook and then 9 published views; publishedKinds(v, 9) returns 8, the i == maxBadges branch never runs, and Render(key) and the index page list 8 badges with no '…' while GetExtensionKinds returns 9; separately, 10 views registered kind9..kind0 render kind1..kind8 plus '…' and never kind0, the sorted-first kind",
+      "verify_by": "same artifact, gno test -run 'TestCatalogBadgesHideKindsBehindHook|TestCatalogBadgeSetDependsOnOrder': expect 8 badges plus '…' and kind0 shown, observe no '…' and kind0 missing",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "--- FAIL: TestCatalogBadgesHideKindsBehindHook: \"Render shows 8 of 9 published kinds with no elision mark\"; --- FAIL: TestCatalogBadgeSetDependsOnOrder: \"- extensions: `kind1` `kind2` `kind3` `kind4` `kind5` `kind6` `kind7` `kind8` …\" with kind0 absent",
+      "repro_path": "reviews/pr/6xxx/6075-grc721reg-collection-registry/3-74ec1b3e1/tests/b3-catalog-viewless-window_test.gno"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 92,
+      "angle": "catalog",
+      "summary": "no test crosses a transaction boundary: every grc721reg test registers, mints and renders inside one test transaction with testing.SetRealm, so the persistence and ownership of a foreign realm's *grc721.Token stored in this realm's tree, and a later mint by the issuer, are unpinned",
+      "failure_scenario": "a realm that registers its token in init and mints in a later transaction, or a Render query against the saved store, is exercised by no test in the tree; grep finds no realm or txtar importing grc721reg outside its own directory, while grc20reg has test20 and wugnot as live cross-transaction callers",
+      "verify_by": "grep -rln grc721reg --include='*.gno' --include='*.txtar' outside examples/gno.land/r/demo/defi/grc721reg/: expect a cross-transaction caller, observe only grc721/tellers.gno",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep over the head tree returned only examples/gno.land/p/demo/tokens/grc721/tellers.gno outside the package; no txtar in gno.land/pkg/integration/testdata names grc721reg",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 158,
+      "angle": "catalog",
+      "summary": "GetExtensionKinds walks every kind with no limit and calls ExtensionView, a linear lookupExtension, on each, so a consumer pays gas quadratic in an extension count the issuer chooses, the one unbounded member of a file that bounds every other walk",
+      "failure_scenario": "a marketplace realm calling GetExtensionKinds on each listed key pays O(N^2) lookups for an issuer that attached N extensions after registration, where Register and Render cap the same walk",
+      "verify_by": "read token.gno:155-162 and 211-219 (ExtensionView scans led.extensions per call) against grc721reg.gno:158 (limit 0); time GetExtensionKinds at N=100 and N=1000 extensions with gno test and compare GAS lines",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 46,
+      "angle": "catalog",
+      "summary": "cur.IsCurrent() on a crossing function's own cur is dead code per the catalog's current-guard note",
+      "settled_by": "gno AGENTS.md, Gno Security Semantics: 'In crossing functions (func F(cur realm, ...)), always use cur.IsCurrent() before calling cur.Previous()'; a removal request contradicts the repository's own rule"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 105,
+      "angle": "catalog",
+      "summary": "Unregister has no IsUser gate and takes an unvalidated symbol, so a user call might remove another realm's key",
+      "settled_by": "fqname.gno:51-56 Construct(\"\", name) returns \".\"+name, and Register rejects prev.IsUser() at grc721reg.gno:51, so no stored key starts with '.'; TestUnregisterFromUserRealm pins it"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 60,
+      "angle": "catalog",
+      "summary": "the Token.ID() prefix check could let realm A register realm B's token when B's path extends A's with '.<symbol>.'",
+      "settled_by": "mempackage.go:70 Re_name admits only [a-z0-9] with '_' or '-' separators, so no realm path segment carries '.', and validSymbol in grc721/token.gno:81-93 rejects '.' in a symbol"
+    }
+  ]
+}

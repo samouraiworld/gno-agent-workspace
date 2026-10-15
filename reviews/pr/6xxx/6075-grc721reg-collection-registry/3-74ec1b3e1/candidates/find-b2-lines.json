@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 278,
+      "angle": "lines",
+      "summary": "publishedKinds bounds the walk with ExtensionKindsUpTo(limit) before dropping view-less kinds, so a view-less hook inside the window silently shrinks the event and badge sets and defeats both caps",
+      "failure_scenario": "Issuer registers one view-less hook, then maxEventKinds+1 (17) viewed kinds. Register calls publishedKinds(token, 17), which walks 17 kinds and keeps 16, so the 'too many extensions' abort an all-viewed 17-set hits never fires and the register event lists 16 of the 17 kinds GetExtensionKinds reports, with nothing marking it partial. Same on the page: 1 view-less + 10 viewed renders 8 badges and no elision mark although 10 are published, since i == maxBadges is never reached.",
+      "verify_by": "cp tests/b2-lines-viewless-cap_test.gno examples/gno.land/r/demo/defi/grc721reg/b2lines_cap_test.gno; cd examples && gno test -v -run TestB2Viewless ./gno.land/r/demo/defi/grc721reg/ : expect 'event kinds=16 published kinds=17' and 'badges=8 elided=false published=10'",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "At 74ec1b3e1: 'event kinds=16 published kinds=17 maxEventKinds=16' and 'badges=8 elided=false published=10'; both tests PASS asserting the under-report. Anchored line: 'for _, kind := range token.ExtensionKindsUpTo(limit) {'",
+      "repro_path": "tests/b2-lines-viewless-cap_test.gno"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 156,
+      "angle": "lines",
+      "summary": "ExtensionView is a linear lookupExtension scan and publishedKinds pairs it with every kind, so GetExtensionKinds costs n^2/2 over an issuer-chosen count and passes maxGasQuery near 2100 hooks",
+      "failure_scenario": "An issuer of a registered collection adds view-less hooks across several transactions (each RegisterExtension costs O(n) for its duplicate scan). grc721reg.GetExtensionKinds(key) runs publishedKinds(v, 0): ExtensionKindsUpTo(0) returns all n kinds and ExtensionView(kind) re-walks the slice to index i for each, n(n+1)/2 iterations. Measured: 200 hooks cost 28.1M gas, 400 cost 107.3M (x3.81 for 2x n); extrapolated, about 2100 hooks put one call over maxGasQuery 3_000_000_000, so a query or a realm call reading that key's kinds aborts, a consumer looping over the registry included.",
+      "verify_by": "cp tests/b2-lines-kinds-quadratic_test.gno examples/gno.land/r/demo/defi/grc721reg/b2lines_cost_test.gno; cd examples && gno test -v -print-runtime-metrics -run TestB2Cost ./gno.land/r/demo/defi/grc721reg/ : Read minus Setup gas grows ~4x from 200 to 400 hooks",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "GAS Setup200 33571967, Read200 61714332 (read 28.1M); Setup400 118332789, Read400 225632077 (read 107.3M); ratio 3.81. gno.land/pkg/sdk/vm/keeper.go:52 'maxGasQuery   = 3_000_000_000 // same as max block gas'. Anchored line: 'e, ok := tok.ledger.lookupExtension(kind)'",
+      "repro_path": "tests/b2-lines-kinds-quadratic_test.gno"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 146,
+      "angle": "lines",
+      "summary": "ExtensionKindsUpTo's limit is pinned by no test: removing the break leaves every test green",
+      "failure_scenario": "token_test.gno never calls ExtensionKindsUpTo, and grc721reg's TestExtensionCountIsCapped stacks exactly maxBadges+2 and maxEventKinds+1 viewed kinds, so an unbounded walk renders the same 8 badges with the elision mark and still aborts on 17; that test's own header says the walk bound is not observable from there. A regression to an unbounded walk, the gas ceiling the bound exists for, ships green.",
+      "verify_by": "Delete the break at examples/gno.land/p/demo/tokens/grc721/token.gno:147, run cd examples && gno test ./gno.land/p/demo/tokens/grc721/ ./gno.land/r/demo/defi/grc721reg/ : expected red, predicted green. Pin with a token_test case: three kinds registered, len(ExtensionKindsUpTo(2)) == 2 and len(ExtensionKindsUpTo(-1)) == 3",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn ExtensionKindsUpTo over examples returns only token.gno:142/138 and grc721reg.gno:278, no _test.gno or _filetest.gno caller",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 198,
+      "angle": "lines",
+      "summary": "RegisterExtension accepts a view that is itself the hook, and ExtensionView now hands it to any holder of the published *Token, where a type assertion to grc721.Extension exposes OnMint/OnTransfer/OnBurn",
+      "failure_scenario": "A third-party extension written as one type implementing both interfaces, the shape grc721reg's own stubView models with RegisterExtension(view, view) at grc721reg_test.gno:277, 355 and 502, is registered. Any realm calls grc721reg.GetExtension(key, kind), asserts the view to grc721.Extension and calls OnTransfer(victim, attacker, tid); the hook takes no rlm, and per the borrow rule its writes land in the issuer realm's storage, so an index or royalty book the hook keeps is forged. The shipped royalty, metadata and enumerable split hook and view into separate types and are not affected; latent for third-party extensions.",
+      "verify_by": "Filetest: realm A registers a combined hook+view that counts OnTransfer calls and registers with grc721reg; realm B calls GetExtension, asserts grc721.Extension, calls OnTransfer; expect A's counter to move. Fix: in RegisterExtension, panic when view.(Extension) asserts ok",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grc721reg_test.gno:25-31 stubView implements ExtensionKind, TokenID, OnMint, OnTransfer, OnBurn; registered as ledger.RegisterExtension(view, view) at lines 277, 355, 502. Shipped views (*Royalty, *Metadata, *Enumerable) expose only read methods per grep of their func receivers.",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 193,
+      "angle": "lines",
+      "summary": "RegisterExtension freezes but never validates the kind, while NewToken validates name and symbol; kinds are now published on *Token through ExtensionKinds and each consumer re-defends",
+      "failure_scenario": "An issuer registers a kind that is empty, carries control characters or backticks, or runs to kilobytes. Token.ExtensionKinds and grc721reg.GetExtensionKinds return it raw; grc721reg guards length only in Register, so a kind attached after registration skips that check and reaches every consumer of GetExtensionKinds, which must re-escape and truncate on its own as grc721reg's Render does with md.InlineCode and maxKindLen.",
+      "verify_by": "Register an extension whose ExtensionKind returns strings.Repeat(\"k\", 4096) after grc721reg.Register, then len(GetExtensionKinds(key)[0]) == 4096. Fix: a validKind check beside validSymbol in RegisterExtension",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "token.gno:193 'kind := ext.ExtensionKind()' followed only by the duplicate check; grc721reg.gno:84-86 panics on len(k) > maxKindLen only inside Register.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/tellers.gno",
+      "line": 15,
+      "angle": "lines",
+      "summary": "the tellers.gno hunk might change CallerTeller behaviour",
+      "settled_by": "git diff 21d0f8031 74ec1b3e1 -- tellers.gno: the only change rewrites the comment 'The *Token pointer is published — exported vars, the collection facade, grc721reg' to drop 'the collection facade'; no code line changes"
+    }
+  ]
+}

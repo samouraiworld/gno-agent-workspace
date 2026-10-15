@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 157,
+      "angle": "reach",
+      "summary": "objectInfo is priced flat (Base 1200, SizeFlat) but declaredTypeName builds dt.PkgPath + \".\" + dt.Name on every call, so its cost scales with a type name the caller declares, bounded only by MaxTxBytes; the row comment and the bench header both claim nothing scales with caller input",
+      "failure_scenario": "A realm declares `type <60000 x A> struct{}` and `var p = &<name>{}`, then loops reflect.Of(p). Per iteration gas goes 12,495 -> 22,235 (the rise is allocation gas for the returned string only) while wall time goes 9.1-16.5 us -> 50.4-79.7 us: ~0.7-1.3 ns/gas against ~2.3-3.6 ns/gas, the marginal bytes near 6 ns/gas. On chain the name can reach ~490 KB (two occurrences in a 1 MB tx), where the per-byte part dominates, so a block of these calls runs several times longer than its gas says.",
+      "verify_by": "bash tests/b2-reach-typename-flat-gas.sh from a clone at 58b269206: compare per-iteration gas and wall deltas of short vs 60 KB type name; also the Go bench tests/b2-reach-typename-flat-gas_test.go copied into gnovm/cmd/calibrate, -bench 'Reflect_ObjectInfo_(Stamped$|TypeName)'",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "filetest, 20000 iterations minus 0: short0 gas=18934, short20000 gas=249923693 (12,495/iter), big0 gas=378913, big20000 gas=445083700 (22,235/iter); wall deltas over three runs short 182-329 ms, big 1007-1593 ms. Go bench: TypeName8B 3075-16190 ns/op 528 B/op; TypeName64KiB 76956-120663 ns/op 74218 B/op; TypeName512KiB 414376-1575976 ns/op 532986 B/op; Stamped 3719-14149 ns/op.",
+      "repro_path": "tests/b2-reach-typename-flat-gas.sh"
+    },
+    {
+      "file": "gnovm/cmd/calibrate/reflect_bench_test.go",
+      "line": 54,
+      "angle": "reach",
+      "summary": "the Stamped bench fixture sets V only and leaves T nil, so declaredTypeName returns \"\" at its first type assertion and the price never includes the type-name step the header says it measures",
+      "failure_scenario": "Header lines 5-8 list 'read the declared type's name' among the measured work and line 28 says the fixture is 'the shape the native receives from Gno'; Gno always passes T = *PointerType{Elt: *DeclaredType}. With T nil the concat and its allocation are skipped, so the 1196 ns median prices a shape no Gno caller sends, and a regression in declaredTypeName moves no number.",
+      "verify_by": "plant panic(\"reached\") after the PointerType assertion in declaredTypeName (reflect.go:133) and run go test ./gnovm/cmd/calibrate -run '^$' -bench Reflect_ObjectInfo_Stamped: expect a panic, observe the bench stays green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "read: reflect_bench_test.go:54 builds gno.TypedValue{V: gno.PointerValue{...}} with no T; reflect.go:127-141 returns \"\" when tv.T is not a (declared) *PointerType. The b2 bench that sets T verified rets[3] length = len(pkgpath)+1+n before timing.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 222,
+      "angle": "reach",
+      "summary": "the consensus preimage spells the realm as PkgID.String(), the display Stringer `RID%X` (uppercase, RID prefix, also used as a display fallback at realm.go:295), not the lowercase id that Object.ID() returns and that reflect.gno:60 says the address is derived from",
+      "failure_scenario": "An indexer reads Object.ID() = `0f0fab98...:8` from an event and hashes `objectid:` + ID(): it gets a different address from the chain's g1delmy..., since the chain hashed `objectid:RID0F0FAB98...:8`. And a later edit to a fmt Stringer (lowercasing it to match MarshalAmino) moves every object address; only the filetest Output would catch it. Shared with #6139's preimage.",
+      "verify_by": "read misc.go:222, realm.go:74-76 (`fmt.Sprintf(\"RID%X\", ...)`), ownership.go:45-48 (`hex.EncodeToString` lowercase, no prefix), reflect.gno:60 (`// bech32, derived from id`)",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 222,
+      "angle": "reach",
+      "summary": "no test pins the exact preimage bytes, so a PkgID.String() change would move every address silently",
+      "settled_by": "sed -n 60,85p gnovm/tests/files/zrealm_reflect_objectid.gno: Output pins `address     g1delmyrysc3x2xdq92j2ttmykkfj5rs6r682dw0` and `id          0f0fab98e0c5e59ebb5c1cae1ba307b5adcb6026:8`"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 218,
+      "angle": "reach",
+      "summary": "X_objectInfo guards IsFinalized only, so a stamped object with zero PkgID would hit DeriveObjectCryptoAddr's panic",
+      "settled_by": "grep -n 'func (rlm \\*Realm) assignNewObjectID' -A40 realm.go: `if oid.PkgID.IsZero() { ... oo.SetPkgID(rlm.ID)` precedes `oo.SetNewTime(targetRlm.Time)`, so NewTime is never set on a zero PkgID"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 222,
+      "angle": "reach",
+      "summary": "objectid: preimage could collide with another AddressFromPreimage input",
+      "settled_by": "grep -rn AddressFromPreimage --include=*.go: every other input is `pkgPath:`-prefixed, a fixed collector name, or multisig pk.Bytes() (amino type prefix), none can begin `objectid:`"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 157,
+      "angle": "reach",
+      "summary": "flat price omits the uncached creating-realm lookup (store read of the realm record)",
+      "settled_by": "store.go:469-474 GetPackageRealm: `bz := ds.baseStore.Get(ds.gctx, ...)` then `ds.consumeGas(gas, GasAminoDecodeDesc)`: the cold path is metered by the store, not by this row"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go",
+      "line": 108,
+      "angle": "reach",
+      "summary": "a stdlib-owned stamped object (foreign PkgID with flag nibble) could panic in GetRealmByID/pkgPathFromPkgID",
+      "settled_by": "filetest probe reflect.Of(io.EOF): `ok true has true`, `pkgpath [io]`, `id c021fadf187fd2c8277aad0fbc5e8fc4e7f1c75f:20 type errors.errorString`, `addr g1ct5xgg205sqjcx78sg6hsjdd8qe440wpwqwprp`, no panic"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/misc.go",
+      "line": 222,
+      "angle": "reach",
+      "summary": "MsgRun ephemeral realm restarts its clock each run, so objects it stamps would reuse ObjectIDs and addresses across runs",
+      "settled_by": "machine.go:476-490 runMemPackage with save=false (keeper.go Run calls RunMemPackage(memPkg, false)) never calls saveNewPackageValuesAndTypes, so the run package is not real; realm.go:2004 `else if oid.PkgID != rlm.ID && isPkgEphemeralFromPkgID(store, oid.PkgID) { oo.SetPkgID(rlm.ID)`: an ephemeral object is stamped under the persisting realm"
+    }
+  ]
+}

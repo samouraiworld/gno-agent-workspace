@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 278,
+      "angle": "removed",
+      "summary": "publishedKinds caps the walk before dropping view-less hooks, so hooks eat the maxEventKinds and maxBadges bounds: the too-many-extensions abort is skipped, the event under-lists published kinds, and badges read _core only_ or drop the ellipsis",
+      "failure_scenario": "Round 2's collection.Kinds() held views only; head walks every registered kind through ExtensionKindsUpTo(limit) and filters nil views after. One RegisterExtension(hook, nil) (the shape veto_no_event_filetest and TestViewlessKindIsNotPublished use) followed by maxEventKinds+1=17 views: Register succeeds with no 'too many extensions' abort, the register event lists 16 kinds while GetExtensionKinds returns 17. maxBadges+1=9 view-less hooks then one view: Render shows '_core only_' while GetExtension resolves the view. One hook plus 9 views: 8 badges and no '…', as if the set were complete. Indexers and the page cannot tell the partial list from the full one.",
+      "verify_by": "cp tests/b1-lines-removed-reach-catalog-viewless-hooks-eat-bound_test.gno examples/gno.land/r/demo/defi/grc721reg/zz_viewless_bound_test.gno; cd examples && gno test ./gno.land/r/demo/defi/grc721reg -run TestViewlessHooks -v: expect the abort, the core-only badge absent and the ellipsis present; observe all three fail",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "published views: 17 kinds the register event carries: 16 aborted: false / 'func should abort' FAIL TestViewlessHooksSkipEventCap; 'published view pub100 resolves but the page renders _core only_' FAIL TestViewlessHooksHideBadges; '9 published kinds render 8 badges with no ellipsis' FAIL TestViewlessHooksDropEllipsis",
+      "repro_path": "reviews/pr/6xxx/6075-grc721reg-collection-registry/3-74ec1b3e1/tests/b1-lines-removed-reach-catalog-viewless-hooks-eat-bound_test.gno"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno",
+      "line": 20,
+      "angle": "reach",
+      "summary": "NewEnumerable attached after the first mint now registers a view the registry hands every consumer, and that view answers TotalSupply 0 against the core's supply; only a doc sentence says attach before minting",
+      "failure_scenario": "Issuer mints '1' and '2' to bob, then calls enumerable.NewEnumerable(ledger); nothing refuses it. The diff stores the view in the core (RegisterExtension(led, view)), so GetExtension(key, \"enumerable\") returns it to any realm: TotalSupply() 0 while token.TotalSupply() is 2, TokenByIndex(0) errors, and after bob transfers '1' to carol TokenOfOwnerByIndex(carol,0) returns '1' while the global index is empty and bob's '2' is unlisted. TestRegisteredCollectionStaysLive and the body ('an extension attached after registration reaches every consumer') present late attach as supported. The missing guard predates the diff; the diff is what publishes the view to third parties (base had no Token.ExtensionView).",
+      "verify_by": "cp tests/b1-lines-removed-reach-catalog-late-enumerable_test.gno examples/gno.land/r/demo/defi/grc721reg/zz_late_enumerable_test.gno; cd examples && gno test ./gno.land/r/demo/defi/grc721reg -run TestLateEnumerable -v: expect NewEnumerable to panic or the view to agree with the core; observe TotalSupply 0 vs 2",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "core TotalSupply: 2 | published enumerable TotalSupply: 0 / TokenByIndex(0) err: true | TokenOfOwnerByIndex(carol,0): 1 true | TokenOfOwnerByIndex(bob,0) err: true / FAIL TestLateEnumerableViewDisagreesWithCore",
+      "repro_path": "reviews/pr/6xxx/6075-grc721reg-collection-registry/3-74ec1b3e1/tests/b1-lines-removed-reach-catalog-late-enumerable_test.gno"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/token.gno",
+      "line": 198,
+      "angle": "catalog",
+      "summary": "RegisterExtension accepts a view that is also the hook, so a published view can hand any consumer OnMint/OnTransfer/OnBurn, which run under the issuer realm's authority",
+      "failure_scenario": "The PR's own tests register one object as both (ledger.RegisterExtension(view, view) at grc721reg_test.gno:277,355,502). An issuer copying that shape publishes the hook through Token.ExtensionView and grc721reg.GetExtension; any realm asserts it to grc721.Extension and calls OnBurn(tid), and per the borrow rule the write commits in the issuer's state, corrupting its index. The shipped Enumerable/Metadata/Royalty views are separate types with no mutators, so the risk is latent. A guard 'if _, ok := view.(Extension); ok { panic }' closes the shape (exported-pointer-leak pattern).",
+      "verify_by": "filetest with an issuer realm registering a struct implementing Extension and ExtensionView as both arguments, registering in grc721reg, and a second realm calling GetExtension(key,k).(grc721.Extension).OnBurn(\"1\"); observe the issuer's state change",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 122,
+      "angle": "removed",
+      "summary": "PR body still describes the removed collection package and a GetToken that head does not define",
+      "failure_scenario": "Body: 'a realm registers its own *collection.Collection' and 'Lookup — Get / MustGet / GetToken / GetExtension'; head registers *grc721.Token, p/demo/tokens/grc721/collection is gone, and grep finds no func GetToken (only Get, MustGet, GetExtension, GetExtensionKinds, GetRegistry). It also says draft until #6074 merges, which closed unmerged.",
+      "verify_by": "grep -n 'func Get' examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno; gh pr view 6075 -R gnolang/gno --json body",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno",
+      "line": 17,
+      "angle": "lines",
+      "summary": "ReadToken() on a tokenless PrivateLedger leaves view.core nil and view.TokenID() would nil-deref inside RegisterExtension",
+      "settled_by": "sed -n 189,191p token.gno: 'if led.token == nil { panic(\"grc721: ledger has no token\")' runs before view.TokenID() at 203; TestRegisterExtensionRejectsATokenlessLedger pins it"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/consts.gno",
+      "line": 19,
+      "angle": "catalog",
+      "summary": "maxEventKinds might not bound the kinds chain.Emit receives",
+      "settled_by": "gno test -run TestViewlessHooksSkipEventCap: 'kinds the register event carries: 16': the walk cap keeps the event at or under 16; only completeness fails (candidate 1)"
+    },
+    {
+      "file": "examples/gno.land/p/demo/tokens/grc721/filetests/veto_no_event_filetest.gno",
+      "line": 30,
+      "angle": "removed",
+      "summary": "a caller of the one-argument RegisterExtension left unmigrated",
+      "settled_by": "grep -rn RegisterExtension over examples, docs, gno.land (non-test): only enumerable:20, metadata:22, royalty:28, the filetest:30 and the definition, all two-argument"
+    }
+  ]
+}

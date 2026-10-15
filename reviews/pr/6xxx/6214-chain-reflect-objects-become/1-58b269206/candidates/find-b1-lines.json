@@ -1,0 +1,52 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go", "line": 83, "angle": "lines",
+      "summary": "the BoundMethodValue arm of ownObject is pinned by no test: deleting it leaves every test the PR adds green, though the ADR table promises 'func value or bound method, persisted -> true/true'",
+      "failure_scenario": "Remove `case *gno.BoundMethodValue: return cv`; Of(ptr.M) on a persisted bound method then returns (Object{}, false) and HasIdentity false, and all 5 zrealm_reflect_* filetests plus all 8 reflect_test.go tests still pass",
+      "verify_by": "tests/b1-lines-boundmethod-mutation.sh at 58b269206: delete the arm, run TestFiles/^zrealm_reflect_(identity|objectid|duplicate_symbol|proposal_fund|foreign_finalize).gno$ and go test ./gnovm/stdlibs/chain/reflect -v; count PASS lines",
+      "band": "Missing test", "fix_kind": "test", "checked": true, "run": true,
+      "evidence": "with the arm deleted: `grep -c -- '--- PASS: TestFiles/'` -> 5, unit `grep -c '^--- PASS'` -> 8, both packages `ok`; grep of reflect_test.go and zrealm_reflect_*.gno finds no BoundMethodValue and no method value passed to Of/HasIdentity. Unmutated, a probe shows `bm = ptr.M` persisted is Of-ok (str <untyped>#9), so the behaviour exists but is unpinned",
+      "repro_path": "tests/b1-lines-boundmethod-mutation.sh"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go", "line": 113, "angle": "lines",
+      "summary": "creatingRealmPath returns rlm.Path for any package with a realm record, so a stdlib or p/ package-level object is Of-ok with an address and a PkgPath that is not a realm (Of(strings.ToUpper).PkgPath() == \"strings\")",
+      "failure_scenario": "A realm calls reflect.Of(strings.ToUpper): ok=true, PkgPath \"strings\", address g1q37e4qy20davf35rwzuuu3662fnhf7f3v7npzr derived from the strings stdlib's clock. PkgPath() is documented as 'the realm that created it' and no realm owns this object; per the ADR an answer once given cannot be withdrawn ('by then that address is in a balance'), so shipping ok=true for non-realm package objects is a permanent decision the code makes silently",
+      "verify_by": "tests/b1-lines-probe-shapes.gno: copy to gnovm/tests/files, go test -short -run 'TestFiles/^zrealm_reflect_lines_probe.gno$' -update-golden-tests ./gnovm/pkg/gnolang, read the strings.ToUpper Output line",
+      "band": "Suggestion", "fix_kind": "code", "checked": true, "run": true,
+      "evidence": "// strings.ToUpper ok: true has: true pkg: strings typ:  str: <untyped>#46 (g1q37e4qy20davf35rwzuuu3662fnhf7f3v7npzr)",
+      "repro_path": "tests/b1-lines-probe-shapes.gno"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go", "line": 133, "angle": "lines",
+      "summary": "declaredTypeName only names a pointer's pointee, so a stamped func value of a declared func type reports Type() \"\" and String() \"<untyped>#N\" although its dynamic type is the declared type",
+      "failure_scenario": "type Handler func() int; var h Handler = func() int {...} persisted; reflect.Of(h) is ok=true with Type() \"\" and String() \"<untyped>#13 (...)\"; the field comment on Object.typ promises '\"<pkgpath>.<Name>\" of the object's declared type', and \"\" is also what a pointer to an anonymous struct returns, so the caller cannot tell the two apart",
+      "verify_by": "tests/b1-lines-probe-shapes.gno, the `h` Output line",
+      "band": "Nit", "fix_kind": "code", "checked": true, "run": true,
+      "evidence": "// h ok: true has: true pkg: gno.land/r/probe/reflectlines typ:  str: <untyped>#13 (g1ajre539psr4cuphysnuznew4w0zsnlgl3sh055)",
+      "repro_path": "tests/b1-lines-probe-shapes.gno"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/reflect/reflect.go", "line": 104, "angle": "lines",
+      "summary": "the `m.Store == nil` guard in creatingRealmPath cannot fire: NewMachineWithOptions always installs a store, and ownObject already calls cv.GetBase(m.Store) unguarded on the same machine",
+      "failure_scenario": "No input reaches the branch: machine.go:185-188 sets `store = NewStore(alloc, nil, nil)` when opts.Store is nil and assigns mm.Store = store at 204; a stamped oid also requires a store, since only FinalizeRealmTransaction(store) sets NewTime. The guard is dead code reading as protection, and is inconsistent with line 69",
+      "verify_by": "sed -n 185,204p gnovm/pkg/gnolang/machine.go; grep -n 'SetNewTime(' gnovm/pkg/gnolang/*.go (only realm.go:2031, 2041 inside assignNewObjectID)",
+      "band": "Nit", "fix_kind": "code", "checked": true, "run": false, "evidence": "machine.go: `store := opts.Store / if store == nil { store = NewStore(alloc, nil, nil) }` ... `mm.Store = store`", "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {"file": "gnovm/stdlibs/chain/reflect/reflect.go", "line": 26, "angle": "lines",
+     "summary": "the stamped guard checks only NewTime != 0 while DeriveObjectCryptoAddr also panics on a zero PkgID",
+     "settled_by": "grep -rn 'SetNewTime(' gnovm/pkg/gnolang/*.go -> only realm.go:2031 and 2041, both in assignNewObjectID after SetPkgID(rlm.ID) at 2002/2010/2026 for a zero PkgID; loaded objects carry a full ID, so NewTime != 0 implies PkgID != 0"},
+    {"file": "gnovm/stdlibs/chain/reflect/reflect.go", "line": 143, "angle": "lines",
+     "summary": "declaredTypeName drops DeclaredType.ParentLoc, so a function-local Token would report the same Type() as the package-level Token",
+     "settled_by": "probe persisting `&Token{}` of a function-local type in a realm: `// Error: unexpected type with id gno.land/r/probe/reflectlines4[...zrealm_reflect_lines_probe4.gno:12:1-15:2].Token`; a local-typed object cannot be persisted, so the stamped branch that calls declaredTypeName never sees one"},
+    {"file": "gnovm/stdlibs/chain/reflect/reflect.go", "line": 108, "angle": "lines",
+     "summary": "GetRealmByID's cache-miss path loads a foreign PackageValue raw via GetObject and could leave GetPackage a half-initialised package later in the tx",
+     "settled_by": "store.go GetPackage: `oo := ds.GetObjectSafe(oid); if oo != nil { return oo.(*PackageValue) }`, the same load path pkgPathFromPkgID's GetObject takes"},
+    {"file": "gnovm/stdlibs/chain/reflect/reflect.go", "line": 75, "angle": "lines",
+     "summary": "a func value copied into another holder (var, struct field, slice, map, any) might be a distinct object, breaking 'every holder agrees on the address'",
+     "settled_by": "probe zrealm_reflect_lines_probe3: `cb==cb2: true`, `cb==box.f: true`, `cb==list[0]: true`, `cb==mp[k]: true`, `cb==anyv: true`, `b1==b2: true`, `t1==t2==top: true true`, `cb==local: true`"}
+  ]
+}

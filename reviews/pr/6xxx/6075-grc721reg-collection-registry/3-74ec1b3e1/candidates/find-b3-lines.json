@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 278,
+      "angle": "lines",
+      "summary": "publishedKinds cuts the ExtensionKindsUpTo(limit) window before dropping view-less hooks, so Register's maxEventKinds guard, the register event's extension list and the badge row all answer from the issuer's first N registrations, not from the kinds the collection publishes",
+      "failure_scenario": "An issuer registers 17 hook-only extensions (RegisterExtension(h, nil)) then any number of view-backed kinds. Register: publishedKinds(token, 17) sees only the hooks, so the 'too many extensions' guard never fires (17 published kinds listed with cap 16) and the register event carries no 'extension' attr, while GetExtensionKinds returns the published kinds. Render: with 9 hooks first and one published kind, the page says '_core only_'. Each call reports success, so the indexer and the visitor cannot tell the wrong answer from the right one.",
+      "verify_by": "cp tests/b3-lines-viewless-window.gno examples/gno.land/r/demo/defi/grc721reg/zz_lines_window_test.gno; cd examples && gno test ./gno.land/r/demo/defi/grc721reg -run TestLines -v (expect FAIL on TestLinesEventCapCountsHooks and TestLinesCoreOnlyWithAKind); plus tests/b3-lines-event-window_filetest.gno green at head = register event with no extension attr",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TestLinesEventCapCountsHooks: 'Register aborted: false; published kinds now: 17 (cap 16)' FAIL. TestLinesCoreOnlyWithAKind: 'GetExtensionKinds: [kind0]; page: \"- extensions: _core only_\"' FAIL. Filetest (17 hooks then one view kind 'published') PASSES with golden Output 'published kinds: slice[(\"published\" string)]' and register event attrs token_path, token_id, pkgpath, slug, symbol only, no 'extension'.",
+      "repro_path": "tests/b3-lines-viewless-window.gno"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg_test.gno",
+      "line": 252,
+      "angle": "lines",
+      "summary": "the persistent-realm gate is pinned only against NewUserRealm (pkgPath \"\"), never against a maketx run realm, the round-2 Critical it was added for",
+      "failure_scenario": "Change grc721reg.gno:51 from prev.IsUser() to prev.IsUserCall(): NewUserRealm builds newRealm(addr, \"\"), so IsUserCall is true and 'registration requires a persistent realm' still aborts; the suite stays green while a gnokey maketx run script (gno.land/e/<addr>/run) can list a collection again. tests/b3-lines-run-gate.txtar pins the run path: at head it is green (gate holds).",
+      "verify_by": "mutate line 51 to prev.IsUserCall(); gno test ./gno.land/r/demo/defi/grc721reg stays green; go test -run TestTestdata/zz_b3_run_gate ./gno.land/pkg/integration/ turns red",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "context_testing.gno:139-140 'func NewUserRealm(user address) runtime.Realm { return newRealm(string(user), \"\") }'; frame.gno:83-107 IsUser = IsUserCall || IsUserRun, IsUserCall is pkgPath == \"\". The txtar run at head: '--- PASS: TestTestdata/zz_b3_run_gate', stdout 'No registered collection.'",
+      "repro_path": "tests/b3-lines-run-gate.txtar"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 286,
+      "angle": "lines",
+      "summary": "sort runs after the limit window is cut, so the badge row depends on registration order, against publishedKinds' own comment that the sort makes the output independent of it",
+      "failure_scenario": "Two collections publish the same ten kinds a0, b0..b8; the one registering a0 first renders `a0` `b0`..`b6` …, the one registering a0 last renders `b0`..`b7` …, so the alphabetically first kind is missing from one page.",
+      "verify_by": "TestLinesBadgesIgnoreRegistrationOrder in tests/b3-lines-viewless-window.gno",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "'a registered first: - extensions: `a0` `b0` `b1` `b2` `b3` `b4` `b5` `b6` …' vs 'a registered last:  - extensions: `b0` `b1` `b2` `b3` `b4` `b5` `b6` `b7` …' FAIL",
+      "repro_path": "tests/b3-lines-viewless-window.gno"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 204,
+      "angle": "lines",
+      "summary": "the info link hardcodes the realm's own path instead of deriving it, so a deployment under any other path renders dead links",
+      "failure_scenario": "The realm deployed at a path other than gno.land/r/demo/defi/grc721reg (a fork, a versioned redeploy) still renders every row's info link as /r/demo/defi/grc721reg:<key>, which points at another realm or nothing.",
+      "verify_by": "grep -n 'r/demo/defi/grc721reg' examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno: one literal at line 204, no use of runtime.CurrentRealm().PkgPath()",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "line 204: infoLink := \"/r/demo/defi/grc721reg:\" + item.Key",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 51,
+      "angle": "lines",
+      "summary": "prev.IsUser() might miss a gnokey maketx run realm, reopening the round-2 Critical",
+      "settled_by": "go test -v -run TestTestdata/zz_b3_run_gate ./gno.land/pkg/integration/ at 74ec1b3e1: '--- PASS: TestTestdata/zz_b3_run_gate', the run script fails with 'registration requires a persistent realm' and qrender returns 'data: No registered collection.'"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 92,
+      "angle": "lines",
+      "summary": "storing the issuer's live token in the registry during the issuer's init might move the token's ownership so the issuer can no longer mint",
+      "settled_by": "txtar with a realm whose init(cur) creates the token and calls grc721reg.Register(cross(cur)), then maketx call Mint: '--- PASS: TestTestdata/zz_b3_owner', qrender of the key asserts 'total supply: 1'"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 93,
+      "angle": "lines",
+      "summary": "the register event (5 pairs plus up to 16 extension pairs) might exceed chain.Emit's limits and abort with the event's message",
+      "settled_by": "grep gnovm/stdlibs/chain/emit_event.go: 'MaxEventPairs = 64' and 'MaxEventAttrLen = 4096'; 21 pairs and 64-byte kinds are far below both"
+    },
+    {
+      "file": "examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno",
+      "line": 105,
+      "angle": "lines",
+      "summary": "Unregister skips the IsUser check, so a user caller might remove an entry",
+      "settled_by": "fqname.Construct(\"\", sym) returns \".\"+sym (fqname.gno:51-56) and validSymbol rejects \"\" and '.', so no registered key starts with '.'; TestUnregisterFromUserRealm at line 590 asserts the entry survives"
+    }
+  ]
+}
