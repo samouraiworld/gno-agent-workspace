@@ -1,4 +1,5 @@
 # Review: [#5382](https://github.com/gnolang/gno/pull/5382)
+Posted: https://github.com/gnolang/gno/pull/5382#pullrequestreview-5530768602
 Event: APPROVE
 Verdict: APPROVE. No finding sits above Nit on the consensus path; the open items are a log field in the ante's out-of-gas recover, unbilled settlement work and three latent replay and simulate gaps, none blocking.
 Model: claude-opus-5-5, standard review
@@ -48,22 +49,22 @@ Missing test: no test reaches the recover in `decodeTx`, since `TestCheckTxMalfo
 
 Not posted: PLAUSIBLE on the finder's read; removing the defer and running the CheckTx tests is still to do.
 
-## gno.land/pkg/integration/testscript_gnoland.go:294 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/gno.land/pkg/integration/testscript_gnoland.go#L294) · [↗](../../../../../.worktrees/gno-review-5382/gno.land/pkg/integration/testscript_gnoland.go#L294) · Nit
+## gno.land/pkg/integration/testscript_gnoland.go:294 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/gno.land/pkg/integration/testscript_gnoland.go#L294) · [↗](../../../../../.worktrees/gno-review-5382/gno.land/pkg/integration/testscript_gnoland.go#L294) · Nit [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4281163232)
 
 Nit: the `bp.MaxGas != -1` conjunct is always true, since the flag [replaces the 30B genesis value](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/gno.land/pkg/integration/testscript_gnoland.go#L284) only when positive, so it implies a `-max-gas -1` mode that does not exist.
 
-## contribs/gnogenesis/internal/verify/verify.go:102 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/contribs/gnogenesis/internal/verify/verify.go#L102) · [↗](../../../../../.worktrees/gno-review-5382/contribs/gnogenesis/internal/verify/verify.go#L102) · Suggestion
+## contribs/gnogenesis/internal/verify/verify.go:102 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/contribs/gnogenesis/internal/verify/verify.go#L102) · [↗](../../../../../.worktrees/gno-review-5382/contribs/gnogenesis/internal/verify/verify.go#L102) · Suggestion [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4281163243)
 
 Suggestion: the check fires only when `MaxGasCreditPerTx` is 0, so with the window open a 0-fee genesis tx at a replayed height passes verify. That tx then [fails as sponsored without PayGas](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/tm2/pkg/sdk/baseapp.go#L1090) and [halts InitChain](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/gno.land/pkg/gnoland/app.go#L61).
 
-## gno.land/pkg/gnoland/app.go:276 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/gno.land/pkg/gnoland/app.go#L276) · [↗](../../../../../.worktrees/gno-review-5382/gno.land/pkg/gnoland/app.go#L276) · Suggestion
+## gno.land/pkg/gnoland/app.go:276 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/gno.land/pkg/gnoland/app.go#L276) · [↗](../../../../../.worktrees/gno-review-5382/gno.land/pkg/gnoland/app.go#L276) · Suggestion [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4281163250)
 
 Suggestion: `settleCtx` runs the sponsor's settlement transfer on an unmetered gas meter. That work counts in neither the tx's gas used nor the [block gas](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/tm2/pkg/sdk/baseapp.go#L967), unlike the ante's [`DeductFees`](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/tm2/pkg/sdk/auth/ante.go#L250) which the comment cites as its model.
 
-## gnovm/stdlibs/chain/runtime/paygas.go:44 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/gnovm/stdlibs/chain/runtime/paygas.go#L44) · [↗](../../../../../.worktrees/gno-review-5382/gnovm/stdlibs/chain/runtime/paygas.go#L44) · Suggestion
+## gnovm/stdlibs/chain/runtime/paygas.go:44 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/gnovm/stdlibs/chain/runtime/paygas.go#L44) · [↗](../../../../../.worktrees/gno-review-5382/gnovm/stdlibs/chain/runtime/paygas.go#L44) · Suggestion [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4281163261)
 
 Suggestion: the overflow panic on `maxFee * gas price` sits after the [eligibility return](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/gnovm/stdlibs/chain/runtime/paygas.go#L29). A huge maxFee passes `gno test`, then aborts every sponsored tx on chain.
 
-## tm2/pkg/sdk/baseapp.go:1109 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/tm2/pkg/sdk/baseapp.go#L1109) · [↗](../../../../../.worktrees/gno-review-5382/tm2/pkg/sdk/baseapp.go#L1109) · Suggestion
+## tm2/pkg/sdk/baseapp.go:1109 [gh](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/tm2/pkg/sdk/baseapp.go#L1109) · [↗](../../../../../.worktrees/gno-review-5382/tm2/pkg/sdk/baseapp.go#L1109) · Suggestion [posted](https://github.com/gnolang/gno/pull/5382#discussion_r4281163274)
 
 Suggestion: the settlement hook skips Simulate, while the [missing-PayGas check](https://github.com/gnolang/gno/blob/ba63646a512bdea71d0b1603caa64aec1cbe331b/tm2/pkg/sdk/baseapp.go#L1090) runs there. A wallet simulating a 0-fee tx sees success for a sponsor that cannot pay, and the broadcast is then rejected.

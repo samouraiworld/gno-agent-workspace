@@ -1,4 +1,5 @@
 # Review: [#5421](https://github.com/gnolang/gno/pull/5421)
+Posted: https://github.com/gnolang/gno/pull/5421#pullrequestreview-5530778774
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. The Dry Run endpoint builds a transaction the node refuses for every caller, the Critical on `client.go:285-286`, re-run at `dfdeaf676`; the key-name field it reads, a handler with no test, and the unpinned RPC source in `connect-src` go with it.
 Model: claude-opus-5-5, standard review
@@ -9,7 +10,7 @@ Round: 5, scoped to the 27 lines of `git show --cc dfdeaf676`. One finder, one r
 
 ## Body
 
-## gno.land/pkg/gnoweb/client.go:285-286 [gh](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoweb/client.go#L285-L286) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/client.go#L285-L286) · Critical
+## gno.land/pkg/gnoweb/client.go:285-286 [gh](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoweb/client.go#L285-L286) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/client.go#L285-L286) · Critical [posted](https://github.com/gnolang/gno/pull/5421#discussion_r4281170267)
 Critical: `Simulate` fills `tx.Signatures` with a public key and no signature bytes, which [`txCarriesCode`](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoland/app.go#L1350) now refuses for `MsgRun`, so every Dry Run ends in `unauthorized error`. Take a signed transaction from the caller, or drop the button until a wallet can sign one.
 
 ![Dry Run failing on both a key name and an address](https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/5xxx/5421-builtin-playground-2/4-4a0e7ff2a/media/dry-run-never-succeeds.gif)
@@ -64,7 +65,7 @@ TX HASH:
 The [`AnteOptions`](https://github.com/gnolang/gno/blob/dfdeaf676/tm2/pkg/sdk/auth/ante.go#L33-L57) doc names this case: a transaction the predicate selects "must carry a real signature, not a pubkey-only placeholder". The same button returned the rendered output on a gnodev built from 15613c21a, whose base predates the predicate.
 </details>
 
-## gno.land/pkg/gnoweb/feature/run/frontend/controller-run.ts:134 [gh](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoweb/feature/run/frontend/controller-run.ts#L134) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/feature/run/frontend/controller-run.ts#L134) · Warning
+## gno.land/pkg/gnoweb/feature/run/frontend/controller-run.ts:134 [gh](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoweb/feature/run/frontend/controller-run.ts#L134) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/feature/run/frontend/controller-run.ts#L134) · Warning [posted](https://github.com/gnolang/gno/pull/5421#discussion_r4281170300)
 The dry run posts this field as `address` and [`serveDryRun`](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoweb/feature/playground/handler.go#L372-L376) answers 400 to anything that is not bech32, while the field is [labelled "Key name or address" and placeholdered `mykey`](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoweb/feature/run/templates/page.html#L53-L56) and [`_buildCmd`](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoweb/feature/run/frontend/controller-run.ts#L76-L101) drops it into a `gnokey` line where a key name is the ordinary value. An address is the only value both readers take, and the page does not say so.
 
 <details><summary>repro</summary>
@@ -85,7 +86,7 @@ HTTP 400
 ```
 </details>
 
-## gno.land/pkg/gnoweb/feature/playground/handler_test.go:65-67 [gh](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L65-L67) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L65-L67) · Missing test
+## gno.land/pkg/gnoweb/feature/playground/handler_test.go:65-67 [gh](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L65-L67) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/pkg/gnoweb/feature/playground/handler_test.go#L65-L67) · Missing test [posted](https://github.com/gnolang/gno/pull/5421#discussion_r4281170310)
 Missing test: `stubClient` carries `Simulate` plus `simulateResult` and `simulateErr`, and nothing in the package sets or reads them, so `DryRunHandler` is the one endpoint with no case at all.
 
 <details><summary>test cases</summary>
@@ -148,7 +149,7 @@ func TestHandlerPlaygroundDryRun(t *testing.T) {
 ```
 </details>
 
-## gno.land/cmd/gnoweb/main_test.go:116 [gh](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/cmd/gnoweb/main_test.go#L116) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/cmd/gnoweb/main_test.go#L116) · Missing test
+## gno.land/cmd/gnoweb/main_test.go:116 [gh](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/cmd/gnoweb/main_test.go#L116) · [↗](../../../../../.worktrees/gno-review-5421/gno.land/cmd/gnoweb/main_test.go#L116) · Missing test [posted](https://github.com/gnolang/gno/pull/5421#discussion_r4281170330)
 Missing test: this `connect-src 'self'` check passes whatever follows `'self'`, so a strict-mode policy from [`SecureHeadersMiddleware`](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/cmd/gnoweb/main.go#L359) that drops or misspells the `<remote>/abci_query` source keeps [`TestSecureHeadersMiddlewareStrict`](https://github.com/gnolang/gno/blob/dfdeaf676/gno.land/cmd/gnoweb/main_test.go#L86) green.
 
 <details><summary>test cases</summary>
