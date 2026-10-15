@@ -1,4 +1,5 @@
 # Review: [#6110](https://github.com/gnolang/gno/pull/6110)
+Posted: https://github.com/gnolang/gno/pull/6110#pullrequestreview-5531317194
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. The GC recount dedups strings on a backing pointer whose sharing differs between a long-running and a restarted node, a consensus divergence the branch introduces, and a `map[any]` literal with a typed-nil slice key is rejected at preprocess.
 Model: claude-opus-5-5, standard review
@@ -37,7 +38,7 @@ Round: 2. 13 finders, one reflector, 13 candidates, the Criticals and Warnings r
 
 - Suggestion: a `[]byte` call argument is a [`SliceValue` literal](https://github.com/gnolang/gno/blob/c800a571ab179a07530dcf876142271afc64e40a/gno.land/pkg/sdk/vm/convert.go#L218) that no allocator call ever charges, unlike the same bytes [passed as a string](https://github.com/gnolang/gno/blob/c800a571ab179a07530dcf876142271afc64e40a/gno.land/pkg/sdk/vm/convert.go#L56). Building it through [`alloc.NewSliceFromData`](https://github.com/gnolang/gno/blob/c800a571ab179a07530dcf876142271afc64e40a/gnovm/pkg/gnolang/alloc.go#L698) charges both alike.
 
-## gnovm/pkg/gnolang/preprocess.go:2510 [gh](https://github.com/gnolang/gno/blob/c800a571ab179a07530dcf876142271afc64e40a/gnovm/pkg/gnolang/preprocess.go#L2510) · [↗](../../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/preprocess.go#L2510) · Warning
+## gnovm/pkg/gnolang/preprocess.go:2510 [gh](https://github.com/gnolang/gno/blob/c800a571ab179a07530dcf876142271afc64e40a/gnovm/pkg/gnolang/preprocess.go#L2510) · [↗](../../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/preprocess.go#L2510) · Warning [posted](https://github.com/gnolang/gno/pull/6110#discussion_r4281562528)
 `ComputeMapKey` panics with `hash of unhashable type` on a typed-nil slice, map or func key in a map literal. Preprocessing then rejects `map[any]int{[]int(nil): 1}` in an uncalled function, which Go compiles.
 
 <details><summary>repro</summary>
@@ -62,7 +63,7 @@ FAIL
 
 </details>
 
-## gnovm/adr/pr6110_string_backing_id.md:85 [gh](https://github.com/gnolang/gno/blob/c800a571ab179a07530dcf876142271afc64e40a/gnovm/adr/pr6110_string_backing_id.md?plain=1#L85) · [↗](../../../../../.worktrees/gno-review-6110/gnovm/adr/pr6110_string_backing_id.md#L85) · Nit
+## gnovm/adr/pr6110_string_backing_id.md:85 [gh](https://github.com/gnolang/gno/blob/c800a571ab179a07530dcf876142271afc64e40a/gnovm/adr/pr6110_string_backing_id.md?plain=1#L85) · [↗](../../../../../.worktrees/gno-review-6110/gnovm/adr/pr6110_string_backing_id.md#L85) · Nit [posted](https://github.com/gnolang/gno/pull/6110#discussion_r4281562542)
 Nit: the ADR's list of direct-equality sites misses `tv.V != old.V` in [`StaticBlock.Define2`](https://github.com/gnolang/gno/blob/c800a571ab179a07530dcf876142271afc64e40a/gnovm/pkg/gnolang/nodes.go#L2404), which compares a string const's backing pointer.
 
 ## SKIP gnovm/pkg/gnolang/alloc.go:1030-1031 [gh](https://github.com/gnolang/gno/blob/c800a571ab179a07530dcf876142271afc64e40a/gnovm/pkg/gnolang/alloc.go#L1030-L1031) · [↗](../../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/alloc.go#L1030) · Missing test

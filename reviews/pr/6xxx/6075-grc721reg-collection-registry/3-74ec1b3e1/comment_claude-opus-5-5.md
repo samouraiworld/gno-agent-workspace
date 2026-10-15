@@ -1,4 +1,5 @@
 # Review: [#6075](https://github.com/gnolang/gno/pull/6075)
+Posted: https://github.com/gnolang/gno/pull/6075#pullrequestreview-5531319868
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. Two confirmed Warnings in the new realm: `publishedKinds` applies its limit before dropping view-less kinds, so `Register` and the index page under-report kinds with nothing marking the list partial.
 Model: claude-opus-5-5, standard review
@@ -9,7 +10,7 @@ Round: 3. 8 finders, one reflector, 21 candidates, the Criticals and Warnings ru
 
 ## Body
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:278 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L278) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L278) · Warning
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:278 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L278) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L278) · Warning [posted](https://github.com/gnolang/gno/pull/6075#discussion_r4281564312)
 
 `publishedKinds` takes the first `limit` kinds from `ExtensionKindsUpTo` before dropping those registered with no view. One such hook registered first lets a collection with 17 views past the 16-kind cap, and its `register` event omits a published kind.
 
@@ -26,7 +27,7 @@ badges=8 elided=false published=10
 Harness: `tests/b2-lines-viewless-cap_test.gno` in this round.
 </details>
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:246 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L246) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L246) · Warning
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:246 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L246) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L246) · Warning [posted](https://github.com/gnolang/gno/pull/6075#discussion_r4281564321)
 
 `extensionBadges` asks `publishedKinds` for the first 9 registered kinds, so one view-less hook among them leaves 8 of 9 published kinds on the page with no `…`. Past nine kinds, registration order picks the badges, which the `publishedKinds` godoc says sorting rules out.
 
@@ -74,7 +75,7 @@ Missing test: no test registers through a sub-identity from `cur.Sub`, which `Re
 
 Missing test: no txtar registers in `init`, mints in a later transaction and reads `GetExtension` from a consumer realm. PLAUSIBLE, no verifier ran it.
 
-## examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno:20 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L20) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L20) · Nit
+## examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno:20 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L20) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/p/demo/tokens/grc721/enumerable/token.gno#L20) · Nit [posted](https://github.com/gnolang/gno/pull/6075#discussion_r4281564329)
 
 Related nit: passing `view` here publishes an enumerable attached after minting, whose `TotalSupply` skips every token minted before it: 0 against a core supply of 2. The missing guard predates the diff.
 
@@ -99,7 +100,7 @@ Nit: the comment names `collection.KindsUpTo`, which no longer exists at the hea
 
 Nit: the pull request description still describes the closed gnolang/gno#6074 design: it registers `*collection.Collection`, lists a `GetToken` lookup and waits on #6074 to merge. UNVERIFIED, kept in claims.md.
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:204 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L204) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L204) · Nit
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:204 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L204) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L204) · Nit [posted](https://github.com/gnolang/gno/pull/6075#discussion_r4281564335)
 
 Nit: `infoLink` pastes the raw key, so for a sub-realm key, whose realm path holds `#`, the browser drops the rest as a fragment and the link opens "Unknown collection".
 
@@ -115,7 +116,7 @@ Suggestion: the Suggestion on line 156 carries this quadratic walk.
 
 Suggestion: the Suggestion on line 198 carries this hook-as-view exposure.
 
-## examples/gno.land/p/demo/tokens/grc721/token.gno:156 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/p/demo/tokens/grc721/token.gno#L156) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/p/demo/tokens/grc721/token.gno#L156) · Suggestion
+## examples/gno.land/p/demo/tokens/grc721/token.gno:156 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/p/demo/tokens/grc721/token.gno#L156) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/p/demo/tokens/grc721/token.gno#L156) · Suggestion [posted](https://github.com/gnolang/gno/pull/6075#discussion_r4281564342)
 
 Suggestion: `lookupExtension` re-scans `led.extensions` for each kind `publishedKinds` walks, so `GetExtensionKinds` costs quadratic gas in the issuer's own extension count, 28.0M at 200 hooks and 107.3M at 400.
 
@@ -132,19 +133,19 @@ Setup400 GAS 118351897, Read400 225629763
 Only calls on that issuer's own key pay it. Harness: `tests/b2-lines-kinds-quadratic_test.gno` in this round.
 </details>
 
-## examples/gno.land/p/demo/tokens/grc721/token.gno:193 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/p/demo/tokens/grc721/token.gno#L193) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/p/demo/tokens/grc721/token.gno#L193) · Suggestion
+## examples/gno.land/p/demo/tokens/grc721/token.gno:193 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/p/demo/tokens/grc721/token.gno#L193) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/p/demo/tokens/grc721/token.gno#L193) · Suggestion [posted](https://github.com/gnolang/gno/pull/6075#discussion_r4281564348)
 
 Suggestion: `ext.ExtensionKind()` is accepted at any length, so a 4096-byte kind attached after `Register` comes back whole from `GetExtensionKinds`, past the 64-byte check `Register` runs.
 
-## examples/gno.land/p/demo/tokens/grc721/token.gno:198 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/p/demo/tokens/grc721/token.gno#L198) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/p/demo/tokens/grc721/token.gno#L198) · Suggestion
+## examples/gno.land/p/demo/tokens/grc721/token.gno:198 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/p/demo/tokens/grc721/token.gno#L198) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/p/demo/tokens/grc721/token.gno#L198) · Suggestion [posted](https://github.com/gnolang/gno/pull/6075#discussion_r4281564355)
 
 Suggestion: `view` may be the hook itself, so any realm reading `GetExtension` can assert it to `grc721.Extension` and call `OnTransfer` or `OnBurn` on the issuer's state.
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:33 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L33) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L33) · Suggestion
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:33 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L33) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L33) · Suggestion [posted](https://github.com/gnolang/gno/pull/6075#discussion_r4281564362)
 
 Suggestion: `slug` is validated and emitted in the event but never stored or read, since the key comes from the token's symbol.
 
-## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:51 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L51) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L51) · Suggestion
+## examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno:51 [gh](https://github.com/gnolang/gno/blob/74ec1b3e1ad9406d645443fffbca8ae277b8edf7/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L51) · [↗](../../../../../.worktrees/gno-review-6075/examples/gno.land/r/demo/defi/grc721reg/grc721reg.gno#L51) · Suggestion [posted](https://github.com/gnolang/gno/pull/6075#discussion_r4281564369)
 
 Suggestion: `prev.IsUser()` lets a sub-identity from `cur.Sub` register, so a collection is keyed on `host#subpath` with no test and no doc saying that is intended.
 
