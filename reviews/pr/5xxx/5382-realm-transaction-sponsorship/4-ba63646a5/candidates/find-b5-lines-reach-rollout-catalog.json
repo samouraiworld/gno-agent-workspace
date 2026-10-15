@@ -1,0 +1,97 @@
+{
+ "candidates": [
+  {
+   "file": "gno.land/pkg/integration/testdata/paygas_oog_after_paygas.txtar",
+   "line": 24,
+   "angle": "catalog",
+   "summary": "The OOG-after-PayGas loop also exhausts the 10M credit window, so the fixture stays green if PayGas stops lowering the gas meter to what maxFee buys",
+   "failure_scenario": "Delete `m.GasMeter.SetLimit(limit)` at gnovm/stdlibs/chain/runtime/paygas.go:61. The fixture's loop (line 47) is the same 100000-iteration `s += \"x\"` that paygas_credit_exhausted.txtar:36 runs past 10M gas (pinned there at `GAS USED:   100[0-9]{5}$`), so the call still dies with 'out of gas', at the 10M window instead of the 3M that PayGas(3000) buys, and the realm balance stays 10000000ugnot. On a successful tx the same mutation lets the tx run to the window while settlement caps the charge at MaxFee (gno.land/pkg/gnoland/app.go:301 `if actualCost > pgi.MaxFee`), so up to window-minus-limit gas per sponsored tx goes unpaid. TestOutOfGasLogReportsPayGasLimit calls SetLimit from its own handler rather than through X_payGas, and paygas_budget_exceeded only reaches the panic before SetLimit. Fix: pin the lowered limit, `stdout 'GAS USED:   30[0-9]{5}$'` or `stderr 'exceeds tx.s gas wanted \\(3000000\\)'`, or shrink the loop below 10M gas.",
+   "verify_by": "Delete paygas.go:61, then `go test -count=1 ./gno.land/pkg/integration -run 'TestTestdata/paygas_(oog_after_paygas|budget_exceeded)$'` and `go test -count=1 -run OutOfGasLogReportsPayGasLimit ./tm2/pkg/sdk/`: expect one red, observe all green. Read half: grep -rn SetLimit --include='*.go' . | grep -v _test.go (only gas meter caller is paygas.go:61); baseapp_test.go:770-771 sets the limit inside the test handler.",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "Read only. grep SetLimit non-test: `gnovm/stdlibs/chain/runtime/paygas.go:61: m.GasMeter.SetLimit(limit)` and tm2/pkg/store/types/gas.go implementations only. grep 's += \"x\"': paygas_credit_exhausted.txtar:36 and paygas_oog_after_paygas.txtar:47, same 100000-iteration loop. app.go:301 `if actualCost > pgi.MaxFee {`. baseapp_test.go:770-771 `ctx.PayGasInfo().MaxFee = 1` / `ctx.GasMeter().SetLimit(payGasLimit)` in the handler. grep '3000000|GAS USED:   3' in pay*.txtar: only the comment at paygas_oog_after_paygas.txtar:39.",
+   "repro_path": ""
+  },
+  {
+   "file": "gno.land/pkg/integration/testdata/paygas_insufficient_balance.txtar",
+   "line": 15,
+   "angle": "reach",
+   "summary": "The broke-sponsor fixture cannot tell an admission refusal from a delivered tx that fails, so nothing pins CheckExecute's settlement dry run",
+   "failure_scenario": "Drop `|| mode == RunTxModeCheckExecute` from tm2/pkg/sdk/baseapp.go:1109. Simulate already skips settlement (baseapp.go:1106-1108) and X_payGas checks no balance, so gnokey's simulation passes either way and it broadcasts. CheckTx then admits the unfunded sponsor's 0-fee tx, it lands in a block, settlement fails in DeliverTx with 'insufficient coins', nobody pays the gas, and the fixture's only check, stderr 'insufficient coins', still matches. That is the free-block-gas path the comment at baseapp.go:1099-1102 says the dry run exists to close, and the header's own claim ('rejected at admission: CheckTx dry-runs the settlement'). No Go test makes an endTxHook fail under CheckTx. Fix: add `stderr 'check transaction failed'` after line 15, as paygas_credit_exhausted.txtar does for its CheckTx case.",
+   "verify_by": "Mutate baseapp.go:1109 to `if mode == RunTxModeDeliver &&`, then `go test -count=1 ./gno.land/pkg/integration -run 'TestTestdata/paygas_insufficient_balance$'` and `go test -count=1 -run 'CheckTx|CheckExecute|EndTxHook|Sponsor' ./tm2/pkg/sdk/ ./gno.land/pkg/gnoland/`: expect red, observe green. Read half: grep -rn SetEndTxHook --include='*_test.go' tm2 gno.land; grep -ln 'check transaction failed' gno.land/pkg/integration/testdata/pay*.txtar.",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "Read only. baseapp.go:1109 `if (mode == RunTxModeDeliver || mode == RunTxModeCheckExecute) &&`; :1106-1108 'Simulate is deliberately excluded'. broadcast.go:132-160 simulates, then `cli.BroadcastTxCommit` when the simulation has no error. SetEndTxHook in tests: baseapp_test.go:222/:322 (setters), :893 TestDeliverTxEndTxHookRunsOnlyOnSuccess, :960 TestDeliverTxPanicRevertsAllStateAndDoesNotCharge, both DeliverTx. 'check transaction failed' in pay*.txtar: only paygas_credit_exhausted.txtar. No gnoland sponsorship test funds a broke sponsor (grep insufficient: only the GRC20 panic strings in sponsorship_usecase_test.go).",
+   "repro_path": ""
+  },
+  {
+   "file": "gno.land/pkg/integration/testdata/paystorage_before_paygas.txtar",
+   "line": 35,
+   "angle": "lines",
+   "summary": "The PayStorage-before-PayGas fixture never checks who paid msg 0's deposit, so sponsorship that silently falls back to the caller there passes",
+   "failure_scenario": "The header's claim is that msg 0's deposit is charged to the realm before PayGas runs in msg 1. The only checks are that the tx succeeds and that the realm's balance is not exactly 10000000ugnot (`! stdout '10000000ugnot'`), which msg 1's gas charge alone satisfies; user1's balance is never queried. Make the keeper charge the sponsor only once a gas commitment exists (keeper.go:2454 `sponsored := sponsorRealm && entry == rlmPath && ctx.PayGasInfo() != nil && ctx.PayGasInfo().MaxFee > 0`): user1 pays msg 0's deposit, the realm pays only gas, and the fixture stays green. paygas_cross_realm_sponsors calls PayGas inside the same message, so it stays green under that mutation too. Fix: assert user1 still holds '\"1000000000ugnot\"' and the realm's exact balance, as paygas_cross_realm_sponsors.txtar does.",
+   "verify_by": "Apply the keeper.go:2454 mutation above, run `go test -count=1 ./gno.land/pkg/integration -run 'TestTestdata/(paystorage_before_paygas|paygas_cross_realm_sponsors)$'`: expect a red, observe both green. Read half: grep -n 'user1_user_addr\\|bank/balances' paystorage_before_paygas.txtar.",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "Read only. grep 'user1_user_addr|bank/balances' paystorage_before_paygas.txtar: lines 21 and 34, both `gnokey query bank/balances/g13xcx05jel97ztmjfhf5dasfez5v5lp42s87f0w`; line 35 `! stdout '10000000ugnot'`. keeper.go:2454 `sponsored := sponsorRealm && entry == rlmPath`. paygas_cross_realm_sponsors.txtar stopayer.Run calls PayStorage then gaspayer.SponsorGas in one message.",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "tm2/pkg/sdk/baseapp.go",
+   "line": 661,
+   "angle": "reach",
+   "summary": "Carried from round 3: the allow_zero_fee_txs=false CheckTx refusal has no test, every harness node (node_testing.go:103) setting it true",
+   "settled_by": "grep: tm2/pkg/sdk/baseapp_test.go:601 `func TestCheckTxZeroFeeRejectedWhenNotOptedIn` asserts `require.IsType(t, std.InsufficientFeeError{}, r.Error)` and that the handler never ran; `git show 1f043ddb1:tm2/pkg/sdk/baseapp_test.go | grep -c TestCheckTxZeroFeeRejectedWhenNotOptedIn` = 0, so round 4 added it"
+  },
+  {
+   "file": "gno.land/pkg/integration/node_testing.go",
+   "line": 103,
+   "angle": "rollout",
+   "summary": "A subprocess harness node could lose AllowZeroFeeTxs, since ProcessNodeConfig has no such field",
+   "settled_by": "process.go:79 `nodecfg := TestingMinimalNodeConfig(pcfg.RootDir)` rebuilds the config, flag included, in the child; the genesis travels whole as amino JSON (process.go:436-445 `type MarshalableGenesisDoc bft.GenesisDoc`)"
+  },
+  {
+   "file": "gno.land/pkg/integration/testdata/paygas_real_multi_msg.txtar",
+   "line": 36,
+   "angle": "reach",
+   "summary": "Sibling shape: PayGas's lowered limit might apply only to its own message, letting a later message burn the whole window",
+   "settled_by": "runMsgs reads one `ctx.GasMeter()` for every message (baseapp.go runMsgs, `result.GasUsed = ctx.GasMeter().GasConsumed()`), and gas.go:185 `func NewGasMeter(limit Gas) *basicGasMeter` returns a pointer, so SetLimit persists across messages"
+  },
+  {
+   "file": "gno.land/pkg/integration/testdata/paystorage_sponsor_grow_free_no_drain.txtar",
+   "line": 34,
+   "angle": "reach",
+   "summary": "Sibling shape: a free of sponsor-locked bytes in a message that does not call the sponsor might refund the caller within the same tx",
+   "settled_by": "keeper.go:2549 `if sponsorRealm && !isRestricted {` nets the free against psi.SpentDeposit with no entry condition"
+  },
+  {
+   "file": "gno.land/pkg/integration/testdata/paygas_revert_on_failure.txtar",
+   "line": 24,
+   "angle": "lines",
+   "summary": "The 'realm did NOT pay because tx failed' check never leaves gnokey's simulation, so DeliverTx's no-charge-on-failure is untested",
+   "settled_by": "baseapp_test.go:869 `func TestDeliverTxEndTxHookRunsOnlyOnSuccess` and :936 `TestDeliverTxPanicRevertsAllStateAndDoesNotCharge` pin settlement only on success in DeliverTx"
+  },
+  {
+   "file": "gno.land/pkg/integration/testdata/paygas_multi_msg.txtar",
+   "line": 31,
+   "angle": "lines",
+   "summary": "`! stdout '10000000ugnot'` cannot tell whole-tx gas from post-PayGas gas",
+   "settled_by": "paygas_cross_realm_sponsors.txtar pins gaspayer at '5997890ugnot', gas that includes stopayer's work before PayGas, so a post-PayGas-only charge turns it red"
+  },
+  {
+   "file": "gno.land/pkg/integration/testdata/paygas_cost_comparison.txtar",
+   "line": 38,
+   "angle": "catalog",
+   "summary": "Claim 'settlement runs on its own meter and is not in GAS USED'",
+   "settled_by": "app.go:275-276 `gasUsed := ctx.GasMeter().GasConsumed()` then `settleCtx := ctx.WithGasMeter(store.NewInfiniteGasMeter())`; 1432020-1337476 = 94544 as the comment states"
+  }
+ ]
+}

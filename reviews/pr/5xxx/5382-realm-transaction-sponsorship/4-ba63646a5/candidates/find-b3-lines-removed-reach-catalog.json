@@ -1,0 +1,48 @@
+{
+  "candidates": [
+    {
+      "file": "tm2/pkg/sdk/auth/ante.go",
+      "line": 140,
+      "angle": "removed",
+      "summary": "the ante's own out-of-gas recover still names tx.Fee.GasWanted as the limit for a 0-fee tx, whose meter was set to Block.MaxGasCreditPerTx; the diff fixed this sibling at ante.go:399-403 (success path) and baseapp.go:915-919 (the round-4 'OOG log names the PayGas limit' follow-up) but not here",
+      "failure_scenario": "Window open (MaxGasCreditPerTx=1_000_000), a 0-fee tx whose txSize or signature gas exceeds 1M in the ante (e.g. a ~100KB addpkg at TxSizeCostPerByte=10), signed with GasWanted=50000: the meter limit is 1M, yet the log reads 'gas used (1000010) exceeds tx's gas wanted (50000)'; with GasWanted >= Block.MaxGas it reads 'exceeds max block gas'. The user is told to raise a gas-wanted that a 0-fee tx ignores. res.GasWanted at :143 is overwritten to 0 by runTx's defer on abort, so only the log text is wrong.",
+      "verify_by": "ante unit test beside TestAnteHandlerRejectsSponsoredTxBeforeFirstBlock: ctx at height 1, cp.Block.MaxGasCreditPerTx=1000, params.TxSizeCostPerByte large enough to exceed 1000 on a test tx with fee std.NewFee(50000, std.NewCoin(\"ugnot\",0)); assert res.Log contains 'gas wanted (1000)'; observe 'gas wanted (50000)'. Fix: pass the meter's limit (newCtx.GasMeter().Limit()) or the credit when isZeroFeeTx",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n: ante.go:140 'log := store.OutOfGasLog(gasUsed, tx.Fee.GasWanted, maxGas, ex.Descriptor, true)'; ante.go:401 'reportedGasWanted = consParams.Block.MaxGasCreditPerTx'; ante.go:122 'newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)'; baseapp.go:915-919 'limit := gasWanted; if l := ctx.GasMeter().Limit(); l > 0 && l < limit { limit = l }; log := store.OutOfGasLog(gasUsed, limit, ...)'",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/chain/runtime/paygas.go",
+      "line": 44,
+      "angle": "reach",
+      "summary": "a large maxFee panics 'maxFee * gas price overflows' only in a sponsored tx, although the limit is capped by the credit window anyway; saturating to the window would accept it",
+      "failure_scenario": "A realm calls runtime.PayGas(math.MaxInt64, cur) meaning 'cap only by the window'. In gno test and in fee-paying txs PayGasInfo is nil or ineligible, so the call returns before line 44 and the realm's tests pass; in every 0-fee tx overflow.Mul(maxFee, gp.Gas) fails for gp.Gas >= 2 and the tx aborts, so the sponsorship never works on chain.",
+      "verify_by": "txtar copied from paygas_basic.txtar with the realm calling runtime.PayGas(9223372036854775807, cur) in a 0-fee tx: expect success capped at the window, observe 'PayGas: maxFee * gas price overflows'",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "paygas.go: eligibility return at 'if pgi == nil || !pgi.Eligible { return }' precedes 'product, ok := overflow.Mul(maxFee, gp.Gas); if !ok { m.Panic(...overflows) }', then 'limit = min(limit, curLimit)'",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/runtime/paygas.gno",
+      "line": 19,
+      "angle": "catalog",
+      "summary": "carried from round 3: a user type implementing every realm method passed to runtime.PayGas could forge IsCurrent and PkgPath and bill a victim realm",
+      "settled_by": "grep -n in gnovm/pkg/gnolang/uverse.go: the realm interface declares method '195: Name: \".seal\"' and the type is 'sealed: true'; a method name starting with '.' cannot be declared in gno source, so no user type satisfies realm"
+    },
+    {
+      "file": "tm2/pkg/sdk/auth/ante.go",
+      "line": 166,
+      "angle": "removed",
+      "summary": "the closed-window 0-fee rejection might reject a canonically encoded 0-fee tx that master delivered, contradicting the ADR's 'same error as on master'",
+      "settled_by": "tm2/pkg/std/coin.go:67-69 'func (coin Coin) String() string { if coin.IsZero() { return \"\" }' with MarshalAmino returning coin.String(): every canonically encoded zero fee decodes to Coin{}, which master's ValidateBasic rejected with ErrInsufficientFee; only hand-crafted non-canonical '0ugnot' bytes differ, and head is stricter there"
+    }
+  ]
+}

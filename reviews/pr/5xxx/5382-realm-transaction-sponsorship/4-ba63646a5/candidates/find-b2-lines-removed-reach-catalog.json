@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoland/sponsorship_usecase_test.go",
+      "line": 239,
+      "angle": "reach",
+      "summary": "the GRC20 cases the ADR cites for its 6M floor run on a two-entry ledger, while the 64-entry avl case already needs 6.22M",
+      "failure_scenario": "grc20Realm.Setup (line 163-170) mints to one payer, so the balances tree holds payer and treasury and the allowance tree one key: TransferFrom walks depth-1 trees and costs 5,436,849 gas, admitted at the pinned 6M. The avl paymaster seeded with 64 entries (line 54-59) costs 6,220,498 for the same get/set work. A deployed token with dozens of holders walks a deeper tree, so a chain that sets MaxGasCreditPerTx to the 6M this row pins rejects the motivating paymaster at admission while the test stays green.",
+      "verify_by": "In grc20Realm.Setup mint to 64 distinct valid addresses (for example chain.PackageAddress(\"gno.land/r/h/\"+strconv.Itoa(i))) before the Approve, then from gno.land/: go test -count=1 -run 'TestSponsorshipUseCaseFitsWindow/REAL_grc20_transferFrom' -v ./pkg/gnoland/ ; expect CheckTx to OOG at the 6M window or gasUsed above 6,000,000.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "Ran the existing test at head (go test -count=1 -run TestSponsorshipUseCaseFitsWindow -v ./pkg/gnoland/): 'avl ledger + paygas gasUsed= 6220498 (window 7M)', 'REAL grc20 transferFrom + paygas (approval pre-existing) gasUsed= 5436849 (window 6M)', 'REAL grc20 approve + transferFrom + paygas (first interaction) gasUsed= 5247104 (window 6M)'. The populated-ledger variant was not run.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/integration/testdata/paygas_insufficient_balance.txtar",
+      "line": 15,
+      "angle": "reach",
+      "summary": "the insolvent-sponsor txtar says the tx is rejected at admission but asserts only 'insufficient coins', which a delivery failure prints too",
+      "failure_scenario": "Drop RunTxModeCheckExecute from the end-hook gate at tm2/pkg/sdk/baseapp.go:1109: the insolvent 0-fee tx passes CheckTx, is gossiped and included, and fails in DeliverTx with the same bank error; gnokey prints 'deliver transaction failed: ... insufficient coins' (maketx.go:377) and the `! gnokey` plus `stderr 'insufficient coins'` pair still passes. No baseapp_test hook test calls CheckTx (the SetEndTxHook tests at baseapp_test.go:891-923 and 960 drive DeliverTx), so the dry run that keeps an unpayable tx out of blocks, the claim at app.go:264-268 and abci.go:31-35, is pinned by nothing.",
+      "verify_by": "Mutate tm2/pkg/sdk/baseapp.go:1109 to `if mode == RunTxModeDeliver &&`, run go test -count=1 -p 1 -parallel 1 ./gno.land/pkg/integration/ -run 'TestTestdata/paygas_insufficient_balance$' and go test -count=1 ./tm2/pkg/sdk/: expect red, observe green. Fix: add `stderr 'check transaction failed'` after line 15 (maketx.go:355 wording).",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "paygas_insufficient_balance.txtar:1-2 '# A sponsor that cannot pay is rejected at admission: CheckTx dry-runs the settlement'; :14 '! gnokey maketx call ... -gas-fee 0ugnot ... -broadcast'; :15 \"stderr 'insufficient coins'\". grep -n 'SetEndTxHook|hookCalls|.CheckTx(' tm2/pkg/sdk/baseapp_test.go: CheckTx calls at 577,629,671,732,820, hook tests at 891-923 and 960 use app.DeliverTx. maketx.go:355 'check transaction failed: log:%s' vs :377 'deliver transaction failed: log:%s'.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 276,
+      "angle": "catalog",
+      "summary": "settlement's bank reads and writes run on an infinite meter, billed to nobody and outside the block gas meter, unlike the ante fee deduction the comment cites as its model",
+      "failure_scenario": "A fee-paying tx's DeductFees runs on newCtx (tm2/pkg/sdk/auth/ante.go:250), whose metered meter was set at ante.go:122/124, so its account reads and writes count in GasUsed and in the block gas meter. A sponsored tx's SendCoinsUnrestricted (app.go:309) runs on settleCtx (app.go:276, store.NewInfiniteGasMeter()) after gasUsed was read at :275, so two account reads and two writes per sponsored tx enter neither the realm's charge nor the block gas the EndBlocker prices from. The comment at app.go:270-271 justifies the infinite meter as 'like the ante's fee deduction', which is metered.",
+      "verify_by": "sed -n '118,124p;250p' tm2/pkg/sdk/auth/ante.go (SetGasMeter, then DeductFees on newCtx) against app.go:275-276 and :309; then swap settleCtx's meter for store.NewGasMeter(math.MaxInt64) in a scratch tree and log its GasConsumed after a sponsored DeliverTx to size the unbilled work.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "ante.go:122 'newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)', :124 'newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)', :250 'res = DeductFees(bank, newCtx, signerAccs[0], ak.FeeCollectorAddress(ctx), std.Coins{tx.Fee.GasFee})'; app.go:275 'gasUsed := ctx.GasMeter().GasConsumed()', :276 'settleCtx := ctx.WithGasMeter(store.NewInfiniteGasMeter())'; head app.go:270-271 comment 'deterministic protocol bookkeeping (like the ante's fee deduction)'.",
+      "repro_path": ""
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 1109,
+      "angle": "reach",
+      "summary": "Simulate skips the settlement hook, so simulating a sponsored tx whose realm cannot pay returns success while CheckTx rejects it",
+      "failure_scenario": "A 0-fee tx calling a realm holding 0 ugnot that calls PayGas: under RunTxModeSimulate the tx is marked sponsored (:1047, mode != Deliver), PayGas sets MaxFee, the PayGas-called check at :1090 passes, and the gate at :1109 admits only Deliver and CheckExecute, so .app/simulate and gnokey's simulate step report OK; the broadcast's CheckExecute then fails with 'insufficient coins'. A wallet using simulate to ask whether a realm will sponsor gets yes. The tm2 ADR line 85 records the skip; running the hook under Simulate writes only to simulate's discarded cache.",
+      "verify_by": "A tm2/pkg/sdk unit test with a beginTxHook stamping PayGasInfo().MaxFee, an EndTxHook returning an error when MaxFee > 0, MaxGasCreditPerTx > 0 and a 0-fee tx: app.Simulate returns IsOK while app.CheckTx returns the hook's error.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "baseapp.go:1047 'sponsored := (ctx.BlockHeight() > 0 || mode != RunTxModeDeliver) && app.isSponsoredTx(tx)'; :1109-1110 'if (mode == RunTxModeDeliver || mode == RunTxModeCheckExecute) && result.IsOK() && app.endTxHook != nil'; tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md:85 'Simulate (RPC gas estimation) does not run it.'",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoland/app.go",
+      "line": 982,
+      "angle": "reach",
+      "summary": "a past-chain 0-fee sponsored tx replayed at genesis is re-priced: the realm pays the new chain's gasUsed at the genesis gas price, with no meter limit, not what the source chain charged",
+      "failure_scenario": "Genesis replay sets header.Height = metadata.BlockHeight (app.go:964-965), so runTx's `ctx.BlockHeight() > 0` (baseapp.go:1047) marks a replayed 0-fee tx sponsored; with gasReplayMode \"source\" (app.go:981-982) SetGasMeter returns an infinite meter, PayGas skips SetLimit (paygas.go:55, Limit() is 0), and settlement debits ceil(gasUsed x LastGasPrice at genesis) capped only by MaxFee. Replayed fee-paying txs keep their declared fee, so sponsor realm and fee collector balances become the one replayed amount recomputed from gas, and they diverge from the source chain once a sponsorship-enabled chain is forked. Latent until such a chain exists.",
+      "verify_by": "In gno.land/pkg/gnoland/replay_report_test.go add a genesis tx carrying Metadata{BlockHeight: 5, ChainID: <past chain>} that is 0-fee and calls a PayGas realm, gasReplayMode source, MaxGasCreditPerTx > 0; compare the realm's post-genesis balance with the source debit ceil(sourceGasUsed x sourcePrice).",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "app.go:964-965 'if metadata.BlockHeight > 0 { header.Height = metadata.BlockHeight }'; :981-982 'if gasReplayMode == \"source\" && metadata.BlockHeight > 0 { ctx = ctx.WithValue(auth.SkipGasMeteringKey{}, true) }'; paygas.go:55 'if curLimit := m.GasMeter.Limit(); curLimit > 0 {'.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoland/sponsorship_usecase_test.go",
+      "line": 318,
+      "angle": "lines",
+      "summary": "the window pins check admission only; DeliverTx could cost more gas or fail to debit the realm at a window CheckTx admitted",
+      "settled_by": "tests/b2-lines-removed-reach-catalog-usecase-deliver_test.go (CheckTx then BeginBlock 2 + DeliverTx per case): 'paygas-only check=694906 deliver=694906 ok=true realm \"100000000000000ugnot\" -> \"99999999999305ugnot\"', 'avl check=6220498 deliver=6220498 ok=true', 'grc20 check=5437540 deliver=5437540 ok=true', 'grc20-approve check=5247795 deliver=5247795 ok=true', '--- PASS: TestB2UseCaseDeliverMatchesCheck'"
+    },
+    {
+      "file": "gno.land/pkg/gnoland/sponsorship_usecase_test.go",
+      "line": 234,
+      "angle": "lines",
+      "summary": "the pinned windows might not be each case's measured cost rounded up to the next million, as the header and field comment say",
+      "settled_by": "go test -count=1 -run TestSponsorshipUseCaseFitsWindow -v ./pkg/gnoland/ at head: gasUsed 694906 (1M), 1511118 (2M), 6220498 (7M), 5436849 (6M), 5247104 (6M); '--- PASS: TestSponsorshipUseCaseFitsWindow'"
+    }
+  ]
+}

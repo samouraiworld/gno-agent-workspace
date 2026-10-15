@@ -1,0 +1,62 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/sdk/vm/keeper.go",
+      "line": 2562,
+      "angle": "reach",
+      "summary": "no fixture frees more of the sponsor's storage than it locked in the tx, so the split refund (sponsor share plus a caller remainder sent with released=0) and gnokey's partial SponsorRefund subtraction at root.go:127-133 are unpinned",
+      "failure_scenario": "Sponsor locks X in msg1, a later message frees bytes worth Y > X in the sponsor's storage: sponsorShare=X goes back with the byte release, Y-X goes to the caller with released 0. Passing released to both calls (the double-decrement the comment at keeper.go:2553-2555 warns of), or dropping the remainder refund, leaves every test green; the only sponsor_refund fixture (paystorage_sponsor_grow_free_no_drain, locked 288500, freed 287500) has FeeRefund == SponsorRefund, so the remainder branch never runs and keyscli's refund.Amount > 0 path after subtraction is never hit with a positive remainder",
+      "verify_by": "grep -rn -e SpentDeposit -e SponsorRefund --include='*_test.go' . (only gnovm/cmd/calibrate/native_machine_bench_test.go hits); grep -ln sponsor_refund gno.land/pkg/integration/testdata/*.txtar (only paystorage_sponsor_grow_free_no_drain, 288500 locked vs 287500 freed); then mutate keeper.go:2564 to pass `released` instead of 0, or delete lines 2562-2567, and run go test ./gno.land/pkg/integration/ -run 'TestTestdata/pay(gas|storage)_' : expect a red, observe none",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep for SpentDeposit/SponsorRefund in *_test.go: only gnovm/cmd/calibrate/native_machine_bench_test.go; grep sponsor_refund in testdata: only paystorage_sponsor_grow_free_no_drain.txtar:40 '\"sponsor_refund\":{\"denom\":\"ugnot\",\"amount\":287500}' with 'SPONSORED STORAGE: 1000ugnot' net, so the free (287500) is below the 288500 locked and the remainder branch is skipped; paystorage_refund_goes_to_caller frees a non-sponsor realm (sponsorShare 0)",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/emit_event.go",
+      "line": 114,
+      "angle": "claims",
+      "summary": "ADR and body claim unsponsored StorageDepositEvent/StorageUnlockEvent encode exactly as before (amino and JSON) after adding Payer and SponsorRefund; feeds LastResultsHash",
+      "settled_by": "scratch test comparing amino.MustMarshal and json.Marshal of the new structs against local copies with the old fields: 'chain.StorageDepositEvent bin equal=true json equal=true' and 'chain.StorageUnlockEvent bin equal=true json equal=true', PASS"
+    },
+    {
+      "file": "gno.land/pkg/sdk/vm/keeper.go",
+      "line": 2389,
+      "angle": "claims",
+      "summary": "processStorageDeposit returns early on ctx.IsCheckTx(), which would skip the PayStorage budget check the tm2 ADR says fails the message during CheckExecute",
+      "settled_by": "grep tm2/pkg/sdk/context.go:60 'func (c Context) IsCheckTx() bool { return c.mode == RunTxModeCheck }': CheckExecute is a distinct mode, so deposits run at admission"
+    },
+    {
+      "file": "gno.land/pkg/sdk/vm/keeper.go",
+      "line": 2470,
+      "angle": "reach",
+      "summary": "lockStorageDeposit now takes the sponsor realm as payer and calls CheckAndDeductSessionSpend with it",
+      "settled_by": "tm2/pkg/sdk/auth/spend.go:97-99 'da, ok := sessions[signerAddr]; if !ok { return nil }': a realm address has no session entry, so the check is a no-op"
+    },
+    {
+      "file": "tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md",
+      "line": 76,
+      "angle": "claims",
+      "summary": "PayGas-not-called enforcement 'in every mode' would evict every pending 0-fee tx on recheck, where messages do not run",
+      "settled_by": "baseapp.go CheckTx keeps mode RunTxModeCheck on CheckTxTypeRecheck, and runTx returns at 'if mode == RunTxModeCheck { ... return result }' after the ante, before runMsgs and the payGasCalled check at baseapp.go:1090"
+    },
+    {
+      "file": "gno.land/adr/pr5382_realm_transaction_sponsorship.md",
+      "line": 97,
+      "angle": "claims",
+      "summary": "native gas figures 1097 + 35448*len/1024 and 1091 + 35576*len/1024, about 1.9K at 24 bytes and 10K at 256",
+      "settled_by": "gnovm/stdlibs/native_gas.go:169-170 'Base: 1097, Slope: 35448' and 'Base: 1091, Slope: 35576'; 1097+35448*24/1024=1928, 1097+35448*256/1024=9959; packageAddress row slope 15201 so the placeholder at 256 is 4352, about half"
+    },
+    {
+      "file": "gno.land/pkg/keyscli/root.go",
+      "line": 163,
+      "angle": "reach",
+      "summary": "GetSponsoredStorage could print a negative SPONSORED STORAGE when sponsor refunds exceed its deposits",
+      "settled_by": "keeper.go:2550 sponsorShare = min(depositUnlocked, psi.SpentDeposit) and SpentDeposit only grows by Payer-tagged deposits in the same tx, so deposits minus SponsorRefunds equals the final SpentDeposit >= 0; a failed tx reports no events (baseapp.go 'if !result.IsOK() { result.Events = nil }')"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "candidates": [],
+  "dropped": [],
+  "completeness": [
+    "Sibling sweep by shape: every strings.Contains(csp, ...) assertion in gno.land/cmd/gnoweb/main_test.go read (Strict 107-122, NonceMatchesContext 135-165, NonStrict 167-190); only the connect-src one lost a source pin through the merge. The img-src assertion took the base side, the style-src nonce one the PR side.",
+    "CSP construction sites: grep -rln 'connect-src\\|Content-Security-Policy' --include='*.go' gno.land contribs tm2 -> main.go, main_test.go, csp.go only; no second template repeats the cspTemplate shape.",
+    "Fields the merge hunks touch: HeadData.CSPNonce is pinned by TestIndexLayout_CSPNonce (layout_test.go:433), AssetsVersion by layout_test.go:705 and static_test.go:18; HeadData{ has one non-test construction, handler_http.go:234.",
+    "Invariant catalog: its classes are realm audit patterns for .gno code; the merge touches gnoweb Go, a template and a test, so no class applies."
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "candidates": [
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 795,
+      "angle": "lines",
+      "summary": "decodeTx's recover, this round's fix for the round-3 CheckTx decode Suggestion, is pinned by no test: TestCheckTxMalformedTypeURL no longer panics the decoder and asserts only !IsOK",
+      "failure_scenario": "Delete the defer/recover at baseapp.go:795-799, or put amino.Unmarshal back at CheckTx: every test in tm2/pkg/sdk stays green, so a future amino decode panic escaping CheckTx before runTx's recover goes unnoticed. TestCheckTxMalformedTypeURL (baseapp_test.go:820-821) checks only res.IsOK() false, never std.TxDecodeError, and grep finds no test naming decodeTx or 'panic decoding tx'.",
+      "verify_by": "Mutate: remove the defer at baseapp.go:795-799; go test -count=1 ./tm2/pkg/sdk/ -run 'CheckTx|Decode': expect red, observe green. Fix: a test Msg type registered with an UnmarshalAmino that panics, fed to CheckTx, asserting require.IsType(t, std.TxDecodeError{}, res.Error).",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn 'decodeTx\\|panic decoding tx' --include='*_test.go' . : no hits; baseapp_test.go:821 `require.False(t, res.IsOK(), \"expected a decode error, got OK\")` is the only assertion",
+      "repro_path": ""
+    },
+    {
+      "file": "tm2/pkg/sdk/auth/ante.go",
+      "line": 140,
+      "angle": "removed",
+      "summary": "Round 4 made runTx's OOG log name the limit the tx ran on, but the ante's own OOG recover still logs and reports the client's tx.Fee.GasWanted for a 0-fee tx metered on the credit window",
+      "failure_scenario": "Window open (MaxGasCreditPerTx=10_000_000, as testscript_gnoland.go sets), a 0-fee tx with Fee.GasWanted 0 and enough bytes that txSize gas (TxSizeCostPerByte*len) passes the window inside the ante: the recover at ante.go:136-145 logs 'gas used (...) exceeds tx's gas wanted (0) ... simulate with consensus maximum' and sets res.GasWanted=0, while the success path (ante.go:399-401) reports the window and the meter it ran on was the window (ante.go:122). Round-3 finding 9 named both ante.go:140/143 and baseapp.go:901; round 4 fixed only baseapp. Log and response field only: ABCIResult hashes the unwrapped Error, not the log.",
+      "verify_by": "Unit test in tm2/pkg/sdk/auth: consensus params MaxGasCreditPerTx=1000, MaxGas>=1000, height 1; a 0-fee tx with GasWanted 0 large enough to exceed 1000 gas in the ante; assert res.Log contains 'gas wanted (1000)': observe 'gas wanted (0)'. Fix: pass newCtx.GasMeter().Limit() at ante.go:140 and :143.",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "ante.go:140 `log := store.OutOfGasLog(gasUsed, tx.Fee.GasWanted, maxGas, ex.Descriptor, true)`; ante.go:143 `res.GasWanted = tx.Fee.GasWanted`; ante.go:122 `newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)`; round-3 findings.md:99 'Fix: pass ctx.GasMeter().Limit() at baseapp.go:901 and newCtx.GasMeter().Limit() at ante.go:140/143'",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 919,
+      "angle": "catalog",
+      "summary": "The OOG log's new limit figure could enter LastResultsHash through result.Error, contradicting the comment that logs are not hashed",
+      "settled_by": "tm2/pkg/bft/types/results.go:38-43 ABCIResult{Error, Data, Events}; tm2/pkg/bft/abci/types/util.go:197 `err = errors.Cause(err) // unwrap` so ErrOutOfGas(log) becomes OutOfGasError{} with no message; std/errors.go:119-120 `errors.Wrap(OutOfGasError{}, msg)`"
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 917,
+      "angle": "reach",
+      "summary": "In production PayGas might lower a VM-owned meter that runTx's recover never reads, leaving the round-4 fix proven only by the unit test's stand-in",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:481/1211/1352 `GasMeter: ctx.GasMeter()` hands the ante's *basicGasMeter to the machine; gnovm/stdlibs/chain/runtime/paygas.go:61 `m.GasMeter.SetLimit(limit)` on that pointer; gas.go:199/248 basicGasMeter Limit/SetLimit share it"
+    },
+    {
+      "file": "contribs/gnogenesis/internal/verify/verify.go",
+      "line": 42,
+      "angle": "reach",
+      "summary": "verify's zero-fee rule might disagree with the node for a nil Block, a negative window, or a window open at genesis",
+      "settled_by": "ante.go:68 `isZeroFeeTx := tx.Fee.GasFee.IsZero() && consParams.Block.MaxGasCreditPerTx > 0` and :166 reject iff zero fee and window <= 0; bft/types/params.go:127 rejects a negative window; abci/types/params.go:26-27 Update copies a non-nil Block whole and keeps the default (window 0) for nil; ante.go:83 refuses sponsorship at height 0 only when `ctx.Mode() != sdk.RunTxModeDeliver`, SetGasMeter is infinite at height 0 (ante.go:698), and baseapp sponsored is false at height 0 Deliver, so a zero-fee genesis tx with the window open runs, as verify accepts"
+    },
+    {
+      "file": "tm2/pkg/sdk/helpers.go",
+      "line": 147,
+      "angle": "removed",
+      "summary": "getState's mode-to-state map was rewritten to `mode != RunTxModeDeliver`, but BaseApp.NewContext still maps only RunTxModeCheck to checkState, so CheckExecute would land on deliverState",
+      "settled_by": "helpers.go:144-145 godoc 'Context with current {check, deliver}State of the app / used by tests'; grep -rn '\\.NewContext(RunTxMode\\|\\.NewContext(sdk\\.RunTxMode' over the tree returns no caller outside tests"
+    },
+    {
+      "file": "tm2/pkg/sdk/baseapp.go",
+      "line": 800,
+      "angle": "removed",
+      "summary": "Another tx decode might sit outside a recover, the sibling of the CheckTx decode decodeTx fixed",
+      "settled_by": "grep -rn 'amino.Unmarshal(' tm2/pkg/sdk tm2/pkg/bft/mempool gno.land/pkg/gnoland non-test: tx decodes only at baseapp.go:800 (decodeTx) and :981 (inside runTx after its recover defer); the rest decode params, headers and accounts from the store"
+    },
+    {
+      "file": "tm2/pkg/store/types/gas.go",
+      "line": 141,
+      "angle": "reach",
+      "summary": "A client parsing the 'gas wanted (N)' figure from the OOG log could misread the PayGas limit now reported",
+      "settled_by": "grep -rn \"gas wanted (\" over .go/.ts/.js non-test: only gas.go:141 and :146, the format strings themselves"
+    }
+  ]
+}

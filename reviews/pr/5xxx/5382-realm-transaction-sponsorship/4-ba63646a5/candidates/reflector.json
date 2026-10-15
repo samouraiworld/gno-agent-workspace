@@ -1,0 +1,19 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "contribs/gnogenesis/internal/verify/verify.go",
+      "line": 102,
+      "angle": "reach",
+      "band": "Suggestion",
+      "summary": "the new zero-fee genesis check passes a 0-fee replayed tx (Metadata.BlockHeight > 0) whenever the window is open, but the node runs that tx as sponsored (baseapp.go sponsored := (ctx.BlockHeight() > 0 || ...)) and fails it unless a realm calls PayGas, so verify still accepts a genesis InitChain then rejects",
+      "failure_scenario": "Genesis with Block.MaxGasCreditPerTx > 0 and a past-chain tx carrying Metadata{BlockHeight: 5} and fee 0ugnot that calls no PayGas realm: gnogenesis verify returns OK (check only fires when the window is 0), InitChain replays it at header height 5, runTx marks it sponsored and fails it with 'PayGas not called in 0-fee transaction'.",
+      "verify_by": "Add a case to contribs/gnogenesis/internal/verify/verify_test.go: window 1000, a 0-fee MsgSend genesis tx with Metadata.BlockHeight 5; assert verify errors; observe it passes. Then load the same genesis in an integration node and observe the tx fail.",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "verify.go:102-103 `if bp := genesis.ConsensusParams.Block; tx.Tx.Fee.GasFee.IsZero() && (bp == nil || bp.MaxGasCreditPerTx == 0)`; baseapp.go:1047 `sponsored := (ctx.BlockHeight() > 0 || mode != RunTxModeDeliver) && app.isSponsoredTx(tx)`; app.go:964-965 sets header.Height = metadata.BlockHeight",
+      "repro_path": ""
+    }
+  ]
+}

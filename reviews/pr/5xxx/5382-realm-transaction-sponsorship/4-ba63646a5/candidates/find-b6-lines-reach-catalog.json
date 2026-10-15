@@ -1,0 +1,44 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/cmd/calibrate/native_machine_bench_test.go",
+      "line": 1005,
+      "angle": "reach",
+      "summary": "Nothing pins the '#'-before-regexp order that keeps the sub-realm refusal under its charge: the PayGasSubRealm bench only checks that the call is refused, and payStorage's identical refusal has no bench at all",
+      "failure_scenario": "The body measures a failed pkgpath regexp match on a 256-byte sub-realm token at 16-20 us, against a 9959-gas charge (1097 + 35448*256/1024), and says the IndexByte('#') short-circuit at paygas.go:22 / paystorage.go:21 is what holds it to 0.3 us. Reorder either condition to `!gno.IsRealmPath(pkgPath) || strings.IndexByte(pkgPath, '#') >= 0` and the refusal still fires with the same 'rlm is not a realm' message, so zrealm_paygas.gno, paygas_from_main.txtar, paygas_realm_capability.txtar and BenchmarkNative_Runtime_PayGasSubRealm_256 all stay green, while every recovered refusal costs about twice its charge",
+      "verify_by": "In a scratch worktree, swap the two operands at gnovm/stdlibs/chain/runtime/paygas.go:22 and paystorage.go:21, then run go test -count=1 ./gnovm/stdlibs/... and go test -count=1 -run '^$' -bench PayGasSubRealm -benchtime 3000x ./gnovm/cmd/calibrate/: expect red, observe PASS everywhere. grep -rln 'rlm is not a realm' finds only outcome assertions (zrealm_paygas.gno, two txtars, the bench)",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "Read only. The bench at :1005-1028 asserts only `strings.Contains(ex.Sprint(m), \"rlm is not a realm\")`. grep -rln 'rlm is not a realm' returned gnovm/tests/files/zrealm_paygas.gno, the bench, paygas_from_main.txtar and paygas_realm_capability.txtar, all checking the message and never the cost. No PayStorageSubRealm bench exists. At head under load 62, PayGasSubRealm_256 measured 1981 ns/op and every Runtime_Pay bench PASSed.",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 294,
+      "angle": "lines",
+      "summary": "The `bp.MaxGas != -1` conjunct can never be false: MaxGas here is either the testing default of 30B or a -max-gas value, which is set only when positive",
+      "failure_scenario": "DefaultTestingGenesisConfig sets MaxGas 30_000_000_000 (node_testing.go:130) and line 284 overrides it only `if *maxGas > 0`, so MaxGas is always positive when line 294 runs. The -1 test mirrors params.go:137 but guards a value this harness cannot produce, and a reader takes it to mean that -max-gas -1 is supported. It is not: the flag ignores -1",
+      "verify_by": "sed -n '284,285p;294p' gno.land/pkg/integration/testscript_gnoland.go and sed -n 130p gno.land/pkg/integration/node_testing.go: MaxGas is either 30B or a positive flag value; no other write to Block.MaxGas sits between them",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "testscript_gnoland.go:284 `if *maxGas > 0 {`, :294 `if bp.MaxGas != -1 && bp.MaxGas < bp.MaxGasCreditPerTx {`; node_testing.go:130 `MaxGas: 30_000_000_000`.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {"file": "gnovm/cmd/calibrate/native_machine_bench_test.go", "line": 941, "angle": "lines", "summary": "The new PayGas/PayStorage/SubRealm benches might Fatal at head, since CI never runs benchmarks", "settled_by": "go test -count=1 -run '^$' -bench 'Runtime_Pay' -benchtime 3000x . in a scratch worktree at ba63646a5 printed every PayGas_*, PayGasSubRealm_256 and PayStorage_* line, then `PASS` and `ok github.com/gnolang/gno/gnovm/cmd/calibrate 1.182s`. The absolute timings are noise: load average was 62.50 on 16 cores"},
+    {"file": "gnovm/cmd/calibrate/native_machine_bench_test.go", "line": 1005, "angle": "reach", "summary": "The sub-realm refusal path might cost more than the payGas row charges at 256 bytes", "settled_by": "Same run: BenchmarkNative_Runtime_PayGasSubRealm_256 took 1981 ns/op under load 62, against a charge of 1097 + 35448*256/1024 = 9959 gas"},
+    {"file": "gnovm/cmd/calibrate/gen_native_table.py", "line": 187, "angle": "catalog", "summary": "The committed payGas/payStorage rows might undercharge a measured size point", "settled_by": "sponsorship_bench_m1pro_arm64.txt reads PayGas 1837/2967/5097/9424 ns at 32/64/128/256 bytes; the row charges 2205/3312/5528/9959. PayStorage reads 1848/2968/5108/9434 and is charged 2202/3315/5538/9985. Every point is overcharged"},
+    {"file": "gnovm/cmd/calibrate/gen_native_table.py", "line": 187, "angle": "lines", "summary": "Carried round-3 Nit: the base floored at ns(12) is charged again through the slope", "settled_by": "git diff --stat 1f043ddb1 ba63646a5 on the bundle's files printed nothing, so the code is unchanged. In the posted thread, reply 4183999232 by omarsy reads 'Left as is: fit_linear floors the base at the smallest sample for every LenString row in the table (master's fitter)'. Already posted and declined; not re-raised"},
+    {"file": "gnovm/cmd/calibrate/gen_native_table.py", "line": 187, "angle": "reach", "summary": "A regeneration from bench output without PayGas lines might silently drop the two rows", "settled_by": "gen_native_table.py:803-805 `if not d or len(d) < 2: print(f\"WARN: not enough size points for {pkg}.{fn}\", file=sys.stderr)` warns on stderr"},
+    {"file": "gnovm/cmd/calibrate/native_machine_bench_test.go", "line": 929, "angle": "reach", "summary": "benchRealmPath might build a path with a trailing '/' at some size, which is no realm path", "settled_by": "Sizes are 12/32/64/128/256, so n-12 is always even and the '/a' fill ends on 'a'. The head bench run passed the `len(p) != n || !gno.IsRealmPath(p)` Fatal at every size"},
+    {"file": "gno.land/pkg/integration/testscript_gnoland.go", "line": 293, "angle": "reach", "summary": "Forcing the 10M credit on every harness node might change pre-existing txtars or other harness consumers", "settled_by": "grep -rn SetupGnolandTestscript finds only gno.land/pkg/integration/testdata_test.go:26, and no txtar outside integration/testdata runs `gnoland start`. Among the txtars the PR did not add, only governance_initial_gasprice.txtar and transfer_lock.txtar match the fee grep, and both send non-zero fees (889999ugnot, 1ugnot)"},
+    {"file": "gno.land/pkg/integration/testscript_gnoland.go", "line": 293, "angle": "catalog", "summary": "The credit written into genesis might be lost from the consensus-params hash or update path, so restart or validator agreement could diverge", "settled_by": "tm2/pkg/bft/abci/types/params.go Hash runs `amino.MustMarshal(params)` over the whole struct, and Update deep-copies `params2.Block` whole; pb3_gen.go:3277/3449 encode and decode MaxGasCreditPerTx"},
+    {"file": "gno.land/pkg/integration/testscript_gnoland.go", "line": 292, "angle": "catalog", "summary": "bp might alias a BlockParams shared across parallel txtars", "settled_by": "node_testing.go DefaultTestingGenesisConfig builds `Block: &abci.BlockParams{... MaxGas: 30_000_000_000 ...}` fresh on every call"},
+    {"file": "gnovm/cmd/calibrate/gen_native_table.py", "line": 187, "angle": "lines", "summary": "SlopeIdx 0 might not name the pkgPath parameter of payGas/payStorage", "settled_by": "paygas.go:13 `func X_payGas(m *gno.Machine, pkgPath string, maxFee int64)` and paystorage.go:12 `func X_payStorage(m *gno.Machine, pkgPath string, maxDeposit int64)`: pkgPath is param 0"}
+  ]
+}

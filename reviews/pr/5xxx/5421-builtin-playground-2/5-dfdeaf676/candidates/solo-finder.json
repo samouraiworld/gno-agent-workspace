@@ -1,0 +1,56 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/cmd/gnoweb/main_test.go",
+      "line": 116,
+      "angle": "removed",
+      "summary": "the merge resolution kept the PR's weaker connect-src assertion and dropped master's pin on the RPC node, so nothing tests that connect-src still allows <remote>/abci_query",
+      "failure_scenario": "master at 21136dcae asserted `connect-src 'self' http://example.com/abci_query` (main_test.go:116); merge dfdeaf676 replaced it with `connect-src 'self'`. SecureHeadersMiddleware at head still emits `connect-src 'self' %s/abci_query` (main.go:359), but an edit dropping or mangling the `%s/abci_query` source leaves every gnoweb test green, since no other *_test.go under gno.land/cmd/gnoweb or gno.land/pkg/gnoweb mentions abci_query. Master's own coverage regresses through the merge with no PR-side reason: the PR's CSP change touches style-src only",
+      "verify_by": "in a scratch worktree at dfdeaf676, delete ` %s/abci_query` from the cspTemplate in gno.land/cmd/gnoweb/main.go and run `go test ./gno.land/cmd/gnoweb/ -run SecureHeaders -count=1`: expect green at head (gap), red with master's assertion restored as `connect-src 'self' http://example.com/abci_query`",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "`git show 21136dcae:gno.land/cmd/gnoweb/main_test.go | grep -n abci_query` -> `116: if !strings.Contains(csp, \"connect-src 'self' http://example.com/abci_query\") {`; head line 116 reads `if !strings.Contains(csp, \"connect-src 'self'\") {`; `grep -rn abci_query --include='*_test.go' gno.land/cmd/gnoweb gno.land/pkg/gnoweb` returns nothing; main.go:359 still carries `connect-src 'self' %s/abci_query`. Merged tests pass: `ok github.com/gnolang/gno/gno.land/cmd/gnoweb 0.037s`.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/public/main.css",
+      "line": 1,
+      "angle": "lines",
+      "summary": "binary main.css conflict resolved by hand could miss styles from one side (master's Bubble Rumble footer, or the PR's playground)",
+      "settled_by": "`gh pr checks 5421 -R gnolang/gno` -> `gnoweb_generate pass 32s` at head dfdeaf676; that job runs `make -C gno.land/pkg/gnoweb fclean generate` and diffs the tree (ci-dir-gnoland.yml:67-69), so a stale main.css is caught by CI"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/layouts/head.html",
+      "line": 9,
+      "angle": "removed",
+      "summary": "master renamed HeadData.BuildTime to AssetsVersion; a PR-side template or Go site still naming .BuildTime would fail at render time",
+      "settled_by": "`grep -rn BuildTime gno.land/ contribs/ | grep -v node_modules | grep -v public/` returns nothing; every `?v=` site (head.html:44,50,53, footer.html:51-52, analytics.html:3,6) names AssetsVersion"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 241,
+      "angle": "reach",
+      "summary": "a page rendered through a HeadData built outside Get would miss the CSP nonce and CodeMirror styles would be blocked under strict CSP",
+      "settled_by": "`grep -rn 'IndexLayout(\\|IndexData{' --include='*.go' gno.land contribs | grep -v _test` -> one construction (handler_http.go:233) and three renders (277, 313, 338), all from it; `HeadData{` has no other non-test construction"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/static.go",
+      "line": 45,
+      "angle": "reach",
+      "summary": "master's content-derived AssetsVersion might not cover the PR's new feature bundles, leaving controllers cached `immutable` for a year after a deploy",
+      "settled_by": "static.go init walks every file under the embedded `public/*` into the digest; frontend/js/index.ts:34 builds controller paths as `${CONTROLLER_PATH}${kebab}.js${versionSuffix}`, so dynamically imported controllers carry the version too"
+    },
+    {
+      "file": "contribs/gnobro",
+      "line": 1,
+      "angle": "reach",
+      "summary": "red `gnobro / test` at head might be a merge break",
+      "settled_by": "`gh run view 36448255265 --log-failed` -> `FAIL github.com/gnolang/gno/contribs/gnobro [setup failed]` on `read \"https://proxy.golang.org/github.com/erigontech/mdbx-go/@v/v0.40.1.zip\": stream error: stream ID 295; INTERNAL_ERROR`: a module proxy fetch flake, not code"
+    }
+  ]
+}
