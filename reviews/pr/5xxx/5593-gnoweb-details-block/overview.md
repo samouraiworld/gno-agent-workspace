@@ -8,7 +8,7 @@ gnoweb could fold content only through the alert syntax, `> [!INFO]- Title`, whi
 
 ## What `<gno-details>` is
 
-A realm's `Render` output can wrap any markdown in a fold the visitor opens by clicking its summary. The browser's `<details>` element does the toggling, and the chevron in the summary rotates when it opens, per [`.gno-details`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/frontend/css/06-blocks.css#L3343).
+A realm's `Render` output can wrap any markdown in a fold the visitor opens by clicking its summary. The browser's `<details>` element does the toggling, and the chevron in the summary rotates when it opens, per [`.gno-details`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/frontend/css/06-blocks.css#L3343).
 
 ## How it works, in 4 steps
 
@@ -20,9 +20,9 @@ All code here is the branch head.
    body
    </gno-details>
    ```
-2. goldmark offers every line starting with `<` or `>` to `detailsParser`, the `>` so the release runs before an alert or a quoted gno-* block reads the depth. [`parseDetailsLineTag`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L74-L97) classifies the trimmed line as an opener, a close, an invalid tag or no tag, and reads `summary` and a bare `open`. [`Open`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L178-L223) calls `Push` for an opener and keeps it on a stack in the parser context; a close pairs with the innermost opener of the same parent and calls `Pop`. Before reading any line it calls [`releaseDetails`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L133-L145), which ends every opener whose list item or blockquote no longer holds the parent goldmark hands it, so a block left unclosed in a container ends with it.
-3. After parsing, [`wrapDetails` and `takeBlocks`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L259-L299) move each opener's following siblings under it, innermost first, up to its close, a gno-columns or gno-frame marker, or the end of the parent. A tight list's text block moved inside becomes a paragraph.
-4. [`renderGnoDetails`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L313-L336) writes fixed markup and the escaped summary. The output for step 1, from a run at the head:
+2. goldmark offers every line starting with `<` or `>` to `detailsParser`, the `>` so the release runs before an alert or a quoted gno-* block reads the depth. [`parseDetailsLineTag`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L74-L97) classifies the trimmed line as an opener, a close, an invalid tag or no tag, and reads `summary` and a bare `open`. [`Open`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L176-L220) calls `Push` for an opener and keeps it on a stack in the parser context; a close pairs with the innermost opener of the same parent and calls `Pop`. Before reading any line it calls [`releaseDetails`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L133-L143), which ends every opener whose list item or blockquote no longer holds the parent goldmark hands it, so a block left unclosed in a container ends with it.
+3. After parsing, [`wrapDetails` and `takeBlocks`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L256-L292) move each opener's following siblings under it, innermost first, up to its close, a gno-columns or gno-frame marker, or the end of the parent. A tight list's text block moved inside becomes a paragraph.
+4. [`renderGnoDetails`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L306-L329) writes fixed markup and the escaped summary. The output for step 1, from a run at the head:
    ```html
    <details class="gno-details" open>
    <summary><svg><use href="#ico-arrow"></use></svg><span>S</span></summary>
@@ -36,13 +36,13 @@ All code here is the branch head.
 
 | Part | File | Job |
 | --- | --- | --- |
-| `GnoDetailsNode` | [`ext_details.go`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L29-L41) | one node per tag line: an opener holding the block, a close, or an invalid tag rendered as a comment |
-| `detailsParser` | [`ext_details.go`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L159-L237) | classifies tag lines, pairs closes with openers by parent, applies the depth cap |
-| `detailsASTTransformer` | [`ext_details.go`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L241-L299) | gives back the depth of openers left open at EOF and moves blocks under each opener |
-| `detailsRendererHTML` | [`ext_details.go`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L303-L336) | writes `<details>`, `<summary>` and the body `<div>` |
-| registration | [`ext.go:111`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext.go#L111), [`ext_foreign.go:451`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_foreign.go#L451) | the main goldmark instance and the `<gno-foreign>` inner one |
-| `.gno-details` styles | [`06-blocks.css`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/frontend/css/06-blocks.css#L3343) | border, summary row, chevron rotation on `[open]` |
-| goldens and tests | [`golden/ext_details/`](https://github.com/gnolang/gno/tree/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/golden/ext_details), [`ext_details_test.go`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details_test.go#L26) | 14 input and output pairs, five sanitize fixtures, and unit tests for the cap and the depth balance |
+| `GnoDetailsNode` | [`ext_details.go`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L29-L41) | one node per tag line: an opener holding the block, a close, or an invalid tag rendered as a comment |
+| `detailsParser` | [`ext_details.go`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L157-L234) | classifies tag lines, pairs closes with openers by parent, applies the depth cap |
+| `detailsASTTransformer` | [`ext_details.go`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L238-L292) | gives back the depth of openers left open at EOF and moves blocks under each opener |
+| `detailsRendererHTML` | [`ext_details.go`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L296-L329) | writes `<details>`, `<summary>` and the body `<div>` |
+| registration | [`ext.go:111`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext.go#L111), [`ext_foreign.go:451`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_foreign.go#L451) | the main goldmark instance and the `<gno-foreign>` inner one |
+| `.gno-details` styles | [`06-blocks.css`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/frontend/css/06-blocks.css#L3343) | border, summary row, chevron rotation on `[open]` |
+| goldens and tests | [`golden/ext_details/`](https://github.com/gnolang/gno/tree/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/golden/ext_details), [`ext_details_test.go`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details_test.go#L26) | 14 input and output pairs, five sanitize fixtures, and unit tests for the cap and the depth balance |
 
 ## How the markers become a block
 
@@ -71,21 +71,21 @@ flowchart LR
 
 ## Read the code in this order
 
-1. [`parseDetailsLineTag`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L74-L97) fixes the syntax.
+1. [`parseDetailsLineTag`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L74-L97) fixes the syntax.
    ```go
    case kind == detailsTagOpen && bytes.EqualFold(key, []byte("open")) && val == nil && !seenOpen:
    ```
-2. [`Open`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L178-L223) decides which close ends which opener, and so where every later block lands.
+2. [`Open`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L176-L220) decides which close ends which opener, and so where every later block lands.
    ```go
    case valid && stack != nil && len(*stack) > 0 && (*stack)[len(*stack)-1].parent == parent:
    ```
-3. [`takeBlocks`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L275-L299) builds the block; a wrong stop splits a grid or a frame.
+3. [`takeBlocks`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L272-L292) builds the block; a wrong stop splits a grid or a frame.
    ```go
    if k := c.Kind(); k == KindGnoColumn || k == KindGnoFrame {
        break
    }
    ```
-4. [`renderGnoDetails`](https://github.com/gnolang/gno/blob/cf6766be0420ddbdf2f57569a7579fe3e1c846fa/gno.land/pkg/gnoweb/markdown/ext_details.go#L313-L336) writes only constants and `util.EscapeHTML(n.Summary)`.
+4. [`renderGnoDetails`](https://github.com/gnolang/gno/blob/5004185b57a30dfda916280ee62a4b3320813a80/gno.land/pkg/gnoweb/markdown/ext_details.go#L306-L329) writes only constants and `util.EscapeHTML(n.Summary)`.
 
 ## What a user notices
 
