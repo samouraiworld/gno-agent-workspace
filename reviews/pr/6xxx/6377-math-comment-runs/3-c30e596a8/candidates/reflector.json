@@ -1,0 +1,15 @@
+{
+ "candidates": [
+  {"index": 2, "file": "gno.land/pkg/gnoweb/markdown/mathml/edgecases_test.go", "line": 297, "angle": "tests",
+   "summary": "the PR body says reverting any one fix alone turns one of the added tests red; no finder ran that",
+   "failure_scenario": "a fix reverted alone (fixFences guard, Empty's last, colorArgMissing, the cellEnd memo, matched's bound, the doFence or \\class nil guards, GetNextToken's matched) leaves every added test green, so a regression ships",
+   "verify_by": "python3 tests/judge-reflector-test-mutations.py <head worktree> gno.land/pkg/gnoweb/markdown/mathml: expect every mutation RED",
+   "band": "Missing test", "fix_kind": "test", "checked": true},
+  {"index": 3, "file": "gno.land/pkg/gnoweb/markdown/mathml/mmlnode_test.go", "line": 214, "angle": "removed",
+   "summary": "convertWithin's t.Fatalf repeats the %q shape the diff narrowed to %.80q in convertErrWithin",
+   "failure_scenario": "a long input timing out in convertWithin prints its whole source into the test log",
+   "verify_by": "read every convertWithin caller's input (mmlnode_test.go:84, 244-245)",
+   "band": "Nit", "fix_kind": "code", "checked": true}
+ ],
+ "dropped": []
+}

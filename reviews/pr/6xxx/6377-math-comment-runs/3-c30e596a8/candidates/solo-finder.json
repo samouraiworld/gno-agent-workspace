@@ -1,0 +1,70 @@
+{
+ "candidates": [
+  {
+   "index": 1,
+   "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+   "line": 378,
+   "angle": "user topic: same MathML as master",
+   "summary": "GetNextToken now hands back as a plain token a } that \\left or \\bigl turned into an opener, so \\sideset reads scripts that master dropped. This breaks the PR's claim that every expression master converts without error converts to the same MathML",
+   "failure_scenario": "\\sideset{\\left}^a}}{}x (or \\bigl} in place of \\left}) converts without error on both sides. Master draws <none></none> in the last prescript slot. The branch draws <mi>a</mi>. Master's GetNextToken answered ErrTokenBufferExpr for any unescaped curly opener, and cmd_sideset's getScripts stopped there. matched() requires Value \"{\", so the folded } now comes back as a token and the ^a after it is read. The input is malformed (\\left} is not a valid delimiter) and nothing valid changes. A reader loses only the PR body's universal claim (TLDR: 'Every expression master converts without error converts to the same MathML'), which needs scoping to valid TeX or to the corpus.",
+   "verify_by": "Copy tests/solo-finder-sideset-curly-fence.go into the mathml package with the master package copied to zzbase, as its header says, then run go test -count=1 -run TestZZSideset -v: expect FAIL, master <none></none> against branch <mi>a</mi>",
+   "band": "Nit",
+   "fix_kind": "comment",
+   "checked": true,
+   "run": true,
+   "evidence": "\\sideset{\\left}^a}}{}x same=false; base err=<nil> ...<mprescripts></mprescripts><none></none><none></none></mmultiscripts>; head err=<nil> ...<mprescripts></mprescripts><none></none><mi>a</mi></mmultiscripts>. Also differs for \\bigl}. 5.4M grammar expressions (seeds 1,2,3,5,6,7,11,12) and 4.4M go-fuzz execs found no other differing shape: TestZZGram seed 11 n=800000 diffs=0, seed 12 n=800000 diffs=0 with curly fence delimiters left out; FuzzZZ 4,439,246 execs PASS, filtering only the \\left}/\\bigl} shape.",
+   "repro_path": "tests/solo-finder-sideset-curly-fence.go"
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/mathml/parse.go",
+   "line": 229,
+   "angle": "user topic: no input crashes",
+   "summary": "some other input still crashes the branch's converter",
+   "settled_by": "Ran the differential fuzzer tests/solo-finder-diff-fuzz.go (TestZZDiff and TestZZGram, seeds 1,2,3,5,6,7,11,12; 5.4M expressions) and FuzzZZ (go test -fuzz FuzzZZ -fuzztime 150s, 4,439,246 execs). Every run reported headCrash=0 and regress=0. Master crashed on 72,879 of 800,000 in seed 11 alone."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/mathml/parse.go",
+   "line": 229,
+   "angle": "user topic: claimed defects reproduce through NewGnoExtension",
+   "summary": "the crash does not show as an 'invalid math input' error in a realm page",
+   "settled_by": "TestZZPageCrash in tests/solo-finder-page-repro.go, run with master's mathml: FALLBACK \"$\\\\bf\\\\sqrt[a&b]x$\" -> <p>Text <span class=\"math-inline\">\\bf\\sqrt[a&amp;b]x</span> end.</p>. All six crash inputs fall back to raw source, and all six give CONVERTED at head. The defect reproduces: the whole expression goes unrendered. Only the body's wording differs from what a page shows, because ext_math.go:919-960 discards the converter's error MathML and prints the escaped source."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+   "line": 312,
+   "angle": "user topic: claimed defects reproduce through NewGnoExtension",
+   "summary": "the bare \\color quadratic cannot be reached through a realm page, since MaxMathInputLen caps an expression at 8 KiB",
+   "settled_by": "TestZZPageColor (best of 5), bare \\color k=170/341/682/1365 in $...$. Master: 0.30/0.75/2.21/6.54 ms, about 2.5x, 2.9x and 3.0x per doubling. Head: 0.25/0.58/0.47/0.98 ms. A 1 MiB page of 128 such expressions: master 176 ms, head 48 ms, with 19 converted before the page budget ran out. The defect reproduces up to the cap. The 35.8 s row uses 131,072 commands, past MaxMathInputLen (ext_math.go:21, 8<<10), so no page reaches it. The table labels that row ConvertInline, so this is wording only."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+   "line": 350,
+   "angle": "user topic: linear runs",
+   "summary": "a comment run, or a bare \\color run, is still walked once per element on some path",
+   "settled_by": "TestZZPageColor, indented % lines k=256/512/1024/2040 in $$...$$. Master: 0.35/1.04/3.45/12.3 ms. Head: 0.14/0.26/0.50/1.17 ms, linear. Bare \\color at head: 0.25 to 0.98 ms up to 8 KiB, linear. The fuzzer's slowest head conversion was 61 ms, on a 300-token mixed input."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+   "line": 336,
+   "angle": "lines",
+   "summary": "colorArgMissing answers differently from the old GetOptions/GetNextExpr on the sliced cell. The cases are a [ closing at or past cellEnd, and a { closing past the cell",
+   "settled_by": "By reading: checkGroupNesting unpairs any [ ] that straddles a group, and cellEnd steps over whole groups, so a { reached before cellEnd closes before it. A [ whose closer is at index n falls on the merror path both ways. The fuzzer agrees: TestZZGram over \\color, \\color[RGB], \\color{red} and \\color[RGB]{1,2,3} found diffs=0 outside the \\left} shape."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+   "line": 321,
+   "angle": "catalog: global mutable state",
+   "summary": "the cellEnds table or last goes stale when Expr changes, or is shared between goroutines",
+   "settled_by": "grep -n 'TokenBuffer{\\|\\.Expr = \\|\\.Expr\\[...\\]\\. =' over the package matches only tokenize.go:316 &TokenBuffer{Expr: t, idx: 0, last: last}. Nothing writes Expr after construction, and every buffer is built per render (mathml.go:70)."
+  },
+  {
+   "file": "gno.land/pkg/gnoweb/markdown/mathml/edgecases_test.go",
+   "line": 305,
+   "angle": "reach",
+   "summary": "under -race in CI, TestBareColorRunIsLinear's 2 s bound could time out",
+   "settled_by": "grep -n race .github/workflows/ci-race.yml. Its only gnoweb line is ci-race.yml:62, go test -race ... -run 'TestMathConcurrentRender' ./gno.land/pkg/gnoweb/markdown/, so the mathml package never runs under -race."
+  }
+ ]
+}

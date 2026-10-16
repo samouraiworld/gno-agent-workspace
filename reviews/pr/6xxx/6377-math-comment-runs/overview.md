@@ -5,9 +5,9 @@ Review files: [reviews/pr/6xxx/6377-math-comment-runs](https://github.com/samour
 
 ## TLDR
 
-Before, three kinds of math input misbehaved. A run of `%` comment lines and a run of `\color` commands with no `{argument}` converted in time growing with the square of their length. And some malformed input crashed the converter, which then replaced the whole expression with "invalid math input": about one in twenty random expressions built from common commands.
+Before, three kinds of math input misbehaved. A run of `%` comment lines and a run of `\color` commands with no `{argument}` converted in time growing with the square of their length. And some malformed input crashed the converter, so gnoweb showed the expression as its LaTeX source instead of rendering it: about one in twenty random expressions built from common commands.
 Now every run is walked once, through `fixFences`, `TokenBuffer.Empty`'s `last`, `colorArgMissing` and a per-buffer `cellEnd` table. The crash sites are guarded: a command that draws nothing, and a group whose match lies outside the buffer being read.
-Every expression master converts without error converts to the same MathML.
+Valid TeX converts to the same MathML as before. A `}` that `\left` or `\bigl` takes as its delimiter, which TeX rejects, now renders as a plain brace.
 
 ## Before and after
 
@@ -15,9 +15,10 @@ Each row's two columns come from one run on one machine under load, so read the 
 
 | Input | Before | After |
 | --- | --- | --- |
-| A 1 MiB realm page of `$$` blocks of `%` lines, through `NewGnoExtension` | 1.73 s | 177 ms |
-| One expression of 65,536 indented `%` lines, `ConvertDisplay` | 14.0 s | 17.4 ms |
-| One expression of 131,072 bare `\color` commands, `ConvertInline` | 35.8 s | 115 ms |
+| A 1 MiB realm page of 8 KiB `$$` blocks of `%` lines, through `NewGnoExtension`, best of 3 | 669 ms | 131 ms |
+| The same page, each line indented | 522 ms | 89 ms |
+| The same page, blocks of bare `\color` | 102 ms | 29 ms |
+| One expression of 65,536 indented `%` lines, `ConvertDisplay` called directly | 14.0 s | 17.4 ms |
 | 300,000 random expressions of common commands, seed 13 | 15,613 crash | 0 crash, the rest identical |
 | `\left`, `\big`, `\newcommand` or groups beside comments | linear | linear, unchanged |
 
@@ -63,7 +64,7 @@ Returns the missing-argument error before the switch slices its cell.
 
 ### 5. `warm` · The nil guards, [`parse.go`](https://github.com/gnolang/gno/pull/6377/files#diff-68347990c0498360ca09607c0fd3a3d1b55d14229add4b92002742c27ae265d6R229-R232)
 A `\left`, `\big` or `\middle` whose delimiter is a command drawing nothing is skipped, as is `\class{a}{}`; each crashed on a nil node before.
-**If wrong:** that input replaces the whole expression with "invalid math input" again.
+**If wrong:** that input crashes the converter again, and the page shows the expression as source.
 
 ### 6. `cold` · The tests, [`edgecases_test.go`](https://github.com/gnolang/gno/pull/6377/files#diff-bad9ba16d355ebdd42acccc074b55514171fb90517664d7730a3fb2d1f042cd3R113-R174)
 Fence-and-comment cases, `TestCommentRunIsLinear`, `TestBareColorRunIsLinear`, `TestSwitchEndsAtItsCell` and `TestMalformedInputDoesNotCrash`; reverting any one fix alone turns one of them red.
