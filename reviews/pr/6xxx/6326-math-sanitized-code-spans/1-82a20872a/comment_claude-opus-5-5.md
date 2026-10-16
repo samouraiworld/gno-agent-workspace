@@ -1,4 +1,5 @@
 # Review: [#6326](https://github.com/gnolang/gno/pull/6326)
+Posted: https://github.com/gnolang/gno/pull/6326#pullrequestreview-5551618615
 Event: COMMENT
 Verdict: REQUEST CHANGES. The `$$`, `\\(` and `\\[` closers inherit a link-destination skip that runs a formula past its own closer and over a later link, which the branch introduces; the label-stop and code-span gaps predate it and do not block.
 Model: claude-opus-5-5, standard review; finders xhigh, judge and writer high
@@ -32,7 +33,7 @@ $x^{2} + ADMIN_{verified}$
 </details>
 
 
-## gno.land/pkg/gnoweb/markdown/ext_math.go:359 [gh](https://github.com/gnolang/gno/blob/82a20872a7e4eb89cae377e8ef46c5c578b1b639/gno.land/pkg/gnoweb/markdown/ext_math.go#L359) · [↗](../../../../../.worktrees/gno-review-6326/gno.land/pkg/gnoweb/markdown/ext_math.go#L359) · Warning
+## gno.land/pkg/gnoweb/markdown/ext_math.go:359 [gh](https://github.com/gnolang/gno/blob/82a20872a7e4eb89cae377e8ef46c5c578b1b639/gno.land/pkg/gnoweb/markdown/ext_math.go#L359) · [↗](../../../../../.worktrees/gno-review-6326/gno.land/pkg/gnoweb/markdown/ext_math.go#L359) · Warning [posted](https://github.com/gnolang/gno/pull/6326#discussion_r4297639749)
 
 An unclosed `[a,b](` inside a `$$`, `\\(` or `\\[` formula hides its closer until a balanced `)`, so a later link's `)` lets the formula swallow that link rather than only [stay text](https://github.com/gnolang/gno/pull/6326#discussion_r4283542736).
 

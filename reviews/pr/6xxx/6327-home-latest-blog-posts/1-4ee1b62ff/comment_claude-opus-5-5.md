@@ -1,4 +1,5 @@
 # Review: [#6327](https://github.com/gnolang/gno/pull/6327)
+Posted: https://github.com/gnolang/gno/pull/6327#pullrequestreview-5551620165
 Event: COMMENT
 Verdict: APPROVE. Nothing blocks: the reload keeping the last page on a failed read is the documented behaviour, so its missing log is a Nit; the rest is one missing test, Nits and Suggestions.
 Model: claude-opus-5-5, standard review; finders xhigh, judge and writer high
@@ -12,7 +13,7 @@ Round: 1. Scope is the pull request's own commits 73a1fc81f and c1ceeae48; the r
 
 > AI review, claude-opus-5-5, standard review, reviewed at [4ee1b62ff](https://github.com/gnolang/gno/pull/6327/commits/4ee1b62ff5fa327ac9817b4b0d6f08251765a354), [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6327-home-latest-blog-posts/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6327-home-latest-blog-posts/1-4ee1b62ff/claims.md) · Status: APPROVE
 
-## gno.land/pkg/gnoweb/alias_static_test.go:254 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static_test.go#L254) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static_test.go#L254) · Missing test
+## gno.land/pkg/gnoweb/alias_static_test.go:254 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static_test.go#L254) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static_test.go#L254) · Missing test [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4297641004)
 
 Missing test: `TestNewStaticFileAliasReloads` stays green with the zeroing block at [`alias_static.go:190-192`](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static.go#L190-L192) deleted, since every file it renames in is backdated a minute.
 
@@ -39,11 +40,11 @@ func TestNewStaticFileAliasRereadsUnsettledFile(t *testing.T) {
 
 </details>
 
-## gno.land/pkg/gnoweb/alias_static.go:161 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static.go#L161) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L161) · Nit
+## gno.land/pkg/gnoweb/alias_static.go:161 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static.go#L161) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L161) · Nit [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4297641014)
 
 Nit: `f.current()` reads and parses the file a second time right after this read, since the new `staticFile` starts with a zero `modTime`.
 
-## gno.land/pkg/gnoweb/alias_static.go:185 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static.go#L185) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L185) · Nit
+## gno.land/pkg/gnoweb/alias_static.go:185 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static.go#L185) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L185) · Nit [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4297641026)
 
 Nit: `f.mu` is held across `os.ReadFile`, so one blocking read, a FIFO renamed over `home.md`, stalls all 10 concurrent requests past a second.
 
@@ -83,7 +84,7 @@ zz_judge3_test.go:41: served within 1s: 0 of 10
 
 </details>
 
-## gno.land/pkg/gnoweb/alias_static.go:187 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static.go#L187) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L187) · Nit
+## gno.land/pkg/gnoweb/alias_static.go:187 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static.go#L187) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L187) · Nit [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4297641037)
 
 Nit: these `os.Stat` and `os.ReadFile` errors go unlogged, so an unreadable `home.md` keeps serving the old page silently until a restart fails on it.
 
@@ -142,7 +143,7 @@ ok  	github.com/gnolang/gno/gno.land/pkg/gnoweb	0.029s
 
 </details>
 
-## gno.land/pkg/gnoweb/alias_static.go:190 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static.go#L190) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L190) · Nit
+## gno.land/pkg/gnoweb/alias_static.go:190 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/gno.land/pkg/gnoweb/alias_static.go#L190) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L190) · Nit [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4297641052)
 
 Nit: with an mtime ahead of gnoweb's clock, `time.Since(f.modTime)` stays negative and each request re-reads and re-parses the page.
 
@@ -152,7 +153,7 @@ Nit: each title becomes a bold paragraph above its date, so titles wrapping to d
 
 Not posted: one agent alone took the date offsets, and no render of the page ran here.
 
-## misc/deployments/home-alias/gnoalias.sh:63 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/misc/deployments/home-alias/gnoalias.sh#L63) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L63) · Nit
+## misc/deployments/home-alias/gnoalias.sh:63 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/misc/deployments/home-alias/gnoalias.sh#L63) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L63) · Nit [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4297641063)
 
 Nit: this `return 1` blocks every edit to `home-override.md` until the mainnet blog query succeeds again.
 
@@ -162,10 +163,10 @@ Suggestion: this command runs the script without a reload command or `docker`, s
 
 Not posted: the description's Ops section already orders the gnoweb deploy first, and no gnoweb built at the base was run against the script.
 
-## misc/deployments/home-alias/docker-compose.yml:31 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/misc/deployments/home-alias/docker-compose.yml#L31) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/docker-compose.yml#L31) · Suggestion
+## misc/deployments/home-alias/docker-compose.yml:31 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/misc/deployments/home-alias/docker-compose.yml#L31) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/docker-compose.yml#L31) · Suggestion [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4297641076)
 
 Suggestion: `BLOG_LINK_BASE` ships empty, so on a testnet each mainnet post links to the testnet's own blog and gets a `404`. Defaulting it to `https://gno.land` makes the links right on both networks.
 
-## misc/deployments/home-alias/gnoalias.sh:11 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/misc/deployments/home-alias/gnoalias.sh#L11) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L11) · Suggestion
+## misc/deployments/home-alias/gnoalias.sh:11 [gh](https://github.com/gnolang/gno/blob/4ee1b62ff5fa327ac9817b4b0d6f08251765a354/misc/deployments/home-alias/gnoalias.sh#L11) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L11) · Suggestion [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4297641085)
 
 Suggestion: this one interval paces every round, so an edit to `home-override.md` or the retry after a failed first blog query waits up to an hour. A shorter interval costs one `vm/qrender` per round, since a round with nothing new ends at `cmp` without writing.
