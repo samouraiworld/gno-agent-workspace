@@ -1,4 +1,5 @@
 # Review: [#6209](https://github.com/gnolang/gno/pull/6209)
+Posted: https://github.com/gnolang/gno/pull/6209#pullrequestreview-5548097705
 Event: COMMENT
 Verdict: NEEDS DISCUSSION. The four scope fixes hold, and two points stay open: a func literal's result names are masked before its signature is resolved, which predates the branch and does not block it, and loop shapes the base already runs give a different result once a node re-preprocesses a deployed package.
 Model: claude-opus-5-5, standard review, solo shape: 2 finders at xhigh, judge at high
@@ -93,7 +94,7 @@ Round: 1. Solo round: 2 finders, one reflector pass, 7 candidates (4 from the fi
   With `if len(parent) == 0 {` in `pushClone`: 3, 3 and 4, and `TestFiles/(loopvar|closure|heap|fun|range|typeswitch|for|var|block|shadow).*` passes.
   </details>
 
-## gnovm/pkg/gnolang/preprocess.go:377 [gh](https://github.com/gnolang/gno/blob/1de7f587d/gnovm/pkg/gnolang/preprocess.go#L377) · [↗](../../../../../.worktrees/gno-review-6209/gnovm/pkg/gnolang/preprocess.go#L377) · Suggestion
+## gnovm/pkg/gnolang/preprocess.go:377 [gh](https://github.com/gnolang/gno/blob/1de7f587d/gnovm/pkg/gnolang/preprocess.go#L377) · [↗](../../../../../.worktrees/gno-review-6209/gnovm/pkg/gnolang/preprocess.go#L377) · Suggestion [posted](https://github.com/gnolang/gno/pull/6209#discussion_r4294908148)
 
 Suggestion: `TRANS_BLOCK2` changes the result of four loop shapes the merge base already runs, so scan deployed packages for them before the upgrade.
 
