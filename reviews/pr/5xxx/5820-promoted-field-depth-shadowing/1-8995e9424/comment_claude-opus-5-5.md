@@ -1,4 +1,5 @@
 # Review: [#5820](https://github.com/gnolang/gno/pull/5820)
+Posted: https://github.com/gnolang/gno/pull/5820#pullrequestreview-5547554754
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. The branch introduces two Warnings in `FindEmbeddedFieldType`: a selector that runs a different method than Go picks with no error, and a Go-valid program the merge base ran that now fails preprocess after go/types accepts it; both come from walks whose result is discarded leaving types marked in the shared `m`.
 Model: claude-opus-5-5, standard review, solo shape: 2 finders at xhigh, judge at high
@@ -9,7 +10,7 @@ Round: 1. Two finders and one reflector pass, 9 candidates, each Warning and the
 
 ## Body
 
-## gnovm/pkg/gnolang/types.go:902 [gh](https://github.com/gnolang/gno/blob/8995e9424/gnovm/pkg/gnolang/types.go#L902) · [↗](../../../../../.worktrees/gno-review-5820/gnovm/pkg/gnolang/types.go#L902) · Warning
+## gnovm/pkg/gnolang/types.go:902 [gh](https://github.com/gnolang/gno/blob/8995e9424/gnovm/pkg/gnolang/types.go#L902) · [↗](../../../../../.worktrees/gno-review-5820/gnovm/pkg/gnolang/types.go#L902) · Warning [posted](https://github.com/gnolang/gno/pull/5820#discussion_r4294484003)
 
 Inside `S{C; X}` this case keeps `S.C` though the `X.R` walk marked `R`, so `T{S; R}` runs `S.C.M` where Go picks the direct `R`.
 
@@ -72,7 +73,7 @@ A second shape, `T{Sub; C}` with `Sub{A; W}` and `W{C}`, prints `A` for the inte
 
 </details>
 
-## gnovm/pkg/gnolang/types.go:907 [gh](https://github.com/gnolang/gno/blob/8995e9424/gnovm/pkg/gnolang/types.go#L907) · [↗](../../../../../.worktrees/gno-review-5820/gnovm/pkg/gnolang/types.go#L907) · Warning
+## gnovm/pkg/gnolang/types.go:907 [gh](https://github.com/gnolang/gno/blob/8995e9424/gnovm/pkg/gnolang/types.go#L907) · [↗](../../../../../.worktrees/gno-review-5820/gnovm/pkg/gnolang/types.go#L907) · Warning [posted](https://github.com/gnolang/gno/pull/5820#discussion_r4294484008)
 
 This tie only sets `ambiguous`, so `S{A; B; Z}` walks on into `Z{R}` and marks `R`, and `T{S; R}`, valid Go resolving to `R.M`, fails preprocess.
 
@@ -135,7 +136,7 @@ A second shape, `T{Amb; C}` with `Amb{A; B; W}` and `W{C}`, fails with `missing 
 
 </details>
 
-## gnovm/tests/files/embed_method_shadow_internal_ambiguous.gno:24 [gh](https://github.com/gnolang/gno/blob/8995e9424/gnovm/tests/files/embed_method_shadow_internal_ambiguous.gno#L24) · [↗](../../../../../.worktrees/gno-review-5820/gnovm/tests/files/embed_method_shadow_internal_ambiguous.gno#L24) · Missing test
+## gnovm/tests/files/embed_method_shadow_internal_ambiguous.gno:24 [gh](https://github.com/gnolang/gno/blob/8995e9424/gnovm/tests/files/embed_method_shadow_internal_ambiguous.gno#L24) · [↗](../../../../../.worktrees/gno-review-5820/gnovm/tests/files/embed_method_shadow_internal_ambiguous.gno#L24) · Missing test [posted](https://github.com/gnolang/gno/pull/5820#discussion_r4294484015)
 
 Missing test: the VM runs `C.M` for `Clean{C}` where Go reports an ambiguous `T.M`, as this fixture rejects only through the `A` already in `m`.
 
@@ -186,7 +187,7 @@ func main() {
 
 </details>
 
-## gnovm/pkg/gnolang/types.go:896 [gh](https://github.com/gnolang/gno/blob/8995e9424/gnovm/pkg/gnolang/types.go#L896) · [↗](../../../../../.worktrees/gno-review-5820/gnovm/pkg/gnolang/types.go#L896) · Nit
+## gnovm/pkg/gnolang/types.go:896 [gh](https://github.com/gnolang/gno/blob/8995e9424/gnovm/pkg/gnolang/types.go#L896) · [↗](../../../../../.worktrees/gno-review-5820/gnovm/pkg/gnolang/types.go#L896) · Nit [posted](https://github.com/gnolang/gno/pull/5820#discussion_r4294484027)
 
 Nit: a revisit pruned by `m` returns `nil` like a miss, so `T{A{Base}; B{Base}; C{D{E}}}` runs `Base.M` where Go reports an ambiguous selector.
 

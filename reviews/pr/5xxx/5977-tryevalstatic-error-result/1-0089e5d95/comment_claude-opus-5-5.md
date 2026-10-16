@@ -1,4 +1,5 @@
 # Review: [#5977](https://github.com/gnolang/gno/pull/5977)
+Posted: https://github.com/gnolang/gno/pull/5977#pullrequestreview-5547557958
 Event: APPROVE
 Verdict: APPROVE. The two-line fix is correct and both open findings are missing tests, one for the `*ConstExpr` callee at the same-realm check and one for a negative control that only reaches `EvalStatic`'s precondition.
 Model: claude-opus-5-5, standard review, solo shape: 2 finders at xhigh, judge at high
@@ -7,7 +8,7 @@ Overview: [overview](../overview.md)
 Open the code: `git -C gno worktree add ../.worktrees/gno-review-5977 0089e5d95`
 Round: 1. 2 finders, a reflector pass by the judge, 5 candidates, 4 from the finders run from scratch by the judge, which was not their finder, and the reflector's one Nit judged by read.
 
-## gnovm/pkg/gnolang/preprocess.go:2064 [gh](https://github.com/gnolang/gno/blob/0089e5d957dd05eb3892122d050c04a0fda6a1e9/gnovm/pkg/gnolang/preprocess.go#L2064) · [↗](../../../../../.worktrees/gno-review-5977/gnovm/pkg/gnolang/preprocess.go#L2064) · Missing test
+## gnovm/pkg/gnolang/preprocess.go:2064 [gh](https://github.com/gnolang/gno/blob/0089e5d957dd05eb3892122d050c04a0fda6a1e9/gnovm/pkg/gnolang/preprocess.go#L2064) · [↗](../../../../../.worktrees/gno-review-5977/gnovm/pkg/gnolang/preprocess.go#L2064) · Missing test [posted](https://github.com/gnolang/gno/pull/5977#discussion_r4294486671)
 Missing test: no test sends a `*ConstExpr` callee, the one [`tryEvalStatic`](https://github.com/gnolang/gno/blob/0089e5d957dd05eb3892122d050c04a0fda6a1e9/gnovm/pkg/gnolang/preprocess.go#L4323-L4325) returns unevaluated, through `if err != nil`. Skipping that callee here leaves `TestTryEvalStatic` and all 57 `zrealm_crossrealm` filetests green, and `(func(cur realm))(nil)(cur)` inside a crossing function builds one from Gno source.
 
 <details><summary>repro</summary>
@@ -62,7 +63,7 @@ func main(cur realm) {
 ```
 </details>
 
-## gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go:68 [gh](https://github.com/gnolang/gno/blob/0089e5d957dd05eb3892122d050c04a0fda6a1e9/gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go#L68) · [↗](../../../../../.worktrees/gno-review-5977/gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go#L68) · Missing test
+## gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go:68 [gh](https://github.com/gnolang/gno/blob/0089e5d957dd05eb3892122d050c04a0fda6a1e9/gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go#L68) · [↗](../../../../../.worktrees/gno-review-5977/gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go#L68) · Missing test [posted](https://github.com/gnolang/gno/pull/5977#discussion_r4294486684)
 Missing test: `Nx("Undeclared")` is never preprocessed, so `tryEvalStatic` fails on the [`expression not yet preprocessed`](https://github.com/gnolang/gno/blob/0089e5d957dd05eb3892122d050c04a0fda6a1e9/gnovm/pkg/gnolang/machine.go#L1060-L1064) guard, and this test passes even with every evaluation panic dropped. The caller's [`if err != nil`](https://github.com/gnolang/gno/blob/0089e5d957dd05eb3892122d050c04a0fda6a1e9/gnovm/pkg/gnolang/preprocess.go#L2064) branch receives evaluation failures instead, such as `cannot resolve an interface path at static time` from an interface method like `fooer.Foo`.
 
 <details><summary>repro</summary>
