@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2064,
+      "angle": "reach",
+      "summary": "the one callee shape whose handling the fix changes, a *ConstExpr callee, is reachable as `(func(cur realm))(nil)(cur)` and no test pins it",
+      "failure_scenario": "A realm function containing `(func(cur realm))(nil)(cur)` has its callee folded to a *ConstExpr (TRANS_LEAVE type-conversion case: undefined nil arg0 converted for FuncKind, then evalConst), so tryEvalStatic early-returns err nil. At base that skipped the realm check; at head the ConstExpr runs the else-if chain and reaches GetUnboundFunc for the first time. Today V is nil, so it falls through and the verdict is unchanged, but nothing pins that route: the ADR's alternative 4 rejects the filetest as 'not constructible', so a later change that lets a ConstExpr callee carry a FuncValue, or makes GetUnboundFunc reject nil, ships with no fixture going red.",
+      "verify_by": "add gnovm/tests/files/zrealm_curcall_constnil.gno (`// PKGPATH: gno.land/r/test/curnil`, `func Bar(cur realm) { (func(cur realm))(nil)(cur) }`, main cross-calls Bar) and run `go test ./gnovm/pkg/gnolang -run 'TestFiles/zrealm_curcall_constnil'` at base and head: expect both to preprocess and fail at runtime on the nil func call; a temporary print in tryEvalStatic's *ConstExpr return confirms the early return fires for this callee",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "read only: values.go:2350 GetFunc and values.go:2368 GetUnboundFunc both return nil for V nil (GetUnboundFunc panics on any other non-func V); types.go:1345 IsCrossing needs Params[0].Type == gRealmType and no uverse native takes a realm first (grep of uverse.go empty); grep for `)(nil)(cur` over gnovm/tests, gno.land/pkg/integration/testdata and examples returned nothing",
+      "repro_path": ""
+    },
+    {
+      "index": 1002,
+      "file": "gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go",
+      "line": 68,
+      "angle": "reach",
+      "summary": "the negative control fails on EvalStatic's not-preprocessed guard, never on an evaluation failure the sole caller can produce",
+      "failure_scenario": "`Nx(\"Undeclared\")` carries no ATTR_PREPROCESSED, so EvalStatic panics at machine.go:1060 ('expression not yet preprocessed') before m.Run is reached; the production caller always passes a preprocessed n.Func, whose failures come from inside m.Run (e.g. `somefunc()(cur)`). A regression that loses the err for a panic raised during evaluation, the case the caller's new `if err != nil` branch depends on, keeps this test green, while its comment says it covers 'an undeclared name'.",
+      "verify_by": "sed -n 1060,1064p gnovm/pkg/gnolang/machine.go shows the guard; print err in TestTryEvalStatic_ErrSetOnFailure and run `go test ./gnovm/pkg/gnolang -run TestTryEvalStatic_ErrSetOnFailure -v`: expect 'Machine.EvalStatic(x) expression not yet preprocessed: Undeclared'; swap the input for a preprocessed call expression that panics inside m.Run",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "read only: machine.go:1060-1063 `if x.GetAttribute(ATTR_PREPROCESSED) == nil { panic(\"Machine.EvalStatic(x) expression not yet preprocessed: ...\") }`; test line 68 passes the bare Nx(\"Undeclared\")",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 4342,
+      "angle": "removed",
+      "summary": "a sibling deferred recover elsewhere sets its error unconditionally, as tryEvalStatic did",
+      "settled_by": "grep -rnE '(:=|=) recover\\(\\)\\s*$' --include='*.go' . : the non-test hits all guard nil: gnovm/cmd/gno/common.go:208 `if r == nil { return }`, gnovm/pkg/doc/doc.go:148 `if e != nil && ok`, gnovm/pkg/packages/load_matches.go:112 `case nil:`, gno.land/pkg/sdk/vm/keeper.go:983/992 via doRecoverInternal `if r == nil { return }`, keeper.go:1037 `if r == nil`"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2064,
+      "angle": "removed",
+      "summary": "a callee whose static evaluation panics changes verdict now that `err != nil` short-circuits",
+      "settled_by": "preprocess.go tryEvalStatic: `tv = m.EvalStatic(last, x)` is never assigned on a panic, so base saw tv.T == nil and took `else if ftv.IsUndefined()` (values.go:1155 `return tv.T == nil`), a skip; head takes `if err != nil`, the same skip"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2069,
+      "angle": "reach",
+      "summary": "a *ConstExpr callee newly reaching GetUnboundFunc hits its default panic",
+      "settled_by": "types.go:1345 IsCrossing `return fpt == gRealmType`; grep of uverse.go for a realm-first native returned nothing, and builtins used as values panic 'use of builtin ... not in function call', so a crossing-typed ConstExpr callee is only a typed-nil conversion; values.go:2370 GetUnboundFunc `case nil: return nil`"
+    }
+  ]
+}

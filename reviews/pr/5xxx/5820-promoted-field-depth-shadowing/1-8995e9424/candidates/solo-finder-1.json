@@ -1,0 +1,87 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 907,
+      "angle": "lines",
+      "summary": "A same-depth tie no longer returns early, so the walk goes on into later siblings and marks their types in the shared guard set; the parent's own shallower embed of one of those types is then pruned, and a Go-valid program that the base accepted is now rejected at preprocess",
+      "failure_scenario": "T{S; R}, S{A; B; Z}, Z{R}; A, B and R each define M; var i I = T{}. Go resolves T.M to R.M at depth 1, and go/types accepts it. The base returned nil from S at the A/B conflict before it visited Z, so T then found R.M and the program printed R.M. At head, S records the A/B tie and keeps walking into Z, which marks R visited. T's direct R embed is then pruned, so preprocess panics with 'main.T does not implement main.I (missing method M)'. AddPackage (keeper.go:647) and MsgRun (keeper.go:1030) type-check with go/types first, so a package of this shape clears the gate and then fails in the VM. That is the deploy-gate-bypass class the ADR says this change closes, reopened for a shape the base handled correctly. It contradicts the ADR's 'zero-regression' and 'no longer panic at VM preprocess' lines.",
+      "verify_by": "cp tests/solo-finder-1-tiewalk.gno gnovm/tests/files/solo1_tiewalk.gno; cd gnovm/pkg/gnolang && go test -run 'TestFiles/solo1_tiewalk' -v . at head (expect FAIL: does not implement) and with base types.go checked out (expect PASS, R.M); go run the Go twin (prints R.M)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: 'unexpected panic: main/solo1_tiewalk.gno:35:6-15: main.T does not implement main.I (missing method M)', FAIL. base c775354dd types.go: '--- PASS: TestFiles/solo1_tiewalk.gno'. Go twin: 'R.M', exit 0. The base run reported no TypeCheckError diff, so go/types accepts it.",
+      "repro_path": "tests/solo-finder-1-tiewalk.gno"
+    },
+    {
+      "index": 2,
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 902,
+      "angle": "lines",
+      "summary": "A subtree now returns its shallowest candidate even after its deeper path has consumed a type that the parent embeds directly; the parent's shallower embed is pruned, so the selector silently resolves to a different method than Go picks, where the base rejected",
+      "failure_scenario": "T{S; R}, S{C; X}, X{R}; C and R each define M; R carries a field V. Go resolves t.M() and i.M() to R.M on t.R at depth 1, prints 'R.M outer', and go/types accepts it. The base saw C.M and X.R.M inside S as a conflict, returned nil, and found R already visited, so it rejected at preprocess with 'missing field M in main.T': the deploy failed loudly. At head, S returns C.M (line 902 picks the shorter trail), R has been marked visited by the X walk, and T's direct R embed is pruned. The package clears the go/types gate on AddPackage and MsgRun, deploys, and every call runs C.M instead of R.M, with no error. A realm author gets the wrong method's behaviour with nothing to tell them.",
+      "verify_by": "cp tests/solo-finder-1-wrongmethod.gno gnovm/tests/files/solo1_wrongmethod.gno; go test -run 'TestFiles/solo1_wrongmethod' -v ./gnovm/pkg/gnolang at head (prints C.M) and with base types.go (panics missing field M); go run the Go twin (prints R.M outer)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head Output diff: '-R.M outer -R.M outer +C.M +C.M', with no TypeCheckError diff (go/types accepts). base: 'unexpected panic: main/solo1_wrongmethod.gno:30:10-13: missing field M in main.T'. Go twin: 'R.M outer' twice, exit 0.",
+      "repro_path": "tests/solo-finder-1-wrongmethod.gno"
+    },
+    {
+      "index": 3,
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 902,
+      "angle": "catalog",
+      "summary": "Same pruning mechanism in the other direction: a selector that Go rejects as ambiguous, and that the base rejected, is now accepted by the VM and runs one of the candidates",
+      "failure_scenario": "T{A; B}, A{C; X}, X{D}, B{D}; C and D each define M; t.M(). Go has T.A.C.M and T.B.D.M both at depth 2, so it reports 'ambiguous selector t.M'. The base saw C.M and X.D.M inside A as a conflict and rejected with 'missing field M in main.T'. At head, A returns C.M, the X walk has marked D visited, and T.B.D is pruned, so the VM runs C.M. On chain, go/types on AddPackage and MsgRun rejects it first, so only direct VM use without type-checking sees the change. The ADR's 'Unchanged from upstream' line covers the same-type diamond, not this shape.",
+      "verify_by": "cp tests/solo-finder-1-falseaccept.gno gnovm/tests/files/solo1_falseaccept.gno; go test -run 'TestFiles/solo1_falseaccept' -v ./gnovm/pkg/gnolang at head (prints C.M, TypeCheckError 'ambiguous selector t.M') and with base types.go (panics missing field M)",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: Output '+C.M' and TypeCheckError '+main/solo1_falseaccept.gno:30:12: ambiguous selector t.M'. base: 'unexpected panic: main/solo1_falseaccept.gno:30:10-13: missing field M in main.T'. Go: './main.go:32:16: ambiguous selector t.M', exit 1.",
+      "repro_path": "tests/solo-finder-1-falseaccept.gno"
+    },
+    {
+      "index": 4,
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 900,
+      "angle": "claims",
+      "summary": "cand is allocated for every matching embedded field, including ones then discarded as deeper or tied; the base allocated only for the first match. This contradicts the ADR's 'no extra allocation'",
+      "failure_scenario": "A struct with k embedded fields that each promote n builds k trail slices per lookup where the base built one. Each selector resolution at preprocess does k-1 extra Go heap allocations. The cost is small and bounded by MaxStructFields, but the ADR states there are none. Comparing len(trail2)+1 against len(trail) before building cand restores one allocation per winner.",
+      "verify_by": "read types.go:899-911: 'cand := append([]ValuePath{vp}, trail2...)' runs before the switch, and the base built the slice only in its 'remember' branch",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 888,
+      "angle": "claims",
+      "summary": "comment 'trail length is the depth' might not hold through pointer or declared-type layers",
+      "settled_by": "sed -n 649,735p, 1037,1080p and 2185,2235p of types.go: StructType prepends one VPField per embedded step; PointerType only retypes trail[0] (VPDerefField, SetDepth(2)); DeclaredType only calls SetDepth(+1) or returns a single method path; InterfaceType returns a single VPInterface. Trail length is embedded steps + 1, uniformly"
+    },
+    {
+      "file": "gnovm/adr/pr5820_embedded_method_depth_shadowing.md",
+      "line": 131,
+      "angle": "claims",
+      "summary": "ADR test claims: shadow0/1/2 panic at base, the other three pass at base",
+      "settled_by": "go test -run 'TestFiles/embed_method_shadow' with base types.go: 'unexpected panic: ... embed_method_shadow0.gno:28:6-13: main.T does not implement main.I (missing method M)', same for shadow1 and shadow2; '--- PASS' for _ambiguous, _fieldmethod and _internal_ambiguous; all six PASS at head"
+    },
+    {
+      "file": "gnovm/adr/pr5820_embedded_method_depth_shadowing.md",
+      "line": 30,
+      "angle": "claims",
+      "summary": "on-chain addpkg type-checks with go/types before the VM preprocesses",
+      "settled_by": "grep TypeCheckMemPackage gno.land/pkg/sdk/vm/keeper.go: '647: _, err = gno.TypeCheckMemPackage(memPkg, opts)' in AddPackage (583) and '1030: _, err = gno.TypeCheckMemPackage(memPkg, ...' in Run (1003)"
+    }
+  ]
+}

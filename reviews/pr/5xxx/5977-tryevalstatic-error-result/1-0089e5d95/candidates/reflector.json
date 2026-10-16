@@ -1,0 +1,23 @@
+{
+  "completeness": [
+    "Catalog: Caller & access control and Type-check & preprocess are touched by candidates 2 and 1001 (the cur-call same-realm gate); Error & panic handling by finder 1's dropped recover() sibling sweep; Global mutable state by finder 1's dropped t.Parallel row. Determinism, Gas, Realm state safety, Coin & banker, Storage deposit, Twin input paths, Data an older binary wrote, VM-fault recoverability and VM semantics vs Go: the diff changes no op, gas charge, stored shape or evaluation rule; tryEvalStatic runs on a throwaway machine and store transaction.",
+    "Sibling sweep by shape: every non-test `r := recover()` / `if r := recover(); r != nil` site in gnovm/pkg/gnolang guards nil (bounded_strings.go:233, go2gno.go:81/118/220, debugger.go:675/757, machine.go:1681, preprocess.go:618); the tree-wide sweep is finder 1's dropped row at preprocess.go:4343. No other test calls tryEvalStatic.",
+    "Thin angle: the added code comment at preprocess.go:4344 was not read by any finder for wording; returned as candidate 2001."
+  ],
+  "candidates": [
+    {
+      "index": 2001,
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 4344,
+      "angle": "lines",
+      "summary": "the added comment `// FIX: no panic -> eval succeeded -> leave err nil` carries a patch marker and an arrow chain into permanent code",
+      "failure_scenario": "A reader of tryEvalStatic after merge meets `FIX:`, which names the change that introduced the line rather than what the line does; the arrow chain reads as notation rather than a sentence.",
+      "verify_by": "sed -n 4344p gnovm/pkg/gnolang/preprocess.go at head",
+      "band": "Nit",
+      "fix_kind": "none",
+      "checked": true,
+      "run": false
+    }
+  ],
+  "dropped": []
+}

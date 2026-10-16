@@ -1,0 +1,73 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 891,
+      "angle": "reach",
+      "summary": "A deeper promoted method or field now silently wins over a shallower one when the shared visited set has already pruned the shallower type",
+      "failure_scenario": "T{Sub; C}, Sub{A; W}, W{C}, with A and C each declaring M() and a field V. Go resolves T.M to C.M and T.V to C.V (depth 1). Inside Sub, the new comparison drops W.C.M as deeper, but C is still marked in the shared m, so T's own embedded C then returns nil and Sub.A.M (depth 2) is taken as the only candidate. Head prints 'iface: A / method: A / field: a' where Go prints C / C / c. go/types accepts the program, so a realm with this shape clears addpkg and every t.M(), i.M() and t.V reads or calls the wrong member with no error. Base rejected it at preprocess, because Sub's two matches returned none: the diff turns a loud rejection into a wrong call that reports success.",
+      "verify_by": "cp tests/solo-finder-2-shadowed-member-selected.gno gnovm/tests/files/ && (cd gnovm/pkg/gnolang && go test -run 'TestFiles/solo-finder-2-shadowed-member-selected.gno' -count=1 -v .): expect iface: C / method: C / field: c, observe A / A / a; repeat with the merge-base types.go and observe the 'does not implement' panic",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head 8995e94: Output diff '-iface: C -method: C -field: c +iface: A +method: A +field: a', no TypeCheckError (go/types accepts). Merge-base types.go: 'unexpected panic: main/zz_f2_a.gno:30:6-13: main.T does not implement main.I (missing method M)'.",
+      "repro_path": "tests/solo-finder-2-shadowed-member-selected.gno"
+    },
+    {
+      "index": 1002,
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 909,
+      "angle": "removed",
+      "summary": "A valid program the base accepted is now rejected: the walk no longer stops at a same-depth conflict, so it marks a type that a shallower sibling needs",
+      "failure_scenario": "T{Amb; C}, Amb{A; B; W}, W{C}, with A, B and C each declaring M(). Go resolves T.M to C.M at depth 1; Amb's A/B ambiguity at depth 2 is shadowed. The deleted 'conflict detected. return none.' returned at B before W was walked, so C stayed unvisited and base resolved T.M to C.M. Head sets ambiguous and keeps walking, enters W, marks C in the shared m, and T's own embedded C then returns nil: preprocess panics 'missing field M in main.T'. go/types accepts, so this is the direction the PR set out to close: addpkg passes type-check and then fails at VM preprocess. It also refutes the PR body's 'zero-regression' claim. Inference, not run: runtime interface calls re-run the lookup with the running binary (values.go:1962-1966 panics 'method M not found in type'), so a T held in an interface by a realm deployed before the upgrade would panic on i.M() afterwards.",
+      "verify_by": "cp tests/solo-finder-2-valid-program-rejected.gno gnovm/tests/files/ && (cd gnovm/pkg/gnolang && go test -run 'TestFiles/solo-finder-2-valid-program-rejected.gno' -count=1 -v .): expect PASS printing C, observe the 'missing field M' panic; with the merge-base types.go it passes",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head 8995e94: 'unexpected panic: main/solo-finder-2-valid-program-rejected.gno:42:10-15: missing field M in main.T', no TypeCheckError (go/types accepts). Merge-base types.go: '--- PASS: TestFiles/zz_f2_b.gno' (prints C).",
+      "repro_path": "tests/solo-finder-2-valid-program-rejected.gno"
+    },
+    {
+      "index": 1003,
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 896,
+      "angle": "reach",
+      "summary": "A diamond ambiguity paired with any deeper same-named member is now accepted and runs the diamond's method, where base rejected it as Go does",
+      "failure_scenario": "T{A; B; C}, A{Base}, B{Base}, C{D}, D{E}, with Base and E each declaring M(). Go: depth 2 holds Base.M twice, so the selector is ambiguous and the program does not compile. Head: B's revisit of Base is pruned and read as no match (trail2 == nil, continue), so Base.M is the only depth-2 candidate and beats E.M at depth 3; T{}.M() prints 'base'. Base saw two candidates and rejected it, as Go does. The ADR files the diamond false accept as 'unchanged from upstream'; this shape is new with the diff. On-chain go/types rejects it first, so the loss falls on gno run and any VM caller that skips type-check, which runs a program Go rejects.",
+      "verify_by": "cp tests/solo-finder-2-diamond-ambiguity-accepted.gno gnovm/tests/files/ && (cd gnovm/pkg/gnolang && go test -run 'TestFiles/solo-finder-2-diamond-ambiguity-accepted.gno' -count=1 -v .): observe output 'base' plus TypeCheckError 'ambiguous selector T{}.M'; with the merge-base types.go observe the preprocess panic 'missing field M in main.T'",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Head 8995e94: output matches 'base', and the harness reports 'TypeCheckError diff: +main/solo-finder-2-diamond-ambiguity-accepted.gno:38:14: ambiguous selector T{}.M'. Merge-base types.go: 'unexpected panic: main/zz_f2_c.gno:28:10-15: missing field M in main.T'.",
+      "repro_path": "tests/solo-finder-2-diamond-ambiguity-accepted.gno"
+    },
+    {
+      "index": 1004,
+      "file": "gnovm/tests/files/embed_method_shadow_internal_ambiguous.gno",
+      "line": 24,
+      "angle": "reach",
+      "summary": "The internal-ambiguity fixture is rejected only because Clean embeds the same A the shared set pruned; a Clean with its own M type is accepted",
+      "failure_scenario": "Change the sibling shape: type C struct{}; func (C) M() string { return \"C\" }; type Clean struct{ C }. Go: depth 2 holds A.M, B.M and C.M, so T.M is ambiguous and rejected. Head: Amb's walk sets ambiguous and returns nil, which carries no depth, so at T the check trail == nil admits Clean's C.M as the only candidate; T implements I and i.M() runs C.M. The fixture and the ADR say it guards 'an internally-ambiguous sibling alongside a clean one', but it only pins the dedup of A: the shared-set prune makes Clean return nil. Base accepts the same variant, so the defect predates the diff; the gap is that the test credited to the rule pins nothing of it.",
+      "verify_by": "Read types.go:885-916: Amb's struct walk ends at 'if ambiguous { return nil... }', and at T 'case trail == nil' takes Clean's cand. For the judge: copy the fixture with Clean{C} into gnovm/tests/files and run go test -run TestFiles/<name>: expect a preprocess rejection, observe output C",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 902,
+      "angle": "reach",
+      "summary": "trail length might not equal promotion depth through a pointer, a named struct or an interface embed, so a same-depth tie could read as shadowing",
+      "settled_by": "Read types.go:688-722 (the PointerType rewrite changes trail[i].Type and trail[0].Depth in place and never adds an element), 2232 (DeclaredType does trail[0].SetDepth(Depth+1) without appending), 1060 (an interface method is one VPInterface element whatever the embedding depth): length is one element per embedded hop plus one, on every path"
+    }
+  ]
+}

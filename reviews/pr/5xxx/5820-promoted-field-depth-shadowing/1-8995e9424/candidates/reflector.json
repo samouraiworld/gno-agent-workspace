@@ -1,0 +1,11 @@
+{
+ "completeness": "Catalog walked: determinism (m is used as a set, never iterated), gas (walk now continues past ties, still bounded by MaxEmbedDepth at types.go:1602), VM semantics vs Go (candidates 1-3, 1001-1003), type-check and preprocess (1004), data an older binary wrote (2001 below). Siblings swept by shape: PointerType and DeclaredType FindEmbeddedFieldType delegate to the changed function; InterfaceType.FindEmbeddedFieldType (types.go:1037) keeps first-match with no depth, and Go interface method sets carry no depth, so no sibling repeats the edited shape. Tests the diff adds: embed_method_shadow0/1/2 fail at the merge base and pass at head; the three guard fixtures pass at both, as the ADR says.",
+ "candidates": [
+  {"index": 2001, "file": "gnovm/pkg/gnolang/types.go", "line": 907, "angle": "catalog",
+   "summary": "A package of the shape candidate 1 rejects, deployed under the base binary, holds a T in an interface; after the upgrade the runtime method lookup re-runs FindEmbeddedFieldType and panics on i.M()",
+   "failure_scenario": "values.go:1962 calls findEmbeddedFieldType on the dynamic type for every interface method call and panics 'method M not found in type' when the trail is empty. The base accepted T{S; R}, S{A; B; Z}, Z{R}; head returns no trail for it, so a realm stored under the base faults on the call after nodes upgrade.",
+   "verify_by": "txtar: addpkg the solo-finder-1-tiewalk shape as a realm with an exported func calling i.M() on a gnoland built at c775354dd, then restart the same home on a head-built gnoland and gnokey maketx call that func: expect R.M, observe 'method M not found in type'",
+   "band": "Warning", "fix_kind": "code", "checked": true, "run": false, "evidence": "read: values.go:1962-1966 'tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil); if len(tr) == 0 { panic(...method %s not found in type %s...) }'", "repro_path": ""}
+ ],
+ "dropped": []
+}

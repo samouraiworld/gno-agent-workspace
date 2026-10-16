@@ -1,0 +1,106 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go",
+      "line": 68,
+      "angle": "claims",
+      "summary": "TestTryEvalStatic_ErrSetOnFailure passes an unpreprocessed NameExpr, so its non-nil err is EvalStatic's precondition panic, never the static-resolution failure the test says it pins",
+      "failure_scenario": "Nx(\"Undeclared\") carries no ATTR_PREPROCESSED, so m.EvalStatic panics at machine.go:1060-1064 ('Machine.EvalStatic(x) expression not yet preprocessed') before any evaluation. The err != nil shapes the sole caller actually meets, an interface method `fooer.Foo` and a call result `fooerGetter().Foo` (123 of 150 cur-check sites over TestFiles, all err=true undef=true), are never pinned at unit level: a change making a genuine evaluation failure of a preprocessed expression return err == nil keeps this negative control green.",
+      "verify_by": "Add t.Log(err) after line 68 and run go test -run TestTryEvalStatic_ErrSetOnFailure -v ./gnovm/pkg/gnolang/: expect 'Machine.EvalStatic(x) expression not yet preprocessed: Undeclared', not a resolution error; then swap Nx(\"Undeclared\") for a preprocessed interface-method selector and confirm err is still non-nil",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "machine.go:1060 `if x.GetAttribute(ATTR_PREPROCESSED) == nil {` panics with 'Machine.EvalStatic(x) expression not yet preprocessed'; the test builds the expression with a bare Nx(\"Undeclared\") and never preprocesses it. Run C of tests/solo-finder-1-guards.sh: '123 TRYEVAL_ANY err= true undef= true fvnil= true', callees '61 fooerGetter<VPBlock(3,13)>().Foo', '60 fooer<VPBlock(3,5)>.Foo'.",
+      "repro_path": "tests/solo-finder-1-guards.sh"
+    },
+    {
+      "index": 2,
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2064,
+      "angle": "claims",
+      "summary": "The PR's one semantic change, a *ConstExpr callee now reaching the same-realm check instead of skipping it, has no test pinning it",
+      "failure_scenario": "tryEvalStatic returns err == nil on its *ConstExpr early return (preprocess.go:4323-4325); at base that skipped the cur-call check, at head it enters the else-if chain and rejects an external realm FuncValue. No test builds that shape: over TestFiles 0 of 150 cur-check sites carry a *ConstExpr callee, so a later edit restoring the skip for *ConstExpr callees (or reordering the branch) leaves every test green. The ADR rejects a filetest as not constructible, but a Go unit test can build the CallExpr directly, as the new test already does for tryEvalStatic.",
+      "verify_by": "Mutate head: insert `if _, ok := n.Func.(*ConstExpr); ok { goto skip }` before the err branch at preprocess.go:2064 and run go test -run 'TestTryEvalStatic|TestFiles/zrealm_crossrealm' ./gnovm/pkg/gnolang/: everything stays green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "Run C of tests/solo-finder-1-guards.sh, instrumenting the caller at head: 'ConstExpr callees:   0' over 'cur-check sites hit: 150'. grep for NewConstExpr/Call( synthesis sites: gnovm/pkg/test/test.go:610 and :713 build a *ConstExpr callee, but their first argument is gno.Str(opts.RunFlag), not cur.",
+      "repro_path": "tests/solo-finder-1-guards.sh"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/adr/pr5977_tryevalstatic_err_contract.md",
+      "line": 7,
+      "angle": "claims",
+      "summary": "tryEvalStatic has exactly one caller",
+      "settled_by": "grep -rn tryEvalStatic --include='*.go' . | grep -v _test.go: only gnovm/pkg/gnolang/preprocess.go:2063 (caller) and :4322 (definition)"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go",
+      "line": 43,
+      "angle": "claims",
+      "summary": "TestTryEvalStatic_ErrNilOnSuccess fails against master with 'recovered panic with: <nil>'",
+      "settled_by": "Run A of tests/solo-finder-1-guards.sh (recover nil guard removed at head): '--- FAIL: TestTryEvalStatic_ErrNilOnSuccess' with 'recovered panic with: <nil>'; claim holds"
+    },
+    {
+      "file": "gnovm/adr/pr5977_tryevalstatic_err_contract.md",
+      "line": 94,
+      "angle": "claims",
+      "summary": "No behaviour change in any exercised case; err == nil branch fires 0 times; *ConstExpr callee unreachable",
+      "settled_by": "Run C of tests/solo-finder-1-guards.sh at head: 'ConstExpr callees:   0', tally '27 err= false undef= false fvnil= false' (checked at base and head alike) and '123 err= true undef= true fvnil= true' (skipped at base via IsUndefined and at head via err != nil); claim holds. TestFiles itself exits 1 under go1.27.1 on unrelated TypeCheckError message diffs (assign33.gno, eql_0b4.gno)"
+    },
+    {
+      "file": "gnovm/adr/pr5977_tryevalstatic_err_contract.md",
+      "line": 97,
+      "angle": "claims",
+      "summary": "All three regression guards fail if either bug is reintroduced alone: false for the unit test when bug 2 alone returns",
+      "settled_by": "Run B of tests/solo-finder-1-guards.sh (caller reverted to `if err == nil`, recover fix kept): TestTryEvalStatic 'ok', TestFiles/zrealm_crossrealm17b.gno '--- FAIL'. The filetest still guards bug 2, so no guard is lost and the only fix is the ADR and test-header wording"
+    },
+    {
+      "file": "gnovm/adr/pr5977_tryevalstatic_err_contract.md",
+      "line": 56,
+      "angle": "claims",
+      "summary": "interrealm_v2.txtar:188 records the deploy-time gate",
+      "settled_by": "sed -n '183,195p' gno.land/pkg/integration/testdata/interrealm_v2.txtar: line 188 reads '## a foreign realm is rejected at PREPROCESS time. Demonstrated as', line 190 the '! gnokey maketx addpkg' assertion; claim holds"
+    },
+    {
+      "file": "gnovm/adr/pr5977_tryevalstatic_err_contract.md",
+      "line": 96,
+      "angle": "claims",
+      "summary": "The runtime check is the IsCrossing path in PushFrameCall",
+      "settled_by": "machine.go:2338 `if fv.IsCrossing() {` with the 'cannot cur-call to external realm function' panic at :2353 sits in `func (m *Machine) PushFrameCall` opening at :2254; claim holds"
+    },
+    {
+      "file": "gnovm/adr/pr5977_tryevalstatic_err_contract.md",
+      "line": 99,
+      "angle": "claims",
+      "summary": "zrealm_crossrealm17b.gno asserts a preprocess-time rejection with a file:line prefix",
+      "settled_by": "gnovm/tests/files/zrealm_crossrealm17b.gno:32 '// gno.land/r/crossrealm/zrealm_crossrealm17b.gno:28:2-33: cannot cur-call to external realm function ...'; Run B turns it red; claim holds"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2065,
+      "angle": "lines",
+      "summary": "New branch comment says a local variable lands in err != nil, while the existing comment below says a typed-nil local func var resolves and takes the fv == nil fall-through",
+      "settled_by": "Both branches skip the static check and defer to PushFrameCall (preprocess.go:2064-2082 read), so the code is right either way and the only fix is a comment's wording; Run C found no err=false fvnil=true site in the suite"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess_tryevalstatic_test.go",
+      "line": 44,
+      "angle": "catalog",
+      "summary": "Global mutable state: the two new t.Parallel() tests race on preprocess or store globals",
+      "settled_by": "go test -race -run 'TestTryEvalStatic' -count=10 ./gnovm/pkg/gnolang/ at head: 'ok  github.com/gnolang/gno/gnovm/pkg/gnolang 1.089s', no race report"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 4343,
+      "angle": "catalog",
+      "summary": "Error & panic handling: a sibling recover() assigns err without a nil guard, the class this diff fixes one member of",
+      "settled_by": "grep -rnE '^\\s*[a-z]+ := recover\\(\\)\\s*$' over the tree (non-test): cmd/gno/common.go:207 'if r == nil { return }', pkg/packages/load_matches.go:110 'case nil', pkg/doc/doc.go:146 'if e != nil', keeper.go:983/992 pass r to doRecoverInternal whose first line is 'if r == nil { return }', keeper.go:1036 'if r == nil'; every `if r := recover(); r != nil` site guards inline; no missed sibling"
+    }
+  ]
+}
