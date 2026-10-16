@@ -1,0 +1,65 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gnovm/pkg/gnolang/type_check.go",
+      "line": 585,
+      "angle": "removed",
+      "summary": "Passing a []T as ...I is still accepted: the variadic-slice branch recurses into assignability, the same shape the diff removed from the pointer branch, so a callee can write a non-T value into the caller's []T",
+      "failure_scenario": "type I interface{ M() int }; T{x int} and U{s string} both implement I; func f(xs ...I) { xs[0] = U{\"hello\"} }; ts := []T{{1}}; f(ts...); println(ts[0].x, ts[0].M()). Go rejects at compile time (cannot use ts (variable of type []T) as []I value). Gno at head compiles it and prints \"hello\" for the int field ts[0].x and 5 for ts[0].M(): the caller's []T now holds a U value, and a realm's typed slice can be corrupted the same way, persisted. The ADR names the pointer sibling (*int to *interface{}) as the reason for the rewrite; this member of the same class predates the diff (base type_check.go:577-578) and the sweep missed it.",
+      "verify_by": "gno run tests/solo-finder-2-vararg-slice-assignable.gno at b42a521b1: expect a preprocess error, observe \"hello\" then 5; fix check: replace the cdt.Vrd recursion with checkSame(st.Elt, cdt.Elt) like the non-variadic branch and re-run",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "gno run ./vararg/main.gno at head printed:\nhello\n5\nBase type_check.go:577-578: `if cdt.Vrd {` / `return checkAssignableTo(n, st.Elt, cdt.Elt)` (same line, pre-existing). Companion shape []S (declared struct) passed as ...struct{A int}: the callee's any(xs[0]).(struct{A int}) prints false, a value failing an assertion against its own static type.",
+      "repro_path": "tests/solo-finder-2-vararg-slice-assignable.gno"
+    },
+    {
+      "index": 1002,
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 1253,
+      "angle": "reach",
+      "summary": "Runtime interface assertions now walk the whole method signature structurally for a flat gas charge, so a realm can buy ~100x more validator CPU per unit of gas than at the merge base",
+      "failure_scenario": "VerifyImplementedBy runs on every x.(I), comma-ok assert, interface type-switch case and Stringer/error check while printing; it is charged OpCPUTypeAssert1/2 plus 349 per interface method. At base the per-method check compared two cached TypeID strings; at head identicalTypes(mt, im.Type) recurses through every field of every param/result type each call, since the interface's and the method's signature types are separate objects. A package declaring I with M(s struct{...nested fields...}) and T.M spelling the same literal, looping 20000 x.(I), uses the same gas (42.886M) for 0.02s with a 1-field param and 0.53s with 2000 leaf fields (36 KB source), 2.56s with 10000 (181 KB): block time per gas grows ~25-128x, against ~60x less work for the same input at base (cached TypeID compare: 2.3us vs 140us per check at 10000 fields).",
+      "verify_by": "cd gnovm/pkg/gnolang && go test -run TestSF2IdentityCost -v . with tests/solo-finder-2-identity-cost_test.go copied in; then bash tests/solo-finder-2-identity-cost-gen.sh <dir> 20 100 and 1 1, gno test -v -print-runtime-metrics in each: equal GAS, wall time diverging with signature size",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "Microbench at head: fields=10000 head identicalTypes=140537 ns/op, base TypeID== 2274 ns/op (61.8x); fields=1000 17351 vs 155 ns/op (111.9x). End to end at head, 20000 asserts: 1 field GAS 42886054 TestLoop 0.02s; 20x100 GAS 42886532 TestLoop 0.53s (0.84s on rerun via the generator); 100x100 GAS 42900410 TestLoop 2.56s. Struct literal fields are capped at 128 per level (\"has 129 effective fields, exceeds max 128\"), nesting bypasses it.",
+      "repro_path": "tests/solo-finder-2-identity-cost_test.go"
+    },
+    {
+      "index": 1003,
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2389,
+      "angle": "removed",
+      "summary": "A := redeclaration to a type differing only in struct tags, embeddedness or variadicity is still accepted and silently changes the variable's static type; the diff moved the sibling 'Redefinition cannot change .T' check to identicalTypes but left StaticBlock.Define2 on TypeID",
+      "failure_scenario": "x := struct{A int \"a\"}{}; y, x := 1, struct{A int \"b\"}{2}: Go rejects (cannot use struct{A int \"b\"}{…} as struct{A int \"a\"} value in assignment); Gno at head accepts and prints \"2 1\". With f := func(xs []int){}; y, f := 1, func(xs ...int){}; f([]int{7,8,9}), the redeclaration is accepted and the later call fails with \"cannot use []int as int\": f's static type changed from func([]int) to func(...int) mid-scope. A non-variant type (x := 1; y, x := 1, \"s\") is rejected by Define2, so only the identity-only differences the PR targets slip through.",
+      "verify_by": "gno run tests/solo-finder-2-redeclare-tag-variant.gno at b42a521b1: expect a preprocess error, observe \"2 1\"; then switch nodes.go:2389 to !identicalTypes(tv.T, old.T) and re-run",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: redecl/main.gno printed \"2 1\"; redeclp/main.gno: \"panic: cannot use []int as int\" at the call after the accepted redeclaration; redeclint control: \"StaticBlock.Define2(x) cannot change .T; was int, new string\". Base nodes.go:2390-2391 carries the same TypeID check (pre-existing).",
+      "repro_path": "tests/solo-finder-2-redeclare-tag-variant.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 396,
+      "angle": "reach",
+      "summary": "Types reloaded from the store might lose Tag/Embedded/Vrd, making identicalTypes reject a type identical to its freshly preprocessed copy (e.g. DefineMethod's same-location skip)",
+      "settled_by": "sed -n '1483,1530p' realm.go: copyFieldsWithRefs keeps `Embedded: field.Embedded,` and `Tag: field.Tag,`; SliceType/ArrayType copies keep `Vrd: ct.Vrd`; RefType is only produced for DeclaredTypes and identical() compares it by TypeID"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 1565,
+      "angle": "reach",
+      "summary": "Tag-changing conversions are no longer elided, so the runtime ConvertTo now runs for composite kinds and might panic",
+      "settled_by": "sed -n '44,50p' values_conversions.go: `if tvk == k { tv.T = t // simple conversion. return }` retypes same-kind composites without checks"
+    }
+  ]
+}

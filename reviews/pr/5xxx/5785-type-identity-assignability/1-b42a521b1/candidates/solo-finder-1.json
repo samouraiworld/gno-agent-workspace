@@ -1,0 +1,94 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/pkg/gnolang/type_check.go",
+      "line": 585,
+      "angle": "catalog",
+      "summary": "The variadic spread f(s...) still checks element assignability, not identity: []int passes as ...any and []E as ...error, so the callee can write a string into the caller's []int",
+      "failure_scenario": "func f(xs ...any) { xs[0] = \"hello\" }; s := []int{1, 2}; f(s...); println(s[0]) prints `hello`: an []int element holds a string. g([]E{{}, {}}...) with g(xs ...error) is accepted too. Go rejects both calls at compile time ('cannot use s (variable of type []int) as []any value'). The SliceType cdt.Vrd branch, `return checkAssignableTo(n, st.Elt, cdt.Elt)`, is the same element-assignability recursion this PR removes from the *PointerType case (the ADR names it: 'recursed into assignability, which accepted interface targets'), and the PR body says slice elements now use exact identity. The line predates the diff; it is in scope because the diff sweeps this class and misses this member. On chain the keeper's go/types pass rejects the deploy; `gno run` does not run that pass, and the probe ran there.",
+      "verify_by": "cp tests/solo-finder-1-vararg-spread-iface.gno gnovm/tests/files/solo_finder_1_vararg_spread_iface.gno && go test ./gnovm/pkg/gnolang -run 'TestFiles/solo_finder_1_vararg_spread_iface' -count=1 -v: PASS with Output `hello` / `2` means the VM accepts and confuses the type; replace line 585 with checkSame(st.Elt, cdt.Elt) and the VM must raise an Error",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "At head b42a521b1 in a scratch worktree: `--- PASS: TestFiles/solo_finder_1_vararg_spread_iface.gno`, Output `hello` then `2`; only the go/types TypeCheckError fires: 'cannot use s (variable of type []int) as []any value in argument to f; ... cannot use []E{…} (value of type []E) as []error value in argument to g'. `gno run` of the same main printed `hello`.",
+      "repro_path": "tests/solo-finder-1-vararg-spread-iface.gno"
+    },
+    {
+      "index": 2,
+      "file": "gnovm/tests/files/copy_struct_tags.gno",
+      "line": 10,
+      "angle": "claims",
+      "summary": "The PR body lists copy_struct_tags.gno as a static rejection, but the VM accepts copy() between slices whose element types differ: the test pins only the go/types error, and copy([]int, []string) stores a string in an []int",
+      "failure_scenario": "The builtin declares dst and src as two independent generics (uverse.go:858-859, GenT(\"X\") and GenT(\"Y\")), so specifyType never compares their element types and the identity change in specifyType never reaches copy. copy_struct_tags.gno carries only `// TypeCheckError:` and no `// Error:` line (it is the only one of the PR's 11 'static rejection' filetests with none), so its PASS means the VM ran the copy. The same shape with unrelated element types: dst := make([]int, 1); copy(dst, []string{\"x\"}); println(dst[0]) prints `x`, so an int-typed slot holds a string. The ADR's 'uverse generic unification uses exact identity' and the PR body's 'static rejections (... copy_struct_tags)' do not hold for the VM. The copy builtin predates the diff; it is in scope because the diff adds a test that pins the VM's acceptance and presents it as a rejection. On chain the keeper's go/types pass rejects the deploy.",
+      "verify_by": "grep -c '^// Error:' gnovm/tests/files/copy_struct_tags.gno returns 0; cp tests/solo-finder-1-copy-elem-mismatch.gno gnovm/tests/files/solo_finder_1_copy_elem_mismatch.gno && go test ./gnovm/pkg/gnolang -run 'TestFiles/solo_finder_1_copy_elem_mismatch' -count=1 -v: PASS with Output `1 x`",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "At head: `copy_struct_tags: 0` Error directives (the other 10 listed static-rejection tests have 1 each). Scratch worktree run: `--- PASS: TestFiles/solo_finder_1_copy_elem_mismatch.gno`, Output `1 x`, with the TypeCheckError 'invalid copy: arguments dst (variable of type []int) and src (variable of type []string) have different element types int and string'.",
+      "repro_path": "tests/solo-finder-1-copy-elem-mismatch.gno"
+    },
+    {
+      "index": 3,
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 1253,
+      "angle": "claims",
+      "summary": "On already-deployed code, runtime x.(I) and type-switch `case I` now answer differently because VerifyImplementedBy is strict at runtime, although the ADR lists type switches as unchanged and says static-only strictness avoids consensus-visible runtime changes",
+      "failure_scenario": "A deployed realm holds `var x any = T{}` where T has M([]int), or M(struct{A int \"a\"}), and evaluates `_, ok := x.(interface{ M(...int) })` or a type switch with that interface case. go/types accepts this dynamic assertion at deploy. Before the PR ok is true. After it, op_expressions.go:250/328 and op_exec.go:880 (IsImplementedBy) reach identicalTypes at types.go:1253 and ok is false, so replaying the same transaction on the new binary gives a different result. The new answer matches Go. ADR line 132 lists type switches among the runtime semantics that are 'unchanged', while the interface case of a type switch changes. Maintainers need to decide whether this ships as a chain-upgrade change or whether runtime callers keep TypeID-based method matching.",
+      "verify_by": "Read op_exec.go:880 and op_expressions.go:250,328, which all route through VerifyImplementedBy; run a filetest with a T having M([]int), `var x any = T{}; _, ok := x.(interface{ M(...int) }); println(ok)` at head (expect false) and at the merge base (expect true)",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "Read: op_exec.go:880 `if baseOf(gnot).(*InterfaceType).IsImplementedBy(xv.T) {`; types.go:1253 `if !identicalTypes(mt, im.Type) {`; ADR:132 '- Runtime value-identity semantics (`==`, concrete asserts, type switches,'.",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "gnovm/tests/files/interface51.gno",
+      "line": 12,
+      "angle": "claims",
+      "summary": "No filetest covers the runtime half of the VerifyImplementedBy change (x.(I) or type-switch case I with a variadic or tag-only method mismatch); interface51 pins only the static assignment",
+      "failure_scenario": "The ADR's Consequences says runtime type assertions against interface types now reject M([]int) for M(...int). A change that restored TypeID matching for runtime callers only (doOpTypeAssert1/2, the op_exec.go:880 type switch) would leave every test the PR adds green, because the only interface-variadic tests (interface51, assign_func_varg, convert_func_varg) fail at preprocess.",
+      "verify_by": "grep -rlE 'M\\(\\.\\.\\.|\\(\\.\\.\\.int\\)' gnovm/tests/files lists only convert_func_varg.gno, interface51.gno and assign_func_varg.gno, all static; add a filetest with `_, ok := any(T{}).(I); println(ok)` and a type switch, Output false/default",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep at head returned gnovm/tests/files/convert_func_varg.gno, interface51.gno, assign_func_varg.gno; interface51.gno carries `// Error:` for the static `var i I = T{}`.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 1424,
+      "angle": "claims",
+      "summary": "The Specify comment claims per-vararg assignability is still enforced via mustAssignableTo after the TypeID-based consolidation",
+      "settled_by": "gno run of append(s, struct{A int `a`}{1}, struct{A int `b`}{2}) with s []struct{A int `a`}: `panic: main/./p7/main.gno:7:6-11:7: cannot use struct{A int \"b\"} as struct{A int \"a\"}`; the claim holds"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 1565,
+      "angle": "lines",
+      "summary": "Suspected: now that tag-changing conversions are no longer elided, they reach runtime ConvertTo and might fail for pointer, slice, map, array or func targets",
+      "settled_by": "gno run at head of (*struct{A int `b`})(&x), []struct{..`b`}(s), map[int]struct{..`b`}(m), [1]struct{..`b`}(a), (func(struct{..`b`}) int)(f) printed `7 7`, `1 1`, `1 1`, `1 1`, `3`; every conversion runs"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 440,
+      "angle": "catalog",
+      "summary": "Suspected: persisted types drop Embedded or Tag, so identical() would reject a type reloaded from the store against a freshly preprocessed one",
+      "settled_by": "sed -n '1483,1494p' realm.go: copyFieldsWithRefs copies `Embedded: field.Embedded,` and `Tag: field.Tag,`; FieldType/SliceType fields are exported, so they are amino-serialized"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/types.go",
+      "line": 752,
+      "angle": "claims",
+      "summary": "The identicalTypes doc says TypeID ignores variadicity, so the old FuncType TypeID could not tell func([]int) from func(...int)",
+      "settled_by": "sed -n '750,756p' types.go: SliceType.TypeID `// same whether .Vrd or not.` `typeidf(\"[]%s\", ...)`; the claim holds"
+    }
+  ]
+}
