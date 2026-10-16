@@ -1,4 +1,5 @@
 # Review: [#6270](https://github.com/gnolang/gno/pull/6270)
+Posted: https://github.com/gnolang/gno/pull/6270#pullrequestreview-5548549030
 
 Event: COMMENT
 Verdict: APPROVE. The round-1 Warnings and the secret redaction hold at this head; what remains is a Missing test on the renderer's warning and a Nit on the flag help, neither blocking.
@@ -12,7 +13,7 @@ Round: 2. Solo round: 2 finders, a reflector pass by the judge, 6 candidates (3 
 
 > AI review, claude-opus-5-5, standard review, reviewed at [36b475912](https://github.com/gnolang/gno/pull/6270/commits/36b475912eb31badc961e9b35fa765def60f250f), [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6270-gnoweb-ipfs-gateway/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6270-gnoweb-ipfs-gateway/2-36b475912/claims.md) · Status: APPROVE
 
-## gno.land/pkg/gnoweb/render.go:98 [gh](https://github.com/gnolang/gno/blob/36b475912eb31badc961e9b35fa765def60f250f/gno.land/pkg/gnoweb/render.go#L98) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/render.go#L98) · Missing test
+## gno.land/pkg/gnoweb/render.go:98 [gh](https://github.com/gnolang/gno/blob/36b475912eb31badc961e9b35fa765def60f250f/gno.land/pkg/gnoweb/render.go#L98) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/render.go#L98) · Missing test [posted](https://github.com/gnolang/gno/pull/6270#discussion_r4295257883)
 
 Missing test: nothing reads this warning's output, so a `"gateway", cfg.IPFSGateway` pair added to it would log a credential with every test green.
 
@@ -42,6 +43,6 @@ FAIL	github.com/gnolang/gno/gno.land/pkg/gnoweb
 
 </details>
 
-## gno.land/cmd/gnoweb/main.go:241 [gh](https://github.com/gnolang/gno/blob/36b475912eb31badc961e9b35fa765def60f250f/gno.land/cmd/gnoweb/main.go#L241) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/cmd/gnoweb/main.go#L241) · Nit
+## gno.land/cmd/gnoweb/main.go:241 [gh](https://github.com/gnolang/gno/blob/36b475912eb31badc961e9b35fa765def60f250f/gno.land/cmd/gnoweb/main.go#L241) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/cmd/gnoweb/main.go#L241) · Nit [posted](https://github.com/gnolang/gno/pull/6270#discussion_r4295257899)
 
 Nit: this help names only `ipfs://` and retired-gateway URLs, though [`ipfsRewrittenGateways`](https://github.com/gnolang/gno/blob/36b475912eb31badc961e9b35fa765def60f250f/gno.land/pkg/gnoweb/markdown/ext_ipfs.go#L28) also sends `ipfs.filebase.io` links to whichever gateway is set. The same sentence is in gnodev's [`app_config.go`](https://github.com/gnolang/gno/blob/36b475912eb31badc961e9b35fa765def60f250f/contribs/gnodev/app_config.go#L152) and [README](https://github.com/gnolang/gno/blob/36b475912eb31badc961e9b35fa765def60f250f/contribs/gnodev/README.md#L113).
