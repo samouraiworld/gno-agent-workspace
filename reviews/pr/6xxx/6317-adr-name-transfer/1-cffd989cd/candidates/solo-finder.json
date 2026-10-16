@@ -1,0 +1,101 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/adr/pr6317_name_transfer.md",
+      "line": 155,
+      "angle": "reach",
+      "summary": "The activation precondition depends on state r/sys/users never records, and refusing it aborts the upgraded chain's boot",
+      "failure_scenario": "Any DAO member submits users.ProposeUpdateName(A, x) or users.ProposeDeleteUser(A) shortly before the halt height. The proposal is still open in the replayed history, so the appended activation genesis tx must refuse, as the ADR requires. The default GenesisTxResultHandler is PanicOnFailingTxResultHandler (app.go:59), so InitChain aborts and the upgraded chain cannot boot. The check also has no input in the realm: ProposeUpdateName and ProposeDeleteUser in users/admin.gno write no state when they build a proposal. The callback lives in GovDAO as an opaque SimpleExecutor, and whether it is open is held in the pluggable impl's pss, so the only way to evaluate the check is to scan GovDAO proposals by title and ExecutorCreationRealm. A simpler design needs neither the scan nor the boot risk: an executor created before activation captures the dormant mode and refuses to run once the flag is set.",
+      "verify_by": "grep -n 'Set(\\|= append' examples/gno.land/r/sys/users/admin.gno (only Controllers() appends; no proposal bookkeeping); grep -n PanicOnFailingTxResultHandler gno.land/pkg/gnoland/app.go (line 59 is the default genesis handler); sed -n 160,185p examples/gno.land/r/gov/dao/types.gno (SimpleExecutor keeps only callback, desc and creationRealm)",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "admin.gno: ProposeUpdateName and ProposeDeleteUser return dao.NewProposalRequest(..., dao.NewSimpleExecutor(0, cur, cb, \"\")) with no store write; app.go:59 GenesisTxResultHandler: PanicOnFailingTxResultHandler; types.gno exposes only ExecutorCreationRealm(), and open/closed status lives in impl/v0 pss",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "gno.land/adr/pr6317_name_transfer.md",
+      "line": 414,
+      "angle": "reach",
+      "summary": "A chain started without a replay upgrade has no way to activate, so its transfers stay refused for good",
+      "failure_scenario": "gnodev, a fresh testnet, or the integration .txtar the ADR's own Testing section requires all boot from examples/ with no appended activation tx. The activation entry point requires height 0 and transfers require the flag, so nothing after the first block can set the flag. OfferTransfer, AcceptTransfer and ProposeTransferUser are then refused for the whole life of that chain, while the keeper rule is live from block 1. Activation cannot move into r/sys/users init(), because a replay upgrade re-runs that init at its historical position, which would break dormancy. The ADR should name how a fresh genesis gets the activation tx, for example from the default genesis generation and the txtar/gnodev loaders.",
+      "verify_by": "sed -n 405,440p gno.land/adr/pr6317_name_transfer.md (activation is only described as appended to the upgrade's genesis); sed -n 374,378p contribs/gnogenesis/internal/fork/generate.go (only the fork tool's --migration-tx forces BlockHeight=0); grep the ADR for gnodev / fresh-genesis activation: none",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "generate.go:374-377: 'Append --migration-tx files at the END of appState.Txs (post-history)... We force BlockHeight=0'; the ADR describes activation only for the replay-upgrade genesis",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "gno.land/adr/pr6317_name_transfer.md",
+      "line": 287,
+      "angle": "catalog",
+      "summary": "A deployed names realm that lacks NamespaceOwner fails closed, which is stricter than a names realm that is not deployed at all",
+      "failure_scenario": "Take a chain whose sysnames_pkgpath points at a deployed names realm that predates NamespaceOwner: a chain that takes the new keeper binary without the realm upgrade, or one using a custom names realm. On that chain every live private redeploy, every park over a live private package, every activation over one and every rejection by owner standing is refused forever, because the call errors and an error yields owner 'none'. Pointing the parameter at an undeployed path instead restores the stamped creator (row 286), matching keeper.go checkNamespacePermission, which returns nil when GetPackage(sysNamesPkg) is nil. A missing function is the 'data an older binary wrote' shape: a realm older than the API gets the harshest answer. The ADR should either treat an undeclared function like 'disabled', or state that the keeper may never ship without the matching names realm.",
+      "verify_by": "sed -n 285,287p gno.land/adr/pr6317_name_transfer.md; sed -n 480,510p gno.land/pkg/sdk/vm/keeper.go (usersPkg == nil returns nil; otherwise the call's error propagates)",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "keeper.go checkNamespacePermission: 'usersPkg := store.GetPackage(sysNamesPkg, false); if usersPkg == nil { return nil }'; ADR row 287: 'the call errors (missing function, ...) | none: the owner branch is refused'",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "gno.land/adr/pr6317_name_transfer.md",
+      "line": 91,
+      "angle": "lines",
+      "summary": "The ADR does not say whether ResolveID returns the authoritative record or a copy, and the new guard refuses copies",
+      "failure_scenario": "The ADR calls ResolveID a 'read-only API'. The next bullet says the read-only trees hand out makeUserDataSafe copies. If ResolveID follows that convention, every AcceptTransfer (ResolveID(id).TransferTo(0, cur, caller)) and every id-bound namereg proposal fails the authoritative guard addressStore.Get(u.addr.String()) == u, and no transfer can ever be accepted. If it returns the raw pointer, as ResolveAddress and ResolveName do in users.gno, everything works. The spec should pin which one.",
+      "verify_by": "grep -n 'return data\\|makeUserDataSafe' examples/gno.land/r/sys/users/users.gno (ResolveAddress/ResolveName return the raw pointer; the rotree getters return copies); sed -n 88,116p gno.land/adr/pr6317_name_transfer.md",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "users.gno: ResolveAddress returns 'data := raw.(*UserData)' unchanged; makeUserDataSafe: 'cpy := new(UserData); *cpy = *(data.(*UserData))'",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/adr/pr6317_name_transfer.md",
+      "line": 448,
+      "angle": "reach",
+      "summary": "Suspected false claim that buildHardforkGenesis drops inherited PastChainIDs and inherited txs lose their chain-id override",
+      "settled_by": "sed -n 448,458p contribs/gnogenesis/internal/fork/generate.go: 'appState.PastChainIDs = []string{originalChainID}'; grep -n isPastChainID gno.land/pkg/gnoland/app.go:907 applies metadata.ChainID only when isPastChainID(pastChainIDs, ...): the claim holds"
+    },
+    {
+      "file": "gno.land/adr/pr6317_name_transfer.md",
+      "line": 620,
+      "angle": "reach",
+      "summary": "Suspected false claim that Amino JSON writes zero-valued fields without omitempty",
+      "settled_by": "grep -n omitempty tm2/pkg/amino/json_encode.go:359: 'Unlike Amino:binary, we don't skip null fields unless \"omitempty\"': the claim holds"
+    },
+    {
+      "file": "gno.land/adr/pr6317_name_transfer.md",
+      "line": 637,
+      "angle": "reach",
+      "summary": "Suspected false claim that gpao's dedup key hashes only the submitted MemPackage",
+      "settled_by": "grep -n -A3 '^func candidateKey' contribs/gpao/oracle.go:756-758: sha256 of amino.MustMarshal(mpkg) keyed by path; mpkg comes from MsgAddPackage (main.go:4): the claim holds"
+    },
+    {
+      "file": "gno.land/adr/pr6317_name_transfer.md",
+      "line": 97,
+      "angle": "reach",
+      "summary": "Suspected false claim that mutating a read-only-tree copy leaves the real record untouched",
+      "settled_by": "sed -n 124,155p examples/gno.land/r/sys/users/users_test.gno: TestROStores calls roData.Delete(0, cur) and asserts nameStore's record stays not deleted: the claim holds"
+    },
+    {
+      "file": "gno.land/adr/pr6317_name_transfer.md",
+      "line": 135,
+      "angle": "reach",
+      "summary": "Suspected false claim that NewFilterByTier restricts only voting and any member can create",
+      "settled_by": "sed -n 40,70p examples/gno.land/r/gov/dao/impl/v0/govdao.gno: PreCreateProposal checks only membership; PostCreateProposal stores tatv=[T1] for FilterByTier T1 at creation: the claim holds"
+    }
+  ]
+}

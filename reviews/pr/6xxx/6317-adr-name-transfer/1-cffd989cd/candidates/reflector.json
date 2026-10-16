@@ -1,0 +1,5 @@
+{
+ "candidates": [],
+ "dropped": [],
+ "completeness": "Docs-only PR (one ADR file), so the gno delta skips the invariant catalog walk; no test, fixture or guard is edited, so there is no sibling to sweep. The thin angle was claims: swept here and every claim read held: verifier.gno:227-228 returns true while !isEnabled; runtime.GetSessionInfo exists (gnovm/stdlibs/chain/runtime/native.gno:32); no r/sys realm sets private = true; preregister.gno lists exactly the ten names ADR:538-539 names; checkCLASignature runs at keeper.go:1018, keeper.go:1142 and keeper_inert.go:299; ErrNameTaken, ErrDeletedUser, ErrAlreadyHasName exist in users/errors.gno; params.go:539-540 defaults an empty SysNamesPkgPath; namereg Register panics on a returned error (users.gno:71,80), matching ADR:230-231 'the transaction aborts'."
+}

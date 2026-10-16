@@ -1,0 +1,63 @@
+[
+ {
+  "index": 1,
+  "angle": "reach",
+  "state": "CONFIRMED",
+  "band": "Nit",
+  "file": "gno.land/adr/pr6317_name_transfer.md",
+  "line": 155,
+  "tldr": "Activation is told to refuse while address-bound users proposals are open, but r/sys/users records nothing when such a proposal is created, and a refused genesis tx stops the boot",
+  "details": "ProposeUpdateName (admin.gno:143-166) and ProposeDeleteUser (admin.gno:170-184) only return dao.NewProposalRequest(..., dao.NewSimpleExecutor(0, cur, cb, \"\")); the realm stores nothing, and SimpleExecutor keeps only callback, description and creationRealm (types.gno:185-188), so the activation tx can find open proposals only by walking GovDAO's proposal store. A refusal in the appended activation tx panics InitChain under the default PanicOnFailingTxResultHandler (app.go:59, app.go:325); booted with genesis SkipFailingTxs it is a Noop (app.go:333-334), so the chain boots with the flag unset and, since the entry point requires height 0 (ADR:414), transfers stay off. The source chain is halted by then, so the open proposal cannot be executed or rejected there. Capturing the dormant mode in the callback at creation, refusing to run once the flag is set, needs neither the scan nor a refusal at boot.",
+  "evidence": "grep admin.gno: lines 143-184 build proposals with no Set; app.go:325 PanicOnFailingTxResultHandler, app.go:333-334 Noop on SkipFailingTxs",
+  "verify_by": "grep -n 'func Propose\\|Set(\\|NewSimpleExecutor' examples/gno.land/r/sys/users/admin.gno; grep -n 'GenesisTxResultHandler' gno.land/pkg/gnoland/app.go; grep -n 'type SimpleExecutor' -A4 examples/gno.land/r/gov/dao/types.gno",
+  "check": "read of admin.gno, types.gno and app.go at the head",
+  "repro_path": "",
+  "base_behaves_the_same": null
+ },
+ {
+  "index": 2,
+  "angle": "reach",
+  "state": "CONFIRMED",
+  "band": "Nit",
+  "file": "gno.land/adr/pr6317_name_transfer.md",
+  "line": 414,
+  "tldr": "Only an upgrade genesis gets the activation tx, so a chain booted fresh from examples never activates and its transfers stay refused",
+  "details": "ADR:411-415 places the activation tx after replayed history and requires height 0; ADR:428-430 makes every transfer entry point require the flag. The only appender is the fork tool's --migration-tx (generate.go:373-377); no loader under contribs/gnodev or gno.land/pkg/integration references a migration tx, and the ADR names no other route. gnodev, a fresh testnet and the integration txtar of ADR:730-732 (offer/accept from a new key) therefore boot unactivated and can never call OfferTransfer or AcceptTransfer, while the keeper rule is live from block 1 (ADR:459-462).",
+  "evidence": "generate.go:373-377 'Append --migration-tx files at the END of appState.Txs'; grep -rln 'migration-tx|migrationTxs' contribs/gnodev gno.land/pkg/integration: no hit; grep ADR for gnodev/fresh genesis activation: none",
+  "verify_by": "sed -n 370,380p contribs/gnogenesis/internal/fork/generate.go; grep -rln 'migration-tx\\|migrationTxs' contribs/gnodev gno.land/pkg/integration; grep -n -i 'gnodev\\|txtar' gno.land/adr/pr6317_name_transfer.md",
+  "check": "read of generate.go and the loaders at the head",
+  "repro_path": "",
+  "base_behaves_the_same": null
+ },
+ {
+  "index": 3,
+  "angle": "catalog",
+  "state": "REFUTED",
+  "band": "Nit",
+  "file": "gno.land/adr/pr6317_name_transfer.md",
+  "line": 287,
+  "tldr": "The fail-closed error row keeps the asymmetry checkNamespacePermission already has, and the ADR ships keeper and names realm in one upgrade",
+  "details": "Today keeper.go:504-507 returns nil when the names realm is not deployed, and keeper.go:509-514 returns the callRealmBool error, so a deployed names realm lacking IsAuthorizedAddressForNamespace already refuses every deploy while an undeployed one allows all. Row 287 mirrors that, it does not introduce it. The keeper-without-realm case is excluded by ADR:464-467: the realm, keeper and approver PRs 'merge behind the same upgrade'.",
+  "evidence": "keeper.go:504-514: 'if usersPkg == nil { return nil }' then 'if err != nil { return err }'",
+  "verify_by": "sed -n 500,525p gno.land/pkg/sdk/vm/keeper.go; sed -n 464,467p gno.land/adr/pr6317_name_transfer.md",
+  "check": "read of keeper.go checkNamespacePermission at the head",
+  "repro_path": "",
+  "base_behaves_the_same": true,
+  "refuted_by": "keeper.go:509-514 `if err != nil { return err }` after keeper.go:505-506 `if usersPkg == nil { return nil }`: the same asymmetry holds today"
+ },
+ {
+  "index": 4,
+  "angle": "lines",
+  "state": "CONFIRMED",
+  "band": "Nit",
+  "file": "gno.land/adr/pr6317_name_transfer.md",
+  "line": 91,
+  "tldr": "ResolveID is not pinned to return the authoritative pointer, and the guard of ADR:104-105 refuses a copy",
+  "details": "ResolveName and ResolveAddress return the stored pointer (users.gno:12, users.gno:27-32) while the rotree getters return makeUserDataSafe copies (users.gno:48-56). ADR:91 calls ResolveID part of a 'read-only API' one line above the copies paragraph, and AcceptTransfer (ADR:230) and the id-bound proposals call mutators on its result, which pass the addressStore.Get(...) == u guard only for the stored pointer. The offer -> accept filetest of ADR:677 fails on a copy, so an implementation cannot ship the wrong reading unnoticed.",
+  "evidence": "users.gno:27 'data := raw.(*UserData)' returned unchanged; users.gno:48,53 rotree.Wrap(..., makeUserDataSafe)",
+  "verify_by": "grep -n 'func Resolve\\|return data\\|makeUserDataSafe' examples/gno.land/r/sys/users/users.gno; sed -n 88,106p gno.land/adr/pr6317_name_transfer.md",
+  "check": "read of users.gno at the head",
+  "repro_path": "",
+  "base_behaves_the_same": null
+ }
+]
