@@ -11,7 +11,7 @@ Checkout synced at `origin/main`, 0 behind.
 | [6270](https://github.com/gnolang/gno/pull/6270) | no | `fe1c9f046` | pipeline | $39.28 | [posted](https://github.com/gnolang/gno/pull/6270#pullrequestreview-5547698095) | `reviews/pr/6xxx/6270-gnoweb-ipfs-gateway/1-fe1c9f046/` |
 | [6209](https://github.com/gnolang/gno/pull/6209) | yes | `1de7f587d` | solo, 2 finders | $9.50 | [posted](https://github.com/gnolang/gno/pull/6209#pullrequestreview-5548097705) | `reviews/pr/6xxx/6209-loopvar-rename-clause/1-1de7f587d/` |
 | [5977](https://github.com/gnolang/gno/pull/5977) | yes | `0089e5d95` | solo, 2 finders | $7.13 | [posted](https://github.com/gnolang/gno/pull/5977#pullrequestreview-5547557958) | `reviews/pr/5xxx/5977-tryevalstatic-error-result/1-0089e5d95/` |
-| [5884](https://github.com/gnolang/gno/pull/5884) | yes | `fb16708ac` | solo, 2 finders | $6.10 | not posted yet | not committed |
+| [5884](https://github.com/gnolang/gno/pull/5884) | yes | `fb16708ac` | solo, 2 finders | $6.10 | [posted](https://github.com/gnolang/gno/pull/5884#pullrequestreview-5548671499) | — |
 | [5820](https://github.com/gnolang/gno/pull/5820) | yes | `8995e9424` | solo, 2 finders | $6.38 | [posted](https://github.com/gnolang/gno/pull/5820#pullrequestreview-5547554754) | `reviews/pr/5xxx/5820-promoted-field-depth-shadowing/1-8995e9424/` |
 | [5785](https://github.com/gnolang/gno/pull/5785) | yes | `b42a521b1` | solo, 2 finders | $11.26 | [posted](https://github.com/gnolang/gno/pull/5785#pullrequestreview-5547651848) | `reviews/pr/5xxx/5785-type-identity-assignability/1-b42a521b1/` |
 
