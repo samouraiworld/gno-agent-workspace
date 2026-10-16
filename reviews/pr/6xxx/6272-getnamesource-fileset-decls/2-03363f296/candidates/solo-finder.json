@@ -1,0 +1,79 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "reach",
+      "summary": "The tolerance covers only the empty-FileSet shape. A nil FileSet or a zero NameSource still panics inside the helper, while the new godoc says it returns a nil *FileNode for any name with no declaring file.",
+      "failure_scenario": "GetBlockNodeForPath accepts a VPUverse path and returns UverseNode (nodes.go:1865-1867). Uverse is built with NewPackageNode(\"uverse\", ..., nil) (uverse.go:752), and its consts and types go through Define2 with NameSource{} (uverse.go:756), so `nsrc.NameExpr.Name` at line 2085 dereferences nil. A uverse native reserved with a NameExpr reaches pn.GetDeclForSafe on a nil *FileSet and dereferences fs.Files. keeper.go:1260-1261 builds the same shapes for MsgCall: NewPackageNode(\"main\", \"\", nil), then mpn.Define(\"pkg\", ...) with a zero NameSource. In every case the next path-keyed caller gets a Go nil-pointer panic where the contract written in this diff promises a nil file. The defect predates the diff, and the diff sweeps this class (names with no declaring file) and misses these two members. The first caller, #6089's assertValidAssignLhs, rejects VPUverse before the call (type_check.go:1051 in that PR), and keeper's synthetic packages evaluate no assignment, so the case is latent today.",
+      "verify_by": "Add a gnolang_test case: gno.UverseNode().GetNameSourceForPath(nil, path) with path {Type: VPUverse, Depth: 0, Index: <index of \"true\">}. Expect a nil fn; observe `invalid memory address or nil pointer dereference` at nodes.go:2085. Repeat with NewPackageNode(\"x\", \"x\", nil) plus Reserve(false, nx, vd, NSValueDecl, 0) at depth 1: the panic comes from GetDeclForSafe. Fix by guarding `nsrc.NameExpr != nil && pn.FileSet != nil`, or by narrowing the godoc to an empty FileSet.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "Read only. nodes.go:2085 `fn, _, _ = pn.GetDeclForSafe(nsrc.NameExpr.Name)`. uverse.go:752 `uverseNode = NewPackageNode(\"uverse\", uversePkgPath, nil)`. uverse.go:756 `uverseNode.Define2(true, n, tv.T, tv, NameSource{})`. nodes.go:1865 `if path.Type == VPUverse { return UverseNode() }`. keeper.go:1261 `mpn.Define(\"pkg\", gno.TypedValue{...})`. PR 6089 diff: `} else if clx.Path.Type == VPUverse { panic(...) }` comes before the new GetNameSourceForPath call.",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "removed",
+      "summary": "The removed GetDeclFor panic asserted that every package-block name of a file-built package has a decl in its FileSet. The swap drops that assertion for every package, not only the synthetic empty-FileSet one the godoc names.",
+      "failure_scenario": "Take a package built from files: NewPackageNode with a non-empty FileSet (machine.go:345 and 673; files added later at machine.go:458 and filetest.go:442). If its NameSources and FileSet ever disagree, for example after a decl split or a reference assignment (both named in the GetDeclFor godoc at nodes.go:1255-1261) loses a name, the helper now returns fn == nil with no signal. Before the diff it panicked with `name X not defined in fileset with files [...]`. A later caller that uses fn, such as the `gno fix` use the godoc names, receives a nil file for a real package and cannot tell it from the REPL case. The case is latent: master has no caller, and #6089 ignores fn.",
+      "verify_by": "Read every NewPackageNode construction site with a non-empty FileSet, plus PredefineFileSet's split and rebind path (preprocess.go:150-230), for a package-block name that can legitimately lack a file decl. If none exists, scope the tolerance with `if !ok && len(pn.Files) > 0 { panic(...) }` and check that `go test ./gnovm/pkg/gnolang ./gnovm/pkg/repl` stays green.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "nodes.go:1262-1269: GetDeclFor is GetDeclForSafe followed by a panic on !ok. The helper has no caller outside the interface (nodes.go:1625) and the new test, per a grep over all .go files. Read machine.go:214-221 and filetest.go:440-448: those empty-FileSet packages receive their files through RunFiles, so a miss there after the files land is a desync, not a REPL name.",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "gnovm/pkg/gnolang/getnamesource_test.go",
+      "line": 20,
+      "angle": "lines",
+      "summary": "The regression test builds a full TestStore and registers the block node and package, but the depth-1 path it exercises never reads the store.",
+      "failure_scenario": "GetNameSourceForPath(store, path) at Depth 1 calls GetBlockNodeForPath. That calls Block.GetSource(store), which consults the store only when Source is a RefNode (values.go:2971-2977). For pn, InitStaticBlock sets Source to pn itself. pn.GetDeclForSafe takes no store. So test.TestStore(gnoenv.RootDir(), ...), pn.NewPackage, store.SetBlockNode and store.SetCachePackage (lines 20-25), and the io, math, gnoenv and test imports, can go, with nil passed as the store. The test then pins the same behaviour without the impression that the store matters.",
+      "verify_by": "Replace `store` with nil in the call at line 45, delete lines 20 and 23-25 and the unused imports, then run go test ./gnovm/pkg/gnolang -run TestGetNameSourceForPathNoFilesetDecl. Expect green on head and the same `not defined in fileset` panic with the fix reverted.",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "values.go:2971-2977: `if rn, ok := b.Source.(RefNode); ok { source := store.GetBlockNode(...) }` and otherwise `return b.Source`. nodes.go:1737-1738: InitStaticBlock sets `Block{Source: source}` with source = pn.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2089,
+      "angle": "removed",
+      "summary": "Suspected: the else branch has the same class (it assumes the block's file is in the FileSet) and still panics for REPL blocks.",
+      "settled_by": "sed -n 1246,1253p nodes.go: GetFileByName loops over fs.Files and ends with `return nil`, so it returns nil on a miss and never panics."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 191,
+      "angle": "removed",
+      "summary": "Suspected: lookupPredefineDecl's panicking fset.GetDeclFor is a sibling the swap missed.",
+      "settled_by": "sed -n 170,235p preprocess.go: lookupPredefineDecl and predefineDeclIndex.lookup run only while PredefineFileSet walks a file-built FileSet. A miss there is an undefined name, and the panic is intended (`a miss can never resolve a decl`). This is not the synthetic-package class."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "lines",
+      "summary": "Suspected: hit-path results differ between GetDeclFor and GetDeclForSafe.",
+      "settled_by": "sed -n 1262,1269p nodes.go: `fn, decl, ok := fs.GetDeclForSafe(n); if !ok { panic(...) }; return fn, decl`. The hit path is identical."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "catalog",
+      "summary": "Catalog walk: determinism, gas, realm state, caller/access, coin, storage deposit, global state, twin input paths, older data, VM-fault recoverability and VM semantics. None is touched: the helper is preprocess-only and has no caller on master.",
+      "settled_by": "grep -rn 'GetNameSourceForPath' --include='*.go' . at head: hits are only nodes.go:1625 (interface), nodes.go:2080 (impl) and getnamesource_test.go. Error & panic handling is covered by candidates 1 and 2."
+    }
+  ]
+}

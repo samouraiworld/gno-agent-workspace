@@ -1,0 +1,9 @@
+{
+  "candidates": [],
+  "dropped": [],
+  "completeness": [
+    "Sibling sweep by shape: every caller of the panicking FileSet.GetDeclFor and of GetDeclForSafe over the tree (grep -rn 'GetNameSourceForPath\\|GetDeclForSafe\\|\\.GetDeclFor(' --include='*.go'). The one other panicking caller, lookupPredefineDecl at preprocess.go:191, and predefineDeclIndex.lookup at preprocess.go:235 resolve names of the FileSet being predefined, the index built from that FileSet's own decls (preprocess.go:203-217); they never see a synthetic package's block names, so neither repeats the edited shape. No candidate filed.",
+    "GetTypeDeclForPath (nodes.go, after the hunk) reads NameSources[path.Index].Origin.(*TypeDecl) unchecked; its godoc states it panics when the path does not lead to a type decl, so the panic is its contract. No candidate filed.",
+    "Catalog: Error & panic handling is the class the diff touches, covered by candidate 1 (a nil-pointer Go panic where the godoc promises a nil file). VM-fault recoverability: GetNameSourceForPath has no caller outside its interface and the new test at head, so no user .gno reaches it. Determinism, gas, realm state, caller identity, coins, storage deposit, global state, twin input paths, stored data, VM semantics and type-check: the diff touches none."
+  ]
+}

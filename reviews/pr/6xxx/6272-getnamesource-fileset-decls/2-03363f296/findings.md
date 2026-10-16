@@ -1,0 +1,23 @@
+# Findings in posting order, from round assemble: 2 to post, 0 SKIP, 0 refuted kept out
+
+## gnovm/pkg/gnolang/getnamesource_test.go:20 [gh](https://github.com/gnolang/gno/blob/03363f296312b625bf4620b8a5fba0927983a1ed/gnovm/pkg/gnolang/getnamesource_test.go#L20) · Nit
+State: CONFIRMED, band: Nit, angle: lines
+TL;DR: The regression test's TestStore, NewPackage, SetBlockNode and SetCachePackage are never read: the same assertions pass with a nil store and fail the same way with the fix reverted.
+Check: the PR's test shape with nil passed as the store and no TestStore, NewPackage, SetBlockNode or SetCachePackage (the first probe of tests/judge-1-namesource-shapes_test.go), run at head and with nodes.go reverted
+Details: At depth 1 GetBlockNodeForPath returns the package node through Block.GetSource, which reads the store only for a RefNode source (values.go:2971-2977), and GetDeclForSafe takes no store. Dropping lines 20 and 23-25 and the io, math, gnoenv and test imports leaves a test that pins the same behaviour.
+Evidence: head: `emptyFileSet+Reserve, nil store: ok fnNil=true type=2`; nodes.go reverted: `emptyFileSet+Reserve, nil store: PANIC name outVar not defined in fileset with files []`.
+Artifact: tests/judge-1-namesource-shapes_test.go
+
+## gnovm/pkg/gnolang/nodes.go:2085 [gh](https://github.com/gnolang/gno/blob/03363f296312b625bf4620b8a5fba0927983a1ed/gnovm/pkg/gnolang/nodes.go#L2085) · Suggestion
+State: CONFIRMED, band: Suggestion, angle: reach
+TL;DR: GetNameSourceForPath still panics with a nil-pointer dereference for three shapes whose name has no declaring file: a zero NameSource from Define, a nil FileSet, and a uverse path.
+Check: go test ./gnovm/pkg/gnolang -run TestZZJudgeNameSourceShapes -v with tests/judge-1-namesource-shapes_test.go copied in: four package-block shapes, at head and with nodes.go reverted to the merge base; then tests/judge-1-guard.patch applied
+Details: The new godoc says the returned *FileNode is nil when the name has no declaring file. Line 2085 reads nsrc.NameExpr.Name, nil for every name Define or Define2 adds (uverse.go:756 `Define2(true, n, tv.T, tv, NameSource{})`, keeper.go:1261 `mpn.Define("pkg", ...)`), and pn.GetDeclForSafe reads fs.Files through the embedded *FileSet, nil for NewPackageNode(..., nil) (uverse.go:752, keeper.go:1260). Only the empty-FileSet Reserve shape the PR targets returns nil. The defect predates the diff, which sweeps this class (names with no declaring file) and misses these members; latent, since the helper has no caller outside its interface and the test, and #6089 rejects VPUverse before calling it. Guarding the call with `nsrc.NameExpr != nil && pn.FileSet != nil` makes all four shapes return a nil file, the PR's test and go test -short ./gnovm/pkg/repl green.
+Evidence: head: `emptyFileSet+Reserve, nil store: ok fnNil=true type=2`; `emptyFileSet+Define: PANIC runtime error: invalid memory address or nil pointer dereference`; `nilFileSet+Reserve: PANIC ...nil pointer dereference`; `uverse true: PANIC ...nil pointer dereference`. base nodes.go: the same three nil-pointer panics, and the Reserve shape panics `name outVar not defined in fileset with files []`. With judge-1-guard.patch: all four `ok fnNil=true`, `--- PASS: TestGetNameSourceForPathNoFilesetDecl`, `ok github.com/gnolang/gno/gnovm/pkg/repl 2.232s`.
+Artifact: tests/judge-1-namesource-shapes_test.go
+State: PLAUSIBLE, band: Suggestion, angle: removed
+TL;DR: The swap drops the miss assertion for file-built packages too, so a FileSet/NameSources desync now yields a nil file with no signal; whether any file-built name legitimately lacks a decl is unsettled.
+Check: still to run: a caller of GetNameSourceForPath over file-built packages (none exists at head) under tests/judge-2-scoped-panic.patch, across the gnolang filetests, to show no file-built package-block name legitimately lacks a file decl
+Details: Mechanism read off nodes.go:1262-1269: GetDeclFor is GetDeclForSafe plus a panic on !ok, and the diff discards ok for every package. The scoped panic (`!ok && len(pn.Files) > 0`) leaves go test -short ./gnovm/pkg/repl green, but at head nothing in the REPL calls GetNameSourceForPath, so that run cannot show the scoped panic compatible with #6089's REPL path or with file-built packages. Latent: no caller reads fn today. A design tradeoff the read cannot settle.
+Evidence: judge-2-scoped-panic.patch applied: `ok github.com/gnolang/gno/gnovm/pkg/repl 1.685s`; grep at head: GetNameSourceForPath has no caller outside nodes.go:1625 and getnamesource_test.go:45.
+Artifact: tests/judge-2-scoped-panic.patch

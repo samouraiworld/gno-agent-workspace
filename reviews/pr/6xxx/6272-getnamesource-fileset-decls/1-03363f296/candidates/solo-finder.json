@@ -1,0 +1,94 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/pkg/gnolang/getnamesource_test.go",
+      "line": 45,
+      "angle": "tests",
+      "summary": "No test pins the hit path: nothing calls GetNameSourceForPath on a package whose FileSet declares the name, so a change returning a nil *FileNode for every package name stays green",
+      "failure_scenario": "Mutate nodes.go:2085 to `fn = nil` (or pass the wrong name to GetDeclForSafe): the new test still passes, since it only asserts the miss on an empty FileSet, and no other test in the tree calls GetNameSourceForPath; a future caller relying on the declaring file (the `gno fix` use the godoc names) gets nil with the whole suite green",
+      "verify_by": "grep -rn GetNameSourceForPath --include='*_test.go' . in the head worktree returns only getnamesource_test.go:45; then apply `fn = nil` at nodes.go:2085 and run go test ./gnovm/pkg/gnolang -run GetNameSource: expect red, observe green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn 'GetNameSourceForPath' over the head worktree: only nodes.go:1625 (interface), nodes.go:2080 (impl), and getnamesource_test.go:45 (the new miss-only test)",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "removed",
+      "summary": "The tolerance stops at an empty non-nil FileSet: a package built with a nil *FileSet, or a package-block name Define'd with a zero NameSource, still panics with a nil dereference on this line",
+      "failure_scenario": "GetNameSourceForPath on (a) NewPackageNode(\"main\", \"\", nil) with a Reserve'd name, the shape of MsgCall's synthetic main (keeper.go:1260) and keeper.go:460, panics inside GetDeclForSafe on the nil receiver; (b) a name added with StaticBlock.Define, which stores NameSource{} (keeper.go:1261 `pkg`, every uverse name), panics on nsrc.NameExpr.Name; (c) a VPUverse path, which GetBlockNodeForPath accepts and maps to UverseNode(), a nil-FileSet PackageNode, panics the same way. No caller sends these today: #6089 rejects uverse targets before its call, and the keeper mains carry no user assignment, so the cost is latent, for the next caller the godoc now promises a nil file to",
+      "verify_by": "go test ./gnovm/pkg/repl -run TestZZNameSourceShapes -v with tests/solo-finder-nil-fileset-panic.go copied in: expect `ok fnNil=true` for the nil-FileSet and Define'd shapes, observe `PANIC: runtime error: invalid memory address or nil pointer dereference`",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "At 03363f296: `nilFileSet+Define pkg PANIC: runtime error: invalid memory address or nil pointer dereference`, `nilFileSet+Reserve w PANIC: ...`, `emptyFileSet+Define pkg PANIC: ...`, `uverse println PANIC: ...`; every name the REPL itself defines (import, func, var, :=, type, const, multi-var) resolves `ok fnNil=true`",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6272-getnamesource-fileset-decls/1-03363f296/tests/solo-finder-nil-fileset-panic.go"
+    },
+    {
+      "index": 3,
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "reach",
+      "summary": "The only planned caller (#6089) discards the *FileNode and reads nsrc.Type, yet every call now runs a linear GetDeclForSafe walk over every decl of every file; a NameSource-only lookup needs neither the walk nor this fix",
+      "failure_scenario": "Under #6089 (`_, _, nsrc := last.GetNameSourceForPath(store, clx.Path); nsrc.Type == NSFuncDecl`), each assignment to a package-level name during preprocess walks all files' Decls and allocates a []Name per ValueDecl via GetDeclNames (nodes.go:1169), so a package with D decls and A such assignments costs A x D lookups whose result is thrown away; reading `GetBlockNodeForPath(store, path).GetNameSources()[path.Index]` gives #6089 the same NameSource with no file lookup and no panic on synthetic packages",
+      "verify_by": "gh pr diff 6089 -R gnolang/gno | grep -n GetNameSourceForPath: the call site binds `_, _, nsrc`; read nodes.go:1272-1291 for the per-call walk and nodes.go:1168-1178 for the allocation",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "gh pr diff 6089: `+\t\t} else if _, _, nsrc := last.GetNameSourceForPath(store, clx.Path); nsrc.Type == NSFuncDecl {`; GetDeclForSafe carries `// XXX index to bound to linear time.` and iterates fs.Files then fn.Decls; ValueDecl.GetDeclNames does `make([]Name, 0, len(x.NameExprs))`",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "gnovm/pkg/gnolang/getnamesource_test.go",
+      "line": 20,
+      "angle": "refactor",
+      "summary": "The test builds a full TestStore and registers the package with SetBlockNode/SetCachePackage, none of which the depth-1 path consults",
+      "failure_scenario": "GetBlockNodeForPath at depth 1 returns sb.GetSource(store), and Block.GetSource touches the store only when Source is a RefNode; NewPackageNode sets Source to the node itself, so TestStore, NewPackage, SetBlockNode and SetCachePackage (four statements and three imports) can go and GetNameSourceForPath(nil, path) exercises the same line",
+      "verify_by": "read values.go:2971-2978 (store used only for RefNode) and nodes.go:1346 (InitStaticBlock(pn, nil) sets Source to pn); drop the store lines, pass nil, run go test ./gnovm/pkg/gnolang -run TestGetNameSourceForPathNoFilesetDecl",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "values.go:2972 `if rn, ok := b.Source.(RefNode); ok { source := store.GetBlockNode(...)` else `return b.Source`; nodes.go:1346 `pn.InitStaticBlock(pn, nil)`",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "lines",
+      "summary": "REPL-defined package names might carry a zero NameSource, so the fixed shape would still nil-deref on nsrc.NameExpr.Name",
+      "settled_by": "go test ./gnovm/pkg/repl -run TestZZNameSourceShapes -v at 03363f296: every REPL name (strings, f, v, x, T, c, a, b) prints `nameExprNil=false ok fnNil=true`"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "removed",
+      "summary": "Discarding GetDeclForSafe's ok loses the miss signal the old panic carried",
+      "settled_by": "nodes.go:1286 returns fn from fs.Files[i], already dereferenced at 1279 (`range fn.Decls`), and 1290 returns `nil, nil, false`: fn == nil iff !ok, so the nil file carries the same signal"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "reach",
+      "summary": "A PackageNode read back from the store might lose its FileSet, so deployed packages would start returning nil files",
+      "settled_by": "pb3_gen.go:13211 `if goo.FileSet != nil {` then `(*goo.FileSet).MarshalBinary2(...)`: the FileSet is serialized with the PackageNode"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2085,
+      "angle": "claims",
+      "summary": "PR body claims the helper has zero callers outside its interface declaration and tests, and that hit-path results are identical",
+      "settled_by": "grep -rn GetNameSourceForPath --include='*.go' . returns only nodes.go:1625, nodes.go:2080 and the new test; nodes.go:1263 `fn, decl, ok := fs.GetDeclForSafe(n)` shows GetDeclFor delegates, differing only in the miss panic"
+    }
+  ]
+}

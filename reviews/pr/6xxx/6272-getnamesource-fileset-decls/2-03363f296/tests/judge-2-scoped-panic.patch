@@ -1,0 +1,19 @@
+diff --git a/gnovm/pkg/gnolang/nodes.go b/gnovm/pkg/gnolang/nodes.go
+index 3b69eadb9..6f9b1c1ec 100644
+--- a/gnovm/pkg/gnolang/nodes.go
++++ b/gnovm/pkg/gnolang/nodes.go
+@@ -2082,7 +2082,13 @@ func (sb *StaticBlock) GetNameSourceForPath(store Store, path ValuePath) (BlockN
+ 	nsrc := dbn.GetNameSources()[path.Index]
+ 	var fn *FileNode
+ 	if pn, ok := dbn.(*PackageNode); ok {
+-		fn, _, _ = pn.GetDeclForSafe(nsrc.NameExpr.Name)
++		if nsrc.NameExpr != nil && pn.FileSet != nil {
++			var ok bool
++			fn, _, ok = pn.GetDeclForSafe(nsrc.NameExpr.Name)
++			if !ok && len(pn.Files) > 0 {
++				panic("judge: miss in non-empty fileset: " + string(nsrc.NameExpr.Name))
++			}
++		}
+ 	} else {
+ 		fname := dbn.GetLocation().GetFile()
+ 		pn := packageOf(dbn)
