@@ -8,11 +8,12 @@ Before, gnoweb rendered IPFS URLs exactly as written, and its CSP `img-src`
 allowed images from `https://ipfs.io` and `https://cloudflare-ipfs.com` only.
 Both hosts stopped serving embedded content, so every IPFS image on a gnoweb
 page broke, URLs stored in realm state included. After, a markdown AST
-transformer, `ipfsTransformer`, rewrites `ipfs://`, `ipns://` and URLs on
-seven retired public gateways to one configured gateway origin,
-`RenderConfig.IPFSGateway`. The CSP allows that origin instead of the dead
-hosts. The gnoweb flag `-ipfs-gateway` and the gnodev flag `-web-ipfs-gateway`
-set it, both defaulting to `https://ipfs.filebase.io`.
+transformer, `ipfsTransformer`, rewrites `ipfs://`, `ipns://`, URLs on
+seven retired public gateways and URLs on the default gateway's own host to one
+configured gateway origin, `RenderConfig.IPFSGateway`. The CSP allows that
+origin, and for a DNS host its `*.ipfs.` and `*.ipns.` subdomains, instead of
+the dead hosts. The gnoweb flag `-ipfs-gateway` and the gnodev flag
+`-web-ipfs-gateway` set it, both defaulting to `https://ipfs.filebase.io`.
 
 ## Before and after
 
@@ -21,15 +22,15 @@ right column is the head of the pull request.
 
 | Where it enters | Before | After |
 | --- | --- | --- |
-| A realm image `![x](https://ipfs.io/ipfs/<cid>/a.png)` | the browser asks ipfs.io, which no longer serves embedded images, through no gnoweb code at all | the image loads from `<gateway>/ipfs/<cid>/a.png` with `loading="lazy"`, through [`ipfsTransformer.Transform`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R59-R65) |
-| A realm image `![x](ipfs://<cid>)` | the CSP blocks the `ipfs:` source, per the [ADR](https://github.com/gnolang/gno/pull/6270/files#diff-43938872b52f730c87fb6fc2d2cc9095c6f2c781510dcbc392b0dc9e6de89b1b) | the image loads from `<gateway>/ipfs/<cid>`, through [`rewriteIPFSURL`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R130-R172) |
+| A realm image `![x](https://ipfs.io/ipfs/<cid>/a.png)` | the browser asks ipfs.io, which no longer serves embedded images, through no gnoweb code at all | the image loads from `<gateway>/ipfs/<cid>/a.png` with `loading="lazy"`, through [`ipfsTransformer.Transform`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R62-R68) |
+| A realm image `![x](ipfs://<cid>)` | the CSP blocks the `ipfs:` source, per the [ADR](https://github.com/gnolang/gno/pull/6270/files#diff-43938872b52f730c87fb6fc2d2cc9095c6f2c781510dcbc392b0dc9e6de89b1b) | the image loads from `<gateway>/ipfs/<cid>`, through [`rewriteIPFSURL`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R133-R184) |
 | A realm link `[x](ipfs://<cid>)` or `[x](ipns://<name>)` | the link keeps a scheme most browsers cannot open, per the ADR | the link opens `<gateway>/ipfs/...` or `<gateway>/ipns/...`, through `rewriteIPFSURL` |
-| A link on a subdomain gateway, `https://<cid>.ipfs.dweb.link/x` | the link points at dweb.link | the link points at `<gateway>/ipfs/<cid>/x`, through [`splitGatewaySubdomain`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R197-R211) |
-| An autolink `<https://ipfs.io/ipfs/<cid>>` | the text and the target both name ipfs.io | the autolink is replaced by a link whose text and target are the gateway URL, through [`newLinkFromAutoLink`](https://github.com/gnolang/gno/pull/6270/files#diff-e05ed50f27a6c120e23aa6d3001c1725c7bffc77c38e467d5cd946d74d91bc11R170-R179) |
+| A link on a subdomain gateway, `https://<cid>.ipfs.dweb.link/x` | the link points at dweb.link | the link points at `<gateway>/ipfs/<cid>/x`, through [`splitGatewaySubdomain`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R208-R222) |
+| An autolink `<https://ipfs.io/ipfs/<cid>>` | the text and the target both name ipfs.io | the autolink is replaced by a link whose text and target are the gateway URL, through [`newRawLabelLink`](https://github.com/gnolang/gno/pull/6270/files#diff-e05ed50f27a6c120e23aa6d3001c1725c7bffc77c38e467d5cd946d74d91bc11R173-R180) |
 | Content inside `<gno-foreign>` | rendered as written | rewritten the same way, through [`buildInnerForeignMarkdown`](https://github.com/gnolang/gno/pull/6270/files#diff-4ee77426d5a939c5259f5ed5712ebff4dd91f1fc2a1aa05c5109b29d25beca5cR452) and [`getGnoContext`](https://github.com/gnolang/gno/pull/6270/files#diff-c8157411fa9b2e88bcb684d1ca01b3dd1aee58e762bf225266c959a125b057fdR47-R57) |
-| The `Content-Security-Policy` header of `gnoweb -strict` | `img-src` lists [`https://ipfs.io` and `https://cloudflare-ipfs.com`](https://github.com/gnolang/gno/pull/6270/files#diff-a123dd3737a47dbac1001d53f411dfb5034817ca1f4a4cd89e3dffcc003c5a0cL42-L43) | `img-src` lists the configured gateway, through [`SecureHeadersMiddleware`](https://github.com/gnolang/gno/pull/6270/files#diff-a123dd3737a47dbac1001d53f411dfb5034817ca1f4a4cd89e3dffcc003c5a0cR462-R472) |
-| gnoweb startup | there is no gateway setting | an invalid gateway stops startup with `invalid IPFS gateway`, through [`NewRouter`](https://github.com/gnolang/gno/pull/6270/files#diff-d9864fd6567bb81edc36439b71fe21f913ae9e6501acff8220a6f7fc5f046e04R162-R168) |
-| The traefik CSP of the loop deployment | lists ipfs.io and cloudflare-ipfs.com | lists `https://ipfs.filebase.io`, in [`misc/loop/traefik/gno.yml`](https://github.com/gnolang/gno/pull/6270/files#diff-01b73ff52571131ad27c33c76cee5942227e31460bda7f5f4b513264c6ee07f0R7) |
+| The `Content-Security-Policy` header of `gnoweb -strict` | `img-src` lists [`https://ipfs.io` and `https://cloudflare-ipfs.com`](https://github.com/gnolang/gno/pull/6270/files#diff-a123dd3737a47dbac1001d53f411dfb5034817ca1f4a4cd89e3dffcc003c5a0cL42-L43) | `img-src` lists the configured gateway, plus `*.ipfs.<host>` and `*.ipns.<host>` when the gateway is named by a DNS host, through [`SecureHeadersMiddleware`](https://github.com/gnolang/gno/pull/6270/files#diff-a123dd3737a47dbac1001d53f411dfb5034817ca1f4a4cd89e3dffcc003c5a0cR460-R489) |
+| gnoweb startup | there is no gateway setting | an invalid gateway stops startup with `invalid IPFS gateway`, through [`NewRouter`](https://github.com/gnolang/gno/pull/6270/files#diff-d9864fd6567bb81edc36439b71fe21f913ae9e6501acff8220a6f7fc5f046e04R162-R169) |
+| The traefik CSP of the loop deployment | lists ipfs.io and cloudflare-ipfs.com | lists `https://ipfs.filebase.io`, in [`misc/loop/traefik/gno.yml`](https://github.com/gnolang/gno/pull/6270/files#diff-01b73ff52571131ad27c33c76cee5942227e31460bda7f5f4b513264c6ee07f0R7), and the staging gnoweb command passes the same origin as `--ipfs-gateway`, in [`misc/loop/docker-compose.yml`](https://github.com/gnolang/gno/pull/6270/files#diff-2ae67132b91bfca52d3e0735ab6f79d58ac3e37dbb398f1bc5cb24fddf324a79R62-R63) |
 
 ## How the rewrite works
 
@@ -72,9 +73,9 @@ flowchart TD
 - `escapeDestination` re-escapes `\` and `&`, since the renderers resolve
   escapes and character references in a destination once more.
 - Priority 400 runs before the link and image validators at 500, so
-  [`linkTransformer`](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/markdown/ext_links.go#L486)
+  [`linkTransformer`](https://github.com/gnolang/gno/blob/36b475912eb31badc961e9b35fa765def60f250f/gno.land/pkg/gnoweb/markdown/ext_links.go#L487)
   and
-  [`imgValidatorTransformer`](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/markdown/ext_imgvalidator.go#L77)
+  [`imgValidatorTransformer`](https://github.com/gnolang/gno/blob/36b475912eb31badc961e9b35fa765def60f250f/gno.land/pkg/gnoweb/markdown/ext_imgvalidator.go#L77)
   judge the gateway URL rather than the original.
 
 ### Which URLs are rewritten
@@ -94,7 +95,10 @@ the change every input rendered unchanged.
 | `https://<cidv1>.ipfs.dweb.link/img.png` | `https://gw.test/ipfs/<cidv1>/img.png` |
 | `https://en-wikipedia--on--ipfs-org.ipns.dweb.link/wiki/` | `https://gw.test/ipns/en.wikipedia-on-ipfs.org/wiki/` |
 | `//ipfs.io/ipfs/<cidv1>/x` | `https://gw.test/ipfs/<cidv1>/x` |
-| `https://ipfs.filebase.io/ipfs/<cidv1>` | unchanged: not a retired gateway |
+| `https://ipfs.filebase.io/ipfs/<cidv1>` | `https://gw.test/ipfs/<cidv1>`: the default gateway's host |
+| `https://ipfs.io/ipfs/<cidv1>/a b.png` | `https://gw.test/ipfs/<cidv1>/a%20b.png` |
+| `https://gateway.pinata.cloud/ipfs/<cidv1>` | unchanged: a gateway that still works |
+| `https://ipfs.io/ipfs/%41<cidv1>/a b.png` | unchanged: the name reads `%41<cidv1>` in the raw path |
 | `https://ipfs.io:8443/ipfs/<cidv1>` | unchanged: a port |
 | `https://user@ipfs.io/ipfs/<cidv1>` | unchanged: userinfo |
 | `ipfs://bafy.example` | unchanged: a dot in a CID |
@@ -133,7 +137,7 @@ printed `ok`. Every row is the after side; the setting did not exist before.
 Every excerpt below is the after side, copied from the head of the pull
 request.
 
-### 1. `hot` · The rewrite pass, [`ext_ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R37-R87)
+### 1. `hot` · The rewrite pass, [`ext_ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R40-R90)
 
 Decides which nodes get a new destination, and swaps each autolink for a link
 once the walk is over.
@@ -156,11 +160,11 @@ gateway, or the walk stops early and later links miss their `rel`.
 	...
 	for _, a := range autolinks {
 		parent := a.node.Parent()
-		parent.ReplaceChild(parent, a.node, newLinkFromAutoLink(escapeDestination(a.url), []byte(a.url)))
+		parent.ReplaceChild(parent, a.node, newRawLabelLink(escapeDestination(a.url), []byte(a.url)))
 	}
 ```
 
-### 2. `hot` · The URL mapping, [`ext_ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R130-R172)
+### 2. `hot` · The URL mapping, [`ext_ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R133-R184)
 
 Decides which URLs are IPFS content and what gateway URL names the same
 content.
@@ -173,8 +177,16 @@ non-IPFS URL is sent to the gateway.
 		namespace, name, rest = u.Scheme, u.Host, u.EscapedPath()
 	case "http", "https", "": // "" with a host: protocol-relative //host/...
 		host := strings.ToLower(u.Host) // keeps any port, so ported hosts never match
-		if _, retired := ipfsRetiredGateways[host]; retired {
+		if _, known := ipfsRewrittenGateways[host]; known {
 			namespace, name, rest = splitGatewayPath(u.EscapedPath())
+			// EscapedPath decodes the whole path when the raw one is not a
+			// valid encoding (a space anywhere), which would turn %41<cid>
+			// into A<cid>: the name must read the same in the raw path.
+			if u.RawPath != "" {
+				if _, rawName, _ := splitGatewayPath(u.RawPath); rawName != name {
+					return "", false
+				}
+			}
 		} else {
 			namespace, name = splitGatewaySubdomain(host)
 			rest = u.EscapedPath()
@@ -190,15 +202,17 @@ non-IPFS URL is sent to the gateway.
 	out := gateway + "/" + namespace + "/" + name + rest
 ```
 
-### 3. `hot` · The retired hosts and the subdomain form, [`ext_ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R18-R31)
+### 3. `hot` · The rewritten hosts and the subdomain form, [`ext_ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R14-R29)
 
-Names the seven hosts the rewrite replaces, and which of them also served
-`<cid>.ipfs.<host>`.
+Names the eight hosts the rewrite replaces, the seven retired gateways and
+the default gateway's host, and which of them also served `<cid>.ipfs.<host>`.
+The default's host is listed so a URL stored while it was the default follows
+an operator who moves to another gateway.
 **If wrong:** a URL on a dead host stays dead, or a URL on a live host is
 moved to the gateway.
 
 ```go
-var ipfsRetiredGateways = map[string]bool{
+var ipfsRewrittenGateways = map[string]bool{
 	"ipfs.io":             false,
 	"gateway.ipfs.io":     false,
 	"cloudflare-ipfs.com": false,
@@ -206,10 +220,11 @@ var ipfsRetiredGateways = map[string]bool{
 	"dweb.link":           true,
 	"nftstorage.link":     true,
 	"w3s.link":            true,
+	"ipfs.filebase.io":    false, // gnoweb.DefaultIPFSGateway
 }
 ```
 
-### 4. `hot` · The path guards, [`ext_ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R239-R260)
+### 4. `hot` · The path guards, [`ext_ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-873c9680aff44c049ac35217b14bf66c24ebabcac0c1004786aeaec531fd9187R250-R271)
 
 Refuses a path with a `.` or `..` segment, split at `/` or `\`, and a query
 with a `uri` key.
@@ -226,7 +241,7 @@ func hasDotSegment(p string) bool {
 }
 ```
 
-### 5. `hot` · The gateway check, [`ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-a829c4898f52e019eaac8ef1926af1960fc9595e120dd1c58b85b9ea77d3b6cdR36-R66)
+### 5. `hot` · The gateway check, [`ipfs.go`](https://github.com/gnolang/gno/pull/6270/files#diff-a829c4898f52e019eaac8ef1926af1960fc9595e120dd1c58b85b9ea77d3b6cdR36-R67)
 
 Decides which origins an operator may set, since the origin goes into the CSP
 and into every rewritten URL.
@@ -267,7 +282,7 @@ a `<gno-foreign>` block.
 	}
 ```
 
-### 7. `warm` · Startup validation, [`app.go`](https://github.com/gnolang/gno/pull/6270/files#diff-d9864fd6567bb81edc36439b71fe21f913ae9e6501acff8220a6f7fc5f046e04R162-R168)
+### 7. `warm` · Startup validation, [`app.go`](https://github.com/gnolang/gno/pull/6270/files#diff-d9864fd6567bb81edc36439b71fe21f913ae9e6501acff8220a6f7fc5f046e04R162-R169)
 
 Validates the gateway once with the chain domain and canonical host, and
 writes the normalized origin back into `cfg` for the CSP builder.
@@ -276,7 +291,8 @@ writes the normalized origin back into `cfg` for the CSP builder.
 ```go
 	ipfsGateway, err := normalizeIPFSGateway(cfg.RenderConfig.IPFSGateway, cfg.Domain, originHost(canonicalOrigin))
 	if err != nil {
-		return nil, fmt.Errorf("invalid IPFS gateway %q: %w", cfg.RenderConfig.IPFSGateway, err)
+		// The value is not echoed: it may carry a credential or token.
+		return nil, fmt.Errorf("invalid IPFS gateway: %w", err)
 	}
 	cfg.RenderConfig.IPFSGateway = ipfsGateway
 ```
@@ -292,18 +308,32 @@ host.
 ```go
 	gateway, err := normalizeIPFSGateway(cfg.IPFSGateway, "", "")
 	if err != nil {
-		logger.Warn("ignoring invalid IPFS gateway", "gateway", cfg.IPFSGateway, "error", err)
+		logger.Warn("ignoring invalid IPFS gateway", "error", err) // not the value: it may carry a secret
 	}
 	cfg.IPFSGateway = gateway
 ```
 
-### 9. `warm` · The CSP header, [`main.go`](https://github.com/gnolang/gno/pull/6270/files#diff-a123dd3737a47dbac1001d53f411dfb5034817ca1f4a4cd89e3dffcc003c5a0cR462-R472)
+### 9. `warm` · The CSP header, [`main.go`](https://github.com/gnolang/gno/pull/6270/files#diff-a123dd3737a47dbac1001d53f411dfb5034817ca1f4a4cd89e3dffcc003c5a0cR460-R489)
 
 Adds the configured gateway to `img-src`, in place of the two hosts the change
-removes from `cspImgHost`.
+removes from `cspImgHost`. For a gateway named by a DNS host it also adds
+`*.ipfs.<host>` and `*.ipns.<host>`, where a subdomain gateway such as Kubo on
+`localhost` redirects `/ipfs/<cid>` and `/ipns/<name>`.
 **If wrong:** rewritten images are blocked by the browser.
 
 ```go
+func ipfsGatewayImgSources(origin string) []string {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	sources := []string{origin}
+	if net.ParseIP(u.Hostname()) == nil {
+		sources = append(sources, u.Scheme+"://*.ipfs."+u.Host, u.Scheme+"://*.ipns."+u.Host)
+	}
+	return sources
+}
+
 func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway string) http.Handler {
 	// Build img-src CSP directive
 	var imgSrc strings.Builder
@@ -312,15 +342,17 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway
 	for _, host := range cspImgHost {
 		imgSrc.WriteString(" " + host)
 	}
-	if ipfsGateway != "" {
-		imgSrc.WriteString(" " + ipfsGateway)
+	for _, src := range ipfsGatewayImgSources(ipfsGateway) {
+		imgSrc.WriteString(" " + src)
 	}
 ```
 
-### 10. `warm` · Escaping and the shared autolink helper, [`ext_links.go`](https://github.com/gnolang/gno/pull/6270/files#diff-e05ed50f27a6c120e23aa6d3001c1725c7bffc77c38e467d5cd946d74d91bc11R161-R179)
+### 10. `warm` · Escaping and the shared raw-label link, [`ext_links.go`](https://github.com/gnolang/gno/pull/6270/files#diff-e05ed50f27a6c120e23aa6d3001c1725c7bffc77c38e467d5cd946d74d91bc11R161-R180)
 
-Turns a resolved URL back into destination bytes, and builds the link that
-stands in for an autolink, now shared with `linkTransformer`.
+Turns a resolved URL back into destination bytes, and builds `newRawLabelLink`,
+the link with a raw-text label that stands in for an autolink or a
+`<gno-button>`, shared by `ipfsTransformer`, `linkTransformer` and
+`newButtonLink`.
 **If wrong:** a `&` or `\` in a rewritten URL is decoded twice.
 
 ```go
@@ -342,7 +374,7 @@ instance.
 	ExtIPFS.Extend(m)
 ```
 
-### 12. `warm` · The flags, [`main.go`](https://github.com/gnolang/gno/pull/6270/files#diff-a123dd3737a47dbac1001d53f411dfb5034817ca1f4a4cd89e3dffcc003c5a0cR355) and [`setup_web.go`](https://github.com/gnolang/gno/pull/6270/files#diff-b3a2247ee7ab3cd0af606b0ad1211ac696d44b1a23b634d18ba9d6973dde288eR42)
+### 12. `warm` · The flags, [`main.go`](https://github.com/gnolang/gno/pull/6270/files#diff-a123dd3737a47dbac1001d53f411dfb5034817ca1f4a4cd89e3dffcc003c5a0cR356) and [`setup_web.go`](https://github.com/gnolang/gno/pull/6270/files#diff-b3a2247ee7ab3cd0af606b0ad1211ac696d44b1a23b634d18ba9d6973dde288eR42)
 
 Copies `-ipfs-gateway` and `-web-ipfs-gateway` into
 `RenderConfig.IPFSGateway`. `NewDefaultAppConfig` leaves it empty, so a library
@@ -377,7 +409,12 @@ or account. This is the after side.
   `https://ipfs.filebase.io`. `-ipfs-gateway=""` turns the rewrite off and adds
   no host to the CSP.
 - A deployment whose proxy sets its own CSP must add the gateway origin to
-  `img-src`, as `misc/loop/traefik/gno.yml` does.
+  `img-src`, as `misc/loop/traefik/gno.yml` does, and for a subdomain gateway
+  its `*.ipfs.` and `*.ipns.` subdomains as well.
+- A URL stored on `https://ipfs.filebase.io` follows the gateway an operator
+  moves to, so the CSP never has to keep the old default.
+- A rejected gateway setting is never echoed in the startup error or the
+  renderer's warning, since it may carry a credential or token.
 - A gateway on the chain domain, on the canonical origin's host, or under
   either, makes `NewRouter` fail at startup.
 - The ADR names Filebase's public gateway a development default, rate limited,
@@ -391,12 +428,12 @@ or account. This is the after side.
 | IPNS name | A mutable name, a key or a DNS name, resolved by a gateway under `/ipns/`. Dots and hyphens are accepted after the first character. |
 | DNSLink label | A DNS name inlined into one subdomain label: `--` stands for `-` and a lone `-` for `.`, decoded by `dnsLinkLabelDecoder`. |
 | Path gateway | A gateway that serves `https://<host>/ipfs/<cid>/<path>`. |
-| Subdomain gateway | A gateway that serves `https://<cid>.ipfs.<host>/<path>`, marked `true` in `ipfsRetiredGateways`. |
+| Subdomain gateway | A gateway that serves `https://<cid>.ipfs.<host>/<path>`, marked `true` in `ipfsRewrittenGateways`. |
 | `RenderConfig.IPFSGateway` | The gateway origin realm markdown is rewritten to. Default empty in `NewDefaultAppConfig`; empty disables the rewrite. |
 | `DefaultIPFSGateway` | `https://ipfs.filebase.io`, the default of both flags. |
 | `-ipfs-gateway` | The gnoweb flag setting `RenderConfig.IPFSGateway`. Default `DefaultIPFSGateway`. |
 | `-web-ipfs-gateway` | The gnodev flag setting the same field. Default `DefaultIPFSGateway`. |
-| `ipfsRetiredGateways` | The seven hosts whose URLs are rewritten: `ipfs.io`, `gateway.ipfs.io`, `cloudflare-ipfs.com`, `cf-ipfs.com`, `dweb.link`, `nftstorage.link`, `w3s.link`. |
+| `ipfsRewrittenGateways` | The eight hosts whose URLs are rewritten: the retired `ipfs.io`, `gateway.ipfs.io`, `cloudflare-ipfs.com`, `cf-ipfs.com`, `dweb.link`, `nftstorage.link` and `w3s.link`, and `ipfs.filebase.io`, the default gateway's host. |
 | `ipfsTransformer` | The goldmark AST transformer at priority 400 that rewrites link, image and autolink destinations. |
 | `ExtIPFS` | The extension that registers `ipfsTransformer`, loaded by `GnoExtension.Extend` and `buildInnerForeignMarkdown`. |
 | `normalizeIPFSGateway` | Returns the validated `scheme://host[:port]` origin, or an error. |

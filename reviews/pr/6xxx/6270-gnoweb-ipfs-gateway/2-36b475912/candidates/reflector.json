@@ -1,0 +1,20 @@
+{
+  "dropped": [],
+  "candidates": [
+    {"index": 3001, "file": "gno.land/pkg/gnoweb/ipfs_test.go", "line": 85, "angle": "catalog", "band": "Missing test",
+     "summary": "TestNewRouterIPFSGateway dropped its maps.Clone and now writes cfg.Aliases under t.Parallel, which races if NewDefaultAppConfig hands out the shared DefaultAliases map (catalog: global mutable state)",
+     "failure_scenario": "Two parallel tests call NewDefaultAppConfig; this one writes cfg.Aliases[\"/ipfs-page\"] while another reads DefaultAliases, and the runtime aborts with concurrent map read and map write",
+     "verify_by": "sed -n 140p gno.land/pkg/gnoweb/app.go for a clone; go test -race ./gno.land/pkg/gnoweb -run 'TestNewRouter|TestNewDefault|Alias' -count=1: expect no DATA RACE",
+     "checked": true},
+    {"index": 3002, "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go", "line": 150, "angle": "lines", "band": "Missing test",
+     "summary": "the new RawPath guard in rewriteIPFSURL (hot file, no candidate) may be unpinned: nothing proves a test reddens without it",
+     "failure_scenario": "Removing the guard lets https://ipfs.io/ipfs/%41<cid>/a b.png rewrite to <gateway>/ipfs/A<cid>/..., a different name, with every test green",
+     "verify_by": "change ext_ipfs.go:150 to if false && u.RawPath != \"\" {; go test ./gno.land/pkg/gnoweb/markdown -run IPFS -count=1: expect red",
+     "checked": true},
+    {"index": 3003, "file": "gno.land/pkg/gnoweb/ipfs.go", "line": 46, "angle": "removed", "band": "Warning",
+     "summary": "the round-1 redaction fix may miss a sibling sink: url.Parse's error, or another log or error line that prints the gateway value",
+     "failure_scenario": "An operator passes -ipfs-gateway with a credential in a shape url.Parse rejects (https://user:s3cret^x@gw.example) and the startup error or a log line prints it",
+     "verify_by": "revert ipfs.go:46 to return \"\", err and run go test ./gno.land/pkg/gnoweb -run TestNewRouterIPFSGateway -count=1: expect red; grep -rn 'IPFSGateway|ipfsGateway|ipfs-gateway' over non-test .go files in gno.land and contribs, filtered to log, print and Errorf calls: expect no hit",
+     "checked": true}
+  ]
+}

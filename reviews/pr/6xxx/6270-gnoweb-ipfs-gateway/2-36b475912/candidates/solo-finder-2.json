@@ -1,0 +1,92 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gno.land/pkg/gnoweb/render.go",
+      "line": 98,
+      "angle": "reach",
+      "summary": "the renderer warning's redaction has no test: the eight secret-bearing shapes run through NewRouter only",
+      "failure_scenario": "A later edit that puts \"gateway\", cfg.IPFSGateway back on this Warn writes a credential-bearing gateway value into the log of every direct NewHTMLRenderer caller, and TestNewHTMLRendererIPFSGateway stays green because it asserts nothing about the log; the author's reply ('Tested with eight secret-bearing shapes') covers NewRouter's error alone",
+      "verify_by": "mutate render.go:98 to logger.Warn(\"ignoring invalid IPFS gateway\", \"gateway\", cfg.IPFSGateway, \"error\", err); go test ./gno.land/pkg/gnoweb -run IPFS -count=1: expect red, observe green. Read half: grep -rn s3cret gno.land contribs --include='*_test.go'",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn s3cret --include='*_test.go' hits only gno.land/pkg/gnoweb/ipfs_test.go:115 (the NewRouter loop) and indexer/client_test.go; TestNewHTMLRendererIPFSGateway (ipfs_test.go:140-157) passes log.NewTestingLogger(t) and checks only the rendered src",
+      "repro_path": ""
+    },
+    {
+      "index": 1002,
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 241,
+      "angle": "removed",
+      "summary": "-ipfs-gateway help (and gnodev's -web-ipfs-gateway help and README) still says only ipfs:// and retired-gateway URLs are rewritten, though URLs on ipfs.filebase.io now are too",
+      "failure_scenario": "An operator reading `gnoweb -h`, `gnodev -h` or contribs/gnodev/README.md before moving -ipfs-gateway off Filebase is not told that realm URLs on ipfs.filebase.io will be sent to the new gateway, which serves them only if it can fetch the content; the diff updated docs/users/explore-with-gnoweb.md and the ADR but not the help text the flag ships with (also the godocs at ipfs.go:13-15, render_config.go:22-23, markdown/context.go:24)",
+      "verify_by": "grep -rn 'retired gateway URLs' gno.land/cmd/gnoweb/main.go contribs/gnodev: expect no hit after the fix",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "main.go:241 \"IPFS gateway origin that ipfs:// URLs and retired gateway URLs (ipfs.io, dweb.link, ...) are rewritten to; ...\"; contribs/gnodev/app_config.go:152 and README.md:113,164 carry the same sentence",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 464,
+      "angle": "removed",
+      "summary": "round-1 Warning (subdomain gateway redirect blocked by img-src) might still fail after the wildcard fix, or miss the ipns DNSLink redirect",
+      "settled_by": "go test ./gno.land/cmd/gnoweb -run TestR2 (tests/solo-finder-2-r1-fixes-hold.go, chromium headless, strict CSP): --- PASS: TestR2SubdomainRedirectCSP/ipfs, gateway saw \"bafy....ipfs.localhost:44991/\"; --- PASS: .../ipns_dnslink, gateway saw \"en-wikipedia--on--ipfs-org.ipns.localhost:33181/i.png\""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 28,
+      "angle": "reach",
+      "summary": "round-1 Warning (stored filebase URL breaks on gateway switch) might hold only for the bare path form",
+      "settled_by": "same artifact: --- PASS: TestR2GatewaySwitch, rewritten=true for https://, https:// with /x.png?filename=, http:// and protocol-relative //ipfs.filebase.io/ipfs/<cid> under -ipfs-gateway https://gw.example"
+    },
+    {
+      "file": "contribs/gnodev/setup_web.go",
+      "line": 30,
+      "angle": "removed",
+      "summary": "gnodev's debug log of ipfs_gateway might be a sibling the redaction fix missed",
+      "settled_by": "sed -n 20,31p contribs/gnodev/setup_web.go: gnoweb.NewRouter(logger, appcfg) runs first and returns on error; the Debug line logs the value NewRouter normalized in place, an origin with no userinfo, path or query"
+    },
+    {
+      "file": "examples/quarantined/gno.land/p/moul/web25/web25.gno",
+      "line": 29,
+      "angle": "removed",
+      "summary": "replacing https://ipfs.io/ipfs/<cid> with ipfs://<cid> leaves a dead link wherever no gateway rewrites it",
+      "settled_by": "grep -rln moul/web25 examples: only examples/quarantined/gno.land/p/moul/web25/gnomod.toml, so nothing imports it; git log -S at the merge base: 61a5c020c, #2819, the package's original commit, not a later request"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 150,
+      "angle": "reach",
+      "summary": "the new RawPath name check might reject a legitimate path-gateway URL",
+      "settled_by": "rawName differs from name only when the raw name holds a percent escape, which validIPFSName rejects anyway; go test ./gno.land/pkg/gnoweb/markdown ./gno.land/pkg/gnoweb -run 'IPFS|Golden|Button' -count=1: ok, including the https://ipfs.io/ipfs/<cid>/a b.png -> /a%20b.png rewrite case"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_buttons.go",
+      "line": 77,
+      "angle": "removed",
+      "summary": "newButtonLink's switch to newRawLabelLink might change the button's link",
+      "settled_by": "the removed lines set Destination = bytes.Clone(t.href) and appended one raw ast.String label; newRawLabelLink (ext_links.go) does the same with the same arguments; go test ./gno.land/pkg/gnoweb/markdown -run Button: ok"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 28,
+      "angle": "reach",
+      "summary": "the hardcoded ipfs.filebase.io entry could drift from gnoweb.DefaultIPFSGateway (the markdown package cannot import gnoweb)",
+      "settled_by": "TestNewRouterIPFSGateway renders \"![x](\"+DefaultIPFSGateway+\"/ipfs/\"+cid+\")\" under https://gw.example and asserts the gw.example src, so a default not in the map turns it red"
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 464,
+      "angle": "reach",
+      "summary": "ipfsGatewayImgSources silently drops an unparsable or hostless origin that the old code wrote verbatim",
+      "settled_by": "grep -rn SecureHeadersMiddleware: the one non-test caller, main.go:402, passes appcfg.RenderConfig.IPFSGateway after NewRouter normalized it to scheme://host[:port] or empty"
+    }
+  ]
+}

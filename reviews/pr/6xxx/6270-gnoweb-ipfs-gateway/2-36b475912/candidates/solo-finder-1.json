@@ -1,0 +1,63 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/render.go",
+      "line": 98,
+      "angle": "lines + claims (secret handling)",
+      "summary": "NewHTMLRenderer's warning no longer echoes the gateway, but no test pins it: the eight-shape secret test only covers NewRouter's error",
+      "failure_scenario": "Someone re-adds \"gateway\", cfg.IPFSGateway to the Warn at render.go:98 (the shape round 1 flagged); a direct NewHTMLRenderer caller passing https://user:s3cret@gw.example then writes the credential to the log, and every test stays green, since TestNewHTMLRendererIPFSGateway uses log.NewTestingLogger and asserts nothing on log output, and the s3cret loop at ipfs_test.go:114-128 calls only NewRouter",
+      "verify_by": "in a scratch worktree, change render.go:98 to logger.Warn(\"ignoring invalid IPFS gateway\", \"gateway\", cfg.IPFSGateway, \"error\", err) and run go test ./gno.land/pkg/gnoweb -run IPFS -count=1: expect red, observe green; read half: grep -rn s3cret gno.land/pkg/gnoweb contribs/gnodev shows hits only in TestNewRouterIPFSGateway's NewRouter loop (ipfs_test.go:115-127) and an unrelated indexer test",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "render.go:98 logger.Warn(\"ignoring invalid IPFS gateway\", \"error\", err) // not the value: it may carry a secret; grep -rn s3cret: ipfs_test.go:115-127 (NewRouter loop only), feature/omnisearch/handler_test.go:320 (indexer); TestNewHTMLRendererIPFSGateway builds r := NewHTMLRenderer(log.NewTestingLogger(t), cfg, nil) with no log capture",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 471,
+      "angle": "round-1 fix check: subdomain-gateway img-src",
+      "summary": "round 1's Warning: a Kubo localhost subdomain redirect to <cid>.ipfs.localhost is blocked by img-src; checked whether the *.ipfs./*.ipns. wildcard fix holds",
+      "settled_by": "round-1 repro b2-lines-subdomain-redirect-csp_test.go copied into a scratch worktree at 36b475912, go test ./gno.land/cmd/gnoweb -run Subdomain -count=1 -v with chromium: strict (CSP) case gateway saw [\"localhost:35067/ipfs/bafy...\" \"bafy....ipfs.localhost:35067/\"], --- PASS: TestB2SubdomainGatewayRedirectCSP"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 28,
+      "angle": "round-1 fix check: gateway switch",
+      "summary": "round 1's Warning: a stored https://ipfs.filebase.io/ipfs/<cid> image is stranded after -ipfs-gateway moves; checked whether adding the host to ipfsRewrittenGateways fixes it",
+      "settled_by": "round-1 repro b2-rollout-gateway-switch_test.go at 36b475912 in the scratch worktree: --- PASS: TestRolloutGatewaySwitch (it failed at fe1c9f046)"
+    },
+    {
+      "file": "misc/loop/traefik/gno.yml",
+      "line": 7,
+      "angle": "CSP producers",
+      "summary": "staging's hand-written img-src lists https://ipfs.filebase.io without the new *.ipfs./*.ipns. subdomains gnoweb now adds; would block images if Filebase redirected to a subdomain",
+      "settled_by": "curl -sD - -H 'Sec-Fetch-Dest: image' https://ipfs.filebase.io/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi: HTTP/2 200, content-type: image/jpeg, no Location: Filebase is a path gateway, so the bare origin suffices"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs.go",
+      "line": 46,
+      "angle": "claims (secret handling)",
+      "summary": "test header ipfs_test.go:118 claims url.Parse's error quotes the value, which is why the branch now returns a fixed message; checked the claim",
+      "settled_by": "sed -n '/func (e \\*Error) Error/,/^}/p' $(go env GOROOT)/src/net/url/url.go (go1.27.1): return fmt.Sprintf(\"%s %q: %s\", e.Op, e.URL, e.Err); url.go:410 return nil, &Error{\"parse\", rawURL, err}: the raw value is quoted, so the claim holds and the test goes red if the branch reverts to return \"\", err"
+    },
+    {
+      "file": "contribs/gnodev/setup_web.go",
+      "line": 30,
+      "angle": "secret handling: remaining log sites",
+      "summary": "gnodev logs ipfs_gateway at debug; checked whether a raw (possibly credentialed) value can reach it",
+      "settled_by": "sed -n 20,32p contribs/gnodev/setup_web.go: the Debug log runs after gnoweb.NewRouter succeeded, which normalized appcfg.RenderConfig.IPFSGateway in place (app.go:169) to scheme://host[:port], rejecting userinfo, path, query and fragment; grep -rn '%+v\\|%#v\\|\"config\"' contribs/gnodev/*.go returns nothing, so no config dump carries the flag"
+    },
+    {
+      "file": "examples/quarantined/gno.land/p/moul/web25/web25.gno",
+      "line": 29,
+      "angle": "lines",
+      "summary": "GetLink now emits ipfs://<cid>, unopenable in renderers without gnoweb's rewrite (or gnoweb with -ipfs-gateway empty), where https://ipfs.io/ipfs/<cid> was at least a gateway URL",
+      "settled_by": "grep -rn web25 --include='*.gno' --include='*.toml' --include='*.txtar' --include='*.go' . outside its own directory and examples_ignored returns nothing; examples_ignored/r/moul/home/home.gno:20 uses web25.Config{URL: ...}, never a CID, and the package is quarantined, so no shipped caller reaches the CID branch"
+    }
+  ]
+}
