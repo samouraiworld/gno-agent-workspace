@@ -1,4 +1,5 @@
 # Review: [#5785](https://github.com/gnolang/gno/pull/5785)
+Posted: https://github.com/gnolang/gno/pull/5785#pullrequestreview-5547651848
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. The runtime interface check in `VerifyImplementedBy` walks the whole method signature for a flat gas charge, a pricing gap this branch introduces and the one blocker; three identity gaps of the class the branch sweeps (variadic spread, `copy`, `:=` redeclaration) predate it and do not block on their own.
 Model: claude-opus-5-5, standard review, solo shape: 2 finders at xhigh, judge at high
@@ -139,7 +140,7 @@ Round: 1. Two finders, one judge acting as reflector and writer, 7 candidates; e
   ```
   </details>
 
-## gnovm/pkg/gnolang/types.go:1253 [gh](https://github.com/gnolang/gno/blob/b42a521b16655374e507bdb949ab5b8289bc8404/gnovm/pkg/gnolang/types.go#L1253) · [↗](../../../../../.worktrees/gno-review-5785/gnovm/pkg/gnolang/types.go#L1253) · Warning
+## gnovm/pkg/gnolang/types.go:1253 [gh](https://github.com/gnolang/gno/blob/b42a521b16655374e507bdb949ab5b8289bc8404/gnovm/pkg/gnolang/types.go#L1253) · [↗](../../../../../.worktrees/gno-review-5785/gnovm/pkg/gnolang/types.go#L1253) · Warning [posted](https://github.com/gnolang/gno/pull/5785#discussion_r4294560575)
 `identicalTypes(mt, im.Type)` walks the method signature on each `x.(I)` at flat gas: 20000 assertions cost 42.9M gas in 0.01s with 1 field and 1.39s with 5000.
 
 <details><summary>repro</summary>
@@ -209,7 +210,7 @@ Suggestion: this flips deployed `x.(interface{ M(...int) })` assertions on `M([]
 
 Not posted: the ADR's Decision and Consequences record the runtime interface-assertion change as intended, and its rationale saying static-only strictness avoids consensus-visible changes is ADR text.
 
-## gnovm/tests/files/interface51.gno:12 [gh](https://github.com/gnolang/gno/blob/b42a521b16655374e507bdb949ab5b8289bc8404/gnovm/tests/files/interface51.gno#L12) · [↗](../../../../../.worktrees/gno-review-5785/gnovm/tests/files/interface51.gno#L12) · Missing test
+## gnovm/tests/files/interface51.gno:12 [gh](https://github.com/gnolang/gno/blob/b42a521b16655374e507bdb949ab5b8289bc8404/gnovm/tests/files/interface51.gno#L12) · [↗](../../../../../.worktrees/gno-review-5785/gnovm/tests/files/interface51.gno#L12) · Missing test [posted](https://github.com/gnolang/gno/pull/5785#discussion_r4294560587)
 Missing test: no filetest runs `x.(I)` or `case I` against a method differing only in variadicity or a tag, so reverting the runtime half keeps every test green.
 
 <details><summary>test cases</summary>
