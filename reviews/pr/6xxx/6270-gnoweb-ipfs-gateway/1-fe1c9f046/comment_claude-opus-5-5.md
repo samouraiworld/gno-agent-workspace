@@ -1,4 +1,5 @@
 # Review: [#6270](https://github.com/gnolang/gno/pull/6270)
+Posted: https://github.com/gnolang/gno/pull/6270#pullrequestreview-5547698095
 
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. Two Warnings the branch introduces block it: a subdomain gateway such as stock Kubo on localhost gets every IPFS image blocked by the strict CSP, and a later switch of `-ipfs-gateway` breaks every image stored on the default gateway's URL.
@@ -12,7 +13,7 @@ Round: 1. 10 finders, one reflector, 11 candidates, the Criticals and Warnings r
 
 - Related suggestion: [`web25.gno:29`](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/examples/quarantined/gno.land/p/moul/web25/web25.gno#L29) returns an `https://ipfs.io/ipfs/<cid>` link, which renders right only where gnoweb rewrites [`ipfs.io`](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/markdown/ext_ipfs.go#L19); returning `"ipfs://" + c.CID` would follow whatever gateway the operator sets.
 
-## gno.land/cmd/gnoweb/main.go:470 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/cmd/gnoweb/main.go#L470) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/cmd/gnoweb/main.go#L470) · Warning
+## gno.land/cmd/gnoweb/main.go:470 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/cmd/gnoweb/main.go#L470) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/cmd/gnoweb/main.go#L470) · Warning [posted](https://github.com/gnolang/gno/pull/6270#discussion_r4294596535)
 
 A subdomain gateway redirects `/ipfs/<cid>` to `<cid>.ipfs.<host>`, which this bare-origin `img-src` entry blocks, and [Kubo redirects so by default on `localhost`](https://github.com/ipfs/kubo/blob/master/docs/config.md#implicit-defaults-of-gatewaypublicgateways).
 
@@ -130,7 +131,7 @@ chromium: Loading the image 'http://bafy....ipfs.localhost:39239/' violates the 
 
 </details>
 
-## gno.land/pkg/gnoweb/ipfs.go:17 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/ipfs.go#L17) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/ipfs.go#L17) · Warning
+## gno.land/pkg/gnoweb/ipfs.go:17 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/ipfs.go#L17) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/ipfs.go#L17) · Warning [posted](https://github.com/gnolang/gno/pull/6270#discussion_r4294596545)
 
 Images stored as `https://ipfs.filebase.io/ipfs/<cid>` break once an operator moves `-ipfs-gateway`: [`ipfsRetiredGateways`](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/markdown/ext_ipfs.go#L18-L26) lacks this default host, and [`img-src`](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/cmd/gnoweb/main.go#L470-L471) drops it.
 
@@ -242,7 +243,7 @@ Missing test: no golden file covers the rewrite on a `<gno-button href="ipfs://.
 
 Not posted: PLAUSIBLE, no judge added the fixture.
 
-## gno.land/pkg/gnoweb/app.go:166 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/app.go#L166) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/app.go#L166) · Nit
+## gno.land/pkg/gnoweb/app.go:166 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/app.go#L166) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/app.go#L166) · Nit [posted](https://github.com/gnolang/gno/pull/6270#discussion_r4294596555)
 
 Nit: this error prints the raw gateway value, so a value [rejected for carrying credentials](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/ipfs.go#L56-L57) puts the secret in the startup log, unlike [`indexer.Redact`](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/app.go#L245).
 
@@ -252,11 +253,11 @@ Nit: `gatewayHost` accepts IPv4 shorthands such as `127.1` and `0x7f000001`, whi
 
 Not posted: PLAUSIBLE, the browser block was not observed.
 
-## gno.land/pkg/gnoweb/ipfs_test.go:86 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/ipfs_test.go#L86) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/ipfs_test.go#L86) · Nit
+## gno.land/pkg/gnoweb/ipfs_test.go:86 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/ipfs_test.go#L86) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/ipfs_test.go#L86) · Nit [posted](https://github.com/gnolang/gno/pull/6270#discussion_r4294596562)
 
 Test: this clone is redundant, since [`NewDefaultAppConfig`](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/app.go#L140) already clones `DefaultAliases`, and its comment claims the opposite.
 
-## gno.land/pkg/gnoweb/markdown/ext_ipfs.go:143 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/markdown/ext_ipfs.go#L143) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/markdown/ext_ipfs.go#L143) · Nit
+## gno.land/pkg/gnoweb/markdown/ext_ipfs.go:143 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/markdown/ext_ipfs.go#L143) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/markdown/ext_ipfs.go#L143) · Nit [posted](https://github.com/gnolang/gno/pull/6270#discussion_r4294596567)
 
 Nit: `u.EscapedPath()` falls back to the decoded path when the raw path holds a space, so `https://ipfs.io/ipfs/%41<cid>/a.png` stays untouched while `.../a b.png` is rewritten with the name `A<cid>`.
 
@@ -266,7 +267,7 @@ Nit: `validIPFSName` admits only alphanumerics under `/ipfs/`, so a base64url CI
 
 Not posted: PLAUSIBLE, whether gateways serve such CIDs was not checked.
 
-## gno.land/pkg/gnoweb/markdown/ext_links.go:172 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/markdown/ext_links.go#L172) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/markdown/ext_links.go#L172) · Nit
+## gno.land/pkg/gnoweb/markdown/ext_links.go:172 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/markdown/ext_links.go#L172) · [↗](../../../../../.worktrees/gno-review-6270/gno.land/pkg/gnoweb/markdown/ext_links.go#L172) · Nit [posted](https://github.com/gnolang/gno/pull/6270#discussion_r4294596580)
 
 Nit: `newLinkFromAutoLink` builds the same raw-label link that [`newButtonLink`](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/gno.land/pkg/gnoweb/markdown/ext_buttons.go#L77-L84) builds by hand; renamed to something not tied to autolinks, it lets `newButtonLink` drop 8 lines to 3.
 
@@ -276,6 +277,6 @@ Suggestion: with a default Kubo at `http://localhost:8080`, images may redirect 
 
 Not posted: same defect as the section on main.go:470, which carries the run.
 
-## misc/loop/traefik/gno.yml:7 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/misc/loop/traefik/gno.yml#L7) · [↗](../../../../../.worktrees/gno-review-6270/misc/loop/traefik/gno.yml#L7) · Suggestion
+## misc/loop/traefik/gno.yml:7 [gh](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/misc/loop/traefik/gno.yml#L7) · [↗](../../../../../.worktrees/gno-review-6270/misc/loop/traefik/gno.yml#L7) · Suggestion [posted](https://github.com/gnolang/gno/pull/6270#discussion_r4294596585)
 
 Suggestion: staging can drift here, since the [staging gnoweb command](https://github.com/gnolang/gno/blob/fe1c9f046d52faaeafe13f9bd48ce44c77f39e20/misc/loop/docker-compose.yml#L55-L61) passes no `--ipfs-gateway` and so follows whatever `DefaultIPFSGateway` the pulled image carries.
