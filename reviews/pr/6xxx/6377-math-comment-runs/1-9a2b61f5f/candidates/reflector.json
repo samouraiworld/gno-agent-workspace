@@ -1,0 +1,15 @@
+{"candidates": [
+ {"index": 2001, "file": "gno.land/pkg/gnoweb/markdown/mathml/mmlnode_test.go", "line": 214, "angle": "removed",
+  "summary": "convertWithin, the twin of the convertErrWithin helper whose timeout message the diff truncates to %.80q, still prints the whole input with %q",
+  "failure_scenario": "A large input that hangs convertWithin dumps every byte of it into the failure message, the flood the diff fixes in groups_test.go",
+  "verify_by": "grep -n 'convertWithin(' and 'Repeat' in mathml/mmlnode_test.go: list every input the helper receives and its size",
+  "band": "Nit", "fix_kind": "test", "checked": true, "run": false,
+  "evidence": "mmlnode_test.go:214 `t.Fatalf(\"conversion of %q did not terminate\", tex)`; its ten callers pass literals and Repeat(`\\sqrt{`, MaxParseDepth+1), Repeat(`\\Huge{`, 40), Repeat(`\\raisebox{1em}{`, 40), none of them a 256 KiB run", "repro_path": ""},
+ {"index": 2002, "file": "gno.land/pkg/gnoweb/markdown/mathml/edgecases_test.go", "line": 132, "angle": "tests",
+  "summary": "TestCommentRunIsLinear asserts linearity through convertErrWithin's 2 s wall-clock bound, which a race-instrumented or loaded CI runner could cross",
+  "failure_scenario": "Under -race the 256 KiB conversion slows several times over and the test flakes red on a correct tree",
+  "verify_by": "go test -race -count=1 -run TestCommentRunIsLinear -v ./gno.land/pkg/gnoweb/markdown/mathml/ at 9a2b61f5f; grep the go test lines of .github/workflows/ci-race.yml for the mathml package",
+  "band": "Nit", "fix_kind": "test", "checked": true, "run": true,
+  "evidence": "`--- PASS: TestCommentRunIsLinear (0.26s)` under -race, 7.7x under the bound; ci-race.yml:62 runs `-run 'TestMathConcurrentRender' ./gno.land/pkg/gnoweb/markdown/` only, never the mathml package", "repro_path": ""}
+],
+"dropped": []}

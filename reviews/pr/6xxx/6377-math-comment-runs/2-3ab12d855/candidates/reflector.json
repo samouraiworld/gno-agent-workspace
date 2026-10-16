@@ -1,0 +1,29 @@
+{
+  "candidates": [
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/edgecases_test.go",
+      "line": 140,
+      "angle": "tests",
+      "summary": "TestCommentRunIsLinear may pin only one of the two linear walks the branch adds, Empty's cached run or fixFences' early continue",
+      "failure_scenario": "Reverting one half of the fix leaves the test green, so that half can regress to a quadratic walk with no test turning red",
+      "verify_by": "Restore the base Empty alone, then the base fixFences branch alone, and run go test -count=1 -run TestCommentRunIsLinear -v ./gno.land/pkg/gnoweb/markdown/mathml/ under each: expect FAIL both times",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/mmlnode_test.go",
+      "line": 214,
+      "angle": "removed",
+      "summary": "convertWithin's timeout message repeats the `%q` shape groups_test.go:29 narrows to `%.80q`",
+      "failure_scenario": "A convertWithin caller passing a large input prints the whole input on a timeout, the failure groups_test.go:29 now avoids",
+      "verify_by": "List every convertWithin caller's input in mmlnode_test.go and its size against MaxParseDepth: expect one large enough to flood the log",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true
+    }
+  ],
+  "dropped": []
+}

@@ -1,0 +1,63 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 319,
+      "angle": "lines",
+      "summary": "Empty can answer from the index of the buffer's last non-blank token, found once, instead of a position-keyed cache whose lower-bound rescan no caller reaches",
+      "failure_scenario": "No rendered page changes. The cached [blankFrom, blankTo) needs two bounds, a rescan branch and the 'Expr is never written' comment to stay right, and its `b.idx < b.blankFrom` half is reached by no caller: the only backward moves are Unget at commands.go:348 (after a GetNextN that started past the last Empty), readLength's restores at commands.go:438 and 449 (no Empty in between) and each method's restore to its own start; groups_test.go:108 calls Empty only at idx == len. Empty is true exactly when idx is past the last token that is not a space or a comment, so one lazily computed `last` (scan back from the end over the trailing run, once per buffer) answers every call with `if b.idx > b.last { b.idx = max(b.idx, len(b.Expr)); return true }; return false`, nothing to invalidate whatever order the position moves in, and the same linear cost.",
+      "verify_by": "Replace blankFrom/blankTo with a lazily set `last int` (plus a computed flag) as above, run `go test -count=1 ./gno.land/pkg/gnoweb/markdown/mathml/` and time ConvertDisplay on 65,536 indented `%` lines against the branch: expect green and the same time",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 342,
+      "angle": "user topic: linear walks",
+      "summary": "a sibling blank-skipping loop (GetNextToken, the GetNextExpr method, GetOptions, GetNextN, package GetNextExpr at 248) still walks a run once per step",
+      "settled_by": "grep -n 'GetNextExpr(\\|Empty()\\|Unget()' over the package: every call site (parse.go:97-100, 130-137, 163; commands.go:275-277, 342, 400-402, 427-449, 522-531, 551-574; commands_defs.go:158-189; tokenize.go:693, 700) either consumes past the run or restores and is followed by a consuming call; no loop calls one per position inside a run, and ParseTex's GetNextToken steps two tokens of an indented run per Empty"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 650,
+      "angle": "user topic: output unchanged",
+      "summary": "the split of `if set == 0 || j == len(toks)` in fixFences changes which delimiter a fence command takes",
+      "settled_by": "diff.md lines 270-284: the j loop has no side effect, set == 0 now appends before computing j and j == len(toks) appends after it, so every token takes the same branch as at the base"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 326,
+      "angle": "user topic: output unchanged",
+      "summary": "the cached Empty answers or moves idx differently from the base scan",
+      "settled_by": "diff.md lines 189-211: base returned true with idx at the first non-blank at or after idx, which is len, and restored idx on false; head returns true with idx = blankTo = len and leaves idx on false; for idx in [blankFrom, blankTo) the tokens up to blankTo are blank and blankTo is non-blank or len, and grep '\\.Expr = \\|\\.Expr\\[[^]]*\\] *=' over the package returns no write"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 319,
+      "angle": "removed",
+      "summary": "Empty's rescan when idx moves below blankFrom is pinned by no test",
+      "settled_by": "grep -n 'Unget()\\|\\.idx = ' returns commands.go:348, 438, 449 and the methods' restores to their own start, none of which follows an Empty that cached past the new position; groups_test.go:108 `assert.True(t, b.Empty())` runs at idx == len, the early return. The branch is unreachable from every caller, so it is folded into candidate 1 rather than asked a test"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/edgecases_test.go",
+      "line": 140,
+      "angle": "reach",
+      "summary": "TestCommentRunIsLinear's 2 s wall-clock bound could stay green on a fast host with one quadratic walk reverted",
+      "settled_by": "gh pr view 6377 body: '65,536 `%` lines, `ConvertDisplay` | 1.57 s' and '65,536 indented `%` lines, `ConvertDisplay` | 15.3 s'; the test runs 131,072 plain lines (4x the fixFences walk, about 6 s) and 65,536 indented lines, where Empty's walk is about 9 s of the 15.3 s, each 3x or more over the 2 s bound on the author's host, and CI runs `go test -covermode=set` (_ci-go.yml:131), slower still"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 278,
+      "angle": "catalog",
+      "summary": "Empty now writes blankFrom/blankTo, mutable state that could race",
+      "settled_by": "grep -n 'NewTokenBuffer' shows mathml.go:70 per render and tokenize.go sub-buffers only, no package-level TokenBuffer; mathml.go:26-27 'it must not be shared across concurrent conversions'"
+    }
+  ]
+}

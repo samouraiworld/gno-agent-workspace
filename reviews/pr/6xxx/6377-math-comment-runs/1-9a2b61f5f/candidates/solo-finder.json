@@ -1,0 +1,78 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 655,
+      "angle": "tests",
+      "summary": "No test pins that \\left, \\middle, \\right or a \\big command skips a comment before its delimiter, the half of the blank-run skip this diff moves behind the new guard",
+      "failure_scenario": "Drop tokComment from the mask at tokenize.go:655 so fixFences skips spaces only: `\\left%c\\n( x \\right)` then no longer folds the ( into a fence, yet every test in gno.land/pkg/gnoweb/markdown/... stays green, so a regression in the comment skip the PR says is unchanged ships unnoticed",
+      "verify_by": "In a scratch tree at 9a2b61f5f: sed -i '655s/toks\\[j\\].Kind&(tokWhitespace|tokComment) > 0/toks[j].Kind\\&tokWhitespace > 0/' gno.land/pkg/gnoweb/markdown/mathml/tokenize.go && go test -count=1 ./gno.land/pkg/gnoweb/markdown/... ; expect a red test, observe both packages ok. Fix: add {\"\\\\left%c\\n(x\\\\right)\", \"\\\\left(x\\\\right)\"} and a \\big%c\\n( case to TestCommentKeepsTheWindow or TestDelimiterAfterSpace",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "mutated line 655 read `for j < len(toks) && toks[j].Kind&tokWhitespace > 0 {`; go test -skip ZZ ./... printed `ok github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown 10.413s` and `ok .../markdown/mathml 0.189s`; grep -n 'left%\\|left %\\|big%' mathml/*_test.go returned nothing",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+      "line": 325,
+      "angle": "user topic: linear blank runs",
+      "summary": "Predates the diff: a bare \\color scans to the end of its cell and Ungets on failure, so a run of K of them is quadratic and a blank run after them is walked K times",
+      "failure_scenario": "`\\color` repeated K times then ` x`: each \\color walks every token to the cell end (commands.go:325), finds no {group}, Ungets (commands.go:348), and the next \\color walks the same tokens again; 8192/16384/32768 copies take 122ms/329ms/1.172s through ConvertInline. The PR body's `a math expression costs its length` does not hold for this shape. In gnoweb, MaxMathInputLen (8 KiB) and the 2 MiB page output budget cap it: a 1 MiB page of 8 KiB \\color blocks rendered 20 <math> in 56 ms at head, 54 ms at base",
+      "verify_by": "Copy tests/solo-finder-color-run.go into gno.land/pkg/gnoweb/markdown/mathml/zz_color_test.go and run go test -count=1 -run TestZZColorRun -v there at 9a2b61f5f and at 6c49f5420; ratios near 4 per doubling at both",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: `color x8192 (49154 bytes): 122ms`, `color x16384 (98306 bytes): 329ms`, `color x32768 (196610 bytes): 1.172s`; base tokenize.go: 62ms, 219ms, 884ms; page probe head `color: page 1046540 bytes, block 7810 bytes, 20 <math> rendered, best 56ms`, base `best 54ms`",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6377-math-comment-runs/1-9a2b61f5f/tests/solo-finder-color-run.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 319,
+      "angle": "user topic: output unchanged",
+      "summary": "The cached blank run in Empty, or the moved guard in fixFences, changes MathML output or an error for some input",
+      "settled_by": "150,000 seeded random expressions (fences, \\big, comments, spaces, groups, \\newcommand, \\color, \\kern, \\sqrt[], \\sideset, environments, \\\\) through ConvertInline and ConvertDisplay with head tokenize.go, then with `git show 6c49f5420:.../tokenize.go`: `cmp head.tsv base.tsv && echo IDENTICAL` printed IDENTICAL; 42,986 inline conversions succeeded, 0 panics"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 278,
+      "angle": "claims",
+      "summary": "The cache is stale if Expr or a token's Kind is written after NewTokenBuffer",
+      "settled_by": "grep -nE '\\]\\.Kind *[|&^]?=|\\.Kind *[|&^]?= ' *.go returned only tokenize.go:466,666,668,695,702, all on local copies (tok, temp) before NewTokenBuffer; grep for `Expr =`/`Expr:` found only NewTokenBuffer at tokenize.go:310"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/edgecases_test.go",
+      "line": 130,
+      "angle": "tests",
+      "summary": "TestCommentRunIsLinear stays green with either fix reverted alone",
+      "settled_by": "Empty reverted to the base body: `conversion of \"x  %\\n  %\\n...\" did not terminate` / `--- FAIL: TestCommentRunIsLinear (2.02s)`; fixFences guard reverted: `conversion of \"x%\\n%\\n...\" did not terminate` / `--- FAIL: TestCommentRunIsLinear (2.00s)`; at head `--- PASS: TestCommentRunIsLinear (0.03s)`, a 60x margin under the 2 s bound"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 369,
+      "angle": "user topic: linear blank runs",
+      "summary": "Another blank-skipping loop (GetNextToken, GetNextExpr, GetOptions, GetNextN, package GetNextExpr) still walks a comment run once per token",
+      "settled_by": "18 shapes with a `  %\\n` run of n = 32768/65536/131072 after \\frac, \\hat, \\kern, \\left/\\right, \\begin/\\end, \\sqrt[], \\sideset, \\newcommand, \\\\[], \\bf, \\color, ^, matrix cells, \\text, \\mathop: every doubling ratio between 1.5 and 2.5 except one noisy 3.6 step followed by 2.0 (e.g. `indent%: ... n=131072 32.445ms x1.9`, `cells: ... n=131072 128.524ms x1.8`)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 319,
+      "angle": "lines",
+      "summary": "The `b.idx < b.blankFrom` half of the cache test is unreachable",
+      "settled_by": "Reachable through the exported API by reading tokenize.go:433-454: GetNextN(2) sets idx=2 and jump=2, Empty caches blankFrom=2, Unget sets idx=0, and the next Empty must rescan"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 278,
+      "angle": "catalog",
+      "summary": "New mutable fields on TokenBuffer race under concurrent renders",
+      "settled_by": "grep NewMathMLConverter in gnoweb/markdown: only ext_math.go:922 builds one converter per expression, and mathml.go:70 builds the TokenBuffer per conversion; no package-level TokenBuffer"
+    }
+  ]
+}

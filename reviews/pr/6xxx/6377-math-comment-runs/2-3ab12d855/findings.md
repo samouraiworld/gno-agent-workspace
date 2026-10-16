@@ -1,0 +1,9 @@
+# Findings in posting order, from round assemble: 1 to post, 0 SKIP, 2 refuted kept out
+
+## gno.land/pkg/gnoweb/markdown/mathml/tokenize.go:319 [gh](https://github.com/gnolang/gno/blob/3ab12d855fc683d9edb18df34b5fbfd862f89e11/gno.land/pkg/gnoweb/markdown/mathml/tokenize.go#L319) · Suggestion
+State: CONFIRMED, band: Suggestion, angle: lines
+TL;DR: Empty answers from one lazily found index past the last non-blank token, green and as fast, with no position-keyed cache to keep valid
+Check: Replace blankFrom/blankTo with a lazily set `last int` (plus a computed flag) as above, run `go test -count=1 ./gno.land/pkg/gnoweb/markdown/mathml/` and time ConvertDisplay on 65,536 indented `%` lines against the branch: expect green and the same time
+Details: Empty is true exactly when Expr[idx:] holds only spaces and comments, which is idx >= last for last one past the final non-blank token. The rewrite (tests/judge-1-empty-last.patch) finds last once per buffer by a backward scan over the trailing run and returns idx >= last, setting idx to max(idx, len(Expr)) as the branch does. A panic planted in the branch's `b.idx < b.blankFrom` rescan never fires across the package suite, so the lower-bound half is unreached by every test. Line counts: struct comment and fields 3 lines at head, 4 rewritten; Empty 18 lines at head, 15 rewritten; the patch is +12 -14. The head is correct as written: this is a simplification, not a defect.
+Evidence: rewrite: go test -count=1 ./gno.land/pkg/gnoweb/markdown/mathml/ ok 0.527s; TestJudgeTiming best of 3, head vs rewrite: `%` 16384/65536/262144 lines 1.81/9.96/30.0 ms vs 1.25/7.44/26.6 ms; `  %` 4.02/18.7/60.8 ms vs 2.45/16.9/50.1 ms, linear in both. Instrumented head with panic("JUDGE lower bound reached") in the idx < blankFrom case: suite ok 0.244s, no panic.
+Artifact: tests/judge-1-empty-last.patch

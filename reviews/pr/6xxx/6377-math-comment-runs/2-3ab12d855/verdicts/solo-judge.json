@@ -1,0 +1,47 @@
+[
+  {
+    "index": 1,
+    "angle": "lines",
+    "state": "CONFIRMED",
+    "band": "Suggestion",
+    "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+    "line": 319,
+    "verify_by": "Replace blankFrom/blankTo with a lazily set `last int` (plus a computed flag) as above, run `go test -count=1 ./gno.land/pkg/gnoweb/markdown/mathml/` and time ConvertDisplay on 65,536 indented `%` lines against the branch: expect green and the same time",
+    "tldr": "Empty answers from one lazily found index past the last non-blank token, green and as fast, with no position-keyed cache to keep valid",
+    "details": "Empty is true exactly when Expr[idx:] holds only spaces and comments, which is idx >= last for last one past the final non-blank token. The rewrite (tests/judge-1-empty-last.patch) finds last once per buffer by a backward scan over the trailing run and returns idx >= last, setting idx to max(idx, len(Expr)) as the branch does. A panic planted in the branch's `b.idx < b.blankFrom` rescan never fires across the package suite, so the lower-bound half is unreached by every test. Line counts: struct comment and fields 3 lines at head, 4 rewritten; Empty 18 lines at head, 15 rewritten; the patch is +12 -14. The head is correct as written: this is a simplification, not a defect.",
+    "evidence": "rewrite: go test -count=1 ./gno.land/pkg/gnoweb/markdown/mathml/ ok 0.527s; TestJudgeTiming best of 3, head vs rewrite: `%` 16384/65536/262144 lines 1.81/9.96/30.0 ms vs 1.25/7.44/26.6 ms; `  %` 4.02/18.7/60.8 ms vs 2.45/16.9/50.1 ms, linear in both. Instrumented head with panic(\"JUDGE lower bound reached\") in the idx < blankFrom case: suite ok 0.244s, no panic.",
+    "repro_path": "tests/judge-1-empty-last.patch",
+    "base_behaves_the_same": false,
+    "refuted_by": ""
+  },
+  {
+    "index": 2,
+    "angle": "tests",
+    "state": "REFUTED",
+    "band": "Missing test",
+    "file": "gno.land/pkg/gnoweb/markdown/mathml/edgecases_test.go",
+    "line": 140,
+    "verify_by": "Restore the base Empty alone, then the base fixFences branch alone, and run go test -count=1 -run TestCommentRunIsLinear -v ./gno.land/pkg/gnoweb/markdown/mathml/ under each: expect FAIL both times",
+    "tldr": "TestCommentRunIsLinear turns red with either half of the fix reverted",
+    "details": "The indented `  %` case reaches Empty's walk and the plain `%` case reaches fixFences' walk; convertErrWithin's 2 s bound fails each. The whole base tokenize.go under the head's tests fails this test alone, so every other test, the five new TestCommentKeepsTheWindow fence cases included, passes at the base: the rendered output is unchanged.",
+    "evidence": "base Empty only: `conversion of \"x  %\\n  %\\n...\" did not terminate`, --- FAIL: TestCommentRunIsLinear (2.02s). base fixFences only: `conversion of \"x%\\n%\\n...\" did not terminate`, --- FAIL (2.00s). Base tokenize.go, full suite: only --- FAIL: TestCommentRunIsLinear; TestCommentKeepsTheWindow and TestDelimiterAfterSpace PASS.",
+    "repro_path": "",
+    "base_behaves_the_same": false,
+    "refuted_by": "edgecases_test.go:140 `mathBody(t, \"x\"+strings.Repeat(line, (1<<18)/len(line))+\"y\")` fails under convertErrWithin's 2 s bound with either half reverted"
+  },
+  {
+    "index": 3,
+    "angle": "removed",
+    "state": "REFUTED",
+    "band": "Nit",
+    "file": "gno.land/pkg/gnoweb/markdown/mathml/mmlnode_test.go",
+    "line": 214,
+    "verify_by": "List every convertWithin caller's input in mmlnode_test.go and its size against MaxParseDepth: expect one large enough to flood the log",
+    "tldr": "No convertWithin caller passes an input large enough for %q to flood a timeout message",
+    "details": "The largest convertWithin input is strings.Repeat(`\\raisebox{1em}{`, 40) plus its closing braces at mmlnode_test.go:359, about 640 bytes; the others are Repeat(`\\Huge{`, 40) at 326, Repeat(`{\\left(`, 8) at 256 and literals. The %.80q narrowing in groups_test.go:29 exists for TestCommentRunIsLinear's 256 KiB input, which goes through convertErrWithin and never convertWithin.",
+    "evidence": "grep -n 'Repeat' mmlnode_test.go: 51 and 55 (Repeat(`\\sqrt{`, MaxParseDepth+1 = 65) and 10), 256 (8 copies), 326 (40 copies of `\\Huge{`), 359 (40 copies of `\\raisebox{1em}{`); every convertWithin call at 84-485 takes one of these or a literal",
+    "repro_path": "",
+    "base_behaves_the_same": true,
+    "refuted_by": "mmlnode_test.go:359 builds the largest convertWithin input, 40 copies of \\raisebox{1em}{ and their braces, about 640 bytes"
+  }
+]
