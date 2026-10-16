@@ -7,11 +7,12 @@ Review files: [reviews/pr/6xxx/6377-math-comment-runs](https://github.com/samour
 
 Before, two passes walked a run of `%` comment lines once per token in it. `fixFences` skipped the spaces and comments after every token, and kept the result only after `\left`, `\middle`, `\right` or a `\big` command. `TokenBuffer.Empty` scanned the rest of a blank run each time `ParseTex` asked, and `ParseTex` steps through an indented run one comment at a time. Either way a run of K tokens cost K²/2 steps.
 Now `fixFences` skips only after those commands, and `Empty` compares the position with `last`, the index past the buffer's last token that is not a space or a comment, found once when the buffer is built. Each run is walked once and costs its length.
+A run of `\color` with no `{argument}` was quadratic the same way, each one scanning to the end of its table cell before failing; `colorArgMissing` now answers it before that scan.
 Every expression converts to the same MathML as before.
 
 ## Before and after
 
-Both columns come from one run on one machine under load, best of 3 each, so read the ratios: the left column is master before this change, the right is the branch.
+Each row's two columns come from one run on one machine under load, so read the ratios: the left column is master before this change, the right is the branch.
 
 | Input | Before | After |
 | --- | --- | --- |
@@ -19,6 +20,8 @@ Both columns come from one run on one machine under load, best of 3 each, so rea
 | The same page with lines indented by two spaces, `  % c` | 1.07 s | 111 ms |
 | One expression of 65,536 `%` lines, `ConvertDisplay` | 2.63 s | 6.5 ms |
 | One expression of 65,536 indented `%` lines, `ConvertDisplay` | 14.0 s | 17.4 ms |
+| One expression of 131,072 bare `\color` commands, `ConvertInline` | 35.8 s | 115 ms |
+| One expression of 32,768 `\color[RGB]` commands, `ConvertInline` | 21.3 s | 100 ms |
 | `\left`, `\big`, `\newcommand` or groups beside comments | linear | linear, unchanged |
 
 ## How a comment run is walked
@@ -61,9 +64,16 @@ if b.idx >= b.last {
 }
 ```
 
-### 3. `cold` · The tests, [`edgecases_test.go`](https://github.com/gnolang/gno/pull/6377/files#diff-bad9ba16d355ebdd42acccc074b55514171fb90517664d7730a3fb2d1f042cd3R113-R142)
-Five cases put a comment between a fence command and its delimiter, and `TestCommentRunIsLinear` converts 256 KiB of plain and of space-indented `%` lines under the package's two-second bound; reverting either fix alone turns that test red.
-**If wrong:** one of the two quadratic walks comes back, or a fence stops skipping a comment, and the suite stays green.
+### 3. `hot` · The bare `\color` shortcut, [`commands.go`](https://github.com/gnolang/gno/pull/6377/files#diff-e00d7e18532389cb0ca1c98a580bda6dfa410ede42130ce86f1b2a455787f085R312-R316)
+Returns the missing-argument error before the scan to the cell end; `colorArgMissing` answers false whenever it cannot tell within the cell, and the old path then runs unchanged.
+**If wrong:** a `\color` with an argument renders as an error, or a run of bare ones is quadratic again.
+```go
+if name == "color" && colorArgMissing(b) {
+```
+
+### 4. `cold` · The tests, [`edgecases_test.go`](https://github.com/gnolang/gno/pull/6377/files#diff-bad9ba16d355ebdd42acccc074b55514171fb90517664d7730a3fb2d1f042cd3R113-R149)
+Five cases put a comment between a fence command and its delimiter. `TestCommentRunIsLinear` converts 256 KiB of plain and of space-indented `%` lines, and `TestBareColorRunIsLinear` 65,536 bare `\color`, `\color[RGB]` and `\color[{&}]`, each under the package's two-second bound; reverting any of the three fixes alone turns its test red.
+**If wrong:** a quadratic walk comes back, or a fence stops skipping a comment, and the suite stays green.
 
 ## Words used here
 
@@ -72,3 +82,4 @@ Five cases put a comment between a fence command and its delimiter, and `TestCom
 | `fixFences` | The tokenizer pass that folds `\left`, `\middle`, `\right` and the `\big` family into the delimiter token after them. |
 | `TokenBuffer.Empty` | True when every token from the buffer's position on is a space or a comment; it then moves the position to the end. |
 | `last` | One past the buffer's last token that is not a space or a comment, set by `NewTokenBuffer`. |
+| `colorArgMissing` | True when a `\color` certainly has no `{argument}` within its cell, after an optional `[model]`; false when unsure. |
