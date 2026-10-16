@@ -1,0 +1,101 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "misc/deployments/home-alias/gnoalias.sh",
+      "line": 11,
+      "angle": "removed",
+      "summary": "One 3600 s interval now paces every round, so an edit to home-override.md, a retry after a failed blog query and a chain-home change each wait up to an hour, where the base waited 60 s",
+      "failure_scenario": "README 'Testing locally': compose up, round 1 finds no home-override.md, writes the chain home and sleeps 3600 s; the operator then places home-override.md and checks http://127.0.0.1/, which keeps the old page for up to an hour (base: 60 s). Same pacing on a first start whose blog query fails (DNS not up yet in a fresh compose): home.md is written without the posts, so the homepage shows the 'Latest from the blog' heading with only the button under it for an hour, and every later failure is retried hourly. The hour buys nothing the base paid for: rounds with no change already end at cmp without a write, and gnoweb no longer restarts.",
+      "verify_by": "sh tests/solo-finder-2-hourly-rounds.sh misc/deployments/home-alias/gnoalias.sh at head 4ee1b62ff and at base f915442bf (stub gnokey fails round 1, stub sleep records its argument and edits home-override.md after round 1)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head (host sh and alpine:3 busybox): 'round 1: home.md first line '# Home v1', blog posts in it: 0; next round after sleep 3600' / 'round 2: home.md first line '# Edited by the operator', blog posts in it: 1; next round after sleep 3600'. base: 'round 1: ... next round after sleep 60' / 'round 2: home.md first line '# Edited by the operator' ... next round after sleep 60'.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6327-home-latest-blog-posts/1-4ee1b62ff/tests/solo-finder-2-hourly-rounds.sh"
+    },
+    {
+      "index": 1002,
+      "file": "misc/deployments/home-alias/docker-compose.yml",
+      "line": 31,
+      "angle": "page",
+      "summary": "The link base for the posts is a separate env var defaulting to empty, so a testnet deployed from home.testnet.md alone links its three posts to the testnet blog, which answers 404",
+      "failure_scenario": "Operator copies home.testnet.md as home-override.md (the README's step) and the compose service as shipped (BLOG_LINK_BASE= empty). The posts come from mainnet regardless, but their links stay relative: a visitor of the onyx home clicks 'Onyx Testnet Is Open...' and reaches /r/gnoland/blog:p/onyx-1 on onyx, which renders '404', while the 'Read the blog' button beside them correctly goes to https://gno.land. The page file already knows it is for a testnet (its button hard-codes https://gno.land), and the script already hard-codes mainnet as the source, so the base could default to https://gno.land, or ride on the marker line, instead of a third setting to remember.",
+      "verify_by": "gnokey query vm/qrender -remote https://rpc.onyx.testnets.gno.land -data 'gno.land/r/gnoland/blog:p/onyx-1'; render_override on home.testnet.md with BLOG_LINK_BASE='' (tests/solo-finder-2-blog-row-busybox.sh)",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "onyx 'gno.land/r/gnoland/blog:' -> 'data: # Gno.land's blog ... No posts.'; onyx 'gno.land/r/gnoland/blog:p/onyx-1' -> 'data: 404'; home.testnet.md with BLOG_LINK_BASE='' renders '**[Onyx Testnet Is Open: ...](/r/gnoland/blog:p/onyx-1)**' next to '<gno-button href=\"https://gno.land/r/gnoland/blog\" ...>'",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6327-home-latest-blog-posts/1-4ee1b62ff/tests/solo-finder-2-blog-row-busybox.sh"
+    },
+    {
+      "index": 1003,
+      "file": "misc/deployments/home-alias/gnoalias.sh",
+      "line": 63,
+      "angle": "removed",
+      "summary": "A failed blog query now holds back every edit to home-override.md, not only the posts, until a later hourly round reaches mainnet",
+      "failure_scenario": "rpc.gno.land is unreachable from the script's host while an operator corrects a wrong link or adds a notice in home-override.md: render_override fails, home.md exists, the round returns 1 and the edit never reaches the page; it goes live only on the first round whose blog query succeeds, an hour apart. Before the diff the override was copied whatever the network did. Keeping the last good posts block (a posts file beside home.md) and rendering the override with it keeps the posts and lets the edit through.",
+      "verify_by": "read gnoalias.sh lines 60-68: on render_override failure with home.md present the function returns 1 before any write; in tests/solo-finder-2-hourly-rounds.sh make the stub gnokey fail every round and observe home.md keep '# Home v1' after the edit",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "sed -n 63p gnoalias.sh: '      [ -f home.md ] && return 1'",
+      "repro_path": ""
+    },
+    {
+      "index": 1004,
+      "file": "misc/deployments/home-alias/gnoalias.sh",
+      "line": 36,
+      "angle": "page",
+      "summary": "The posts row puts each date under a title of one to three lines, so the three dates sit at different heights at 1280 and 1440",
+      "failure_scenario": "Homepage rendered by head gnoweb with the live mainnet row: at 1280 and at 1440 the titles 'Onyx Testnet Is Open: ...' and 'The Beginning of a Decentralized Future: ...' wrap to three lines and 'Pearl is Live' to one, so '27 Aug 2026' sits 48 px above the other two dates. The branch evens out card lengths elsewhere on the page so desktop columns line up; blog titles are not under the page's control, so printing the date above the title is what keeps the row aligned.",
+      "verify_by": "serve the rendered home.md with head gnoweb (--aliases=/=static:home.md), measure each date paragraph's top at 1280 and 1440",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "1280: dates at y 1591, 1591, 1543 (title heights 72, 72, 24); 1440: dates at y 1465, 1465, 1417 (title heights 72, 72, 24)",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/deployments/home-alias/gnoalias.sh",
+      "line": 31,
+      "angle": "reach",
+      "summary": "busybox sh/awk/grep/cmp in the alpine:3 gnokey image may not run the extraction (ENVIRON, grep -qxF, gsub on \\]\\()",
+      "settled_by": "docker run alpine:3 sh tests/solo-finder-2-blog-row-busybox.sh /s/raw on the live mainnet render: 'exit 0' with '<gno-columns>' / '**[Onyx Testnet Is Open: ...](https://gno.land/r/gnoland/blog:p/onyx-1)**' / '29 Sep 2026' ... '</gno-columns>' for both pages and both BLOG_LINK_BASE values"
+    },
+    {
+      "file": "misc/deployments/home-alias/gnoalias.sh",
+      "line": 33,
+      "angle": "reach",
+      "summary": "the awk row extraction may not match RenderHome's layout (row written on one line)",
+      "settled_by": "RenderListItem opens on '\\n### ' and ends on '\\n' (blog.gno:309-316), and the live mainnet qrender prints '<gno-columns>' and '</gno-columns>' on lines of their own; the extraction returned the first three posts"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 341,
+      "angle": "removed",
+      "summary": "a reader of h.Aliases other than prepareIndexBodyView might serve the startup content of a static page",
+      "settled_by": "grep: handler_http.go:341-346, crawl.go:110-122, handler_http.go:963 and page_kind.go:109 read only Kind, or Value of a GnowebPath; Title/Description are read only at handler_http.go:698-699 from the alias GetMarkdownView receives, which line 602 resolved"
+    },
+    {
+      "file": "misc/deployments/home-alias/gnoalias.sh",
+      "line": 9,
+      "angle": "page",
+      "summary": "the claim that the testnet blogs are empty may no longer hold",
+      "settled_by": "gnokey query vm/qrender -remote https://rpc.onyx.testnets.gno.land -data 'gno.land/r/gnoland/blog:' -> 'data: # Gno.land's blog' / 'No posts.'"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.mainnet.md",
+      "line": 103,
+      "angle": "page",
+      "summary": "the newspaper icon may not exist in gnoweb's icon set",
+      "settled_by": "icons.txt:120 'newspaper'; the rendered h2#latest-from-the-blog carries '<svg class=\"gno-icon\" ...>', and the contents rail lists 'Latest from the blog'"
+    }
+  ]
+}

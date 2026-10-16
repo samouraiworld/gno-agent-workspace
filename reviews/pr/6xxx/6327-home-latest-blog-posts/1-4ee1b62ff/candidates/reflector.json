@@ -1,0 +1,15 @@
+{
+ "candidates": [
+  {"index": 2001, "file": "gno.land/pkg/gnoweb/handler_http.go", "line": 341, "angle": "removed",
+   "summary": "every other reader of h.Aliases takes the boot-time AliasTarget without resolve(), so a static page's front matter Title or Description edited on disk could stay stale wherever it is read outside prepareIndexBodyView",
+   "failure_scenario": "home.md's front matter title changes; a reader of h.Aliases other than prepareIndexBodyView (Get's alias dispatch, isAliasTarget, sitemapLocs, pagePolicy.kind) renders the old title",
+   "verify_by": "grep every h.Aliases reader in gno.land/pkg/gnoweb and gno.land/cmd/gnoweb and read which fields each consumes",
+   "band": "Warning", "fix_kind": "code", "checked": true},
+  {"index": 2002, "file": "gno.land/pkg/gnoweb/alias_static_test.go", "line": 283, "angle": "claims",
+   "summary": "the PR body says TestNewStaticFileAliasReloads fails if the size check is removed; no finder ran that mutation",
+   "failure_scenario": "the same-mtime replacement case passes with the size comparison gone, so the test pins nothing the body credits it with",
+   "verify_by": "drop ` || info.Size() != f.size` from alias_static.go:187 and run go test ./gno.land/pkg/gnoweb -run 'TestNewStaticFileAliasReloads$' -count=1: expect FAIL",
+   "band": "Missing test", "fix_kind": "test", "checked": true}
+ ],
+ "dropped": []
+}

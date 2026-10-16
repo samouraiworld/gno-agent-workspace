@@ -1,0 +1,108 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 185,
+      "angle": "lines",
+      "summary": "Routing $$, \\\\( and \\\\[ through findClose gives their closer search a link-destination skip that ends only at a balanced ')': a formula holding '[..](' with no ')' before its closer misses that closer and runs on to a later one, swallowing the links after it",
+      "failure_scenario": "`\\\\( [a,b](x \\\\) and [l](/r/y) then \\\\(z\\\\)`: the depth tracker takes the ')' of the closer \\\\) as the destination's end, so the closer's first byte is never tested, and the formula runs to the last \\\\): one formula ' [a,b](x \\\\) and [l](/r/y) then \\\\(z', and the link /r/y is gone. `$$[0,1](x $$ and [l](/r/y) z` + newline + `w $$`: no closer on line 1, so the formula takes the next line's closer and swallows the link. The ADR's own example `$$[0,1](x$$ then $$y$$` renders as plain text with no formula. The merge base closed each at the first closer, so all three rendered the formulas and the link. A CommonMark destination cannot hold a space or run past its line, so the scanner treats as a link a span goldmark never would",
+      "verify_by": "Copy tests/solo-finder-1-unclosed-dest-swallows-closer_test.go to gno.land/pkg/gnoweb/markdown/ and run `go test ./pkg/gnoweb/markdown -run TestZZUnclosedDest -count=1 -v` from gno.land: expect all three subtests to fail at 82a20872a and pass at 21f9abd74",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: '--- FAIL: TestZZUnclosedDest/\\\\(_closer_eaten_as_destination_paren', '--- FAIL: .../$$_runs_to_the_next_line's_closer', '--- FAIL: .../ADR_known-limit_example'; base via -overlay: '--- PASS: TestZZUnclosedDest' (all three). Head TeX annotation: ' [a,b](x \\\\) and [l](/r/y) then \\\\(z'; head output for the ADR example: '<p>$$[0,1](x$$ then $$y$$</p>'",
+      "repro_path": "tests/solo-finder-1-unclosed-dest-swallows-closer_test.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 400,
+      "angle": "claims",
+      "summary": "The single-$ label stop that the diff keeps, and documents as ending the expression, ends only the first-line search: Parse then searches the next line, so a link whose label holds a price becomes a formula when the next line of the paragraph has a $ closer (this predates the diff)",
+      "failure_scenario": "A realm renders `[Send $10](/r/demo/bank$help&func=Send)` + newline + `Balance: 100$`. findClose returns -1 at the label's '](' (the point the closeScan doc calls one 'no expression crosses'), but findCloseCached hands Parse only the -1, and Parse runs the line-2 search (line 204). That search finds '100$', so the whole link and 'Balance: 100' render as one formula, '10](/r/demo/bank$help&func=Send)\\nBalance: 100', and the visitor loses the Send link. On one line the link stays. The output is the same at the merge base, so the diff did not cause this. The diff does rewrite this scan and adds the comment 'stopAtLabel ends the expression at a \"](\" that closes a label opened before it', and the ADR describes the stop as the guard for [Send $10](...)",
+      "verify_by": "Copy tests/solo-finder-1-label-stop-next-line_test.go to gno.land/pkg/gnoweb/markdown/ and run `go test ./pkg/gnoweb/markdown -run TestZZLabelStopNextLine -count=1 -v`: expect two_lines to fail and one_line to pass, at both head and base",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head and base alike: '--- PASS: TestZZLabelStopNextLine/one_line', '--- FAIL: TestZZLabelStopNextLine/two_lines'; head TeX annotation '10](/r/demo/bank$help&amp;func=Send)\\nBalance: 100'",
+      "repro_path": "tests/solo-finder-1-label-stop-next-line_test.go"
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 491,
+      "angle": "lines",
+      "summary": "The math block opener still uses bytes.Contains to hand a line that has a closer to the inline parser, while the inline scan now skips closers in code spans and link destinations, so a display block whose first line has its closer only inside a code span is opened by neither parser",
+      "failure_scenario": "`$$ a `$$` b` + newline + `c` + newline + `$$`: Open sees the '$$' inside the code span and declines. The inline parser skips that code span, finds no closer on its two-line window, and returns nil, so the whole block renders as text: '<p>$$ a <code>$$</code> b\\nc\\n$$</p>'. The base did not render the block either (its inline formula ended at the code span's $$), so this is a missed sibling of the diff's change, not a regression",
+      "verify_by": "Render the input above with renderMathMarkdown at head: expect a math-displaystyle block, observe the text paragraph",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "probe at head: 'OUT: <p>$$ a <code>$$</code> b\\nc\\n$$</p>'; base: inline math for '$$ a `' then '` b' as text",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 204,
+      "angle": "claims",
+      "summary": "The next-line search starts findClose with fresh state, so a code span that crosses the paragraph's line break is still cut by a closer inside it, despite the ADR's claim that $$, \\\\( and \\\\[ now keep a code span whole",
+      "failure_scenario": "`\\\\(a `b` + newline + `c\\\\)d` e\\\\)`: CommonMark reads '`b\\nc\\\\)d`' as one code span. Line 1 has no closer, and the line-2 search starts outside any code span, so it closes at 'c\\\\)'. The formula is 'a `b\\nc' and 'd` e\\)' is left as text. The output is the same at the merge base",
+      "verify_by": "Render the input above at head: expect the formula to close at the final \\\\), observe the annotation 'a `b\\nc'",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "probe at head: annotation 'a `b\\nc' followed by 'd` e\\)'; no difference from base in the head/base diff",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 185,
+      "angle": "lines",
+      "summary": "codeSpanEnd scans to the end of the line for each unclosed backtick run, so code-span skipping on the three new closers could be superlinear on formulas holding backtick runs of distinct lengths",
+      "settled_by": "1 MiB of `\\\\(` + k backticks + ` a\\\\)` for k=1..: head 798ms, base 158ms. The same runs with no math take goldmark's own code-span parser 1.10s at head and 983ms at base, so the head cost stays within what goldmark already spends on that input"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 90,
+      "angle": "claims",
+      "summary": "The comment says gnoweb shows a title's backslashes, so \"Price \\$5\" would read as such",
+      "settled_by": "probe: `[a](/u \"Price \\$5\")` renders '<a href=\"/u\" title=\"Price $5\">', so goldmark unescapes titles and the comment is wrong. Leaving $ out of the title set is still harmless, so the only fix is the comment's wording"
+    },
+    {
+      "file": "gno.land/adr/pr6326_gnoweb_math_delimiter_fixes.md",
+      "line": 24,
+      "angle": "claims",
+      "summary": "gnoweb renders \\$ as a literal dollar, so escaped text cannot open math",
+      "settled_by": "probe: `\\$x\\$ and \\$\\$y\\$\\$` renders '<p>$x$ and $$y$$</p>'"
+    },
+    {
+      "file": "gno.land/adr/pr6326_gnoweb_math_delimiter_fixes.md",
+      "line": 59,
+      "angle": "claims",
+      "summary": "In $$a` b$$ c`, the code span now wins over the closer",
+      "settled_by": "probe: head '<p>$$a<code> b$$ c</code></p>', base a formula 'a` b' then ' c`'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 346,
+      "angle": "lines",
+      "summary": "Rewriting findDollarClose onto findClose could change single-$ behaviour, since the $ test moved after the switch and now also runs at [, ], < and ( positions",
+      "settled_by": "at head, `go test ./pkg/gnoweb/markdown -count=1` returns 'ok ... 10.947s' with every ext_math golden. At those positions b[i] is '[', ']', '>' or '(', never '$'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math_test.go",
+      "line": 344,
+      "angle": "claims",
+      "summary": "The ADR says the linear-scan test now runs the finders the parser uses for \\\\( and \\\\[",
+      "settled_by": "grep: ext_math_test.go:344-346 use findDelimClose(_inlineclose) and findDelimClose(_displayclose), and ext_math.go:185 uses findDelimClose(end) for both"
+    }
+  ]
+}

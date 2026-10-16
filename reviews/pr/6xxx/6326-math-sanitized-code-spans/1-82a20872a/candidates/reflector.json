@@ -1,0 +1,36 @@
+{
+ "candidates": [
+  {
+   "index": 2001,
+   "file": "gno.land/pkg/gnoweb/markdown/ext_math_test.go",
+   "line": 385,
+   "angle": "tests",
+   "summary": "TestMathUnclosedInlineOpenersAreLinear gains \\\\( and \\\\[ rows but no $$ row and no label-opened \\\\[ or $$ row, the edited shape repeated without the edit",
+   "failure_scenario": "a 1 MiB line of '[\\\\[a ](' or '$$[a](x ' rescans per opener",
+   "verify_by": "go test ./pkg/gnoweb/markdown -run TestZZReflectorLinear -v: render time at 64 KiB, 256 KiB, 1 MiB",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": true,
+   "evidence": "'[\\\\[a ](' 0.007s/0.035s/0.125s; '$$[a](x ' 0.005s/0.021s/0.089s; '\\\\([a](x ' 0.005s/0.018s/0.079s; '[$$a ](' 0.021s/0.051s/0.130s",
+   "repro_path": "tests/judge-reflector-linear_test.go"
+  },
+  {
+   "index": 2002,
+   "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+   "line": 86,
+   "angle": "catalog",
+   "summary": "Twin input paths and Gas classes: a Gno-side escaper that repeats the inline set without '$', or a native gas row priced on output length",
+   "failure_scenario": "a realm escaping a name with another helper still renders it as math",
+   "verify_by": "grep -rn 'func (Escape|escape)[A-Za-z]*(' examples --include=*.gno; read native_gas.go:179",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "md.gno:414 'return sanitize.InlineText(text)'; sunspirit md.gno:178 'ufmt.Sprintf(\"``%s``\", text)'; native_gas.go:179 'SlopeIdx: 0, SlopeKind: SizeLenString'",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [],
+ "completeness": "Catalog walked: Gas (native row charges input length, unchanged), Twin input paths (sibling escapers delegate to InlineText or a code span), Determinism, state safety, caller identity, coin, storage deposit, concurrency, VM semantics do not apply to a renderer and an escape table. Consensus reach of the native change is the coordinated upgrade gfanton's review already raised."
+}

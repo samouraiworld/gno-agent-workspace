@@ -1,0 +1,117 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 187,
+      "angle": "lines",
+      "summary": "current() swallows the os.Stat and os.ReadFile errors: when home.md is replaced by a file gnoweb cannot read, every request keeps serving the old page with 200, nothing is returned or logged, and the next restart fails at boot on that same file",
+      "failure_scenario": "The operator, or gnoalias.sh on a host with umask 077 running as another uid than gnoweb, renames a 0600 home.md over the served one. os.Stat succeeds, os.ReadFile gets permission denied, the error is dropped, and / keeps answering the boot-time page on every request. gnoweb logs nothing and the script logs 'Home updated'. The next gnoweb restart (a deploy, a crash, a node reboot) then fails in parseAliases with 'failed to read static file', taking all of gnoweb down instead of the one stale page. At the merge base the script restarted gnoweb on every change, so the same file failed at boot while the operator was looking. A deleted file behaves as before (read once at boot). Fix: log the stat or read error from current(), once per change, through the handler's logger, or return it to resolve() for the handler to log.",
+      "verify_by": "go test ./gno.land/pkg/gnoweb -run TestZZSoloFinder1UnreadableFileIsSilent -count=1 -v as a non-root user, with tests/solo-finder-1-unreadable-silent_test.go copied in as zz_solofinder1_test.go: expect three requests to return \"# Old\" after a 0000 file was renamed over the path, no error surfaced, and NewStaticFileAlias on the same path to fail with permission denied",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "At 4ee1b62ff: 'request 0: Value=\"# Old\" Kind=1' (x3), then 'restart on the same file: err=open /tmp/.../home.md: permission denied'; --- PASS: TestZZSoloFinder1UnreadableFileIsSilent. staticFile has no logger and current() returns only AliasTarget, so neither error reaches any surface. Merge base: the symbol does not exist; parseAliases did os.ReadFile and returned 'failed to read static file %s: %w' at boot (diff lines 81-84).",
+      "repro_path": "tests/solo-finder-1-unreadable-silent_test.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/alias_static_test.go",
+      "line": 254,
+      "angle": "claims",
+      "summary": "No test pins the 2 s settle window the ADR and the staticFileSettle comment describe: deleting the zeroing block at alias_static.go:190-192 keeps TestNewStaticFileAliasReloads green",
+      "failure_scenario": "The test's first file is replaced by files whose mtime is a minute earlier, so every reload it asserts is caught by a changed mtime or size whatever the settle code does. A same-size in-place rewrite within the mtime tick of the last read, the case staticFileSettle exists for, is never written. A refactor dropping lines 190-192 ships green and the homepage keeps a half-written or superseded page until the next change.",
+      "verify_by": "Delete lines 190-192 of gno.land/pkg/gnoweb/alias_static.go and run go test ./gno.land/pkg/gnoweb -run TestNewStaticFileAliasReloads -count=1: expect PASS, showing no test pins the window. The pinning test writes a file, resolves, rewrites it in place with the same size and the mtime set back to the first value, and asserts the next resolve returns the new content.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 185,
+      "angle": "lines",
+      "summary": "The mutex is held across os.Stat, os.ReadFile and the front matter parse, so every request to the page waits on whichever request is doing file I/O; a read that blocks stalls every request to / with no timeout, where the merge base served the page from memory",
+      "failure_scenario": "The static file sits on a mount whose reads hang (an NFS hard mount whose server is gone, a FUSE volume), or a FIFO is renamed over home.md: the first request after the change blocks inside os.ReadFile while holding f.mu, and every later request to / blocks on f.mu.Lock(). Goroutines pile up with no request timeout cutting the wait, and the homepage hangs instead of serving the cached copy the ADR promises when the file cannot be read. Fix: keep the cached target behind an RWMutex or atomic.Pointer, and let a single request refresh it (TryLock), so the others serve the last content.",
+      "verify_by": "mkfifo home.md.new && mv home.md.new home.md under a resolved alias, then call ResolveAlias from 10 goroutines with a 1 s deadline: expect every call to block past the deadline",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "misc/deployments/home-alias/docker-compose.yml",
+      "line": 28,
+      "angle": "two versions",
+      "summary": "The compose file drops the docker install, the socket and the default reload in the same change that teaches gnoweb to re-read, so a host that recreates gnoalias before its gnoweb container runs an old gnoweb that nobody restarts any more: the homepage stays at its boot content",
+      "failure_scenario": "The host pulls this checkout and runs docker compose up -d: gnoalias is recreated with the new script and no docker binary or socket. The gnoweb:master container keeps the image it was created from (docker restart never pulls), which reads home.md once at boot. Every hourly round writes home.md with the latest posts and logs 'Home updated', but the page never changes, override edits included, until someone recreates gnoweb on an image built after the merge. The ADR says a reload command must still be passed until then, but the compose file this diff ships cannot run one. It heals itself at the next gnoweb recreate. Fix: keep the socket and the reload in the compose file until the deployed gnoweb includes this change, or state the order (gnoweb first) in the README.",
+      "verify_by": "Build gnoweb at the merge base f915442bf, run it with --aliases=/=static:home/home.md, run one round of the head gnoalias.sh with a changed home-override.md and no reload_cmd, then curl /: expect the old page",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 5,
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 190,
+      "angle": "claims",
+      "summary": "A modification time in the future keeps time.Since negative, so modTime is zeroed after every read and every request re-reads and re-parses the file, not the stat per request the ADR prices",
+      "failure_scenario": "home.md comes from a writer whose clock is ahead of gnoweb's (an NFS server, a copy preserving the timestamp, touch -d): time.Since(f.modTime) < 2 s holds until gnoweb's clock passes mtime+2 s, which can be hours. Until then each request to / does os.ReadFile and NewStaticAlias under f.mu instead of one os.Stat. Fix: settle on the time of the read (the file unchanged across two stats 2 s apart) rather than on the file's own timestamp.",
+      "verify_by": "Write home.md, os.Chtimes it to time.Now().Add(time.Hour), resolve twice and check f.modTime is zero after each (or count ReadFile calls with a wrapper): expect a read per resolve",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 6,
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 161,
+      "angle": "lines",
+      "summary": "NewStaticFileAlias reads and parses the file, then current() reads and parses it again because modTime starts zero; the first result is kept only if the second read fails",
+      "failure_scenario": "Every static alias, ten in the compose setup, is read and parsed twice at boot. Fewer lines carry the same behaviour: os.Stat and os.ReadFile once in NewStaticFileAlias and set path, size, modTime and target directly, applying the settle check there.",
+      "verify_by": "Read lines 160-166 and 184-197: f is built with zero modTime and size, so the condition at 187 is true on the first call and os.ReadFile runs a second time",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/alias_static.go",
+      "line": 185,
+      "angle": "catalog",
+      "summary": "Data race between concurrent requests resolving one static alias while the file is renamed over",
+      "settled_by": "go test ./gno.land/pkg/gnoweb -run TestZZSoloFinder1ConcurrentResolve -race (16 readers, 200 renames) returned '--- PASS: TestZZSoloFinder1ConcurrentResolve (0.01s)' with no DATA RACE; full go test ./gno.land/pkg/gnoweb/ -race -count=1 returned 'ok ... 63.166s'; go test ./gno.land/cmd/gnoweb -run Alias -race returned 'ok'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 639,
+      "angle": "reach",
+      "summary": "Another reader of h.Aliases serves a static page's boot-time Value or Title without resolve()",
+      "settled_by": "grep -rn 'StaticMarkdown' gno.land --include='*.go' (non-test): crawl.go:122, page_kind.go:109 and handler_http.go:342 read only Kind; content and Title reach visitors only through prepareIndexBodyView at handler_http.go:639 'aliasTarget = aliasTarget.resolve()' then GetMarkdownView(gnourl, aliasTarget, pr)"
+    },
+    {
+      "file": "misc/deployments/home-alias/gnoalias.sh",
+      "line": 66,
+      "angle": "claims",
+      "summary": "ADR says the script only renames a new file over home.md so a read never sees half a file, but the first-round fallback writes home.md in place",
+      "settled_by": "gnoalias.sh:66 'grep -vxF \"$BLOG_MARKER\" home-override.md > home.md' runs only when home.md is absent, so only a gnoweb booting mid-write can read it, and alias_static.go:190 'if time.Since(f.modTime) < staticFileSettle {' zeroes modTime for that fresh file, so the next request re-reads the complete page"
+    }
+  ]
+}

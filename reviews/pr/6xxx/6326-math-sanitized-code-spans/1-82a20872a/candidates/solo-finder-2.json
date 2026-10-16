@@ -1,0 +1,85 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 92,
+      "angle": "removed",
+      "summary": "The `$` exception in titleEscapeSet rests on a false premise: gnoweb unescapes `\\$` in a link title, so the exception changes nothing visible and keeps the one escape set where `$` still opens math",
+      "failure_scenario": "The code comment (markdown.go:89-91), the ADR's Decision and the PR body say gnoweb shows a title's backslashes, so \"Price $5\" would read \"Price \\$5\". Run at 82a20872a: `[a](/r/x \"Price $5 v1\\.0 \\$6\")` renders title=\"Price $5 v1.0 $6\", and a reference definition `[l]: /r/x \"Price $x^{2}$ v1\\.0\"` renders title=\"Price $x^{2}$ v1.0\". Escaping `$` in a title costs nothing, the same as `\\.` already costs nothing. Keeping it out has a latent cost: title-shaped text that does not parse as a link, `[a]( \"Price $x^{2}$\")`, renders x^{2} as math, while `[a]( \"Price \\$x^{2}\\$\")` stays text. Today no reader loses anything: LinkTitle's only caller, LinkReferenceDefinition, always emits a definition that parses. Fix: drop lines 89-92 and TestEscapeTitle's \"Price $5\" case, so the title set is the inline set plus the two quotes.",
+      "verify_by": "Render `[a](/r/x \"Price $5 v1\\.0 \\$6\")` with goldmark.New(goldmark.WithExtensions(NewGnoExtension())) in gno.land/pkg/gnoweb/markdown at 82a20872a. Expect title=\"Price \\$5...\" if the claim held; observe title=\"Price $5 v1.0 $6\".",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "SRC \"[a](/r/x \\\"Price $5 v1\\\\.0 \\\\$6\\\")\" HTML <p><a href=\"/r/x\" title=\"Price $5 v1.0 $6\">a</a></p>; SRC \"[a]( \\\"Price $x^{2}$\\\")\" HTML <p>[a]( &quot;Price <math ...><msup><mi>x</mi><mn>2</mn></msup>...</math>&quot;)</p>; SRC \"[a]( \\\"Price \\\\$x^{2}\\\\$\\\")\" HTML <p>[a]( &quot;Price $x^{2}$&quot;)</p>",
+      "repro_path": "tests/solo-finder-2-title-unescape_test.go"
+    },
+    {
+      "index": 1002,
+      "file": "gnovm/stdlibs/chain/markdown/markdown_test.go",
+      "line": 43,
+      "angle": "reach",
+      "summary": "Only the native's bytes are tested for the new `$` escape: no golden/sanitize integration case renders InlineText or TableCell output that holds `$` through gnoweb",
+      "failure_scenario": "The fix rests on the claim that `\\$` renders as a plain dollar and never opens math. That holds today in a paragraph, a link label, an image alt, a strong span, an alert title, a GFM cell, a heading, the TOC and the Lead title (run). But TestEscapeInline only asserts `\\$x\\$`. The golden/sanitize corpus, which runs the Gno sanitize package through the VM and renders the result with gnoweb, has no InlineText, TableCell or LinkTitle case whose input holds `$`. A later gnoweb change that lets the math trigger fire on an escaped `$`, or a sanitize change that skips the native, would bring back the `$x^{2} + ADMIN_{verified}$` formula, and no test would fail.",
+      "verify_by": "grep -l 'MARKDOWNFUNC: \\(InlineText\\|TableCell\\|LinkTitle\\)' gno.land/pkg/gnoweb/markdown/golden/sanitize/*.txtar | xargs grep -l '\\$' returns nothing. Add golden/sanitize/inlinetext-dollar-math.txtar (// MARKDOWNFUNC: InlineText, // CONTEXT: Winner: %s, input `$x^{2} + ADMIN_{verified}$`), run -update-golden-tests, then drop '$' from inlineEscapeSet and confirm TestSanitizeIntegration goes red on <math.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "the grep over golden/sanitize for InlineText/TableCell/LinkTitle cases holding `$` returned no file",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.gno",
+      "line": 33,
+      "angle": "removed",
+      "summary": "The stdlib doc's `Set:` line still lists the escape set without `$`; the fix is a comment's wording, and the ADR's reason for leaving it holds",
+      "settled_by": "Added ` $` to line 33 in a scratch worktree and ran go test ./gno.land/pkg/sdk/vm/ -run 'TestAppHashCrossrealm38$': FAIL, expected \"acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd\" actual \"61406b70045db989931cf9da4eede7c6c23fa734b4b403a22974d71705e9af96\""
+    },
+    {
+      "file": "gno.land/adr/pr6326_gnoweb_math_delimiter_fixes.md",
+      "line": 24,
+      "angle": "reach",
+      "summary": "ADR claim that gnoweb renders `\\$` as a literal dollar in every slot InlineText and TableCell feed",
+      "settled_by": "Probe at 82a20872a (tests/solo-finder-2-title-unescape_test.go): `Winner: \\$x^{2} \\+ ADMIN\\_{verified}\\$` gives <p>Winner: $x^{2} + ADMIN_{verified}$ with 12 votes</p>; link label, image alt, strong, alert title, GFM <td>$x^{2}$</td>, <h2 id=\"pay-x2-v10\">Pay $x^{2}$ v1.0</h2>, TOC title=\"Pay $x^{2}$ v1.0\" and Lead title=\"Winner $x^{2}$ v1.0\" all carry a literal $ and no <math"
+    },
+    {
+      "file": "examples/quarantined/gno.land/r/docs/userprofile/userprofile.gno",
+      "line": 123,
+      "angle": "reach",
+      "summary": "InlineText output placed inside a code span (also registry.gno:161) now shows `\\$` literally",
+      "settled_by": "grep for InlineText/TableCell/md.EscapeText output next to a backtick, href=, placeholder=, title=, value= or description= in examples/gno.land returned nothing. The only hits are these two quarantined files, which already show `\\.`, `\\_` and `\\-` the same way. CI does not run quarantined: the only file naming it is misc/deployments/mainnet.gno.land/gen-genesis.sh"
+    },
+    {
+      "file": "examples/gno.land/r/gov/dao/impl/v0/prop_requests.gno",
+      "line": 248,
+      "angle": "reach",
+      "summary": "The treasury payment proposal stores InlineText output in state at tx time, so a replay with the new native stores `\\$` where the old chain stored `$`",
+      "settled_by": "The PR body names the coordinated chain upgrade, and gfanton's CHANGES_REQUESTED review asked for the `!` that the title now carries (`fix(gnoweb - gnovm)!:`): the consensus change is declared"
+    },
+    {
+      "file": "examples/gno.land/p/nt/fqname/v0/fqname.gno",
+      "line": 82,
+      "angle": "removed",
+      "summary": "Sibling inline escapers that skip `$` (fqname escapeMarkdown, sunspirit EscapeMarkdown)",
+      "settled_by": "sed showed fqname.escapeMarkdown escaping only [ ] ( ) of a slug (an identifier, which cannot hold $), and p/sunspirit/md EscapeMarkdown returning ufmt.Sprintf(\"``%s``\", text), a code span where `$` never opens math; grep for other escape-set shapes outside sanitize returned nothing"
+    },
+    {
+      "file": "examples/gno.land/p/moul/md/v0/md.gno",
+      "line": 370,
+      "angle": "removed",
+      "summary": "HTMLEscape slots (CollapsibleSection's <summary>, <h5>) keep `$`",
+      "settled_by": "Probe: \"<details><summary>$x^{2}$</summary>...\" and \"<h5>$x^{2}$</h5>\" give <!-- raw HTML omitted --> under the default renderer. An HTML block is never inline-parsed, so math cannot open there"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 421,
+      "angle": "removed",
+      "summary": "The closer test now runs after the switch, at the byte where a '<' autolink ended or a '](' moved i, which could match a closer the old `case '$'` never saw",
+      "settled_by": "Read: after the autolink skip b[i] is '>', after '](' it is '(', and after '[' or ']' it is the bracket itself. None of $, $$, \\\\) or \\\\] starts with any of these, and the backtick case now ends with continue"
+    }
+  ]
+}
