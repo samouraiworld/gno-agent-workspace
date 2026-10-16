@@ -1,4 +1,5 @@
 # Review: [#6272](https://github.com/gnolang/gno/pull/6272)
+Posted: https://github.com/gnolang/gno/pull/6272#pullrequestreview-5548547488
 
 Event: APPROVE
 Verdict: APPROVE. The open findings are a Suggestion on three package-block shapes where `GetNameSourceForPath` still panics, a defect older than the branch that no caller reaches, and a test Nit; neither blocks.
@@ -10,11 +11,11 @@ Round: 2. One finder, a reflector pass by the judge that added no candidate, 3 c
 
 ## Body
 
-## gnovm/pkg/gnolang/getnamesource_test.go:20 [gh](https://github.com/gnolang/gno/blob/03363f296312b625bf4620b8a5fba0927983a1ed/gnovm/pkg/gnolang/getnamesource_test.go#L20) · [↗](../../../../../.worktrees/gno-review-6272/gnovm/pkg/gnolang/getnamesource_test.go#L20) · Nit
+## gnovm/pkg/gnolang/getnamesource_test.go:20 [gh](https://github.com/gnolang/gno/blob/03363f296312b625bf4620b8a5fba0927983a1ed/gnovm/pkg/gnolang/getnamesource_test.go#L20) · [↗](../../../../../.worktrees/gno-review-6272/gnovm/pkg/gnolang/getnamesource_test.go#L20) · Nit [posted](https://github.com/gnolang/gno/pull/6272#discussion_r4295256657)
 
 Test: `GetNameSourceForPath` never reads this store, because [`Block.GetSource`](https://github.com/gnolang/gno/blob/03363f296312b625bf4620b8a5fba0927983a1ed/gnovm/pkg/gnolang/values.go#L2971-L2977) consults it only for a `RefNode` source. Passing `nil` pins the same behaviour, so the `TestStore`, `NewPackage`, `SetBlockNode` and `SetCachePackage` calls and their imports can go.
 
-## gnovm/pkg/gnolang/nodes.go:2085 [gh](https://github.com/gnolang/gno/blob/03363f296312b625bf4620b8a5fba0927983a1ed/gnovm/pkg/gnolang/nodes.go#L2085) · [↗](../../../../../.worktrees/gno-review-6272/gnovm/pkg/gnolang/nodes.go#L2085) · Suggestion
+## gnovm/pkg/gnolang/nodes.go:2085 [gh](https://github.com/gnolang/gno/blob/03363f296312b625bf4620b8a5fba0927983a1ed/gnovm/pkg/gnolang/nodes.go#L2085) · [↗](../../../../../.worktrees/gno-review-6272/gnovm/pkg/gnolang/nodes.go#L2085) · Suggestion [posted](https://github.com/gnolang/gno/pull/6272#discussion_r4295256662)
 
 Suggestion: `nsrc.NameExpr` is nil for a name added by `Define`, and the embedded `FileSet` is nil for a package built without one. Uverse names ([`uverse.go`](https://github.com/gnolang/gno/blob/03363f296312b625bf4620b8a5fba0927983a1ed/gnovm/pkg/gnolang/uverse.go#L752-L756)) and the `MsgCall` main package ([`keeper.go`](https://github.com/gnolang/gno/blob/03363f296312b625bf4620b8a5fba0927983a1ed/gno.land/pkg/sdk/vm/keeper.go#L1260-L1261)) therefore panic here where the godoc promises a nil file, though no caller reaches either yet.
 
