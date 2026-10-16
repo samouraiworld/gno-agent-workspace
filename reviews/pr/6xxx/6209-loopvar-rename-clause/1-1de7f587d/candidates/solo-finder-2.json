@@ -1,0 +1,78 @@
+{
+ "candidates": [
+  {
+   "index": 1001,
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 344,
+   "angle": "removed",
+   "summary": "A func literal's params and results are masked before their types are walked, so a type that reads an enclosing loop var binds to the wrong variable",
+   "failure_scenario": "`x := [3]int{}; for x := [2]int{}; x[0] < 1; x[0]++ { f := func() (x [len(x)]int) { return }; println(len(f())) }` prints 3 under gno and 2 under Go, with no error: the result type resolves to the outer [3]int. The param form `func(x [len(x)]int)` is refused with `name x not declared`. initStaticBlocks1 still masks FuncLit params and results at TRANS_ENTER, before TRANS_FUNCLIT_TYPE is walked, though Go resolves those types in the enclosing scope. This is the scope-timing mistake the PR fixes for range X and type-switch X, left in the same function. It predates the diff, and it is in scope because the diff sweeps this class here and misses this member.",
+   "verify_by": "cp tests/solo-finder-2-funclit-type-mask.gno gnovm/tests/files/zz_funclit_type_mask.gno && cd gnovm/pkg/gnolang && go test -short -run 'TestFiles/zz_funclit_type_mask.gno' .  (expect Output diff -2 +3 at head; apply tests/solo-finder-2-funclit-type-mask.patch and it passes)",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head 1de7f587d: `Output diff: -2 +3` (Go `go run`: 2). Merge base (preprocess.go+transcribe.go reverted in scratch): same `-2 +3`, so it predates the diff. Param variant at head and base: `zz_solo2_paramlen.gno:5:20-21: name x not declared`; the control without a loop passes. With the FuncLitExpr pushClone moved from TRANS_ENTER to TRANS_BLOCK (the patch), both pass, and the 372 TestFiles matching loopvar|closure|heap|range|for|switch|typeswitch|fun|var|block|shadow stay green, except switch13.gno, which also fails unpatched on the local Go 1.27 toolchain (go/types message text). The miscompile is on master. It fires only where the realm's own source has this shape, and nothing outside can induce it, so it is treated here as ordinary review output in the PR's swept class.",
+   "repro_path": "tests/solo-finder-2-funclit-type-mask.gno"
+  },
+  {
+   "index": 1002,
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 398,
+   "angle": "removed",
+   "summary": "A program master accepts changes output: a for-init that reads a plain shadow of an outer loop var printed the wrong values on master and prints Go's under this PR",
+   "failure_scenario": "`for x := 0; x < 1; x++ { x := 5; for x := x; x < 7; x++ { println(x) } }` runs on master and prints 0 1 2 3 4 5 6, because the inner init RHS was renamed to the outer loop's x.loopvar. At head it prints 5 6, matching Go. The ADR says its regression files each failed before with an error, and it calls the nested case's AST unchanged. Neither says that an accepted program's output and executed work change. Initialize re-preprocesses every stored package (gno.land/pkg/sdk/vm/keeper.go:203), so a deployed realm with this shape computes differently once a node runs this binary: a consensus-visible change on upgrade that the PR does not name. The shape is already public in the PR's own loopvar_shadow_init_capture_3.gno (shadowBetween).",
+   "verify_by": "cp tests/solo-finder-2-shadow-between-output.gno gnovm/tests/files/zz_shadow_between.gno; go test -short -run 'TestFiles/zz_shadow_between.gno' ./gnovm/pkg/gnolang at bbd9b2ffe (expect +0..+4 extra lines) and at 1de7f587d (pass)",
+   "band": "Suggestion",
+   "fix_kind": "none",
+   "checked": true,
+   "run": true,
+   "evidence": "base: `Output diff: @@ -1 +1,6 @@ +0 +1 +2 +3 +4  5`; head: `--- PASS: TestFiles/zz_shadow_between.gno`; Go: `5 6`.",
+   "repro_path": "tests/solo-finder-2-shadow-between-output.gno"
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 443,
+   "angle": "removed",
+   "summary": "A local recursive type named like the loop var (`type x struct{ next *x }`) has `*x` renamed to x.loopvar, since TypeDecl deletes only at TRANS_LEAVE",
+   "settled_by": "go test -run TestFiles/zz_solo2_typedecl_ctl.gno at head (no loop at all): `expected type expr but got *gnolang.BlockStmt`; gno rejects local recursive types regardless of the loopvar pass"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 465,
+   "angle": "reach",
+   "summary": "isLoopvarDeclSite drops the `ok` on the AssignStmt and RangeStmt assertions and could panic on another parent",
+   "settled_by": "grep -n 'TRANS_ASSIGN_LHS\\|TRANS_RANGE_KEY\\|TRANS_RANGE_VALUE' gnovm/pkg/gnolang/transcribe.go: the only producers are :370 (AssignStmt.Lhs), :526 and :532 (RangeStmt.Key/Value), each called with nns := append(ns, nn), so ns[len(ns)-1] is always that parent"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 266,
+   "angle": "removed",
+   "summary": "The godoc drops composite-literal key from the declaration sites, so struct-literal keys named like a loop var get renamed",
+   "settled_by": "preprocess.go:1367-1377: `if ftype == TRANS_COMPOSITE_KEY` ... `strings.TrimSuffix(string(n.Name), \".loopvar\")`. preprocess1 undoes the rename, and the base code never skipped it either"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/transcribe.go",
+   "line": 425,
+   "angle": "reach",
+   "summary": "New TRANS_BLOCK2 callbacks on ForStmt and RangeStmt reach callbacks that assumed only SwitchStmt",
+   "settled_by": "grep -rn TRANS_BLOCK2 --include='*.go': only transcribe_b.go:42 (generic, pops on skip), preprocess.go:377 (this pass) and preprocess.go:1297 (`switch n := n.(type) { case *SwitchStmt:` then `return n, TRANS_CONTINUE`). Every other stage switch in preprocess.go has no BLOCK2 case and no stage-level panicking default"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 398,
+   "angle": "reach",
+   "summary": "Package-level init ordering could miss the dependency when a func literal's for-init reads the global it shadows, a path that now preprocesses for the first time",
+   "settled_by": "zz_solo2_initorder.gno (`var f = func() int { for x := x + 1; ... }()` before `var x = 7`): head PASS, prints 8 like Go; base: `name x.loopvar not declared`"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 445,
+   "angle": "reach",
+   "summary": "`for k = range` writing to a loop var captured before the range could bypass the per-iteration heap copy, a path that now preprocesses for the first time",
+   "settled_by": "zz_solo2_rangeassign_capture.gno (closure captures k, then `for k = range []int{0,0}`, post `k += 2`): head PASS, prints 1 like Go; base: `name k not declared`"
+  }
+ ]
+}

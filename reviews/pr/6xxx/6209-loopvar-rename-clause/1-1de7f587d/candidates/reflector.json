@@ -1,0 +1,21 @@
+{"candidates": [
+ {"index": 2001, "file": "gnovm/pkg/gnolang/preprocess.go", "line": 463, "angle": "removed",
+  "summary": "isLoopvarDeclSite replaces the comma-ok AssignStmt check with unchecked type assertions on the parent node",
+  "failure_scenario": "Any node other than RangeStmt emitting TRANS_RANGE_KEY/VALUE, or other than AssignStmt emitting TRANS_ASSIGN_LHS, would panic the preprocessor on a NameExpr whose name is in the frame",
+  "verify_by": "grep -n 'TRANS_ASSIGN_LHS\\|TRANS_RANGE_KEY\\|TRANS_RANGE_VALUE' gnovm/pkg/gnolang/transcribe.go: list every emitter",
+  "band": "Warning", "fix_kind": "code", "checked": true, "run": true,
+  "evidence": "transcribe.go:370 is the only TRANS_ASSIGN_LHS emitter (AssignStmt.Lhs); transcribe.go:526 and :532 are the only TRANS_RANGE_KEY/TRANS_RANGE_VALUE emitters (RangeStmt.Key/.Value)", "repro_path": ""},
+ {"index": 2002, "file": "gnovm/adr/pr6209_loopvar_rename_clause_scope.md", "line": 178, "angle": "tests",
+  "summary": "The six new regression fixtures may not fail at the merge base as the ADR states",
+  "failure_scenario": "A fixture that passes at the base pins nothing about the fix",
+  "verify_by": "copy the six loopvar_* fixtures from head into a tree with preprocess.go and transcribe.go at bbd9b2ffe and run go test -short -run 'TestFiles/(<six names>)\\.gno$' ./gnovm/pkg/gnolang",
+  "band": "Missing test", "fix_kind": "test", "checked": true, "run": true,
+  "evidence": "base: all six FAIL with 'name x.loopvar not declared' (shadow_init_capture_1/2/3), 'name x not declared' (range_x_shadow_1, typeswitch_x_shadow_1), 'name k not declared' (range_assign_1); head: all six PASS", "repro_path": ""},
+ {"index": 2003, "file": "gnovm/pkg/gnolang/preprocess.go", "line": 377, "angle": "removed",
+  "summary": "Siblings by shape: if-init, switch-init, a func literal body DEFINE and a nested for-init reading the enclosing loop variable in the clause that declares the same name",
+  "failure_scenario": "A clause declaring a name through an AssignStmt could read the new name instead of the enclosing loop variable, the shape the diff fixes for for-init, range X and type-switch X",
+  "verify_by": "cp tests/judge-2003-clause-siblings.gno gnovm/tests/files/zz_judge_siblings.gno; go test -short -run 'TestFiles/zz_judge_siblings.gno$' ./gnovm/pkg/gnolang at head and with preprocess.go+transcribe.go at the base",
+  "band": "Warning", "fix_kind": "code", "checked": true, "run": true,
+  "evidence": "head: --- PASS: TestFiles/zz_judge_siblings.gno; base: --- PASS as well (if 11, switch 21, funclit 31, closure 41 42, loop 1)", "repro_path": "tests/judge-2003-clause-siblings.gno"}
+],
+ "dropped": []}

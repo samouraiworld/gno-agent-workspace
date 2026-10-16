@@ -1,0 +1,64 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 377,
+      "angle": "two versions",
+      "summary": "The fix also changes the result of four loop shapes that compile on master, so deployed realms using them switch behaviour at the upgrade, yet the PR says the shapes were rejected and there is no gas change",
+      "failure_scenario": "On master, when a plain variable with the loop variable's name is in scope, the four shapes do not fail. They bind the plain variable and report success. `x := 100; for x := 1; x < 3; x++ { for x := range make([]int, x) {...} }` iterates 0..99 twice (200 lines) on master and 0, 0, 1 at head. `var x any = \"outer\"; for x := any(1); ...; { switch x := x.(type) }` prints `other outer` on master and `int 1` at head. `k := -1; for k := 0; k < 1; k++ { for k = range []int{7,8} {}; println(k) }; println(k)` prints `0 1` on master (the range writes the outer k) and `1 -1` at head. The `x := 5; for x := x; ...` case inside `for x := 0` prints 0..6 on master and 5 6 at head. go/types accepts all four, so addpkg could deploy them under the old binary. gno.land never persists BlockNodes (store.go:162-163) and re-preprocesses every stored package at boot (keeper.go:203, PreprocessAllFilesAndSaveBlockNodes). A realm deployed with one of these shapes therefore runs a different loop count, with different gas and different state writes, from the first block on the new binary. A validator or RPC node still on the old binary keeps computing and serving the old result for the same transaction or query until it upgrades. The PR body says these shapes are 'valid Go rejected on master' and claims 'No gas change'. A reader classifying this as a change with no consensus impact would miss this.",
+      "verify_by": "bash tests/solo-finder-1-formerly-compiling-shapes.sh bbd9b2ffe87c9a295ccfd6dfb45224bb02c82d8a (expect 4 FAIL, output mismatches rather than panics), then the same script at 1de7f587da469abad9ce4cf5fa945f3328aa0e40 (expect 4 PASS); sed -n '162,163p' gnovm/pkg/gnolang/store.go and sed -n '203p' gno.land/pkg/sdk/vm/keeper.go for the boot-time re-preprocess",
+      "band": "Suggestion",
+      "fix_kind": "none",
+      "checked": true,
+      "run": true,
+      "evidence": "base: '--- FAIL: TestFiles/zz_sf1_range_assign_outer_plain.gno', '..._shadow_between.gno', '..._typeswitch_outer_plain.gno', '..._range_outer_plain.gno'; diffs: shadow_between '+0 +1 +2 +3 +4  5', typeswitch '-int 1 +other outer', range_outer_plain '@@ -1,3 +1,200 @@', range_assign '+0  1 --1'. head: '--- PASS' for all four, 'ok github.com/gnolang/gno/gnovm/pkg/gnolang 0.044s'. store.go:162-163 'cacheNodes is an actual store - BlockNodes are not stored in the underlying DB and must be re-initialized using PreprocessAllFilesAndSaveBlockNodes'; keeper.go:203 'm2.PreprocessAllFilesAndSaveBlockNodes()'.",
+      "repro_path": "tests/solo-finder-1-formerly-compiling-shapes.sh"
+    },
+    {
+      "index": 2,
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 354,
+      "angle": "claims",
+      "summary": "The second initStaticBlocks pass is not allocation-free as the PR says: every FuncDecl and FuncLitExpr still allocates a frame map on each pass",
+      "failure_scenario": "The PR body says the second initStaticBlocks pass 'is now allocation-free'. The ADR says it 'allocates none at all'. But the FuncDecl and FuncLitExpr cases call pushClone with a non-nil, delete-only modify. Because `modify == nil && len(parent) == 0` is false, the fast path is skipped and `f := map[Name]bool{}` is allocated for every function and every function literal in the file, on both passes, even though deleting from an empty parent frame changes nothing. The cost is small but grows with the number of functions. The fix is to let a delete-only push take the fast path when the parent frame is empty.",
+      "verify_by": "Read preprocess.go pushClone (fast path at `if modify == nil && len(parent) == 0`) and the FuncLitExpr/FuncDecl ENTER cases (pushClone(func(f){delete...})); a Go test that runs initStaticBlocks1 twice on a file with N funcs and wraps the second run in testing.AllocsPerRun shows allocations that grow with N",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 463,
+      "angle": "line by line",
+      "summary": "isLoopvarDeclSite asserts ns[len(ns)-1].(*RangeStmt) and .(*AssignStmt) without checking them (the old code used `ok`), so it could panic",
+      "settled_by": "grep -rn TRANS_ASSIGN_LHS gnovm: the only emitter is transcribe.go:370 inside `case *AssignStmt`. TRANS_RANGE_KEY/VALUE are emitted only inside `case *RangeStmt`, and every callback receives the parent on ns, so the assertion cannot fail"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/transcribe.go",
+      "line": 425,
+      "angle": "line by line",
+      "summary": "Firing TRANS_BLOCK2 for ForStmt and RangeStmt could reach a callback that treats every stage other than ENTER/BLOCK as LEAVE, or that panics by default",
+      "settled_by": "Read every stage switch in preprocess.go (339, 489, 778, 808, 859, 1297, 3607, 3755, 4005, 4150, 6271, 6530): each matches explicit stages, and none has a default that treats an unknown stage as LEAVE. transcribe_b.go:42 handles TRANS_BLOCK2 and pops on a skip. A repo-wide grep finds no Transcribe callback outside package gnolang"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 266,
+      "angle": "claims",
+      "summary": "The comment no longer lists the composite-literal key as a declaration site, so a struct field key that matches a loop variable could be renamed to field `x.loopvar`",
+      "settled_by": "zz_sf1_struct_key.gno (`type S struct{ x int }; for x := 0; x < 1; x++ { s := S{x: x + 3}; println(s.x) }`) gave '--- PASS' at both base and head"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 317,
+      "angle": "line by line",
+      "summary": "When the fast path skipped the push, ownFrame could set didPush on the wrong scope, or a delete could reach a shared non-empty frame",
+      "settled_by": "Head gave '--- PASS' for zz_sf1_init_funclit_nested_for (a nested same-name for inside a func literal in the init RHS: prints 4 3), zz_sf1_typeswitch_init (`switch y := 1; x := x.(type)`: prints 3) and zz_sf1_range_funclit_x (a func literal in the range X reads the loop var: prints 40); output matches go run"
+    }
+  ]
+}

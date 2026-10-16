@@ -1,0 +1,38 @@
+diff --git a/gnovm/pkg/gnolang/preprocess.go b/gnovm/pkg/gnolang/preprocess.go
+index 52480256e..2211a2ca9 100644
+--- a/gnovm/pkg/gnolang/preprocess.go
++++ b/gnovm/pkg/gnolang/preprocess.go
+@@ -341,15 +341,6 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
+ 			// FuncLit/FuncDecl push at ENTER (not BLOCK) so param/result/recv
+ 			// masking takes effect before the FuncTypeExpr children are walked.
+ 			switch n := n.(type) {
+-			case *FuncLitExpr:
+-				pushClone(func(f map[Name]bool) {
+-					for i := range n.Type.Params {
+-						delete(f, n.Type.Params[i].NameExpr.Name)
+-					}
+-					for i := range n.Type.Results {
+-						delete(f, n.Type.Results[i].NameExpr.Name)
+-					}
+-				})
+ 			case *FuncDecl:
+ 				pushClone(func(f map[Name]bool) {
+ 					if n.IsMethod {
+@@ -368,7 +359,16 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
+ 			// Other block-introducing nodes push here. Pairs naturally with
+ 			// TranscribeB's BLOCK→LEAVE flow. Names the statement itself
+ 			// declares are applied at TRANS_BLOCK2 below.
+-			switch n.(type) {
++			switch n := n.(type) {
++			case *FuncLitExpr:
++				pushClone(func(f map[Name]bool) {
++					for i := range n.Type.Params {
++						delete(f, n.Type.Params[i].NameExpr.Name)
++					}
++					for i := range n.Type.Results {
++						delete(f, n.Type.Results[i].NameExpr.Name)
++					}
++				})
+ 			case *ForStmt, *RangeStmt, *SwitchStmt, *BlockStmt, *IfStmt,
+ 				*IfCaseStmt, *SwitchClauseStmt, *SelectCaseStmt:
+ 				pushClone(nil)
