@@ -1,0 +1,35 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 401,
+      "angle": "missing test",
+      "band": "Missing test",
+      "summary": "No test pins that the CSP gets the gateway NewRouter normalized rather than the raw flag; TestSecureHeadersMiddlewareIPFSGateway calls the middleware with an already-normalized origin",
+      "failure_scenario": "A refactor passes cfg.ipfsGateway, or moves `appcfg.RenderConfig.IPFSGateway = cfg.ipfsGateway` after NewRouter. The CSP then carries the raw flag value (e.g. ' https://IPFS.Filebase.io/ ', or an origin the renderer dropped), or the renderer gets the raw value, and no test goes red",
+      "verify_by": "in the head worktree, change main.go:401's last argument to cfg.ipfsGateway, then go test ./gno.land/cmd/gnoweb -count=1: expect green (nothing pins it); restore",
+      "checked": false
+    },
+    {
+      "file": "contribs/gnodev/setup_web.go",
+      "line": 42,
+      "angle": "missing test",
+      "band": "Missing test",
+      "summary": "The gnodev -web-ipfs-gateway flag is wired by one assignment that no test exercises (risk.md: no test touched for setup_web.go, app_config.go, command_local.go, command_staging.go)",
+      "failure_scenario": "Deleting `appcfg.RenderConfig.IPFSGateway = cfg.webIPFSGateway` leaves gnodev rendering ipfs:// links as dead ipfs:// hrefs and the default gateway unused, with every test green",
+      "verify_by": "delete setup_web.go:42, run go test ./contribs/gnodev/... -count=1: expect green; restore",
+      "checked": false
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 55,
+      "angle": "class sweep: link-bearing nodes",
+      "band": "Missing test",
+      "summary": "No golden covers <gno-button href=\"ipfs://...\">: the button is an ast.Link built by an inline parser (ext_buttons.go:218, priority 399) and only reaches the rewrite because transformers run after parsing, which nothing pins",
+      "failure_scenario": "A later change that builds button links in a transformer above 400, or wraps them in a non-*ast.Link node, leaves button hrefs as ipfs:// or on ipfs.io while every ext_ipfs golden stays green",
+      "verify_by": "add golden/ext_ipfs/button.md.txtar with `<gno-button href=\"ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi\" label=\"x\" />` and run go test ./gno.land/pkg/gnoweb/markdown -run Golden -update then without -update: expect href http://gateway.test/ipfs/<cid>",
+      "checked": false
+    }
+  ]
+}

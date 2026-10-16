@@ -1,0 +1,48 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 172,
+      "angle": "removed",
+      "summary": "newLinkFromAutoLink factors the Link-with-raw-String-label shape for two callers, but newButtonLink (ext_buttons.go:77-84) builds the same shape by hand, and the helper's autolink-specific name keeps it from being reused there",
+      "failure_scenario": "No runtime failure. The diff rewrote the autolink conversion in linkTransformer into newLinkFromAutoLink(dest, label) and reused it in ipfsTransformer. newButtonLink in ext_buttons.go:77-84 repeats the same five lines (ast.NewLink, set Destination, ast.NewString(label), SetRaw(true), AppendChild). Its only extra step is SetAttribute(linkClassAttr, ...), which can be applied to the returned link. A future change to how raw-label links are built (for example the label escaping) then has to be made in two places. A neutral name such as newRawLabelLink would let buttons use the helper.",
+      "verify_by": "sed -n 76,86p gno.land/pkg/gnoweb/markdown/ext_buttons.go next to sed -n 170,178p gno.land/pkg/gnoweb/markdown/ext_links.go: same shape; replace the button body with newLinkFromAutoLink(bytes.Clone(t.href), []byte(label)) plus SetAttribute and run go test ./gno.land/pkg/gnoweb/markdown -run 'Button|Golden'",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "ext_buttons.go:77 `link := ast.NewLink()` ... `labelNode := ast.NewString([]byte(label)); labelNode.SetRaw(true); link.AppendChild(link, labelNode)`; ext_links.go:172 `func newLinkFromAutoLink(dest, label []byte) *ast.Link {` with the same body",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/render.go",
+      "line": 112,
+      "angle": "removed",
+      "summary": "the documentation renderer (documentationGM, docOpts) is a third goldmark pipeline the diff left without ExtIPFS, so retired-gateway links in package doc comments are not rewritten",
+      "settled_by": "sed -n 117,118p gno.land/adr/pr6270_gnoweb_ipfs_gateway.md: `- Not rewritten: the documentation renderer, the site banner, and raw HTML under` / `-html.` -- an explicit scope decision in the ADR, and Go doc comments cannot carry images"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 85,
+      "angle": "removed",
+      "summary": "a rewritten autolink loses the author's label (the URL as written) and shows the gateway URL instead, which also changes the alt and description text built from it",
+      "settled_by": "gh api repos/gnolang/gno/pulls/6270/comments: alexiscolin asked for it (`The autolink keeps showing https://ipfs.io/... while it points at the gateway, so someone copying the text gets a dead URL. Using the rewritten URL as the label would avoid that.`) and omarsy answered `Done in 3ecd6ad1c`; the PR body states the behaviour. The base label line came from #5515 (git log -S at the merge base: acdaf12c1, IsDangerousURL for autolinks), not from a request to keep labels"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/context.go",
+      "line": 53,
+      "angle": "removed",
+      "summary": "the rewritten getGnoContext return might drop a field that NewGnoParserContext sets, so the <gno-foreign> inner instance would lose it",
+      "settled_by": "sed -n 32,58p context.go: NewGnoParserContext sets 6 keys (url, chainId, remote, domain, IPFS gateway, link policy) and getGnoContext reads all 6; golden/ext_ipfs/foreign.md.txtar pins the gateway across the boundary (`href=\"http://gateway.test/ipfs/...\"` inside gno-foreign__body)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 268,
+      "angle": "removed",
+      "summary": "the deleted inline autolink-to-Link construction (base lines 136-141) might enforce something newLinkFromAutoLink lost; and IPFS autolinks converted to ast.Link at priority 400 might skip linkTransformer's IsDangerousURL/rel/untrusted handling",
+      "settled_by": "sed -n 172,178p ext_links.go: the helper body is the deleted lines verbatim (NewLink, Destination=dest, NewString(label), SetRaw(true), AppendChild); grep util.Prioritized: ipfsTransformer 400 < linkTransformer 500 and imgValidatorTransformer 500, so the converted *ast.Link reaches the `case *ast.Link` arm and replaceWithGnoLink with the same untrusted flag; renderer ext_links.go:430-432 resolves once and applies IsDangerousURL"
+    }
+  ]
+}

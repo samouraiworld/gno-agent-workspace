@@ -1,0 +1,62 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 55,
+      "angle": "reach",
+      "summary": "No fixture pins the IPFS rewrite on gno-button hrefs or inside the other link containers (columns, alerts, tables, footnotes); golden/ext_ipfs covers only gno-foreign and gno-frame",
+      "failure_scenario": "<gno-button href=\"ipfs://<cid>/x\" label=\"Open\" /> is rewritten today only because ext_buttons.go:77 builds a plain ast.Link from the raw attribute at parse time; a refactor moving buttons to their own node type, or rendering href from the parsed attribute, leaves every button href a dead ipfs:// link while go test ./gno.land/pkg/gnoweb/markdown stays green",
+      "verify_by": "grep -rln 'gno-button\\|gno-columns\\|\\[!NOTE\\]\\|\\[^1\\]\\|| --- |' gno.land/pkg/gnoweb/markdown/golden/ext_ipfs gno.land/pkg/gnoweb/markdown/ext_ipfs_test.go returns nothing; add renderIPFS(t, `<gno-button href=\"ipfs://`+testCIDv1+`/x\" label=\"Open\" />`, testGateway) expecting href=\"https://gw.test/ipfs/<cid>/x\", and make it go red by changing ext_buttons.go:77 to a node type the transformer's switch does not match",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "grep exit 1, no hits. Probe at head (scratch test through renderIPFS): button -> <a href=\"https://gw.test/ipfs/bafy.../x\" class=\"gno-button\" rel=\"noopener nofollow ugc\">; columns, alert, table, footnote, task list and strikethrough probes (production NewDefaultRenderConfig through RenderRealm) all rewritten too, so the gap is coverage, not behaviour",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 252,
+      "angle": "reach",
+      "summary": "hasURIParam splits only on '&', so ?a;uri=ipfs://<other> is rewritten with the uri key intact (probe confirmed the rewrite)",
+      "settled_by": "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' against https://ipfs.filebase.io/ipfs/<cid>/?<q> returned '200 ' with no redirect for q='uri=ipfs://<cid0>', 'a;uri=ipfs://<cid0>' and 'a=1;uri=ipfs://<cid0>': the default gateway honours no uri redirect at all, and Go >=1.17 url.ParseQuery skips a pair whose key holds ';', so boxo gateways never see it"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 57,
+      "angle": "reach",
+      "summary": "Each rewritten use of one reference definition gets its own escaped copy of the destination",
+      "settled_by": "scratch TestZZReachAmp at head: a configured gateway allocates ~1.7x what the same render allocates with no gateway, at n=500, 1000 and 2000 alike, a constant factor"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 272,
+      "angle": "reach",
+      "summary": "The rewrite could run after linkTransformer or the image validator, so *ast.Link never matches a GnoLink and the validator judges the unrewritten URL",
+      "settled_by": "goldmark v1.8.2 util/util.go:885 sorts transformers with 'return s[i].Priority < s[j].Priority' (ascending); ext_links.go:486 linkTransformer and ext_imgvalidator.go:77 sit at 500, the IPFS transformer at 400, in both NewGnoExtension and buildInnerForeignMarkdown"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/context.go",
+      "line": 47,
+      "angle": "reach",
+      "summary": "A render path builds its parser context without the gateway, leaving ipfs:// unrewritten there",
+      "settled_by": "grep NewGnoParserContext|getGnoContext over the tree: only render.go:145-147 (sets mdctx.IPFSGateway) and ext_foreign.go:228/382 (carries getGnoContext, which now copies the gateway); probe '<gno-foreign>\\n<ipfs://<cid>/a.png>' rendered href=\"https://gw.test/ipfs/<cid>/a.png\"; READMEs go through RenderRealm (handler_http.go:1176)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 164,
+      "angle": "reach",
+      "summary": "A reader of Destination takes the re-escaped form raw and renders \\\\ or &amp;amp;",
+      "settled_by": "grep '\\.Destination' over gno.land/pkg/gnoweb and contribs: every reader resolves first (ext_imgvalidator.go:61, ext_links.go:240 via replaceWithGnoLink's resolveDestination, ext_links.go:430); probe 'autolink entity' <ipfs://<cid>/?a=&amp;b> rendered href=\"https://gw.test/ipfs/<cid>/?a=&amp;b\", the same as the gateway URL written by hand"
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 401,
+      "angle": "reach",
+      "summary": "The CSP reads the raw -ipfs-gateway flag while the renderer reads the normalized one, so img-src and the rewritten src could disagree",
+      "settled_by": "app.go:151 'func NewRouter(logger *slog.Logger, cfg *AppConfig)' writes cfg.RenderConfig.IPFSGateway = ipfsGateway at app.go:168 through the pointer, and main.go:401 reads appcfg.RenderConfig.IPFSGateway after NewRouter at main.go:387"
+    }
+  ]
+}

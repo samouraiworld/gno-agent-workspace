@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 470,
+      "angle": "lines",
+      "summary": "img-src allows only the bare gateway origin, so a subdomain gateway's redirect (Kubo's default on localhost) is CSP-blocked and every IPFS image fails",
+      "failure_scenario": "gnoweb (strict by default) with -ipfs-gateway http://localhost:8080, an origin normalizeIPFSGateway accepts and ipfs_test.go:26 lists as valid, against a stock Kubo node: the rewritten <img src=\"http://localhost:8080/ipfs/<cid>\"> gets Kubo's implicit localhost subdomain-gateway redirect to http://<cid>.ipfs.localhost:8080/, which the CSP's 'http://localhost:8080' host-source does not match, so the browser blocks every rewritten image while gnoweb starts and logs nothing. The same holds for any self-hosted gateway run in subdomain mode (UseSubdomains: true), the origin-isolated setup the IPFS docs recommend; http://127.0.0.1:8080 works only because Kubo serves loopback IPs as a path gateway",
+      "verify_by": "go test ./gno.land/cmd/gnoweb -run TestB2SubdomainGatewayRedirectCSP -v -count=1 with tests/b2-lines-subdomain-redirect-csp_test.go copied in (chromium on PATH): the no-strict control sees the <cid>.ipfs.localhost request, the strict case does not and chromium logs the img-src violation. Kubo premise: gh api repos/ipfs/kubo/contents/docs/config.md, 'Implicit defaults of Gateway.PublicGateways' (localhost UseSubdomains true) and UseSubdomains 'requests for content paths such as http://{hostname}/ipfs/{cid} produce redirect to http://{cid}.ipfs.{hostname}'",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "--- PASS: TestB2SubdomainGatewayRedirectCSP/no-strict_control (gateway saw: [\"localhost:38323/ipfs/<cid>\" \"<cid>.ipfs.localhost:38323/\"]); --- FAIL: TestB2SubdomainGatewayRedirectCSP/strict_(CSP) (gateway saw only \"localhost:32931/ipfs/<cid>\"); chromium: \"Loading the image 'http://bafybei...fbzdi.ipfs.localhost:32931/' violates the following Content Security Policy directive: \"img-src 'self' data: ... http://localhost:32931\". The action has been blocked.\" Kubo docs/config.md: \"localhost\": {\"Paths\": [\"/ipfs\", \"/ipns\"], \"UseSubdomains\": true}; \"requests for content paths such as `http://{hostname}/ipfs/{cid}` produce redirect to `http://{cid}.ipfs.{hostname}`\"",
+      "repro_path": "tests/b2-lines-subdomain-redirect-csp_test.go"
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 355,
+      "angle": "lines",
+      "summary": "the -ipfs-gateway flag's wiring into RenderConfig and the CSP is untested: deleting the line keeps every test green",
+      "failure_scenario": "delete `appcfg.RenderConfig.IPFSGateway = cfg.ipfsGateway`: the gnoweb binary renders ipfs:// unrewritten and drops the gateway from img-src, yet TestSecureHeadersMiddlewareIPFSGateway calls the middleware directly and TestNoIndexFlag drives setupWeb but asserts only the noindex log, so no test goes red",
+      "verify_by": "delete main.go:355, go test ./gno.land/cmd/gnoweb -count=1: expect a failure, observe none; read half: grep -n -i ipfs gno.land/cmd/gnoweb/main_test.go shows only TestSecureHeadersMiddlewareIPFSGateway and the middleware calls",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "contribs/gnodev/setup_web.go",
+      "line": 42,
+      "angle": "lines",
+      "summary": "gnodev's -web-ipfs-gateway wiring is untested: setup_web_test.go never asserts RenderConfig.IPFSGateway",
+      "failure_scenario": "delete `appcfg.RenderConfig.IPFSGateway = cfg.webIPFSGateway`: gnodev's gnoweb stops rewriting ipfs:// and retired-gateway URLs while the flag and README still advertise the default, and `go -C contribs/gnodev test ./...` stays green",
+      "verify_by": "delete setup_web.go:42, go -C contribs/gnodev test ./... -run TestGnoWebAppConfig -count=1: expect a failure, observe none; read half: grep -rn -i ipfs contribs/gnodev --include='*_test.go' returns nothing",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/app.go",
+      "line": 166,
+      "angle": "lines",
+      "summary": "a rejected gateway is echoed raw into the startup error (and render.go:98's warning), credentials or token query included, while the indexer URL beside it goes through indexer.Redact",
+      "failure_scenario": "-ipfs-gateway 'https://user:secret@gw.example' or 'https://x.mypinata.cloud?pinataGatewayToken=SECRET': normalizeIPFSGateway rejects it for carrying credentials or a query, and NewRouter returns `invalid IPFS gateway \"https://user:secret@gw.example\": must not contain credentials`, which setupWeb wraps and the binary prints to its log sink; app.go:245 logs the indexer URL only as indexer.Redact(cfg.IndexerURL)",
+      "verify_by": "sed -n 166p gno.land/pkg/gnoweb/app.go and sed -n 98p gno.land/pkg/gnoweb/render.go show the raw value in %q / the slog attr; grep -n indexer.Redact gno.land/pkg/gnoweb/app.go shows the sibling redacting",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 29,
+      "angle": "lines",
+      "summary": "with -ipfs-gateway '' the CSP no longer allows ipfs.io, so hand-written ipfs.io images that rendered at base are blocked",
+      "settled_by": "ADR gno.land/adr/pr6270_gnoweb_ipfs_gateway.md: ipfs.io and dweb.link 'stopped serving hotlinked content on 2026-09-21 ... browser subresource requests get a Cloudflare challenge'; the PR thread (omarsy) measured ipfs.io image requests as 403 with a Cloudflare challenge, so nothing that rendered is lost"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/render.go",
+      "line": 98,
+      "angle": "lines",
+      "summary": "NewHTMLRenderer's warning path dereferences a nil logger for a library caller passing nil",
+      "settled_by": "grep -rn --include='*.go' 'NewHTMLRenderer(nil' . in head-nocomments returns no caller; the only non-test caller is app.go:213 with NewRouter's logger"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs.go",
+      "line": 65,
+      "angle": "lines",
+      "summary": "a default port is kept (https://gw:443) while normalizeCanonicalOrigin trims it, so the CSP and src could disagree",
+      "settled_by": "CSP3 port-part matching treats an explicit default port as matching a URL with a null port, and the browser normalizes https://gw:443/ipfs/x to a null port, so img-src and src still match; cosmetic only"
+    }
+  ]
+}

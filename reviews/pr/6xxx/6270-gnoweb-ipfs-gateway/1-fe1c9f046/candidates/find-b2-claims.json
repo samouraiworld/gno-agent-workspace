@@ -1,0 +1,104 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 401,
+      "angle": "claims",
+      "summary": "The comment's claim that the CSP reads the gateway NewRouter normalized in place is pinned by no test: setupWeb's wiring of -ipfs-gateway into img-src can regress silently",
+      "failure_scenario": "A later edit passes \"\" or cfg.ipfsGateway here, or drops the fourth argument when #6126 rewrites SecureHeadersMiddleware to take the app config (the PR body names that merge); the served CSP stops listing the gateway, every rewritten IPFS image is blocked in strict mode, and TestSecureHeadersMiddleware* stay green because they pass the gateway by hand. setupWeb returns only a run func, so no test reads the CSP it builds.",
+      "verify_by": "Replace appcfg.RenderConfig.IPFSGateway with \"\" at gno.land/cmd/gnoweb/main.go:401, run go test ./gno.land/cmd/gnoweb -count=1: expect red, observe green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'Content-Security-Policy\\|setupWeb(' main_test.go: CSP read only at :174 and :205, both from SecureHeadersMiddleware called directly; setupWeb calls at :80-157 check errors and log output only",
+      "repro_path": ""
+    },
+    {
+      "file": "contribs/gnodev/setup_web.go",
+      "line": 42,
+      "angle": "claims",
+      "summary": "gnodev's -web-ipfs-gateway mapping and both mode defaults (the ADR's 'Both flags default to https://ipfs.filebase.io') are pinned by no test",
+      "failure_scenario": "Dropping webIPFSGateway from defaultStagingOptions or defaultLocalAppConfig, or this assignment, disables IPFS rewriting in gnodev with every test green; setup_web_test.go already asserts TrustedPaths and NoIndex on both defaults through gnoWebAppConfig, the same one-line shape.",
+      "verify_by": "Delete contribs/gnodev/setup_web.go:42, run go -C contribs/gnodev test ./ -run GnoWebAppConfig -count=1: expect red, observe green; grep -rni ipfs contribs/gnodev/*_test.go returns nothing",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rni ipfs contribs/gnodev/*_test.go: no output; setup_web_test.go tests only TrustedPaths, IndexCommunity, NoIndex",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs_test.go",
+      "line": 86,
+      "angle": "claims",
+      "summary": "The comment says NewDefaultAppConfig shares DefaultAliases, but it returns maps.Clone(DefaultAliases) (app.go:140), so this clone and its comment are redundant",
+      "failure_scenario": "A reader trusts the comment and believes NewDefaultAppConfig hands out the shared package map, so every caller mutating Aliases must clone first; the line copies a map that is already a fresh copy.",
+      "verify_by": "sed -n 140p gno.land/pkg/gnoweb/app.go shows the clone; delete ipfs_test.go:86 and run go test ./gno.land/pkg/gnoweb -run 'IPFS|Alias' -race -count=1: stays green",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "app.go:140: `Aliases:            maps.Clone(DefaultAliases), // callers add their own` (same line at the merge base)",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 471,
+      "angle": "claims",
+      "summary": "The loopback exception admits http://localhost:8080, Kubo's default gateway, but Kubo serves localhost as a subdomain gateway and the CSP allows only the bare origin",
+      "failure_scenario": "gnoweb, strict by default, with -ipfs-gateway http://localhost:8080 (a valid case in ipfs_test.go:26) renders src=http://localhost:8080/ipfs/<cid>; Kubo's implicit PublicGateways entry for localhost sets UseSubdomains, so it answers 301 to http://<cid>.ipfs.localhost:8080/, and img-src http://localhost:8080 does not match that host on the redirect hop. Every IPFS image is blocked although the flag was accepted; http://127.0.0.1:8080, a path gateway in Kubo, works. gnodev sets no CSP, so it is unaffected.",
+      "verify_by": "With a default-config Kubo daemon: curl -sI http://localhost:8080/ipfs/<cid> shows Location: http://<cid>.ipfs.localhost:8080/; run gnoweb -ipfs-gateway http://localhost:8080 on a page with ![x](ipfs://<cid>) in a headful browser: expect a CSP img-src violation on <cid>.ipfs.localhost",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "main.go:471 appends only `\" \" + ipfsGateway` to img-src; ipfs_test.go:26 lists http://localhost:8080 as valid; no Kubo binary on this machine (which ipfs: not found), so the redirect is from Kubo's documented defaults, not a run",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/adr/pr6270_gnoweb_ipfs_gateway.md",
+      "line": 31,
+      "angle": "claims",
+      "summary": "ADR says the IPFS transformer at priority 400 runs before link classification and image validation at 500, while ext.go registers ExtLinks (111) before ExtIPFS (114)",
+      "settled_by": "goldmark v1.8.2 parser.go:884 `p.config.ASTTransformers.Sort()` once at first Parse over all registered transformers, and util/util.go:885 `return s[i].Priority < s[j].Priority` sorts ascending, so 400 runs first; golden foreign.md.txtar shows rel=\"noopener nofollow ugc\" on the rewritten link"
+    },
+    {
+      "file": "gno.land/adr/pr6270_gnoweb_ipfs_gateway.md",
+      "line": 16,
+      "angle": "claims",
+      "summary": "ADR says a render-time fix repairs user-supplied profile images, which would fail if gnoweb rendered avatars outside markdown",
+      "settled_by": "components/views/user.html:6 `{{ template \"ui/gnome\" }}`: the user avatar is a static glyph, no realm-supplied URL"
+    },
+    {
+      "file": "docs/users/explore-with-gnoweb.md",
+      "line": 104,
+      "angle": "claims",
+      "summary": "Docs say sanitize/v0 rejects ipfs:// and md.Link/md.Image build labels with sanitize.InlineText",
+      "settled_by": "p/moul/md/v0/md.gno:258 `\"[\" + sanitize.InlineText(text) + \"](\" + sanitize.URL(url) + \")\"`, md.gno:298 Image uses InlineText and ImageURL; sanitize.gno:1626 linkSchemeAllowed admits only http:// and https:// prefixes"
+    },
+    {
+      "file": "docs/users/explore-with-gnoweb.md",
+      "line": 90,
+      "angle": "claims",
+      "summary": "Docs say rendered pages load only data: SVG images among data: URIs",
+      "settled_by": "markdown/ext_imgvalidator.go AllowSvgDataImage: `return !strings.HasPrefix(lower, \"data:\") || strings.HasPrefix(lower, svgdata)`, wired at render_config.go:49 md.WithImageValidator(md.AllowSvgDataImage)"
+    },
+    {
+      "file": "gno.land/adr/pr6270_gnoweb_ipfs_gateway.md",
+      "line": 33,
+      "angle": "claims",
+      "summary": "ADR says the rewrite applies inside <gno-foreign>, whose inner goldmark instance is built separately",
+      "settled_by": "ext_foreign.go:452 `ExtIPFS.Extend(m) // ipfs:// and retired gateway URLs, via the carried context`; golden/ext_ipfs/foreign.md.txtar output carries the gateway href and loading=\"lazy\""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs_test.go",
+      "line": 1,
+      "angle": "claims",
+      "summary": "Tests the PR body and ADR cite (normalize table, router, renderer, CSP, render-matches-gateway) might not pass at head",
+      "settled_by": "go test ./gno.land/pkg/gnoweb ./gno.land/cmd/gnoweb ./gno.land/pkg/gnoweb/markdown -run 'IPFS|SecureHeaders' -count=1: ok on all three packages"
+    }
+  ]
+}

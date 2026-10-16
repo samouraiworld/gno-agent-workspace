@@ -1,0 +1,47 @@
+{
+  "candidates": [],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs.go",
+      "line": 49,
+      "angle": "catalog: twin input paths (gateway validation vs CSP img-src)",
+      "summary": "normalizeIPFSGateway accepts an IPv4 gateway and SecureHeadersMiddleware writes it into img-src; CSP3 host-part matching says a non-domain host never matches (only 127.0.0.1), so images on such a gateway would be blocked while gnoweb starts cleanly",
+      "settled_by": "go test ./gno.land/cmd/gnoweb -run TestB2CatIPv4GatewayCSP -v -count=1 (tests/b2-catalog-ipv4-gateway-csp_test.go, headless chromium and firefox): 'chromium/127.0.0.2/strict' and 'firefox/127.0.0.2/strict' log 'gateway /ipfs/ hits: 1' and PASS, while the negative control with the gateway absent from img-src logs 'gateway /ipfs/ hits: 0' in both engines; browsers match IPv4 sources, refuted"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs_test.go",
+      "line": 17,
+      "angle": "catalog: global mutable state and concurrency",
+      "summary": "the diff adds t.Parallel tests, a package-level ExtIPFS, ipfsRetiredGateways map and gatewayHost regexp, and NewRouter now normalizes cfg.RenderConfig.IPFSGateway in place; checked for a race",
+      "settled_by": "go test -race -count=1 ./gno.land/pkg/gnoweb/ ./gno.land/pkg/gnoweb/markdown/ ./gno.land/cmd/gnoweb/ at fe1c9f046: 'ok gno.land/pkg/gnoweb 55.469s', 'ok gno.land/pkg/gnoweb/markdown 178.696s', 'ok gno.land/cmd/gnoweb 1.199s'; contribs/gnodev go test -race -run 'Web|Config|Flag': 'ok github.com/gnolang/gno/contribs/gnodev 8.933s'; no DATA RACE"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/render.go",
+      "line": 96,
+      "angle": "catalog: twin input paths (NewRouter vs NewHTMLRenderer validation)",
+      "summary": "NewHTMLRenderer validates the gateway with an empty chain domain and canonical host and drops an invalid one with a Warn, so it accepts a gateway on the chain domain that NewRouter refuses",
+      "settled_by": "grep -rn 'NewHTMLRenderer(' --include='*.go' . | grep -v _test.go returns only render.go:92 (definition) and app.go:213, NewRouter, which runs the full check at app.go:164 first; the ADR states the renderer's narrower check, so no in-tree path reaches it unvalidated"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs.go",
+      "line": 71,
+      "angle": "catalog: error and panic handling",
+      "summary": "originHost swallows the url.Parse error and returns an empty host, which would skip the canonical-origin check",
+      "settled_by": "app.go:164 passes originHost(canonicalOrigin), the output of normalizeCanonicalOrigin, which already ran url.Parse on that string and rejects anything not scheme://host[:port] (canonical_origin.go:17 and :34-36), so the error branch is unreachable"
+    },
+    {
+      "file": "examples/quarantined/gno.land/r/docs/markdown/markdown.gno",
+      "line": 254,
+      "angle": "catalog: type-check and preprocess",
+      "summary": "the only .gno change edits the realm's Render string; checked it still lints and its test output still holds",
+      "settled_by": "gno test -v . in examples/quarantined/gno.land/r/docs/markdown: '--- PASS: TestRender (0.13s)', 'ok . 1.69s'; gno lint . exit 0"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 253,
+      "angle": "catalog: determinism",
+      "summary": "rendered output order could depend on Go map iteration over ipfsRetiredGateways or query values",
+      "settled_by": "grep -n 'range' ext_ipfs.go returns only slice and SplitSeq loops (lines 83, 105, 240, 253); ipfsRetiredGateways is only indexed, never ranged"
+    }
+  ]
+}

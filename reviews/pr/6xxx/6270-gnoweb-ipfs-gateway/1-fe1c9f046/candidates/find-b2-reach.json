@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/cmd/gnoweb/main.go", "line": 401, "angle": "reach",
+      "summary": "No test reaches the CSP that setupWeb builds, so the gateway wiring at main.go:355 and :401 is unpinned",
+      "failure_scenario": "Replace the 4th argument at main.go:401 with \"\" (or delete main.go:355): every test in ./gno.land/cmd/gnoweb and ./gno.land/pkg/gnoweb stays green, yet gnoweb started with its default flags in strict mode serves an img-src without https://ipfs.filebase.io, so every rewritten IPFS image is blocked by the CSP. TestSecureHeadersMiddlewareIPFSGateway calls the middleware with a hand-normalized value, and the setupWeb tests (main_test.go:80-157) throw away the returned server func without reading any header",
+      "verify_by": "grep -n 'setupWeb(' gno.land/cmd/gnoweb/main_test.go shows no test reading Content-Security-Policy from the setupWeb handler; mutate main.go:401 to pass \"\" and run go test ./gno.land/cmd/gnoweb ./gno.land/pkg/gnoweb -count=1: expect red, observe green",
+      "band": "Missing test", "fix_kind": "test", "checked": true, "run": false,
+      "evidence": "main_test.go:80,84,89,102,106,157 call setupWeb and discard the server; the only CSP+ipfs assertions (main_test.go:174-180) build SecureHeadersMiddleware directly with \"https://ipfs.filebase.io\"",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/app.go", "line": 164, "angle": "reach",
+      "summary": "No test pins the chain-domain rejection through NewRouter: passing \"\" for cfg.Domain at app.go:164 leaves every test green",
+      "failure_scenario": "TestNormalizeIPFSGateway passes \"gno.land\" to normalizeIPFSGateway itself, and TestNewRouterIPFSGateway checks only the http and canonical-origin rejections. A refactor that drops cfg.Domain at app.go:164 lets `-ipfs-gateway https://ipfs.gno.land` start, which is the same-site case the ADR says it refuses",
+      "verify_by": "mutate app.go:164 cfg.Domain -> \"\" and run go test ./gno.land/pkg/gnoweb -run IPFS -count=1: expect red, observe green; read ipfs_test.go:99-118 for a NewRouter case with a gno.land gateway (none)",
+      "band": "Missing test", "fix_kind": "test", "checked": true, "run": false,
+      "evidence": "ipfs_test.go:101-114 NewRouter cases: bad=\"http://gw.example\" (scheme) and onCanonical=\"https://ipfs.web.example.org\" (canonical); no case on cfg.Domain",
+      "repro_path": ""
+    },
+    {
+      "file": "contribs/gnodev/setup_web.go", "line": 42, "angle": "reach",
+      "summary": "No gnodev test checks gnoWebAppConfig's webIPFSGateway mapping or the two flag defaults",
+      "failure_scenario": "Deleting setup_web.go:42, or dropping webIPFSGateway from defaultLocalAppConfig or defaultStagingOptions, keeps go test ./contribs/gnodev green, while gnodev then renders ipfs:// links unrewritten. setup_web_test.go already pins TrustedPaths, IndexCommunity and NoIndex for both defaults, so the new field is the one mapping without a test",
+      "verify_by": "delete setup_web.go:42 and run go test ./contribs/gnodev -run GnoWebAppConfig -count=1: expect red, observe green",
+      "band": "Missing test", "fix_kind": "test", "checked": true, "run": false,
+      "evidence": "contribs/gnodev/setup_web_test.go asserts TrustedPaths, IndexCommunity and NoIndex only; grep webIPFSGateway in *_test.go returns nothing",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs_test.go", "line": 86, "angle": "reach",
+      "summary": "The comment says NewDefaultAppConfig shares DefaultAliases, but it clones them (app.go:140, at base too), so this clone is redundant",
+      "failure_scenario": "A reader trusts the comment and adds a second clone in other tests, or believes main.go's maps.Copy into appcfg.Aliases changes the package global. NewDefaultAppConfig already returns maps.Clone(DefaultAliases)",
+      "verify_by": "sed -n 140p gno.land/pkg/gnoweb/app.go in head and base: `Aliases: maps.Clone(DefaultAliases), // callers add their own`",
+      "band": "Nit", "fix_kind": "code", "checked": true, "run": false,
+      "evidence": "head and base app.go:140 both read `Aliases:            maps.Clone(DefaultAliases), // callers add their own`",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs.go", "line": 21, "angle": "reach",
+      "summary": "gatewayHost accepts IPv4 shorthands (127.1, 0x7f000001, 2130706433) as DNS names, though browsers rewrite them to dotted-quad",
+      "failure_scenario": "`-ipfs-gateway https://127.1` (or https://0x7f000001) passes normalizeIPFSGateway, and the CSP gets `https://127.1`. A WHATWG browser parses the rewritten src as https://127.0.0.1/..., so the host-source can never match: every IPFS image is blocked while startup reports the gateway valid. The same spelling slips past the onHost check against a canonical host of 127.0.0.1",
+      "verify_by": "read the regex: every label of `127.1` and `0x7f000001` matches [a-z0-9]([a-z0-9-]*[a-z0-9])?; then load a page whose CSP img-src is https://127.1 with <img src=https://127.1/x> in a headful browser and watch the violation",
+      "band": "Nit", "fix_kind": "code", "checked": true, "run": false,
+      "evidence": "ipfs.go:21 regex has no rule against an all-numeric or 0x last label; isLoopbackHost only gates http, so https values of this shape are accepted",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {"file": "gno.land/cmd/gnoweb/main.go", "line": 462, "angle": "reach", "summary": "SecureHeadersMiddleware's signature change breaks a caller", "settled_by": "grep -rn 'SecureHeadersMiddleware(' --include='*.go' . | grep -v _test: only main.go:401 calls it"},
+    {"file": "gno.land/cmd/gnoweb/main.go", "line": 401, "angle": "reach", "summary": "a raw, unvalidated gateway value reaches the CSP string (injection through ; or space)", "settled_by": "main.go:387 NewRouter runs before :401 and normalizes cfg.RenderConfig.IPFSGateway in place (app.go:168); gatewayHost rejects ;, space, *, quotes and commas (ipfs_test invalid list passes: TestNormalizeIPFSGateway PASS)"},
+    {"file": "gno.land/pkg/gnoweb/app.go", "line": 164, "angle": "reach", "summary": "the new NewRouter error path breaks an existing NewRouter caller", "settled_by": "callers are crawl_test, app_test, a11y_wiring_test and ipfs_test (NewDefaultAppConfig, gateway \"\"), plus gnodev setup_web.go:20 (filebase default, Domain gno.land); go test ./gno.land/pkg/gnoweb -run IPFS and ./gno.land/cmd/gnoweb -run 'SecureHeaders|SetupWeb' both ok"},
+    {"file": "misc/loop/traefik/gno.yml", "line": 6, "angle": "reach", "summary": "another deployment CSP still lists ipfs.io or cloudflare-ipfs.com without the gateway", "settled_by": "grep -rln 'img-src' lists only main.go, main_test.go, two ADRs and misc/loop/traefik/gno.yml; misc/deployments/* carry no CSP, and staging gnoweb (misc/loop/docker-compose.yml:55-61) runs the default gateway, which matches the traefik value"},
+    {"file": "contribs/gnodev/command_local.go", "line": 35, "angle": "reach", "summary": "a third gnodev AppConfig default misses webIPFSGateway", "settled_by": "grep 'RegisterFlagsWith(\\|AppConfig{' contribs/gnodev: only defaultLocalAppConfig and defaultStagingOptions, and both set it"},
+    {"file": "docs/users/explore-with-gnoweb.md", "line": 102, "angle": "reach", "summary": "the doc wrongly says sanitize rejects ipfs:// and that md.Image uses InlineText", "settled_by": "md.gno:298 `return \"![\" + sanitize.InlineText(altText) + \"](\" + sanitize.ImageURL(url) + \")\"`; imageSchemeAllowed admits only http:// and https://"}
+  ]
+}

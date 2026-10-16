@@ -1,0 +1,62 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/ipfs.go",
+      "line": 17,
+      "angle": "rollout",
+      "summary": "URLs written against the default gateway are stranded when -ipfs-gateway changes, which the ADR plans for gno.land: ipfs.filebase.io is not a rewrite source and is not kept in img-src",
+      "failure_scenario": "From merge on, writers outside the tree keep storing the default gateway's shape, https://ipfs.filebase.io/ipfs/<cid>. gnoweb itself shows visitors that URL as a rewritten autolink's label (and in meta/og:description). The deployed, frozen p/nt/markdown/sanitize/v0 behind md.Image/md.Link accepts only http(s) (sanitize.gno:1092), so a realm built on it can only store an IPFS image as a gateway URL. When gno.land moves to the dedicated gateway the ADR says it needs, SecureHeadersMiddleware puts only the new gateway in img-src, and ext_ipfs.go ipfsRetiredGateways has no filebase entry. Every stored filebase image is then blocked on every page. A reboot does not heal it, and no flag can add filebase back (cspImgHost is hardcoded): a fix takes a gnoweb code change or rewriting realm state. That is the ipfs.io breakage this PR repairs, recreated one level down.",
+      "verify_by": "cp tests/b2-rollout-gateway-switch_test.go gno.land/cmd/gnoweb/b2_rollout_gateway_switch_test.go && go test ./gno.land/cmd/gnoweb -run TestRolloutGatewaySwitch -count=1 -v: after switching the gateway to https://gw.example, expect the stored filebase src to be rewritten or filebase to stay in img-src; observe neither",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "step 1: autolink rendered with label \"https://ipfs.filebase.io/ipfs/bafy...\"; step 2: default gateway: stored image allowed (https://ipfs.filebase.io in img-src); contrast: ipfs:// and ipfs.io srcs both follow to https://gw.example; step 3: gateway https://gw.example: stored src rewritten=false, filebase in img-src=false; img-src 'self' data: ... https://*.githubusercontent.com https://gw.example -- FAIL: TestRolloutGatewaySwitch \"an image stored as https://ipfs.filebase.io/ipfs/<cid> is blocked by the CSP after the gateway switch\"",
+      "repro_path": "tests/b2-rollout-gateway-switch_test.go"
+    },
+    {
+      "file": "misc/loop/traefik/gno.yml",
+      "line": 7,
+      "angle": "rollout",
+      "summary": "staging keeps the gateway's img-src in the traefik file, but the gateway itself comes from the gnoweb:master image default, and the two are deployed by separate mechanisms",
+      "failure_scenario": "misc/loop/docker-compose.yml:52 runs ghcr.io/gnolang/gno/gnoweb:master under watchtower (30 s poll) with no --ipfs-gateway, so staging rewrites to whatever DefaultIPFSGateway the newest image carries. The router's secure-headers@file middleware takes img-src from the host's gno.yml, which portalloopd rewrites in place (handler.go:149); inferred, not checked: nothing pulls that file. gnoweb strict sends its own CSP as well, but whether the browser enforces both or traefik replaces gnoweb's, the file's img-src caps what loads. At merge both say filebase. A later change to DefaultIPFSGateway would reach staging within one poll while the file stays on filebase, and every rewritten image there stays blocked until someone edits the host file. Fix: pin --ipfs-gateway=https://ipfs.filebase.io in the compose command beside the traefik CSP, so both values deploy from files, or drop the duplicated img-src.",
+      "verify_by": "grep -c ipfs misc/loop/docker-compose.yml (0: no flag pins the gateway); sed -n 149p misc/loop/cmd/portalloop/handler.go (in-place write of gno.yml); once staging answers again (503 on 2026-10-16), curl -sD - -o /dev/null https://staging.gno.land/ | grep -i content-security-policy to see which CSP the browser gets",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 470,
+      "angle": "rollout",
+      "summary": "on gno.land, the rewrite and the img-src that must allow it might be written by two layers deployed separately (gnoweb vs. a proxy)",
+      "settled_by": "curl -s -o /dev/null -D - https://gno.land/ | grep -i content-security-policy returned \"... img-src 'self' data: ... https://ipfs.io https://cloudflare-ipfs.com; font-src 'self'; connect-src 'self' http://internal-rpc.gno.land:80/abci_query; form-action 'self'\", gnoweb's own SecureHeadersMiddleware format, so on prod the CSP and the rewrite ship in one binary"
+    },
+    {
+      "file": "docs/users/explore-with-gnoweb.md",
+      "line": 98,
+      "angle": "rollout",
+      "summary": "realms that follow the new docs and store ipfs:// would render broken on gno.land's older binary",
+      "settled_by": "grep -n 'mdctx.IPFSGateway' gno.land/pkg/gnoweb/render.go returned 145: the rewrite runs on every RenderRealm, so stored ipfs:// recovers once prod upgrades; the gno.land curl shows no live IPFS host in img-src today (ipfs.io and cloudflare-ipfs.com are retired), so no stored form works there now either and nothing is lost"
+    },
+    {
+      "file": "gno.land/cmd/gnoweb/main.go",
+      "line": 401,
+      "angle": "rollout",
+      "summary": "mixed old and new replicas, or cached pages, could pair HTML of one version with the CSP of the other",
+      "settled_by": "sed -n 401p main.go: SecureHeadersMiddleware wraps the same router that renders the body, so each response's CSP and HTML come from one process; on gno.land, curl of /r/docs/markdown returned cache-control: no-store and cf-cache-status: EXPIRED, so Cloudflare caches the whole response, headers with body"
+    },
+    {
+      "file": "misc/loop/cmd/portalloop/handler.go",
+      "line": 149,
+      "angle": "rollout",
+      "summary": "portalloopd's in-place regex rewrite of gno.yml (http://.*:[0-9]+) could clobber the new CSP line",
+      "settled_by": "sed -n 7p misc/loop/traefik/gno.yml | grep -c 'http://' returned 0: the CSP line carries only https:// origins, so the regex never matches it"
+    }
+  ]
+}

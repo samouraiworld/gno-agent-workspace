@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 143,
+      "angle": "lines",
+      "summary": "a percent-encoded CID on a retired path gateway is left alone or rewritten depending on an unrelated byte later in the path, because splitGatewayPath reads u.EscapedPath(), which returns RawPath when it is valid and re-escapes the decoded Path otherwise",
+      "failure_scenario": "https://ipfs.io/ipfs/%41<cid>/a.png is untouched (TestRewriteIPFSURL pins this shape as untouched), but [x](<https://ipfs.io/ipfs/%41<cid>/a b.png>) is rewritten to https://gw/ipfs/A<cid>/a%20b.png: the space makes RawPath invalid, EscapedPath falls back to escape(Path) with %41 decoded, and validIPFSName accepts 'A<cid>'. Same flip for https://ipfs.io/i%70fs/<cid>/a b.png. The decoded name is still alphanumeric, so nothing unsafe reaches the gateway; the rule the untouched test states holds only for paths Go considers validly encoded",
+      "verify_by": "in package markdown: rewriteIPFSURL(\"https://gw.test\", \"https://ipfs.io/ipfs/%41\"+testCIDv1+\"/a.png\") returns false, and the same with \"/a b.png\" returns true with name A<cid>",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "probe in scratch worktree: \"https://ipfs.io/ipfs/%41bafy.../a.png\" -> false \"\"; \"https://ipfs.io/ipfs/%41bafy.../a b.png\" -> true \"https://gw.test/ipfs/Abafy.../a%20b.png\"; \"https://ipfs.io/i%70fs/bafy.../a.png\" -> false; \"https://ipfs.io/i%70fs/bafy.../a b.png\" -> true",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 225,
+      "angle": "lines",
+      "summary": "validIPFSName accepts only [A-Za-z0-9] for /ipfs/ names, so a CID in base64url multibase ('u' prefix, carries '-' and '_'), which gateways decode, is never rewritten and its ipfs:// or retired-gateway link stays dead",
+      "failure_scenario": "the test CID re-encoded as base64url, uAXASIMPEcz7Ir_0Gz56f9Q_8a80uyFphcABLtwlmnDHelDka, in ipfs://<it>/a.png or https://ipfs.io/ipfs/<it>/a.png: rewriteIPFSURL returns false, so the page keeps an ipfs:// href most browsers cannot open or a link on a gateway the PR calls retired, with no signal to the author",
+      "verify_by": "rewriteIPFSURL(\"https://gw.test\", \"ipfs://uAXASIMPEcz7Ir_0Gz56f9Q_8a80uyFphcABLtwlmnDHelDka/a.png\") returns false; confirm a boxo gateway serves /ipfs/u... (go-cid Decode accepts every multibase)",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "probe: \"ipfs://uAXASIMPEcz7Ir_0Gz56f9Q_8a80uyFphcABLtwlmnDHelDka/a.png\" -> false \"\"; \"https://ipfs.io/ipfs/uAXASIMPEcz7Ir_0Gz56f9Q_8a80uyFphcABLtwlmnDHelDka/a.png\" -> false \"\"; gateway acceptance of base64url not run",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 160,
+      "angle": "lines",
+      "summary": "escapeDestination round trip could lose or alter characters when the render path resolves the destination again",
+      "settled_by": "go test -count=1 ./gno.land/pkg/gnoweb/markdown in the scratch worktree: 'ok github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown 12.386s'; TestIPFSRenderMatchesGatewayURL compares every form with suffixes carrying &amp;amp;, \\\\!, &#x61; against the gateway URL typed directly"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 85,
+      "angle": "lines",
+      "summary": "autolink label set to the resolved gateway URL as a raw String could inject HTML",
+      "settled_by": "goldmark v1.8.2 renderer/html/html.go:827-831: RawWrite runs util.EscapeHTMLByte on every byte, and renderString calls RawWrite for IsRaw() (html.go:705-706)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 272,
+      "angle": "lines",
+      "summary": "priority 400 might run after the link transformer and image validator, so links would already be GnoLinks and images validated before the rewrite",
+      "settled_by": "goldmark util.go:883-886 sorts 's[i].Priority < s[j].Priority' (lower runs first); images.md.txtar rewrites an https image the harness validator rejects, and the package tests pass"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 67,
+      "angle": "lines",
+      "summary": "an email autolink on a retired subdomain host might be rewritten into an https link",
+      "settled_by": "probe renderIPFS(\"<a@<cid>.ipfs.dweb.link>\") -> '<a href=\"mailto:a@bafy....ipfs.dweb.link\"': left as mailto"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 165,
+      "angle": "lines",
+      "summary": "a gateway with a trailing slash or path would build //ipfs/ or a wrong prefix",
+      "settled_by": "gno.land/pkg/gnoweb/ipfs.go:57 rejects any path but '/', and :65 returns u.Scheme + \"://\" + strings.ToLower(u.Host); render.go:96 and app.go:164 both normalise before the context is set"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_test.go",
+      "line": 41,
+      "angle": "lines",
+      "summary": "setting IPFSGateway for every golden test could change existing goldens that hold IPFS URLs",
+      "settled_by": "grep -rln ipfs gno.land/pkg/gnoweb/markdown/golden | grep -v ext_ipfs returned nothing"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_foreign.go",
+      "line": 452,
+      "angle": "lines",
+      "summary": "another nested goldmark instance rendering realm markdown could lack ExtIPFS",
+      "settled_by": "grep 'goldmark.New(' under gno.land/pkg/gnoweb: render.go:126 (gm, via NewGnoExtension), render.go:127 (documentationGM, godoc only via RenderDocumentation), components/layout_index.go:117, markdown/ext_foreign.go:439; NewGnoParserContext is called only at render.go:147 and ext_foreign.go:382"
+    }
+  ]
+}

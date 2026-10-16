@@ -1,0 +1,40 @@
+{
+  "candidates": [],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 18,
+      "angle": "catalog",
+      "summary": "Global mutable state & concurrency: new package-level vars (ipfsRetiredGateways map, dnsLinkLabelDecoder strings.Replacer at :31, ExtIPFS) shared by every render goroutine and by the new t.Parallel() tests could race",
+      "settled_by": "in a scratch worktree at fe1c9f046: `cd gno.land && go test -race -count=1 ./pkg/gnoweb/markdown/` -> `ok github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown 185.185s`; `go test -race -count=1 -run 'IPFS|Render|Router' ./pkg/gnoweb/ ./cmd/gnoweb/` -> `ok .../pkg/gnoweb 43.042s`, `ok .../cmd/gnoweb 1.160s`. The map is only indexed, never written or ranged; strings.Replacer is documented safe for concurrent use"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_links.go",
+      "line": 164,
+      "angle": "catalog",
+      "summary": "Twin input paths: the rewrite decides on resolveDestination(dest), stores escapeDestination(u), and the link classifier and image validator resolve it again; a round trip that is not the identity would make the classifier/validator judge a different URL than the one rewritten",
+      "settled_by": "probe test in the scratch worktree feeding 200000 random strings over {\\, &, ;, #, &amp;, &#x61;, &#97;, \\\\, !, *, %, amp, copy, ...} through string(resolveDestination(escapeDestination(s))) == s -> `mismatches: 0`, `--- PASS: TestProbeEscapeRoundTrip`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 272,
+      "angle": "catalog",
+      "summary": "Twin input paths: if the IPFS transformer (priority 400) ran after linkTransformer or imgValidatorTransformer (both 500), links would already be GnoLink nodes and images validated on the pre-rewrite URL",
+      "settled_by": "goldmark v1.8.2 util/util.go:883-885 `func (s PrioritizedSlice) Sort() { sort.Slice(s, func(i, j int) bool { return s[i].Priority < s[j].Priority }) }` -> lower value runs first, 400 before every 500/501/999 transformer in the package (grep of util.Prioritized in markdown/*.go)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/context.go",
+      "line": 52,
+      "angle": "catalog",
+      "summary": "Twin input paths: the <gno-foreign> inner parse builds its own context from a captured GnoContext; a missed field would leave IPFS links inside foreign blocks unrewritten",
+      "settled_by": "context.go:52-55 getGnoContext reads IPFSGateway; ext_foreign.go:228 captures getGnoContext(pc) and :382 rebuilds with NewGnoParserContext(n.GnoCtx); grep shows no other GnoContext construction outside tests and render.go:139-147, which sets IPFSGateway; golden ext_ipfs/foreign.md.txtar passes under the -race run above"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_ipfs.go",
+      "line": 104,
+      "angle": "catalog",
+      "summary": "Twin input paths: the byte pre-check mayBeIPFSURL and rewriteIPFSURL are two deciders over one URL; a rewrite reachable without a literal pfs/pns or % would be skipped",
+      "settled_by": "read: rewriteIPFSURL only rewrites when the namespace comes from the scheme (url.Parse lowercases it, cannot be %-encoded), a literal /ipfs/ or /ipns/ prefix of EscapedPath (differs from the raw path only via %-decoding, which the pre-check passes on '%'), or a host label (Go rejects %-encoded ASCII in hosts); entity references are resolved before the pre-check. TestRewriteIPFSURL asserts mayBeIPFSURL on every rewritten input"
+    }
+  ]
+}
