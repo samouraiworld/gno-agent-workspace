@@ -67,7 +67,7 @@ A PR can have multiple prefixes, ordered: `⚠️ 🆕 ✅ 📥 🚫 💥`. `�
 | Emoji | Meaning | Source |
 |-------|---------|--------|
 | ⚠️ | High priority | `context.md` priority is `high` |
-| 🆕 | New this week | PR's `createdAt` ≥ window start date (the report period's Monday) |
+| 🆕 | New this week | PR's `createdAt` ≥ window start date (the report period's Monday), or, for a PR opened as a draft, its first `ready_for_review` ≥ that date |
 | ✅ | Approved by a merger | ≥1 approver from the **Mergers** list in `reviewStats.approvers` AND (`reviewDecision: APPROVED` OR stale CR per the stale rule in step 4) |
 | 📥 | Waiting for first review | `review/triage-pending` label |
 | 🚫 | Don't merge | `don't merge` label |
@@ -152,7 +152,7 @@ ls -d reports/weekly/*/ | sort -r | grep -v "/$END_DATE/$" | head -1
 ./scripts/parse-context.sh <path>/context.md
 ```
 
-🆕 comes from `createdAt`, never from the previous context. The Highlight block follows the core rule; do not rebuild it from `context.md`.
+🆕 comes from `createdAt`, or a PR opened as a draft from its first `ready_for_review`, never from the previous context. The Highlight block follows the core rule; do not rebuild it from `context.md`.
 
 ### 4. Build new context.md
 
