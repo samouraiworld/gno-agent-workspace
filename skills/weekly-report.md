@@ -81,7 +81,8 @@ verdict.
 
 `report.md` carries no In Progress section, so every `isDraft` PR is absent from
 it. `context.md` records every open PR with its verdict note, `AI: changes
-requested` or `AI: needs discussion`, drafts included.
+requested` or `AI: needs discussion`, drafts included. The report profile's
+`format.noteSuppress` lists both notes, so `report.md` never prints them.
 
 Derivation per open PR `<n>`: find `reviews/pr/<bucket>/<n>-<slug>/`, take the highest-numbered round dir `<round>-<commit>/`, read the `**Verdict: ...**` line (older reviews omit the `**`) from the `*.md` inside, normalise to `REQUEST CHANGES` / `NEEDS DISCUSSION` / `APPROVE`. Login matching for approvers is case-insensitive (`notJoon` == `NotJoon`).
 
@@ -159,7 +160,7 @@ ls -d reports/weekly/*/ | sort -r | grep -v "/$END_DATE/$" | head -1
 List **every open PR**. Line syntax: `` <number> [highlight|high|medium|low]: [note] - `<title>` ``
 
 - Priority optional (default: `medium`). `high` → ⚠️ emoji. (`highlight` may still tag a line for bookkeeping, but the report's Highlight section comes from the previous `report.md`, not from here — see step 5.)
-- Note optional, kept short. Appears in parentheses in report.
+- Note optional, kept short. Appears in parentheses in report, unless the report profile's `format.noteSuppress` lists it.
 - Title suffix (`` - `<title>` ``) always appended for readability.
 
 A note may carry the manual `recurrent-conflict` token (see *Conflict tracking & Discord ping*). Carry forward like any manual note; coexists with the status note (e.g. `Approved, recurrent-conflict`).
@@ -167,7 +168,6 @@ A note may carry the manual `recurrent-conflict` token (see *Conflict tracking &
 **Per-PR logic** (in priority order):
 1. **Carry forward** from last week — preserve priority and manual note; never overwrite with auto-detected
 2. **Auto-detect** if no manual entry (first match):
-   - AI verdict `REQUEST CHANGES` → `In progress` note `AI: changes requested`. Wins over all checks below. (`NEEDS DISCUSSION` does not route here; it stays in its normal category with a `AI: needs discussion` note, appended to whatever note the checks below produce — a draft reads `In progress, AI: needs discussion`.)
    - `isDraft` → `In progress`
    - `CHANGES_REQUESTED` and not stale → `Changes requested`. **Stale rule:** every user in `changes_requesters` is also in `reviewRequests`. Stale CRs fall through to the next checks and are treated as no-CR for the `Approved` check.
    - `don't merge` label → `Don't merge`
@@ -175,6 +175,7 @@ A note may carry the manual `recurrent-conflict` token (see *Conflict tracking &
    - `review/triage-pending` label → `Waiting for first review`
    - title/body `GHSA-*` → `Related to <ID>` (do not auto-add `NEWTENDG-*` notes)
 3. **Bare** (`<number>:`) if nothing matches
+4. **Verdict note** last, per *AI review verdicts*: append `AI: changes requested` for `REQUEST CHANGES` or `AI: needs discussion` for `NEEDS DISCUSSION` to whatever the steps above wrote, drafts included (`In progress, AI: changes requested`). `APPROVE` adds none, and the note never moves a line between groups.
 
 **Ordering** (blank line between groups): `highlight` → `high` → `Approved` → `Changes requested` → `In progress` → `Don't merge` → other annotated → `Waiting for first review` → bare. Ascending PR number within groups.
 
