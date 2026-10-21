@@ -1,0 +1,27 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "index": 2001,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/parse.go",
+      "line": 298,
+      "angle": "removed",
+      "summary": "Related: a nil child skipped while a script is pending keeps promotedProperties, so \\mathrm{} and a bare \\kern used as a script raise the next atom into the script; the diff's nil guards sweep commands that draw nothing and leave this site",
+      "failure_scenario": "x^\\mathrm{} y renders <msup><mi>x</mi><mi>y</mi></msup> at the merge base and at the head: the empty \\mathrm{} parses to nil, parse.go:298 'if child == nil { continue }' keeps propSuperscript, and y becomes the superscript. x^\\kern y does the same through the nil return at commands.go:243. Returning an empty mrow from ProcessCommand for \\class{a}{} alone (candidate 1) leaves both, so the defect class has two edits, one in the diff and one at this context line.",
+      "verify_by": "go test -count=1 -run TestZZJudge1 -v ./gno.land/pkg/gnoweb/markdown/mathml/ with tests/judge-1-nil-script-base.go and the zzbase copy of 6c49f5420: x^\\mathrm{} y and x^\\kern y print y inside <msup> at head and at base",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head and base both: 'x^\\mathrm{} y ... <mrow><msup><mi>x</mi><mi>y</mi></msup></mrow>'; 'x^\\kern y ... <mrow><msup><mi>x</mi><mi>y</mi></msup></mrow>'; control 'x^{} y' keeps <msup><mi>x</mi><mrow></mrow></msup><mi>y</mi> on both",
+      "repro_path": "tests/judge-1-nil-script-base.go"
+    }
+  ],
+  "completeness": [
+    "The round-4 rewrite (distance-based cellEnds shared from the root through sub) was checked against the PR head c30e596a8 by TestZZDiffFuzz at ZZN=100000: no 'head!=prev' row, and no 'base ok, head error' row against 6c49f5420; 154922 inputs same output, 3338 base error and head ok, 41740 both error.",
+    "Every TokenBuffer below the root is built by sub (tokenize.go:350), the only other construction being the root at mathml.go:70, so no sub-buffer rebuilds the table; grep 'NewTokenBuffer(' and 'TokenBuffer{' over the package.",
+    "No write to Expr after NewTokenBuffer, which the 'last' comment claims: grep for an Expr index assignment, an Expr reassignment or an append on Expr finds none outside tests.",
+    "Catalog: the classes are GnoVM, realm and chain ones; the gnoweb converter touches only Error and panic handling, where the nil guards turn a recovered crash into output and candidate 1 and 2001 are the silent-wrong cell, and Global mutable state, where cellEnds is per buffer and the diff adds no package var.",
+    "Sibling of the edited test shape: TestMalformedInputDoesNotCrash asserts only NoError for \\class{a}{} and the \\bigl\\mathrm / \\middle\\mathrm cases, so the wrong render of candidate 1 passes it; covered by candidate 1, no separate Missing test filed."
+  ]
+}

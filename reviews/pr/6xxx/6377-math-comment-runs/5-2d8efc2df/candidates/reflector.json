@@ -1,0 +1,65 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "index": 2001,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/parse.go",
+      "line": 299,
+      "angle": "claims",
+      "summary": "The script fill applies to every nil child, so inputs the merge base converts without error now give other MathML; the body's corpus line saying every such input converts the same no longer holds",
+      "failure_scenario": "a\\over\\kern converts at the base to <mrow><mi>a</mi></mrow> and at head to <mfrac><mi>a</mi><mrow></mrow></mfrac>, the same as a\\over{}; x_\\kern goes from <mi>x</mi> to <msub><mi>x</mi><mrow></mrow></msub>. An empty matrix in a script slot, ^\\begin{matrix}\\end{matrix}, changes the same way. Each input is one TeX rejects, and head draws it as {} would, so the code matches its test; the body sentence 'every one master converts without error converts to the same MathML here' is what is wrong.",
+      "verify_by": "go test -count=1 -run 'TestZZFuzzVsBase' -v ./gno.land/pkg/gnoweb/markdown/mathml/ with tests/judge-reflector-fuzz-vs-base.go and the zzbase copy of 6c49f5420: count both-ok inputs whose MathML differs, with and without \\class{a}{}, \\mathrm{} and \\kern",
+      "band": "Nit",
+      "fix_kind": "doc",
+      "checked": true,
+      "run": true,
+      "evidence": "'withEmpty=true bothOK=87687 differ=2624 headOnlyErr=0 baseOnlyErr=16378'; 'withEmpty=false bothOK=97754 differ=68 headOnlyErr=0 baseOnlyErr=39', its samples all an empty matrix after ^, _, \\over or \\bigl; 'a\\over\\kern head ...<mfrac><mi>a</mi><mrow></mrow></mfrac>' against 'base ...<mrow><mi>a</mi></mrow>'",
+      "repro_path": "tests/judge-reflector-fuzz-vs-base.go"
+    },
+    {
+      "index": 2002,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+      "line": 328,
+      "angle": "removed",
+      "summary": "The removed \\color fallback leaves expr, _ := switchExpressions.GetNextExpr() with no nil check: an input where colorArgMissing on the parent buffer and GetNextExpr on the cut cell disagree dereferences nil",
+      "failure_scenario": "colorArgMissing reads b up to cellEnd while setColor reads the cell cut by GetNextN(b.cellEnd() - b.idx); a [model] or {argument} whose close lies at or past the cut would be found by one and not the other, expr is nil, and the formula falls back to its source.",
+      "verify_by": "the same fuzz run, whose pieces carry \\color, [RGB], [, ], {red}, &, \\\\, \\cr and comments: expect headOnlyErr 0; then disable the colorArgMissing branch at commands.go:314 and run the new edgecases tests: expect red",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "'headOnlyErr=0' in both fuzz runs, 200,000 inputs each; with 'if false && name == \"color\" && colorArgMissing(b)': '--- FAIL: TestMalformedInputDoesNotCrash', '--- FAIL: TestSwitchEndsAtItsCell'",
+      "repro_path": "tests/judge-reflector-fuzz-vs-base.go"
+    },
+    {
+      "index": 2003,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/edgecases_test.go",
+      "line": 178,
+      "angle": "tests",
+      "summary": "Round 4's two fixes, the script fill for a command that draws nothing and the nil return for \\class{a}{}, may have no test that goes red when each is reverted",
+      "failure_scenario": "Reverting parse.go:299-306 or commands.go's 'if n == nil { return nil }' leaves the suite green, so the fill or the guard can be lost unnoticed.",
+      "verify_by": "revert each alone in a scratch tree and run go test -count=1 -run 'TestEmptyCommandFillsScript|TestMalformedInputDoesNotCrash|TestBareColorRunIsLinear|TestCommentKeepsTheWindow|TestSwitchEndsAtItsCell|TestSwitchInSwitchEndsAtItsCell' ./gno.land/pkg/gnoweb/markdown/mathml/",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "fill removed: '--- FAIL: TestEmptyCommandFillsScript' with 10 'Not equal'; nil guard removed: '--- FAIL: TestEmptyCommandFillsScript', '--- FAIL: TestMalformedInputDoesNotCrash'",
+      "repro_path": ""
+    },
+    {
+      "index": 2004,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/parse.go",
+      "line": 284,
+      "angle": "removed",
+      "summary": "Sibling sweep by shape: a ProcessCommand caller that dereferences its result without the nil check the diff adds at the fence sites",
+      "failure_scenario": "A caller of ProcessCommand outside doFence and the tokOpen and tokClose cases sets an attribute on the returned node, and a command drawing nothing there crashes the conversion.",
+      "verify_by": "grep -n 'ProcessCommand(' over the package and read each caller's next line",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "parse.go:108 doFence 'if n == nil { return nil }'; parse.go:225 and 254 'if child == nil { break }'; parse.go:284 falls to the generic 'if child == nil' at parse.go:298; commands.go:358 processCommandArgs is followed by 'if n == nil { return nil }'; the other callers are mathml_test.go:123, 670, 752, 1139 on fixed commands",
+      "repro_path": ""
+    }
+  ]
+}

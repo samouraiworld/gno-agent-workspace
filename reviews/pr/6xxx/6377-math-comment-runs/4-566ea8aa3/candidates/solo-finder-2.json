@@ -1,0 +1,78 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/parse.go",
+      "line": 229,
+      "angle": "removed",
+      "summary": "A \\left whose delimiter is a command that draws nothing drops the whole \\left...\\right group instead of reading it as \\left., so the content and the \\right fence spill into the surrounding row",
+      "failure_scenario": "`\\left\\mathrm{} a \\right) b` renders <mrow><mi>a</mi><mo fence stretchy postfix>)</mo><mi>b</mi></mrow>: the ) is a lone fence stretched against the whole row, b included, while `\\left. a \\right) b` keeps <mrow><mrow><mi>a</mi><mo>)</mo></mrow><mi>b</mi></mrow>. TeX recovers from a bad delimiter with 'Missing delimiter (. inserted)', i.e. as \\left., and the new cellEnd table also reads this pair as one group (opensGroup on the tokFence token), so the parser and the cell scan disagree on where the group ends. Base turned the formula into 'invalid math input'; the input is not valid TeX, so this is polish on the crash fix, not a regression",
+      "verify_by": "go test -run TestZZLeftNil with `\\left\\mathrm{} a \\right) b` and `\\left. a \\right) b` at 566ea8aa3: expect the same mrow nesting if the nil delimiter is read as a null one; observe the first flat",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head `\\left\\mathrm{} a \\right) b` -> <mrow><mi>a</mi><mo fence=\"true\" form=\"postfix\" stretchy=\"true\">)</mo><mi>b</mi></mrow>; head `\\left. a \\right) b` -> <mrow><mrow><mi>a</mi><mo ...>)</mo></mrow><mi>b</mi></mrow>; base on the first: err=MathML encountered an unexpected error. Same flattening for `\\left\\class{a}{} a \\right) b`.",
+      "repro_path": "tests/solo-finder-2-diff-fuzz.go"
+    },
+    {
+      "index": 1002,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 454,
+      "angle": "removed",
+      "summary": "GetUntil has no caller outside its own unit test; the diff rewrites it onto the shared cell table instead of removing it",
+      "failure_scenario": "No production path calls TokenBuffer.GetUntil (repo-wide grep: only tokenize.go:454 and mathml_test.go:1453/1466), yet the diff keeps it in step with sub() and the cellEnds sharing, so every later change to the sub-buffer contract has one more dead site to keep correct. Predates the diff (added in 21f9abd74, the math extension). Removal touches tokenize.go:453-460 and TestTokenBuffer_GetUntil in mathml_test.go:1453",
+      "verify_by": "grep -rn 'GetUntil' --include='*.go' . in the head worktree: expect a non-test caller; observe only tokenize.go:454 and mathml_test.go:1453,1466",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rn 'GetUntil' --include='*.go' . -> tokenize.go:454 func (b *TokenBuffer) GetUntil; mathml_test.go:1453 func TestTokenBuffer_GetUntil; mathml_test.go:1466 buffer.GetUntil(...). git log -S'GetUntil(' -> 21f9abd74 feat(gnoweb): math extension (#4879)",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 336,
+      "angle": "removed",
+      "summary": "The round-4 distance table shared from the root could answer a sub-buffer's cell end differently from c30e596a8's per-buffer absolute table",
+      "settled_by": "ZZN=200000 go test -run TestZZDiffFuzz (tests/solo-finder-2-diff-fuzz.go), flat and wide alphabets, inline and display: no head!=prev row over 800000 conversions; harness sanity: with cellEnds[i] = 1 + cellEnds[i+1] planted, 'head!=prev 2890' in 40000"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+      "line": 314,
+      "angle": "removed",
+      "summary": "colorArgMissing could disagree with the GetNextN/GetOptions/GetNextExpr path it short-cuts and turn a valid \\color into an error, or the PR could change output on input the base rendered",
+      "settled_by": "same fuzz against the merge base 6c49f5420: 'both ok, same output 310032' (flat) and '312768' (wide); no 'both ok, output differs' and no 'base ok, head error' row; only 'base error (MathML encountered an unexpected error), head ok' (6384 / 6266, shortest \\class__)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+      "line": 314,
+      "angle": "removed",
+      "summary": "The comment says the \\color guard avoids repeating the cell-end scan, which the table now answers in O(1): the guard could be dead code",
+      "settled_by": "early return disabled (if false && ...): go test -run TestBareColorRunIsLinear -> FAIL, edgecases_test.go:151 '\\color'x2^17 + '%\\n'x2^17 did not terminate; the guard is still needed, for NewTokenBuffer's trailing-comment scan in sub(), so only the comment's wording is stale"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 349,
+      "angle": "removed",
+      "summary": "sub() still runs NewTokenBuffer's trailing space/comment scan per sub-buffer, so a run of nested switches before a long comment run could be quadratic",
+      "settled_by": "TestZZSwitchCommentRun: '\\bf'xk + 'y' + '%\\n'x2^18: switches=1 head=28.5ms, switches=255 head=37.1ms (base 17.7-18.4s); maxSwitchDepth bounds the nesting, and GetNextN's callers (parse.go:218,245; commands.go:277,320,391,520,563; commands_defs.go:179,189) cut no other repeated sub-buffer over a shared tail"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 312,
+      "angle": "two versions",
+      "summary": "last and cellEnds move Empty's and cellEnd's answer from read time to build time; a writer of b.Expr after NewTokenBuffer, or a second code version, would read them stale",
+      "settled_by": "grep for writes to .Expr, .Expr[...] and token Kind/Value/MatchOffset outside tokenize.go:501-793 (all before mathml.go:70 builds the only root buffer): none; NewTokenBuffer is called only at mathml.go:70 and tokenize.go:350. The renderer keeps no state across calls, so no rollout window exists"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/parse.go",
+      "line": 229,
+      "angle": "removed",
+      "summary": "A crash sibling of the nil-delimiter guards the diff adds could remain in the same malformed-input class",
+      "settled_by": "fuzz 'head crash' category (error 'MathML encountered an unexpected error' at head): absent in both alphabets, 800000 conversions"
+    }
+  ]
+}

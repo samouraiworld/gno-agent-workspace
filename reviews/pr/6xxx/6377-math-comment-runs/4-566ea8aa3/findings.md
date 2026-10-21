@@ -1,0 +1,40 @@
+# Findings in posting order, from round assemble: 5 to post, 0 SKIP, 0 refuted kept out
+
+## Body
+
+- Warning: gno.land/pkg/gnoweb/markdown/mathml/parse.go:298 [gh](https://github.com/gnolang/gno/blob/566ea8aa32b745d78203df77e4904e89d2673feb/gno.land/pkg/gnoweb/markdown/mathml/parse.go#L298), outside the diff, so no anchor
+  State: CONFIRMED, band: Warning, angle: removed
+  TL;DR: Related: x^\mathrm{} y renders as x^y at base and head, through the nil child skipped while a script is pending
+  Check: go test -count=1 -run TestZZJudge1 -v ./gno.land/pkg/gnoweb/markdown/mathml/ with the zzbase copy of 6c49f5420
+  Details: Predates the diff; in scope because the diff's nil guards sweep commands that draw nothing and leave this site. parse.go:298 'if child == nil { continue }' keeps promotedProperties, so the next atom takes the script. Reached by an empty \mathrm{} and by \kern with no length (commands.go:243). The line is outside the diff's hunks, so it goes in the Body. A fix here also closes candidate 1. Mechanical.
+  Evidence: head and base: 'x^\mathrm{} y err=<nil> <mrow><msup><mi>x</mi><mi>y</mi></msup></mrow>'; 'x^\kern y err=<nil> <mrow><msup><mi>x</mi><mi>y</mi></msup></mrow>'
+  Artifact: tests/judge-1-nil-script-base.go
+- Nit: gno.land/pkg/gnoweb/markdown/mathml/commands.go:333 [gh](https://github.com/gnolang/gno/blob/566ea8aa32b745d78203df77e4904e89d2673feb/gno.land/pkg/gnoweb/markdown/mathml/commands.go#L333), outside the diff, so no anchor
+  State: CONFIRMED, band: Nit, angle: lines
+  TL;DR: the b.Unget() and merror fallback after GetNextExpr in the \color branch cannot run once colorArgMissing answers first
+  Check: plant a counter at commands.go:333 and run the package tests plus a 300000-draw \color corpus, tests/judge-2-color-fallback-unreached.go
+  Details: colorArgMissing returns false only for a matched { at the first non-blank position after an optional [..] closing before cellEnd; cellEnd steps over that { as a group, so the cut cell holds the whole group and GetOptions and GetNextExpr on it succeed. Removal touches commands.go:333-334, and the 'if err == nil' guard at 328 becomes unconditional. Mechanical.
+  Evidence: counter at line 333: 'fallback hits from the package tests before this one: 0'; 'corpus inputs with \color: 184572, fallback hits total: 0'; ok gno.land/pkg/gnoweb/markdown/mathml
+  Artifact: tests/judge-2-color-fallback-unreached.go
+- Nit: gno.land/pkg/gnoweb/markdown/mathml/tokenize.go:454 [gh](https://github.com/gnolang/gno/blob/566ea8aa32b745d78203df77e4904e89d2673feb/gno.land/pkg/gnoweb/markdown/mathml/tokenize.go#L454), outside the diff, so no anchor
+  State: CONFIRMED, band: Nit, angle: removed
+  TL;DR: TokenBuffer.GetUntil has no caller outside its own unit test, and the diff rewrites it onto sub instead of removing it
+  Check: grep -rn 'GetUntil' --include='*.go' . in the head worktree
+  Details: Predates the diff (math extension). Removal touches tokenize.go:453-460 and TestTokenBuffer_GetUntil at mathml_test.go:1453. Mechanical; branches stacked on the head were not checked.
+  Evidence: grep over the whole tree: tokenize.go:454 func (b *TokenBuffer) GetUntil; mathml_test.go:1453 func TestTokenBuffer_GetUntil; mathml_test.go:1466 buffer.GetUntil(...); nothing else
+
+## gno.land/pkg/gnoweb/markdown/mathml/commands.go:373 [gh](https://github.com/gnolang/gno/blob/566ea8aa32b745d78203df77e4904e89d2673feb/gno.land/pkg/gnoweb/markdown/mathml/commands.go#L373) · Warning
+State: CONFIRMED, band: Warning, angle: lines
+TL;DR: \class{a}{} in a script slot now converts with the next atom raised into the script, where the base showed the source
+Check: go test -count=1 -run 'TestZZSolo1ClassEmptyScript|TestZZJudge1' -v ./gno.land/pkg/gnoweb/markdown/mathml/ with the zzbase copy of 6c49f5420
+Details: ProcessCommand returns nil at commands.go:373-376 for \class{a}{}; the caller reaches parse.go:298 'if child == nil { continue }' with propSuperscript still promoted, so y takes the script slot. Same through the nil returns at parse.go:109 and 229 for \bigl\mathrm{} and \middle\class{a}{}. Case space: base error and head wrong output for \class{a}{}, \bigl\mathrm{}, \middle\class{a}{}; both wrong for \mathrm{} and \kern (candidate 2001); both right for {} and \class{a}{b}. A {} in the same slot gives an empty mrow at parse.go:142-145, which is the shape a fix copies. Fix is mechanical: an empty mrow where a nil child meets a pending script.
+Evidence: head: 'x^\class{a}{} y err=<nil> <mrow><msup><mi>x</mi><mi>y</mi></msup></mrow>', 'x_\class{a}{} y ... <msub><mi>x</mi><mi>y</mi></msub>', 'x^\bigl\mathrm{} y' and 'x^\middle\class{a}{} y' the same; base: each 'MathML encountered an unexpected error'. Finder artifact rerun: '--- FAIL: TestZZSolo1ClassEmptyScript' on all three inputs.
+Artifact: tests/judge-1-nil-script-base.go
+
+## gno.land/pkg/gnoweb/markdown/mathml/parse.go:229 [gh](https://github.com/gnolang/gno/blob/566ea8aa32b745d78203df77e4904e89d2673feb/gno.land/pkg/gnoweb/markdown/mathml/parse.go#L229) · Suggestion
+State: CONFIRMED, band: Suggestion, angle: removed
+TL;DR: a \left whose delimiter draws nothing is parsed flat, so its \right becomes a lone fence stretched against the row
+Check: go test -count=1 -run 'TestZZLeftNil|TestZZJudge1' -v ./gno.land/pkg/gnoweb/markdown/mathml/
+Details: The break at parse.go:229-232 skips the tokFence container branch at parse.go:240-250, so the \left group's content is never consumed as a group and the \right) is read later as a postfix fence. \left. keeps the mrow nesting. The input is not valid TeX and the base rejected it, so this is polish on the crash fix: a decision for the author between reading it as \left. and rejecting it.
+Evidence: head '\left\mathrm{} a \right) b' -> <mrow><mi>a</mi><mo fence="true" form="postfix" stretchy="true">)</mo><mi>b</mi></mrow>; head '\left. a \right) b' -> <mrow><mrow><mi>a</mi><mo ...>)</mo></mrow><mi>b</mi></mrow>; base on the first and on '\left\class{a}{} a \right) b': 'MathML encountered an unexpected error'
+Artifact: tests/solo-finder-2-diff-fuzz.go

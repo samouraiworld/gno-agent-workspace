@@ -1,0 +1,64 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+      "line": 373,
+      "angle": "lines",
+      "summary": "A command that draws nothing, used as a script, now raises the next atom into the script: x^\\class{a}{} y renders as x^y, where the merge base showed the source",
+      "failure_scenario": "An author writes x^\\class{a}{} y (or x^\\bigl\\mathrm{} y, x^\\middle\\class{a}{} y). At 6c49f5420 conversion fails ('MathML encountered an unexpected error') and gnoweb shows the source. At 566ea8aa3 the new nil return at commands.go:373-376 (and the nil breaks at parse.go:109, 229) reach parse.go:298 'if child == nil { continue }', which keeps promotedProperties, so y becomes the superscript: <msup><mi>x</mi><mi>y</mi></msup>, err nil. Every sibling with an empty argument (\\phantom{}, \\mathop{}, \\text{}, \\cancel{}, \\textcolor{red}{}, \\substack{}) and {} itself render an empty superscript with y after it. The reader sees a different formula and nothing reports it. \\mathrm{} as a script base lifts y at the base too. Fix: give a nil-drawing command an empty <mrow> when a script is pending, as parse.go:143-146 does for {}, or return an empty mrow for \\class{a}{}.",
+      "verify_by": "Copy tests/solo-finder-1-class-empty-script.go to gno.land/pkg/gnoweb/markdown/mathml/zz_solo1_class_empty_script_test.go and run go test -count=1 -run TestZZSolo1ClassEmptyScript -v ./gno.land/pkg/gnoweb/markdown/mathml/: expect FAIL with y inside <msup>; the same x^\\class{a}{} y on a copy of the merge-base package returns the conversion error",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head 566ea8aa3: 'x^\\class{a}{} y err=<nil> <mrow><msup><mi>x</mi><mi>y</mi></msup></mrow>'; 'x^{} y err=<nil> <mrow><msup><mi>x</mi><mrow></mrow></msup><mi>y</mi></mrow>'; 'x^\\bigl\\mathrm{} y' and 'x^\\middle\\class{a}{} y' both '<msup><mi>x</mi><mi>y</mi></msup>'. Artifact run: '--- FAIL: TestZZSolo1ClassEmptyScript'. Base 6c49f5420 (package copied beside it): 'x^\\class{a}{} y err=MathML encountered an unexpected error ... invalid math input'; 'x^\\mathrm{} y err=<nil> <mrow><msup><mi>x</mi><mi>y</mi></msup></mrow>' (pre-existing member of the class).",
+      "repro_path": "tests/solo-finder-1-class-empty-script.go"
+    },
+    {
+      "index": 2,
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+      "line": 333,
+      "angle": "lines",
+      "summary": "The \\color fallback 'b.Unget(); return merror' after GetNextExpr cannot run once colorArgMissing answers first",
+      "failure_scenario": "colorArgMissing (commands.go:589-601) returns false only when the next non-blank token, after an optional [..] whose closer lies before cellEnd, is a { matched within b. That { sits on cellEnd's walk, and opensGroup steps over it, so its closer lies inside the cell and switchExpressions.GetOptions plus GetNextExpr on the cut cell always succeed. The branch at commands.go:333-334 keeps a second merror path and an Unget nobody reaches, which a later reader has to reason about as live. Removing it touches commands.go:332-334: the 'if err == nil' guard becomes unconditional.",
+      "verify_by": "Plant panic(\"zz\") at commands.go:333 and run go test -count=1 ./gno.land/pkg/gnoweb/markdown/mathml/ plus a random corpus of \\color, \\color[RGB], \\color{red}, \\color[RGB]{1,2,3} mixed with [, ], {, }, &, \\\\ and comments: expect no conversion returning 'unexpected error' that the unplanted tree converts",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "Read: matched (tokenize.go:357-360) checks only MatchOffset > 0, not escaped, Value; the only unescaped Value '{' token is the tokCurly|tokOpen one from tokenize.go:100, and \\right{, \\middle{, \\big{ lose tokOpen, so a matched { is always opensGroup. Round 3 claims row: TestZZGram 'found diffs=0 outside the \\left} shape'.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 328,
+      "angle": "lines",
+      "summary": "The distance table shared from the root by sub() answers differently from the per-buffer scan the diff removed, for a sub-buffer cut inside a group or before a group that closes past its end",
+      "settled_by": "Scratch tree at 566ea8aa3 with cellEnd() and sub() cross-checked against the removed loop at every position of every sub-buffer and every cellEnd call; go test -run 'TestZZSolo1CellTable|TestZZSolo1Balanced' over 200,000 random and 100,000 balanced expressions: 'positions checked: 200641; mismatches: 0' and 'converted without error: 94571 of 100000; positions checked: 7733095; mismatches: 0'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 313,
+      "angle": "reach",
+      "summary": "NewTokenBuffer's backward scan for last runs once per sub-buffer, so a nested switch run over a cell ending in a long comment run rescans it per switch",
+      "settled_by": "grep -n maxSwitchDepth commands.go: 'commands.go:411:const maxSwitchDepth = 256' bounds the nesting, and the removed loop (diff.md lines 113-124) walked the whole cell per switch, so the trailing scan costs at most what the base already paid"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/commands.go",
+      "line": 320,
+      "angle": "catalog",
+      "summary": "switchExpressions, _ := b.GetNextN(...) drops an error",
+      "settled_by": "sed -n 324p tokenize.go: 'return min(i+b.cellTable()[i], len(b.Expr))' keeps cellEnd at or below len(b.Expr), and GetNextN errors only when start+n > len(b.Expr)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/mathml/tokenize.go",
+      "line": 317,
+      "angle": "catalog",
+      "summary": "last or the shared cellEnds go stale if Expr is written after construction, or race across renders",
+      "settled_by": "grep -n 'TokenBuffer{' and Expr writes over the package: only 'tokenize.go:317: return &TokenBuffer{Expr: t, idx: 0, last: last}', no write to .Expr; ext_math.go:922 builds a converter per conversion"
+    }
+  ]
+}
