@@ -1,4 +1,5 @@
 # Review: [#6061](https://github.com/gnolang/gno/pull/6061)
+Posted: https://github.com/gnolang/gno/pull/6061#pullrequestreview-5599612932
 Event: COMMENT
 Verdict: APPROVE. The findings left are Nits and one test assertion; a cgroup at its limit delays a node cut by one poll rather than blocking it.
 Model: claude-opus-5-5, quick review
@@ -10,7 +11,7 @@ Round: 2. The head moved from a4d6089 to 115d118c7 through d93c06f64, 7bf249c7b,
 ## Body
 > AI review, claude-opus-5-5, quick review, reviewed at [115d118](https://github.com/gnolang/gno/pull/6061/commits/115d118c79c72256f69dcd5e419104f794316b8f), [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6061-bound-test-memory-by-memory/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6061-bound-test-memory-by-memory/2-115d118/claims.md) · Status: APPROVE
 
-## tm2/pkg/testutils/parallel_linux.go:62 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/tm2/pkg/testutils/parallel_linux.go#L62) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L62) · Nit
+## tm2/pkg/testutils/parallel_linux.go:62 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/tm2/pkg/testutils/parallel_linux.go#L62) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_linux.go#L62) · Nit [posted](https://github.com/gnolang/gno/pull/6061#discussion_r4336752366)
 Nit: `mi.Available > 0` turns a cgroup at its [`memory.max`](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/tm2/pkg/testutils/parallel_linux.go#L74-L77) into a failed read, so [`resize`](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/gno.land/pkg/integration/testscript_gnoland.go#L215-L217) skips the cut that reading calls for and reads again on the next poll. [The darwin reader](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/tm2/pkg/testutils/parallel_darwin.go#L31) returns the same way.
 
 ## SKIP gno.land/pkg/integration/testscript_gnoland.go:215-217 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/gno.land/pkg/integration/testscript_gnoland.go#L215-L217) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L215) · Nit
@@ -43,10 +44,10 @@ Missing test: `TestReadMemInfo` skips whenever `ReadMemInfo` returns false, so a
 
 Not posted: PLAUSIBLE on the finder's read, the mutation not run.
 
-## examples/Makefile:31 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/examples/Makefile#L31) · [↗](../../../../../.worktrees/gno-review-6061/examples/Makefile#L31) · Nit
+## examples/Makefile:31 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/examples/Makefile#L31) · [↗](../../../../../.worktrees/gno-review-6061/examples/Makefile#L31) · Nit [posted](https://github.com/gnolang/gno/pull/6061#discussion_r4336752377)
 Nit: the `grep -xE '0*[1-9][0-9]*'` filter rejects `+8`, which [`strconv.Atoi`](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/tm2/pkg/testutils/parallel.go#L24) accepts. It also passes a 20-digit value that `gno test` cannot parse, and [the recipe](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/examples/Makefile#L45-L53) still exits 0.
 
-## gno.land/pkg/integration/testscript_gnoland.go:163 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/gno.land/pkg/integration/testscript_gnoland.go#L163) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L163) · Nit
+## gno.land/pkg/integration/testscript_gnoland.go:163 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/gno.land/pkg/integration/testscript_gnoland.go#L163) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L163) · Nit [posted](https://github.com/gnolang/gno/pull/6061#discussion_r4336752385)
 Nit: the `reserve` set here is non-zero even when `min` equals `max`, as on four cores or fewer, so `resize` reads memory every second for a limit that cannot move.
 
 ## SKIP gno.land/pkg/integration/testscript_gnoland.go:167 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/gno.land/pkg/integration/testscript_gnoland.go#L167) · [↗](../../../../../.worktrees/gno-review-6061/gno.land/pkg/integration/testscript_gnoland.go#L167) · Nit
@@ -59,7 +60,7 @@ Nit: `strconv.Atoi` takes `GNO_TEST_MAX_PARALLEL=+8` as 8 for the Go suites whil
 
 Not posted: the same mismatch as the Nit at examples/Makefile:31.
 
-## tm2/pkg/testutils/parallel_test.go:60 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/tm2/pkg/testutils/parallel_test.go#L60) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_test.go#L60) · Test
+## tm2/pkg/testutils/parallel_test.go:60 [gh](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/tm2/pkg/testutils/parallel_test.go#L60) · [↗](../../../../../.worktrees/gno-review-6061/tm2/pkg/testutils/parallel_test.go#L60) · Test [posted](https://github.com/gnolang/gno/pull/6061#discussion_r4336752395)
 Test: the 256 MiB floor fails a correct reading in any cgroup limited below it, since [`clampToCgroup`](https://github.com/gnolang/gno/blob/115d118c79c72256f69dcd5e419104f794316b8f/tm2/pkg/testutils/parallel_linux.go#L72) caps `Total` at the cgroup limit.
 
 <details><summary>repro</summary>
