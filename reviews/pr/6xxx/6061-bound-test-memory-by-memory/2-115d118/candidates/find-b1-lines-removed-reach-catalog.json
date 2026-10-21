@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 216,
+      "angle": "reach",
+      "summary": "A cgroup at its memory.max reads Available 0, ReadMemInfo reports that as a failed read, and resize returns without shrinking or advancing lastCheck (round 1's finding, unchanged at head)",
+      "failure_scenario": "Container or systemd slice with memory.max; the budget ramped to 6-8 while memory was free; a second suite in the same cgroup fills it so memory.current - inactive_file >= memory.max. clampToCgroup yields Available 0 (the 'usage at the limit' case TestClampToCgroup pins), parallel_linux.go:62 returns ok=false, resize keeps the ramped limit, and every script that ends hands its slot to a waiter, admitting a node into a full cgroup, where 1 byte free would have cut the limit. lastCheck is not advanced either, so every blocked script's 200ms poll re-reads /proc/meminfo, /proc/self/cgroup and three files per ancestor cgroup. The body's 'pushed past its limit, the budget still shrinks 8 -> 4' holds only while inactive_file keeps used below the limit.",
+      "verify_by": "cp tests/b1-lines-removed-reach-catalog-budget-at-cgroup-limit_test.go gno.land/pkg/integration/zz_budget_at_cgroup_limit_test.go && go test ./gno.land/pkg/integration -run TestReproBudgetAtCgroupLimit -v -count=1: the 0-byte row keeps limit 6 and reads 20 times in 20 polls, the 1-byte row cuts to 4 with 0 reads",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "available=1 bytes: limit=4 (started 6, min 2), reads during 20 polls inside the interval=0 / available=0 bytes: limit=6 (started 6, min 2), reads during 20 polls inside the interval=20",
+      "repro_path": "reviews/pr/6xxx/6061-bound-test-memory-by-memory/2-115d118/tests/b1-lines-removed-reach-catalog-budget-at-cgroup-limit_test.go"
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 246,
+      "angle": "lines",
+      "summary": "No test pins the running > limit guard on recording a cut: replacing it with `if true` leaves every NodeBudget test green",
+      "failure_scenario": "With the guard gone, a cut that only lowers the ceiling over free slots (limit 6, running 0-3) is credited as a node's memory coming back for nodeCutSettle, so the next shrink a real deficit needs is suppressed for 5s per such cut; TestNodeBudgetShrinksUnderPressure (running 0, avail 1 GiB against an 8 GiB reserve) still reaches 2 because the deficit dwarfs the credit, and nothing else exercises a cut with running <= limit near the threshold.",
+      "verify_by": "sed -i 's/^\\t\\tif b.running > b.limit {$/\\t\\tif true {/' gno.land/pkg/integration/testscript_gnoland.go && go test ./gno.land/pkg/integration -run NodeBudget -count=1: expect a FAIL, observe ok",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "diff '-\\t\\tif b.running > b.limit {' '+\\t\\tif true {' then: ok  github.com/gnolang/gno/gno.land/pkg/integration 0.014s",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 313,
+      "angle": "reach",
+      "summary": "acquireSlot's held flag and its deferred release have no test; gnoland.txtar starts twice in one script and only the flag keeps that to one slot",
+      "failure_scenario": "Drop `if slot.held { return }` and a start/stop/start script (gnoland.txtar) takes two slots; under GNO_TEST_MAX_PARALLEL=1 it waits forever on itself, yet TestTestdata at the default limit of 4 stays green and no unit test calls acquireSlot.",
+      "verify_by": "grep -rn acquireSlot gno.land/pkg/integration/*_test.go returns nothing; mutate the held check and run the NodeBudget tests plus gnoland.txtar under GNO_TEST_MAX_PARALLEL=1",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 167,
+      "angle": "removed",
+      "summary": "The PR body still says the budget shrinks 'back towards two'; 115d118c7 removed nodeMinParallel = 2 and the floor is now MaxParallel(), min(GOMAXPROCS, 4)",
+      "failure_scenario": "A reader of the description expects a busy 16-core machine to fall to two nodes; at head it stops at four, the static cap gfanton asked for.",
+      "verify_by": "gh pr view 6061 -R gnolang/gno --json body --jq .body | grep -n 'towards two'; sed -n 167p gno.land/pkg/integration/testscript_gnoland.go shows `min: n,`",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 163,
+      "angle": "lines",
+      "summary": "Where GOMAXPROCS <= 4 (CI's runners) min == max but reserve is still set, so resize reads memory every second while scripts wait for a limit that can never move",
+      "failure_scenario": "On a 4-core runner n = MaxParallel() = 4 = GOMAXPROCS; both resize branches are false forever (limit > min and limit < max), yet each interval opens /proc/meminfo, /proc/self/cgroup and three files per ancestor cgroup under b.mu. Folding `n >= runtime.GOMAXPROCS(0)` into the static branch removes it.",
+      "verify_by": "read newNodeBudget and resize: with min == max neither case of the switch can fire; GOMAXPROCS=4 go test -run TestNewNodeBudgetDefaults shows reserve non-zero",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 249,
+      "angle": "lines",
+      "summary": "the running >= limit saturation guard on growth might be unpinned by tests",
+      "settled_by": "removed `&& b.running >= b.limit` and ran go test ./gno.land/pkg/integration -run NodeBudget: '--- FAIL: TestNodeBudgetGrowthCountsOwedMemory ... Messages: grew on memory the running nodes still owe'"
+    },
+    {
+      "file": "gno.land/pkg/integration/testscript_gnoland.go",
+      "line": 318,
+      "angle": "reach",
+      "summary": "the slot's release runs before the node's Stop (testscript defers are LIFO, Stop is registered in Setup), so a waiter can start a node while the old one is stopping",
+      "settled_by": "go-internal v1.15.0 testscript.go:912-917 `ts.deferred = func() { defer old(); f() }`: the start command's cancel is registered after release and so runs first, telling the in-memory node to stop before its slot frees; what it held is garbage awaiting GC either way, which nodeCutSettle already models"
+    },
+    {
+      "file": "gno.land/pkg/integration/node_budget_test.go",
+      "line": 1,
+      "angle": "catalog",
+      "summary": "global mutable state and concurrency class: budget tests and nodeBudget under -race",
+      "settled_by": "go test -race ./gno.land/pkg/integration -run NodeBudget -count=3: 'ok  github.com/gnolang/gno/gno.land/pkg/integration 1.060s'; traceNodeBudget is set once at package init and only read"
+    }
+  ]
+}

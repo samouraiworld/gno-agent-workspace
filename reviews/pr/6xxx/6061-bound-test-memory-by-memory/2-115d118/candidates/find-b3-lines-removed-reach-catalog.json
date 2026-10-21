@@ -1,0 +1,104 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/cmd/gno/test.go",
+   "line": 261,
+   "angle": "reach",
+   "summary": "the new -p clamp at GOMAXPROCS has no test: no Go test or txtar passes -p, so deleting the clamp, or only its `> GOMAXPROCS` arm, stays green",
+   "failure_scenario": "a later edit reduces line 261 to `if cmd.parallel <= 0 {`; `gno test -p 8` on a 2-CPU host starts 8 workers again, each building its own store (the 1.0 -> 1.75 GiB on p/nt the description measures for -p 4 on two cores), and `go test ./gnovm/cmd/gno` stays green because nothing under gnovm/cmd/gno passes -p",
+   "verify_by": "grep -rnE '(^|\\s)-p[ =]?[0-9]' gnovm/cmd/gno/testdata gnovm/cmd/gno/*_test.go (expect no hit); then mutate test.go:261 to `if cmd.parallel <= 0 {` and run go test ./gnovm/cmd/gno -run TestTest: expect green",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "the grep over gnovm/cmd/gno/testdata and gnovm/cmd/gno/*_test.go printed no line; grep -rn '\"-p\"' gnovm/cmd/gno/ printed none either",
+   "repro_path": ""
+  },
+  {
+   "file": "examples/Makefile",
+   "line": 31,
+   "angle": "lines",
+   "summary": "GNO_TEST_MAX_PARALLEL validation in both Makefiles (examples/Makefile:31, gnovm/Makefile:28) disagrees with MaxParallelOverride's strconv.Atoi, though the comment says it 'likewise ignores anything but a positive integer'",
+   "failure_scenario": "GNO_TEST_MAX_PARALLEL=+8: Atoi pins the Go suites at 8 while the Makefile's grep rejects it and silently runs gno test -p 4. GNO_TEST_MAX_PARALLEL=99999999999999999999: Atoi rejects it (suites fall back to min(GOMAXPROCS,4)) while the grep accepts it, gno test's flag parse fails with 'value out of range', and the examples `test` recipe still exits 0, since it only checks whether /tmp/gno-test-failures is non-empty and the flag error matches none of its patterns. Same for `make test GNOTEST_JOBS=`, which expands to `-p  ./...`",
+   "verify_by": "for v in +8 99999999999999999999; do GNO_TEST_MAX_PARALLEL=$v make -n -C examples test | grep -o 'gno test -v -p [^ ]*'; done, compared with strconv.Atoi on the same strings; then GNO_TEST_MAX_PARALLEL=99999999999999999999 make -C examples test; echo $? (expect 0 with no test run)",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "go snippet: \"+8\" Atoi=8 err=false; \"99999999999999999999\" Atoi err=true, flag -p err=invalid value \"99999999999999999999\" for flag -p: value out of range. make -n: [+8] => gno test -v -p 4; [99999999999999999999] => gno test -v -p 99999999999999999999; GNOTEST_JOBS= => gno test -v -p  ./... 2>&1. Recipe lines 45-53: the pipeline status is dropped by `;`, and only `if [ -s /tmp/gno-test-failures ]` decides the exit",
+   "repro_path": ""
+  },
+  {
+   "file": "gnovm/pkg/gnolang/files_test.go",
+   "line": 186,
+   "angle": "reach",
+   "summary": "TestStdlibs gets its own MaxParallel semaphore separate from TestFiles' two, and both are top-level t.Parallel tests in one binary, so a package run holds up to 3x the static cap in stores",
+   "failure_scenario": "`go test ./pkg/...` (gnovm `_test.pkg`) or `go test ./gnovm/pkg/gnolang` on a host with 4 or more cores: TestFiles keeps 4 pool stores alive plus up to 4 fresh ones (line 76's channel is a second budget of poolSize, not a draw on the pool's), and TestStdlibs, which the description says 'runs alongside it', adds 4 more: 12 concurrent stores against the cap of 4 the description gives. The description's 'the total cannot quietly double' is contradicted by line 74's own comment, which bounds TestFiles at twice the pool",
+   "verify_by": "count live stores across both tests: an atomic in-flight counter incremented around newOpts in TestFiles (pool and fresh) and TestStdlibs, run go test ./gnovm/pkg/gnolang -run 'TestFiles|TestStdlibs' -short, and print the max: expect above 4, up to 12",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "files_test.go:66-76: the pool is filled with poolSize stores up front and freshStore := make(chan struct{}, poolSize) is a separate channel; :186 makes a third channel of testutils.MaxParallel(); description: 'TestStdlibs, which runs alongside it ... is bounded by the same static cap'",
+   "repro_path": ""
+  },
+  {
+   "file": "gnovm/pkg/gnolang/files_test.go",
+   "line": 66,
+   "angle": "removed",
+   "summary": "an override above -test.parallel sizes TestFiles' pool past what can run at once, the waste test.go:261 removes for gno test, so one knob means two things",
+   "failure_scenario": "GNO_TEST_MAX_PARALLEL=8 on a 4-CPU host: TestFiles builds 8 pool stores, but -test.parallel lets only 4 subtests run; the FIFO pool cycles all 8, so each grows towards the full package set, about twice the memory for no speed. Under the same pin, examples' gno test is lowered to -p 4 by test.go:261. The description says the variable 'pins the worker count outright, the examples Makefile's included', which does not hold there on any host with fewer CPUs than the pin",
+   "verify_by": "read files_test.go:66-73 (poolSize := testutils.MaxParallel(), then that many newOpts) against test.go:261-263; run GNO_TEST_MAX_PARALLEL=8 GOMAXPROCS=4 go test ./gnovm/pkg/gnolang -run TestFiles -short with a print of distinct stores drawn from optsPool: expect 8",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "parallel.go:42-44 returns the override unclamped; test.go:261 clamps -p at GOMAXPROCS; examples/Makefile:29 comment: '`gno test` itself lowers -p to GOMAXPROCS on smaller machines'",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "go.mod",
+   "line": 62,
+   "angle": "lines",
+   "summary": "golang.org/x/sys moved from indirect to direct might leave a module untidy",
+   "settled_by": "gh pr checks 6061 -R gnolang/gno: 'mod-tidy pass' on both workflow runs"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/files_test.go",
+   "line": 66,
+   "angle": "reach",
+   "summary": "MaxParallel returning 0 would leave optsPool empty and deadlock every pooled subtest",
+   "settled_by": "tm2/pkg/testutils/parallel.go:25 `if err != nil || n <= 0 { return 0, false }` and :45 `return min(runtime.GOMAXPROCS(0), defaultMaxParallel)`, so the result is always at least 1"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/files_test.go",
+   "line": 137,
+   "angle": "lines",
+   "summary": "freshStore and optsPool could deadlock under a small -test.parallel",
+   "settled_by": "sed -n 131,142p files_test.go: each subtest takes freshStore or optsPool in the if/else, never both, and releases it in a defer, so no wait cycle exists"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/files_test.go",
+   "line": 66,
+   "angle": "removed",
+   "summary": "another test suite sizing store-heavy workers off GOMAXPROCS was missed by the sweep",
+   "settled_by": "grep -rnE 'runtime\\.(GOMAXPROCS|NumCPU)\\(' over gnovm gno.land tm2 contribs misc: only test.go, testscript_gnoland.go (both in the diff), gnoweb/status.go, proxy/client.go, cmap_test.go, reflect_test.go, none building GnoVM stores; test.(StoreWithOptions|NewTestOptions|Store)( appears in *_test.go only in files_test.go, preprocess_test.go (one t.Parallel) and bptree c1fuzz_test.go"
+  },
+  {
+   "file": "AGENTS.md",
+   "line": 56,
+   "angle": "removed",
+   "summary": "a sibling agent doc still carries the old `gno test ./...` command without -p",
+   "settled_by": "CLAUDE.md holds only '@AGENTS.md'; .github/copilot-instructions.md has no 'gno test' hit; the remaining hits are gnovm/adr/pr6150_*.md:238 and gno.land/adr/pr6164_*.md:241, which record past runs"
+  },
+  {
+   "file": "examples/Makefile",
+   "line": 45,
+   "angle": "removed",
+   "summary": "a Makefile or workflow running `gno test` was missed by the -p sweep",
+   "settled_by": "grep over Makefile/*.yml/*.sh: the only other invocation is .github/workflows/_ci-gno.yml:100, which runs on 4-core runners where the default equals 4"
+  }
+ ]
+}

@@ -1,0 +1,104 @@
+{
+  "candidates": [
+    {
+      "file": "tm2/pkg/testutils/parallel_test.go",
+      "line": 54,
+      "angle": "catalog",
+      "summary": "TestReadMemInfo skips whenever ReadMemInfo returns false, on linux and darwin too, so a reader that never reads passes CI as a skip; no CI job runs on macOS and the darwin reader has never executed",
+      "failure_scenario": "parallel_darwin.go:17 fails a sysctl (a name or width SysctlUint32 refuses) or parallel_linux.go returns false on a v2 host: TestReadMemInfo and node_budget_test's live check both t.Skip, the package is green, and the node budget silently stays static on that platform; the PR body says the darwin reader is cross-compiled but has not run on a Mac, and .github/workflows has no macOS test job (only release-chain-tag.yml names darwin)",
+      "verify_by": "in a scratch tree put `return MemInfo{}, false` at the top of ReadMemInfo in parallel_linux.go, run `go test -count=1 -run 'TestReadMemInfo' -v ./tm2/pkg/testutils`: expect a failure, observe SKIP and ok; `grep -rln -E 'macos|darwin' .github/workflows` lists release-chain-tag.yml alone",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rln -E 'macos|darwin' .github/workflows -> .github/workflows/release-chain-tag.yml only; PR body: 'The darwin reader is cross-compiled but has not run on a Mac'",
+      "repro_path": ""
+    },
+    {
+      "file": "tm2/pkg/testutils/parallel_linux.go",
+      "line": 54,
+      "angle": "reach",
+      "summary": "ReadMemInfo's own composition has no test: the v1 bail at :54 and the clamp applied at every ancestor at :57 can be deleted with every test green, since /proc/self/cgroup and cgroupMount are hardcoded and the only caller-level test is the live, skip-on-false TestReadMemInfo",
+      "failure_scenario": "a later edit drops `if v1memory { return MemInfo{}, false }` or ranges over dirs[:1] only: a cgroup v1 container is again sized against the host, or a slice limit above a leaf at max is ignored (both round-1 findings), and no test in tm2/pkg/testutils or gno.land/pkg/integration turns red on a CI runner, which has no cgroup limit",
+      "verify_by": "in a scratch tree delete parallel_linux.go:54-56, then separately replace the loop at :57 with cgroupDirs(...)[:1]; run `go test -count=1 -run . ./tm2/pkg/testutils` and `go test -count=1 -run TestNodeBudget ./gno.land/pkg/integration`: expect red, observe green; fix by taking the proc and mount roots as parameters of an unexported readMemInfo and testing it on a temp tree",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep for ReadMemInfo callers in tests: parallel_test.go TestReadMemInfo (live, skips on !ok) and node_budget_test.go:239 (live, skips on !ok); every other test calls parseProcCgroup, cgroupDirs, cgroupMemory or clampToCgroup directly",
+      "repro_path": ""
+    },
+    {
+      "file": "tm2/pkg/testutils/parallel_linux.go",
+      "line": 62,
+      "angle": "lines",
+      "summary": "round-1 finding unanswered: ok is still false when the clamped Available is 0, so a reading at the cgroup's limit is discarded by resize as a failed read; inactive_file makes it rarer, and the run shows the cost is a one-poll delay, not a freeze",
+      "failure_scenario": "a 256 MiB scope with swap allowed, the process holding up to 640 MiB of anon: memory.current pins at memory.max with inactive_file 0, ReadMemInfo returns Available 0 with ok false, and resize (testscript_gnoland.go:215-218) returns without cutting or pacing; the next reading is a few KiB and cuts, so the shrink is late by one poll",
+      "verify_by": "go test -c -o /tmp/tu.test ./tm2/pkg/testutils with the probe copied in, then `ZZ_MODE=anon systemd-run --user --scope -q -p MemoryMax=256M -p MemorySwapMax=2G /tmp/tu.test -test.run TestZZPressure -test.v`: count ok=false readings; fix is `return mi, mi.Total > 0` so ok means the figures were read",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "readings=2000 ok=false=13 minAvailable(ok)=4096; held=560MiB ok=true Available=4096 max=268435456 current=268431360 active_file=0 inactive_file=0",
+      "repro_path": "reviews/pr/6xxx/6061-bound-test-memory-by-memory/2-115d118/tests/b2-lines-reach-catalog-zero-available.go"
+    },
+    {
+      "file": "tm2/pkg/testutils/parallel_test.go",
+      "line": 60,
+      "angle": "reach",
+      "summary": "TestReadMemInfo asserts Total > 256 MiB as a bytes-not-kB check, but Total is now min(MemTotal, memory.max), so the test fails in any cgroup limited under 256 MiB",
+      "failure_scenario": "the package test binary run in a 200 MiB scope or container: ReadMemInfo returns Total 209715200, the assertion reads it as a unit error and the test fails on a correct reading",
+      "verify_by": "go test -c -o /tmp/tu.test ./tm2/pkg/testutils; systemd-run --user --scope -q -p MemoryMax=200M /tmp/tu.test -test.run 'TestReadMemInfo$' -test.v",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "Error: \"209715200\" is not greater than \"268435456\" / Messages: total looks like it is not in bytes / --- FAIL: TestReadMemInfo (0.00s)",
+      "repro_path": "reviews/pr/6xxx/6061-bound-test-memory-by-memory/2-115d118/tests/b2-lines-reach-catalog-readmeminfo-small-cgroup.sh"
+    },
+    {
+      "file": "tm2/pkg/testutils/parallel.go",
+      "line": 24,
+      "angle": "lines",
+      "summary": "MaxParallelOverride accepts a signed value such as +8 (strconv.Atoi takes a leading '+') while both Makefiles' regex rejects it, so one GNO_TEST_MAX_PARALLEL setting pins 8 in the Go suites and leaves gno test at -p 4, against examples/Makefile's comment that it 'likewise ignores anything but a positive integer'",
+      "failure_scenario": "GNO_TEST_MAX_PARALLEL=+8 make test: TestStdlibs and the node budget pin 8 workers while the examples and gnovm gno test targets fall back to 4",
+      "verify_by": "echo '+8' | grep -xE '0*[1-9][0-9]*' prints nothing; GOROOT/src/strconv/atoi.go:251 strips a leading '+' in ParseInt, which Atoi falls back to",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "make +8: [] (regex rejects); atoi.go:251: if s[0] == '-' || s[0] == '+' {",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/testutils/parallel_linux.go",
+      "line": 94,
+      "angle": "reach",
+      "summary": "round-1 cache answer: counting only inactive_file might still charge reclaimable cache read more than once (active_file) as used",
+      "settled_by": "ZZ_MODE=cache systemd-run --user --scope -p MemoryMax=512M -p MemorySwapMax=0 probe: 'after reading 320MiB x3: ok=true Available=497MiB Total=512MiB ... active_file=0 inactive_file=335548416' on a kernel with /sys/kernel/mm/lru_gen/enabled 0x0007 (MGLRU); a classic-LRU kernel was not measured, and with the floor at the static cap its worst case is no ramp, master's behaviour"
+    },
+    {
+      "file": "tm2/pkg/testutils/parallel_linux.go",
+      "line": 52,
+      "angle": "catalog",
+      "summary": "swallowed os.ReadFile error on /proc/self/cgroup falls back to host figures with ok true",
+      "settled_by": "read: an unmounted procfs fails the /proc/meminfo read first and returns false; with procfs mounted, /proc/self/cgroup is absent only on a kernel without CONFIG_CGROUPS, where no memory limit exists and the host figures are the right ones"
+    },
+    {
+      "file": "tm2/pkg/testutils/parallel_other.go",
+      "line": 1,
+      "angle": "reach",
+      "summary": "build constraints of parallel_{linux,darwin,other}.go might collide or leave ReadMemInfo undefined on android, ios, windows or the BSDs",
+      "settled_by": "GOOS=<os> GOARCH=arm64 go vet ./tm2/pkg/testutils: darwin, windows, freebsd, android print nothing; ios stops at 'requires external (cgo) linking', a linker requirement, not a duplicate or missing symbol"
+    },
+    {
+      "file": "tm2/pkg/testutils/parallel_test.go",
+      "line": 11,
+      "angle": "catalog",
+      "summary": "global state and concurrency: t.Setenv beside t.Parallel tests, package state read concurrently",
+      "settled_by": "go test -race -count=1 -run 'TestClampToCgroup|TestReadCgroupUint|TestParseProcCgroup|TestCgroupDirs|TestCgroupMemory|TestReadMemInfo|TestMaxParallel' ./tm2/pkg/testutils -> ok 1.017s, no race report; the package declares no mutable package-level var"
+    }
+  ]
+}
