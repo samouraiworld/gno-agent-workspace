@@ -48,3 +48,10 @@ Hit rate per tier, from the rows above: hot 2/6 confirmed over 2 files, warm 3/4
 - Merged into one section: rows 4 and 7 at parallel_linux.go:62, posted there since the one edit, `return mi, mi.Total > 0`, lands on that line and on parallel_darwin.go:31; the parent re-ran its repro at 115d118 with go1.25.9: `available=0 bytes: limit=6 ... reads during 20 polls inside the interval=20`, PASS. That mock holds every reading at 0. The parent then ran the zero-available probe twice in a 256M scope with 2G swap: `readings=2000 ok=false=12` and `readings=2000 ok=false=7`, every other reading at the limit ok with `Available` between 28672 and 450560 bytes, under any reserve, so the cut lands one poll later. Banded Nit for that, row 7 included, and the verdict moved to APPROVE; the Nit at parallel.go:24 under examples/Makefile:31.
 - UNVERIFIED: testscript_gnoland.go:167 rests on the finder's read and concerns the description alone.
 - Unwritten: the five Missing test mutations and the store counts behind the two files_test.go Suggestions were not run; both Suggestions ship SKIP for that reason.
+
+## Retro
+
+- Failed: finder b1 banded the zero-Available reading Warning off a mock that holds every reading at 0, while finder b2 had measured the same line under real pressure as a one-poll delay; the judge kept the Warning without re-running b2's probe. The parent's two pressure runs, 12 and 7 failed readings in 2000, moved it to Nit. Five Missing test rows and both Suggestions went unrun under the quick preset.
+- Worked: every candidate held, 8 CONFIRMED and 0 refuted; b2's probe and b3's Makefile and store-count reads cost under a quarter of the run.
+- Hit rate per tier: hot 2/6 over 2 files, warm 3/4 over 7, cold 3/4 over 5; hot is not above warm, so the hot weight of fix history on test-harness files is one to revisit in round risk.
+- Cost: 8 agents, 108 turns, 216k output, 10.3M cache read, about $12.94 by review-retro.py, against a projection of $20.
