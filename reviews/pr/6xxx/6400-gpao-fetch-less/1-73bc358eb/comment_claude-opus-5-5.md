@@ -1,4 +1,5 @@
 # Review: [#6400](https://github.com/gnolang/gno/pull/6400)
+Posted: https://github.com/gnolang/gno/pull/6400#pullrequestreview-5630568030
 Event: COMMENT
 Verdict: APPROVE. A Suggestion on dependencies that hold only test files, a Missing test for the `gno.mod` branch of `readByVerify` and a README Nit remain open, and none of them blocks.
 Model: claude-opus-5-5, standard review, solo shape: two finders, then one judge and writer
@@ -14,7 +15,7 @@ Round: 1. Two finders, then one judge and writer answering the completeness ques
 
 - Nit: [`contribs/gpao/README.md:190`](https://github.com/gnolang/gno/blob/73bc358ebb7fbe473d233dd2fa84fa949aac0ad4/contribs/gpao/README.md#L190) says an unservable import file leaves the importer pending, while `fetch` never asks for a `LICENCE`, so [`TestUnservedLicenceDoesNotHoldUpImporters`](https://github.com/gnolang/gno/blob/73bc358ebb7fbe473d233dd2fa84fa949aac0ad4/contribs/gpao/parkeddep_test.go#L273) expects approval.
 
-## contribs/gpao/getter.go:220 [gh](https://github.com/gnolang/gno/blob/73bc358ebb7fbe473d233dd2fa84fa949aac0ad4/contribs/gpao/getter.go#L220) · [↗](../../../../../.worktrees/gno-review-6400/contribs/gpao/getter.go#L220) · Missing test
+## contribs/gpao/getter.go:220 [gh](https://github.com/gnolang/gno/blob/73bc358ebb7fbe473d233dd2fa84fa949aac0ad4/contribs/gpao/getter.go#L220) · [↗](../../../../../.worktrees/gno-review-6400/contribs/gpao/getter.go#L220) · Missing test [posted](https://github.com/gnolang/gno/pull/6400#discussion_r4361244595)
 
 Missing test: removing `"gno.mod"` from this case keeps the suite green, since no test serves a dependency carrying that file.
 
@@ -52,7 +53,7 @@ and `go test -run 'TestRPCGetter|TestVerifier|TestPackageName|TestOracle|TestPre
 
 </details>
 
-## contribs/gpao/getter.go:192 [gh](https://github.com/gnolang/gno/blob/73bc358ebb7fbe473d233dd2fa84fa949aac0ad4/contribs/gpao/getter.go#L192) · [↗](../../../../../.worktrees/gno-review-6400/contribs/gpao/getter.go#L192) · Suggestion
+## contribs/gpao/getter.go:192 [gh](https://github.com/gnolang/gno/blob/73bc358ebb7fbe473d233dd2fa84fa949aac0ad4/contribs/gpao/getter.go#L192) · [↗](../../../../../.worktrees/gno-review-6400/contribs/gpao/getter.go#L192) · Suggestion [posted](https://github.com/gnolang/gno/pull/6400#discussion_r4361244612)
 
 Suggestion: reject the importer here, since this skip leaves a dependency holding only test files with no package name and the importer pending on `could not prebuild`.
 

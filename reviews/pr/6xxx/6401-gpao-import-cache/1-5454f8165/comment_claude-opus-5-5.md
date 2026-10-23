@@ -1,4 +1,5 @@
 # Review: [#6401](https://github.com/gnolang/gno/pull/6401)
+Posted: https://github.com/gnolang/gno/pull/6401#pullrequestreview-5630569180
 Event: COMMENT
 Verdict: APPROVE. Nothing blocks: the open items are a missing test for the settled re-check after verification, two Nits on the restart detector and the import seed's error path, and two Suggestions on what the cache and the pre-check reach.
 Model: claude-opus-5-5, standard review, solo shape: two finders, then one judge and writer
@@ -10,7 +11,7 @@ Round: 1. 2 finders, no separate reflector (the judge answered the completeness 
 ## Body
 > AI review, claude-opus-5-5, standard review, reviewed at [5454f81](https://github.com/gnolang/gno/pull/6401/commits/5454f8165cee97056ae64ef955c541e2c37d9af2), [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6401-gpao-import-cache/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6401-gpao-import-cache/1-5454f8165/claims.md) · Status: APPROVE
 
-## contribs/gpao/oracle.go:570 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/oracle.go#L570) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/oracle.go#L570) · Missing test
+## contribs/gpao/oracle.go:570 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/oracle.go#L570) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/oracle.go#L570) · Missing test [posted](https://github.com/gnolang/gno/pull/6401#discussion_r4361245578)
 Missing test: no test enables the package between the two settled checks, so deleting this `recordIfSettled` leaves the gpao suite green.
 
 <details><summary>mutation</summary>
@@ -33,7 +34,7 @@ ok  	github.com/gnolang/gno/contribs/gpao	25.354s
 Every settled case in `issettled_test.go` is answered by the pre-check before verification. A case that needs it enables the path between the two checks, for instance from a stub whose `vm/qpkgmeta_json` answer turns live after the first query, and asserts that no `MsgEnablePackage` is broadcast.
 </details>
 
-## contribs/gpao/oracle.go:345 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/oracle.go#L345) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/oracle.go#L345) · Nit
+## contribs/gpao/oracle.go:345 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/oracle.go#L345) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/oracle.go#L345) · Nit [posted](https://github.com/gnolang/gno/pull/6401#discussion_r4361245592)
 Nit: `latest < height-1` treats a tip one block behind the last read height as a restart, and empties the genesis cache and logs a reset.
 
 <details><summary>repro</summary>
@@ -98,11 +99,11 @@ Suggestion: the restart check reads tip heights alone, so a reset chain already 
 
 Not posted: the stale verdict needs a relaunched chain with a changed genesis behind the same remote, which this round did not build.
 
-## contribs/gpao/verifyone.go:120 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/verifyone.go#L120) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/verifyone.go#L120) · Nit
+## contribs/gpao/verifyone.go:120 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/verifyone.go#L120) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/verifyone.go#L120) · Nit [posted](https://github.com/gnolang/gno/pull/6401#discussion_r4361245603)
 Nit: a seed error exits 1, which `verify` files as a rejection of the candidate; the child's other non-verdict failures call [`exitNoVerdict`](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/verifyone.go#L147).
 
-## contribs/gpao/importcache.go:55 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/importcache.go#L55) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/importcache.go#L55) · Suggestion
+## contribs/gpao/importcache.go:55 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/importcache.go#L55) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/importcache.go#L55) · Suggestion [posted](https://github.com/gnolang/gno/pull/6401#discussion_r4361245608)
 Suggestion: `gm.AddPkg.Height == 0` skips packages a hard-forked genesis replays, which [`app.go`](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/gno.land/pkg/gnoland/app.go#L903-L905) runs at their original height, so each verification fetches them again.
 
-## contribs/gpao/oracle.go:513 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/oracle.go#L513) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/oracle.go#L513) · Suggestion
+## contribs/gpao/oracle.go:513 [gh](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/contribs/gpao/oracle.go#L513) · [↗](../../../../../.worktrees/gno-review-6401/contribs/gpao/oracle.go#L513) · Suggestion [posted](https://github.com/gnolang/gno/pull/6401#discussion_r4361245617)
 Suggestion: `recordIfSettled` runs here under a context with no deadline, so a stalled node holds each candidate for the RPC client's [`defaultTimeout`](https://github.com/gnolang/gno/blob/5454f8165cee97056ae64ef955c541e2c37d9af2/tm2/pkg/bft/rpc/client/client.go#L19) before verification starts.

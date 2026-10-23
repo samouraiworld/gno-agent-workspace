@@ -1,4 +1,5 @@
 # Review: [#6402](https://github.com/gnolang/gno/pull/6402)
+Posted: https://github.com/gnolang/gno/pull/6402#pullrequestreview-5630570441
 Event: COMMENT
 Verdict: REQUEST CHANGES. Two Warnings in the new reoffer pass block: the cap gives up without telling `/status`, and every pass restarts at the first sorted path; both are code this branch adds.
 Model: claude-opus-5-5, standard review, solo shape: two finders, then one judge and writer
@@ -10,7 +11,7 @@ Round: 1. 2 finders, no separate reflector (the judge answered the completeness 
 ## Body
 > AI review, claude-opus-5-5, standard review, reviewed at [bff79f4](https://github.com/gnolang/gno/pull/6402/commits/bff79f498d08059d599404035d2a46e54611ecd0), [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6402-gpao-reoffer-stranded/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6402-gpao-reoffer-stranded/1-bff79f498/claims.md) · Status: REQUEST CHANGES
 
-## contribs/gpao/reoffer.go:82 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L82) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L82) · Warning
+## contribs/gpao/reoffer.go:82 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L82) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L82) · Warning [posted](https://github.com/gnolang/gno/pull/6402#discussion_r4361246568)
 
 `/status` keeps answering `pending` once this cap removes the submission for the rest of the run, while the sibling caps [`maxOverBudgetAttempts`](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/oracle.go#L560) and [`maxEnableAttempts`](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/oracle.go#L635) record `gave_up`.
 
@@ -123,7 +124,7 @@ Both sibling caps are 3 and count the first look, so they record `gave_up` befor
 
 </details>
 
-## contribs/gpao/reoffer.go:57 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L57) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L57) · Warning
+## contribs/gpao/reoffer.go:57 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L57) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L57) · Warning [posted](https://github.com/gnolang/gno/pull/6402#discussion_r4361246585)
 
 This loop restarts at the first sorted path on every pass, so under steady block traffic a late path waits three passes behind each earlier path that gets offered.
 
@@ -239,11 +240,11 @@ The test fails because `gno.land/r/test/zzz` is first offered on pass 4, with on
 
 </details>
 
-## contribs/gpao/reoffer.go:97 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L97) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L97) · Nit
+## contribs/gpao/reoffer.go:97 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L97) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L97) · Nit [posted](https://github.com/gnolang/gno/pull/6402#discussion_r4361246591)
 
 Nit: This branch records `blockedOn` without updating the status reason, so `/status` keeps saying `the oracle could not run verification` and never names the blocking import.
 
-## contribs/gpao/reoffer.go:153 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L153) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L153) · Suggestion
+## contribs/gpao/reoffer.go:153 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L153) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L153) · Suggestion [posted](https://github.com/gnolang/gno/pull/6402#discussion_r4361246597)
 
 Suggestion: reject on an import the chain holds nowhere, as a finished first look does, since this treats it as parked and its importer waits for the run uncounted.
 
@@ -334,7 +335,7 @@ Every later pass returns at [reoffer.go:67](https://github.com/gnolang/gno/blob/
 
 </details>
 
-## contribs/gpao/reoffer.go:58 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L58) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L58) · Suggestion
+## contribs/gpao/reoffer.go:58 [gh](https://github.com/gnolang/gno/blob/bff79f498d08059d599404035d2a46e54611ecd0/contribs/gpao/reoffer.go#L58) · [↗](../../../../../.worktrees/gno-review-6402/contribs/gpao/reoffer.go#L58) · Suggestion [posted](https://github.com/gnolang/gno/pull/6402#discussion_r4361246606)
 
 Suggestion: Run the pass once the queue drains, because this return drops the whole tick whenever a candidate is queued and the next tick is a full `reofferInterval` later.
 
