@@ -1,0 +1,6 @@
+{"candidates": [], "dropped": [],
+ "completeness": [
+  "Catalog: contribs/gpao is tooling, so the project rule skips the invariant catalog for it; no class applies.",
+  "Shape sweep of the qfile-list parse fetch rewrites: grep 'strings.Split(string(' over contribs/gpao/*.go finds one site, getter.go:184, the one the diff edits.",
+  "Sibling tests repeating the edited shape: the eight tests calling verifyPackage with no prepare are candidate 2, refuted by a run; the gno.mod fixture absence is candidates 3 and 1002."
+ ]}

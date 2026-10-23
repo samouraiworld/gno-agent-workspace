@@ -1,0 +1,72 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "contribs/gpao/reoffer.go",
+      "line": 82,
+      "angle": "removed",
+      "summary": "The new reoffer cap gives up on a submission without telling the status board, which keeps reporting it pending (\"will be retried\"); the sibling caps maxOverBudgetAttempts and maxEnableAttempts record gave_up at that point",
+      "failure_scenario": "A package whose prepare phase overruns (errVerifyUnavailable, uncounted: the onyx case the ADR cites) is offered from its block and then 3 more times; on the next pass reoffer deletes it from stranded with only a stderr line. /status keeps answering status pending, attempt 0, which the README defines as `pending` (will be retried), so the submitter and the operator wait on a retry that never comes this run, and the only record that gpao stopped is in stderr, the outcome the maxEnableAttempts comment says the board exists to prevent.",
+      "verify_by": "cp tests/solo-finder-2-reoffer-cap-and-order.go contribs/gpao/solofinder2_test.go; cd contribs/gpao && go test -count=1 -run TestSoloFinder2StatusAfterReofferCap -v . : expect gave_up after the cap, observe pending",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "status after the reoffer cap: {Path:gno.land/r/test/slow Status:pending Reason:the oracle could not run verification: verifier unavailable: the verifier did not have its sources within the -prepare-budget of 1ns Attempt:0} / Error: Should not be: \"pending\" / --- FAIL: TestSoloFinder2StatusAfterReofferCap. Merge base has no reofferStranded, so the test does not compile there; at base the board also stayed pending, with no cap claiming a retry.",
+      "repro_path": "tests/solo-finder-2-reoffer-cap-and-order.go"
+    },
+    {
+      "index": 1002,
+      "file": "contribs/gpao/reoffer.go",
+      "line": 57,
+      "angle": "reach",
+      "summary": "Every reoffer pass restarts at the first path in sorted order and quits once a candidate is queued, so a path sorted after one that is offered on every pass waits 3 passes behind it, and for the whole run if that earlier path keeps being re-stranded",
+      "failure_scenario": "Stranded gno.land/r/test/aaa and gno.land/r/test/zzz, and a new package arrives while aaa is being verified again: zzz is first offered on pass 4, 30 minutes later than one interval, and each further offered path sorted ahead of it adds 3 more passes. track resets offers to 0 when the same path comes back at a new height, so a submitter who resubmits aaa every 30 minutes and lands one cheap MsgAddPackage per pass keeps every path sorted after aaa pending for the run. A package whose import has gone live is then not verified within one interval, and something outside the oracle can turn its retry off; the ADR claims both cannot happen.",
+      "verify_by": "cd contribs/gpao && go test -count=1 -run TestSoloFinder2EarlyPathDelaysLaterOnes -v . : expect zzz offered by pass 2 (a pass resuming after the last path reached), observe pass 4",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "pass 1: early offers=1 tracked=true, late offers=0 / pass 2: early offers=2 tracked=true, late offers=0 / pass 3: early offers=3 tracked=true, late offers=0 / pass 4: early offers=0 tracked=false, late offers=1 / Error: \"4\" is not less than or equal to \"2\". The offers reset on a new height is read from track (reoffer.go: if s.height != height { s = strandedSubmission{height: height} }), not run.",
+      "repro_path": "tests/solo-finder-2-reoffer-cap-and-order.go"
+    },
+    {
+      "index": 1003,
+      "file": "contribs/gpao/reoffer.go",
+      "line": 112,
+      "angle": "reach",
+      "summary": "submissionAt reads the whole block (Block and BlockResults) again for each stranded submission, with no reuse inside a pass, so N submissions left pending from one block cost N full block reads per pass",
+      "failure_scenario": "A block carries 50 MsgAddPackage that all wait on one parked import: the first pass reads that block 50 times before each entry learns its blockedOn, and entries left pending as unavailable, whose blockedOn stays empty, read their block again on every pass. The `live` map already dedupes the meta queries within a pass; the block reads have no equivalent.",
+      "verify_by": "Read reoffer.go reoffer/submissionAt: addedPackages(ctx, s.height) is called per path, no per-pass map keyed by height; extend TestStrandedImporterWaitsWhileItsImportIsParked with two importers parked in one block and count blockReads == 2",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "contribs/gpao/reoffer.go",
+      "line": 67,
+      "angle": "reach",
+      "summary": "The blockedOn check runs before the meta check, so an entry whose blocking import never goes live is kept even after the chain moves its path on",
+      "settled_by": "Deliberate and pinned: reoffer_test.go TestStrandedImporterWaitsWhileItsImportIsParked asserts metaQueries == 1, \"a pass asks about the parked import alone\"; a replacement reaches track from its own block and resets the entry"
+    },
+    {
+      "file": "contribs/gpao/README.md",
+      "line": 168,
+      "angle": "removed",
+      "summary": "Sibling sentences still saying nothing re-offers a pending package, or naming a restart or resubmission as the only retry",
+      "settled_by": "grep -rn -i 're-offer\\|resubmi\\|restart\\|start-height\\|nothing re\\|no-op\\|will be retried' contribs/gpao (non-test): remaining hits are oracle.go:122 (cap per resubmission, still true), verifyone.go:319 (about rejections), oracle.go:599/609 and README:315 (spend limit, which track does not keep), README:203-204 (the new restart caveat); onyx and mainnet deployment READMEs carry no such sentence"
+    },
+    {
+      "file": "contribs/gpao/oracle.go",
+      "line": 385,
+      "angle": "removed",
+      "summary": "processBlock split into addedPackages plus enqueue changes what a failed block or a cancelled enqueue does",
+      "settled_by": "Read the diff: BlockResults failure and the pairing check still return before anything is queued, undecodable txs are still skipped, and enqueue's error still returns from processBlock; callers oracle.go:370 and processblock_test.go:104,124,133 are unchanged"
+    }
+  ]
+}

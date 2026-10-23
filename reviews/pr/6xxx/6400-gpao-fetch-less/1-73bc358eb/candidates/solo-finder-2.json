@@ -1,0 +1,71 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "contribs/gpao/README.md",
+      "line": 190,
+      "angle": "removed",
+      "summary": "README still says a live import whose files vm/qfile cannot serve leaves the importer pending; after the diff only an unservable production .gno or gnomod file does",
+      "failure_scenario": "A dependency ships a dotless LICENCE that vm/qfile lists and refuses. The README tells the operator its importers sit pending as unavailable, but fetch now skips the file (readByVerify) and the importer is approved, which TestUnservedLicenceDoesNotHoldUpImporters asserts (statusApproved). An operator reading the doc expects the opposite outcome from the one the oracle gives.",
+      "verify_by": "sed -n 188,191p contribs/gpao/README.md, then read parkeddep_test.go TestUnservedLicenceDoesNotHoldUpImporters (assert.Equal statusApproved) and getter.go readByVerify skipping LICENCE",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "README.md:190 reads 'and one whose files `vm/qfile` cannot serve leaves the package pending as'; parkeddep_test.go now asserts statusApproved for the unservable-LICENCE dependency",
+      "repro_path": ""
+    },
+    {
+      "index": 1002,
+      "file": "contribs/gpao/getter.go",
+      "line": 220,
+      "angle": "reach",
+      "summary": "No test fetches a dependency whose module file is the legacy gno.mod, so dropping it from readByVerify stays green",
+      "failure_scenario": "A live dependency carries gno.mod and no gnomod.toml (gno.mod is an allowed stored name, mempackage.go:284). If gno.mod left readByVerify's keep list, fetch would hand the typecheck that dependency without a module file; under TCLatestStrict ParseCheckGnoMod returns nil and typeCheckMemPackage panics 'gnomod.toml not found', so the importer is rejected as a verdict. TestRPCGetterNamesReconstructedPackage pins gnomod.toml through its queried list, and nothing pins gno.mod.",
+      "verify_by": "delete \"gno.mod\" from the case in readByVerify and run go test ./contribs/gpao -run 'TestRPCGetter|TestVerifier|TestPackageName': expect red, observe green; grep -l 'gno.mod' contribs/gpao/*_test.go returns nothing",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rln 'gno.mod\\b' contribs/gpao/*_test.go printed nothing; gotypecheck.go:456-458 panics 'gnomod.toml not found' when RequiresLatestGnoMod and mod == nil",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "contribs/gpao/getter.go",
+      "line": 189,
+      "angle": "reach",
+      "summary": "a live package with no production .gno file would now be fetched as gnomod.toml alone with Name \"\" and fail its prebuild as the oracle's own fault",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:794 'return ErrInvalidPackage(\"package has no production .gno files\")' refuses it at AddPackage; git log -S hasProdGnoFile names af23ea2ae (2026-07-16), the same commit that introduced the split prod/test storage the node serves from"
+    },
+    {
+      "file": "contribs/gpao/verifier.go",
+      "line": 140,
+      "angle": "removed",
+      "summary": "verifyPackage no longer preloads imports, so the stages could meet an import nothing built",
+      "settled_by": "verifyone.go:125-134 runs v.prepare(&mpkg) and exits before verifyPackage on any error, so the child never reaches verifyPackage without prepare's walk"
+    },
+    {
+      "file": "contribs/gpao/verifier.go",
+      "line": 244,
+      "angle": "removed",
+      "summary": "prepare dropping test.LoadImports could leave a production import or stdlib unbuilt off the budget",
+      "settled_by": "LoadImports merged FileKindPackageSource, FileKindTest, FileKindXTest (gnovm/pkg/test/imports.go:368-372); buildChainImports walks FileKindPackageSource of the candidate and of every fetched dependency (verifier.go:359) and builds stdlibs too (verifier.go:371-375), so only test and xtest imports stop loading"
+    },
+    {
+      "file": "contribs/gpao/verifier.go",
+      "line": 352,
+      "angle": "reach",
+      "summary": "an unparseable candidate test file makes packages.Imports fail and the walk skip every production import, which the diff's 'tests never matter' theme leaves open",
+      "settled_by": "gnovm/pkg/gnolang/gotypecheck.go:478 GoParseMemPackage parses every file before the ProdOnly cutoff and returns errs, so the chain's own typecheck refuses the same package and gpao's rejection matches it; packages.Imports failing on it also predates the diff (LoadImports returned on the same error)"
+    },
+    {
+      "file": "contribs/gpao/getter.go",
+      "line": 253,
+      "angle": "removed",
+      "summary": "packageName lost the _test trim and the filetests fallback that mirrored ReadMemPackageFromList",
+      "settled_by": "packageName's only caller is fetch (grep 'packageName(' contribs/gpao/*.go: getter.go:208), which now passes only names readByVerify keeps, and keeper.go:794 guarantees a production .gno file among them"
+    }
+  ]
+}

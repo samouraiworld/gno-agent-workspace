@@ -1,0 +1,10 @@
+{
+  "dropped": [],
+  "candidates": [],
+  "completeness": [
+    "removed-sentence sweep: grep -niE 'resubmi|nothing re-?offers|restart with|start-height at or below' over contribs/gpao/*.go and README.md at head returns README.md:204 (the new Stranded packages text) and oracle.go:122-123,526, whose maxOverBudgetAttempts and seen rationale still holds; no stale 'nothing re-offers' sibling survives",
+    "catalog: the diff touches contribs/gpao and gno.land/adr only, a tooling change, and the project review rule skips the invariant catalog for tooling-only PRs; no class applies",
+    "sibling caps: maxOverBudgetAttempts = 3 (oracle.go:131) and maxEnableAttempts = 3 (oracle.go:144) record statusGaveUp before the reoffer cap is reached, so maxReoffers binds only the errVerifyUnavailable and errAwaitingDependency outcomes; folded into 1001 and 2",
+    "goroutine ownership: stranded, track, reofferStranded and isLive run only on the verifier goroutine (runVerifier select), like seen and overBudget; nothing to add"
+  ]
+}

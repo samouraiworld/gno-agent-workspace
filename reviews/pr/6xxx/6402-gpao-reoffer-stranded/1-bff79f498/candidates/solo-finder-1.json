@@ -1,0 +1,80 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "contribs/gpao/reoffer.go",
+      "line": 133,
+      "angle": "lines",
+      "summary": "firstImportNotLive counts an absent import as not live, so a stranded submission importing a path submitted nowhere is never verified again and never rejected",
+      "failure_scenario": "A package importing gno.land/p/test/neversubmitted is parked; its first look ends errVerifyUnavailable (prepare budget overrun as on onyx, or a node fault), so it is stranded. Every later pass: firstImportNotLive -> isLive(absent) false -> blockedOn = the absent path -> return without offering. The submitter's status stays 'pending: the oracle could not run verification' for the whole run, although a look that finishes rejects it at once ('could not import ... unknown import path'). Contradicts the README's 'one whose verification could not finish is verified again' and the function's own doc ('\"\" when a verification can reach a verdict'): an absent import is a verdict, which the verifier gives before its budget.",
+      "verify_by": "go test -count=1 -v -run TestSoloFinder1AbsentImport ./contribs/gpao with the repro file copied in: expect rejected after reoffer passes, observe pending with blockedOn the absent path",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "after 5 passes: status=pending attempt=0 reason=\"the oracle could not run verification: verifier unavailable: ... -prepare-budget of 1ns\" stranded={height:2 offers:0 blockedOn:gno.land/p/test/neversubmitted}; control, a fresh look at the same bytes: status=rejected reason=\"...could not import gno.land/p/test/neversubmitted (unknown import path ...)\"; --- FAIL: TestSoloFinder1AbsentImport",
+      "repro_path": "reviews/pr/6xxx/6402-gpao-reoffer-stranded/1-bff79f498/tests/solo-finder-1-reoffer-gaps_test.go"
+    },
+    {
+      "index": 2,
+      "file": "contribs/gpao/reoffer.go",
+      "line": 82,
+      "angle": "lines",
+      "summary": "reaching maxReoffers forgets the submission but leaves the status board reporting it pending, unlike the overBudget and failedEnable caps that record statusGaveUp",
+      "failure_scenario": "A submission whose looks end errVerifyUnavailable (uncounted, e.g. a prepare-budget overrun, the onyx case the ADR cites) is offered 3 more times, then deleted from stranded with only an operator log line. The status board, the surface a submitter polls, still reads 'pending: the oracle could not run verification', the same answer a submission about to be retried gives, so nobody reading it learns that gpao stopped and a larger --prepare-budget or a restart is needed.",
+      "verify_by": "go test -count=1 -v -run TestSoloFinder1CapStatus ./contribs/gpao with the repro file copied in: expect gave_up once stranded no longer holds the path, observe pending",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "after the cap: status=pending attempt=0 reason=\"the oracle could not run verification: verifier unavailable: the verifier did not have its sources within the -prepare-budget of 1ns\"; expected: \"gave_up\" actual: \"pending\"; --- FAIL: TestSoloFinder1CapStatus",
+      "repro_path": "reviews/pr/6xxx/6402-gpao-reoffer-stranded/1-bff79f498/tests/solo-finder-1-reoffer-gaps_test.go"
+    },
+    {
+      "index": 3,
+      "file": "contribs/gpao/reoffer.go",
+      "line": 58,
+      "angle": "claims",
+      "summary": "a tick that lands while a candidate is queued drops the whole pass until the next 10-minute tick, and every pass restarts at the first sorted path, so 'verified within one interval of the import going live' does not hold while blocks carry packages",
+      "failure_scenario": "During a catch-up with --start-height (the recovery the README prescribes after a restart) or any stretch where blocks keep enqueueing packages, runVerifier's select picks the buffered tick with len(o.candidates) > 0 and reofferStranded returns before its first path; the next try is a full reofferInterval later. When a pass does start, an offered path holds the verifier for up to the prepare plus verify budget, a block enqueues meanwhile, the pass stops, and the next pass starts from the same first sorted path, so a path late in sort order waits up to maxReoffers passes per offerable path ahead of it. The ADR's consequence 'within one interval of the import going live' is then hours.",
+      "verify_by": "read runVerifier (oracle.go select on o.candidates and reoffer) and reofferStranded line 58: the early return discards the tick and nothing re-arms the pass when the queue drains; a test feeding one candidate per 100ms while ticking once shows the stranded importer still pending after the tick",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "contribs/gpao/reoffer.go",
+      "line": 97,
+      "angle": "lines",
+      "summary": "when a pass finds the stranded submission blocked on an import it records blockedOn but leaves the status reason from the first look",
+      "failure_scenario": "A package whose first look ended unavailable is found by the pass to import a parked package; stranded holds blockedOn = that import, but the board keeps saying 'the oracle could not run verification', so the submitter is never told which import holds it back.",
+      "verify_by": "the AbsentImport repro output: stranded={... blockedOn:gno.land/p/test/neversubmitted} beside reason=\"the oracle could not run verification...\"; same branch for a parked import",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "stranded={height:2 offers:0 blockedOn:gno.land/p/test/neversubmitted} with reason=\"the oracle could not run verification: verifier unavailable: ...\"",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "contribs/gpao/reoffer.go",
+      "line": 111,
+      "angle": "lines",
+      "summary": "the pass might verify bytes other than those parked at the recorded height",
+      "settled_by": "submissionAt reuses addedPackages (DeliverTx IsOK filter, block order) and takes the last add at the path; keeper_inert.go:565 'Height is the block the package was submitted in', and reoffer.go:78 forgets the entry once meta.Height differs, so a later replacement is never verified under the old height"
+    },
+    {
+      "file": "contribs/gpao/reoffer.go",
+      "line": 56,
+      "angle": "catalog",
+      "summary": "o.stranded and the new ticker path racing the block reader",
+      "settled_by": "go test -race -count=1 -run 'Stranded|Reoffer|CachedGenesis' ./contribs/gpao -> ok github.com/gnolang/gno/contribs/gpao 17.319s, no DATA RACE"
+    }
+  ]
+}

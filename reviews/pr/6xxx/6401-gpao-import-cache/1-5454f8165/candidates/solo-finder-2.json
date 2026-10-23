@@ -1,0 +1,116 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "contribs/gpao/oracle.go",
+      "line": 513,
+      "angle": "reach",
+      "summary": "The settled check now runs before every verification under the daemon's deadline-free context, so a stalled node holds each candidate for the RPC client's 60 s timeout before verify also waits out the prepare budget.",
+      "failure_scenario": "A node accepts connections and never answers (the stalledNode shape). At the merge base handleCandidate went straight to verify, which the prepare budget (1 m default) ended as unavailable. At head recordIfSettled -> isSettled -> queryPkgMeta runs first with runVerifier's ctx, which is main's signal.NotifyContext with no deadline, so it returns only at rpcclient's 60 s defaultTimeout; verify then waits the prepare budget as before. Each candidate costs about 2 min instead of 1, which halves how fast the 256-slot queue drains while the node is stalled. TestSettledCheckEndsWithItsContext passes a 200 ms ctx that production never supplies.",
+      "verify_by": "Time handleCandidate on newTestOracleAt(t, stalledNode(t)) with prepareBudget 3s and verifyBudget 10s: expect about 3 s at the merge base and about 63 s at head; deriving the pre-check ctx from prepareBudget brings it back.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "tm2/pkg/bft/rpc/client/client.go:19 `const defaultTimeout = 60 * time.Second`; newOracle calls rpcclient.NewHTTPClient(cfg.remote) with no options; contribs/gpao/main.go:99 ctx is signal.NotifyContext(context.Background(), ...); oracle.go:513 `if o.recordIfSettled(ctx, path, key) {` precedes o.verify.",
+      "repro_path": ""
+    },
+    {
+      "index": 1002,
+      "file": "contribs/gpao/oracle.go",
+      "line": 345,
+      "angle": "reach",
+      "summary": "The reset detector reads any tip below height-1 as a chain restart, so a --start-height above the tip, or a lagging node behind a load-balanced --remote, logs an error claiming those heights were read and empties the genesis cache.",
+      "failure_scenario": "gpao start -start-height 1000 on a chain at height 500: the first poll sees 500 < 999 and errf prints 'the chain's tip 500 is below height 999, already read; dropping the genesis import cache', though no block was read. With a --remote whose backends differ by a block or two, each poll that lands on the lagging node logs the error again and empties the cache, so the next verification refetches its whole closure cold (141 vm/qfile queries for r/sys/names, per the ADR).",
+      "verify_by": "TestGenesisImportsFollowTheChain shape with startHeight 1000 and tips {500}: capture io.Err and assert no 'already read' line; tips {6,7,5,7,5} with a seeded cache counts the drops (expect 2 at head).",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "oracle.go:276 `height := o.cfg.startHeight` is used as-is when positive; oracle.go:345 `if latest < height-1 && !reset {` compares against height-1 whether or not that height was processed; `reset = latest < height-1` clears on the next higher tip, so each lag re-triggers.",
+      "repro_path": ""
+    },
+    {
+      "index": 1003,
+      "file": "contribs/gpao/oracle.go",
+      "line": 345,
+      "angle": "reach",
+      "summary": "A restart is only noticed when a poll lands while the new tip is below the old one; a new chain that passes the old tip between two polls keeps the old genesis's sources cached for the rest of the run.",
+      "failure_scenario": "The verifier is behind and the block reader sits in enqueue's blocking send (queue full, oracle.go:487), so no Status poll runs. The node is restarted with a changed genesis under the same chain ID and passes the old tip before the queue frees. The next poll has latest >= height-1, importsStale is never set, and every later candidate importing a changed genesis package is typechecked against the old source: rejected and marked seen for using the new API, or approved and failing on chain for a fee.",
+      "verify_by": "resetRPC with tips {6, 9} where the chain behind the second tip has a different genesis: assert genesisImports() is emptied after run; expect it kept at head. A check keyed on block 1's hash or the /genesis hash, compared per poll, would catch it.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "oracle.go:478-492 enqueue blocks on `o.candidates <- c` when full, inside the height loop, so polling pauses; oracle.go:345 is the only writer of importsStale and keys on tip direction alone.",
+      "repro_path": ""
+    },
+    {
+      "index": 1004,
+      "file": "contribs/gpao/importcache.go",
+      "line": 55,
+      "angle": "reach",
+      "summary": "A package deployed at genesis by a replayed historical transaction carries its source chain's block height in [addpkg], so the cache never keeps it, and the README's '0 for a package deployed at genesis' does not hold on a hard-forked chain.",
+      "failure_scenario": "On a chain whose genesis replays past chains' transactions with BlockHeight metadata (the hard-fork path), app.go sets header.Height = metadata.BlockHeight and stampGnomod stamps ctx.BlockHeight(). Every user package from that history is as fixed and as bounded as the height-0 set, yet closure reads Height > 0 and refetches it on every verification, so a candidate importing one pays the cold closure each time: the cost this change exists to remove.",
+      "verify_by": "nodeWithGenesisPackage variant appending the addpkg as TxWithMetadata{Metadata: &GnoTxMetadata{BlockHeight: 42}}: read vm/qfile <path>/gnomod.toml and expect 'height = 42', then run TestOnlyGenesisImportsOutliveAVerification against it and see the second verify fetch again.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "gno.land/pkg/gnoland/app.go:903-905 `if metadata.BlockHeight > 0 { header.Height = metadata.BlockHeight }`; gno.land/pkg/sdk/vm/keeper.go:1129 `stampGnomod(gm, memPkg, pkgPath, creator, ctx.BlockHeight(), \"\")`; importcache.go:55 keeps only `gm.AddPkg.Height == 0`.",
+      "repro_path": ""
+    },
+    {
+      "index": 1005,
+      "file": "contribs/gpao/verifyone.go",
+      "line": 120,
+      "angle": "removed",
+      "summary": "A seed the child cannot read or decode returns a plain error, exit 1, which the parent files as a terminal rejection of the candidate, though the seed is the oracle's own data.",
+      "failure_scenario": "The parent writes a seed this child does not parse, as when a later gpao changes importSeed while this build sits at os.Executable (the replaced-binary case verify's own comment names). execVerifyOne returns 'decode import seed: ...', the process exits 1, verify returns errors.New(msg), and handleCandidate records statusRejected and marks the bytes seen for the life of the process: the oracle's own failure is shown as the submitter's verdict. newVerifier and prepare failures in the same function use exitNoVerdict.",
+      "verify_by": "Pipe a valid candidate followed by '{\"Imports\":5}' into `gpao verify-one -gno-root <root> -remote <node>` and read the exit status: 1 at head, where exitNoVerdict would give exitResolverUnavailable (3).",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "verifyone.go:120 `return fmt.Errorf(\"read import seed: %w\", err)` and :123 `return fmt.Errorf(\"decode import seed: %w\", err)`; verify maps any other non-negative exit to errors.New(msg), which handleCandidate records as statusRejected and seen.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "contribs/gpao/oracle.go",
+      "line": 761,
+      "angle": "removed",
+      "summary": "isSettled lost its `res == nil` guard when it moved to queryPkgMeta, so a nil result with a nil error would panic the daemon.",
+      "settled_by": "sed -n 360,400p tm2/pkg/bft/rpc/client/client.go: unmarshalResponseBytes ends `return &result, nil`, so ABCIQuery never returns a nil result without an error."
+    },
+    {
+      "file": "contribs/gpao/importcache.go",
+      "line": 55,
+      "angle": "reach",
+      "summary": "A submitter could ship a gno.mod without [addpkg] beside the stamped gnomod.toml so the parse reads height 0 and the cache keeps a post-genesis package without bound.",
+      "settled_by": "gnovm/pkg/gnomod/parse.go:129 `for _, fname := range []string{\"gnomod.toml\", \"gno.mod\"}` reads gnomod.toml first, and keeper.go:1129 stampGnomod always writes gnomod.toml."
+    },
+    {
+      "file": "contribs/gpao/importcache.go",
+      "line": 43,
+      "angle": "reach",
+      "summary": "A body query failing mid-package could leave a partial genesis package in the cache for the life of the run.",
+      "settled_by": "sed -n 186,227p contribs/gpao/getter.go: fetch returns `nil, err` on any body query error, so closure sees nil and records an absence, which importCache never keeps."
+    },
+    {
+      "file": "contribs/gpao/verifier.go",
+      "line": 347,
+      "angle": "removed",
+      "summary": "The walkImports extraction could change which paths the child builds, descends into or records as unserved.",
+      "settled_by": "diff.md lines 2074-2101 against removed lines 2131-2162: stdlib builds and does not descend, a nil userlib dep is recorded unserved with cur.Path, a buildOne error ends the walk, a fetched dep is queued; seen is set before visit in both."
+    },
+    {
+      "file": "contribs/gpao/verifyone.go",
+      "line": 259,
+      "angle": "reach",
+      "summary": "Seeded dependencies carry Type gno.MPUserAll, which the candidate never did, and could fail the amino round trip.",
+      "settled_by": "gnovm/pkg/gnolang/package.go:135 registers `MemPackageType(\"\")` with amino, and `gh pr checks 6401` shows `gpao / test pass`, which includes TestOnlyGenesisImportsOutliveAVerification verifying through a seeded child."
+    }
+  ]
+}

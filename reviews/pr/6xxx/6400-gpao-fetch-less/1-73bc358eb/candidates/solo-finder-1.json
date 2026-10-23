@@ -1,0 +1,100 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "contribs/gpao/getter.go",
+      "line": 192,
+      "angle": "catalog",
+      "summary": "A live dependency stored before the production-file check (#5892) that holds only test files is now fetched as gnomod.toml alone with an empty name, so its importer goes pending blamed on the operator's tree instead of being rejected as the validator rejects it",
+      "failure_scenario": "Chain forked into the inert policy holds gno.land/p/x/onlytests, added before 412ab1962 (2026-07-16), listing gnomod.toml and x_test.gno. readByVerify drops x_test.gno, files is [gnomod.toml], packageName returns \"\", and prepare's buildOne panics in AddMemPackage on the nameless package: the importer exits no-verdict with 'could not prebuild ... check this oracle's tree', pending until a restart, then pending again. On master the test file named the package, the build succeeded empty, and the ProdOnly typecheck rejected the importer, the answer the chain gives at enable (MPFProd leaves the import no .gno file).",
+      "verify_by": "Unit test beside chainimports_test.go: dep := &std.MemPackage{Path: \"gno.land/p/x/onlytests\", Type: gno.MPUserAll, Files: gnomod.toml + onlytests_test.gno}; candidate importing it; v := newRPCVerifier(t, dep); err := v.prepare(mpkg). Head: expect 'could not prebuild' (no verdict). Base 71169cb6e: expect prepare nil and verifyPackage a typecheck error. Read half: git log -S hasProdGnoFile -- gno.land/pkg/sdk/vm/keeper.go dates the check.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "git log -S hasProdGnoFile: '412ab1962 2026-07-16 feat(gno.land): meter type-check+preprocess gas at AddPackage and Run (#5892)'; keeper.go:793-794 refuses only packages added since. A scan of examples/ for a gnomod.toml dir with no production .gno printed nothing, so genesis packages do not carry the shape; only user packages added before #5892 on a forked chain would. The panic on an empty name is read off the code, not run.",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "contribs/gpao/chainimports_test.go",
+      "line": 60,
+      "angle": "removed",
+      "summary": "Dropping LoadImports from verifyPackage leaves eight tests calling verifyPackage without prepare, a sequence the child never runs, which is the gap the removed comment said the inline call closed",
+      "failure_scenario": "TestVerifierResolvesChainOnlyImport, ...WithTestFiles, ...TransitiveChainOnlyImports, ...ImportOnAnotherDomain (chainimports_test.go:40,60,81,97) and TestOracleTypecheckAcceptsValidPackage, TestOracleTypecheckRejectsInvalidPackage, TestOraclePreprocessCatchesWhatTypecheckCannot, TestVerifierAcceptsPackageWithTestFiles (oracle_test.go:134,159,205,436) now resolve every chain import inside verifyPackage's own transaction. verifyone.go:125-134 always runs prepare first, so a regression that leaves prepare's builds invisible to the stages (the dependencies then recompile on the budget) keeps all eight green; on master the inline LoadImports built the closure into the base store first.",
+      "verify_by": "Add require.NoError(t, v.prepare(mpkg)) before each listed verifyPackage call and run go test -count=1 -run 'TestVerifier|TestOracle' ./contribs/gpao; then point injectChainGetter's builds at a throwaway store so prepare's work never reaches the stages, and check which of the eight goes red as written versus with prepare added.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "awk over contribs/gpao/*_test.go listed the eight tests calling verifyPackage with no prepare call in the same test; base verifier.go:157 carried '_ = test.LoadImports(v.prodgs, mpkg, false)' with the comment 'two of the tests used to omit it and so exercised a sequence the child never runs'.",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "contribs/gpao/getter.go",
+      "line": 220,
+      "angle": "lines",
+      "summary": "No test serves a dependency carrying gno.mod, so readByVerify's gno.mod branch can be deleted with every test green",
+      "failure_scenario": "A live dependency whose module file is the legacy gno.mod rather than gnomod.toml: deleting \"gno.mod\" from the case leaves it fetched without a module file, and nothing in the suite notices, though gnomod.ParseMemPackage reads either name (keeper.go:589).",
+      "verify_by": "grep -n 'gno.mod' contribs/gpao/*_test.go returns nothing; mutate the case to `case \"gnomod.toml\":` and run go test ./contribs/gpao: expect green.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'gno.mod' over contribs/gpao/*_test.go printed no hit.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "contribs/gpao/verifier.go",
+      "line": 251,
+      "angle": "lines",
+      "summary": "Dropping test.LoadImports from prepare changes which candidates pass or park, or leaves a production import unbuilt",
+      "settled_by": "LoadImports (gnovm/pkg/test/imports.go:368-387) merged Source+Test+XTest imports, skipped realms and swallowed panics; buildChainImports (unchanged, diff of base and head bodies printed SAME_BUILDCHAIN) builds every production import, realms and stdlibs included, and returns a build panic as prepare's error. Only test-only imports leave the walk, which neither stage resolves. go test -count=1 -run 'TestVerifier|TestPrepare|TestRPCGetter|TestPackageName' ./contribs/gpao at head: 'ok github.com/gnolang/gno/contribs/gpao 0.033s'; the probe's control rows kept 'errImportParked=true' with parked=map[gno.land/p/test/parkeddep:true]."
+    },
+    {
+      "file": "contribs/gpao/verifier.go",
+      "line": 359,
+      "angle": "claims",
+      "summary": "README.md:149 says every chain package the production files import is fetched before the budget, but packages.Imports parses the candidate's test files too, so one unparseable _test.gno skips the whole walk and leaves a parked import unclassified, rejecting the candidate",
+      "settled_by": "tests/solo-finder-1-broken-test-file-prepare.go at head: broken test file gives 'qfile calls in prepare=0, in verifyPackage (on the budget)=0', 'parked=map[]', 'err=gno.land/p/test/user/user_test.gno:6:1: missing import path', and with the dependency live 'verifyPackage once live: err=gno.land/p/test/user/user_test.gno:6:1: missing import path': the ProdOnly typecheck the validator runs rejects the same bytes, so the rejection is the right verdict and nothing is fetched on the clock."
+    },
+    {
+      "file": "contribs/gpao/getter.go",
+      "line": 223,
+      "angle": "claims",
+      "summary": "readByVerify keeps a different file set than the typecheck and the preprocess read from an import",
+      "settled_by": "gnovm/pkg/gnolang/mempackage.go:353-354 'case MPFProd: return endsWithAny(fname, []string{\"_test.gno\", \"_filetest.gno\"})' equals IsTestFile at mempackage.go:196; gotypecheck.go:349 'mpkg = MPFProd.FilterMemPackage(mpkg)' for every import; keeper.go:589 names gnomod.toml and gno.mod as the two module files gnomod.ParseMemPackage reads."
+    },
+    {
+      "file": "contribs/gpao/getter.go",
+      "line": 259,
+      "angle": "removed",
+      "summary": "packageName lost the _test trim and the filetest ranking that another caller still needs",
+      "settled_by": "grep 'packageName(' over contribs/gpao: getter.go:208 (fetch, production files only after readByVerify) and getter_test.go:45; TestRPCGetterNamesReconstructedPackage at head asserts name grc20 with the filetest sorted first and passes in the run above."
+    },
+    {
+      "file": "contribs/gpao/getter.go",
+      "line": 191,
+      "angle": "claims",
+      "summary": "Comment claims AddPackage refuses a package with no production file",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:793-794 'if !hasProdGnoFile(memPkg) { return ErrInvalidPackage(\"package has no production .gno files\") }'; packages added before 412ab1962 are candidate 1."
+    },
+    {
+      "file": "contribs/gpao/chainimports_test.go",
+      "line": 311,
+      "angle": "claims",
+      "summary": "TestVerifierFetchesNoImportOnlyItsTestsName stays green with LoadImports restored",
+      "settled_by": "imports.go:368-372 merges FileKindTest and FileKindXTest and imports.go:387 calls store.GetPackage on each, which reaches the chain getter and qfile for gno.land/p/test/testonly, so restoring either removed call puts testOnly.Path in asked and fails assert.NotContains; the test passed at head in the run above."
+    },
+    {
+      "file": "contribs/gpao/README.md",
+      "line": 150,
+      "angle": "claims",
+      "summary": "'neither stage compiles a test file': the ProdOnly typecheck still parses the candidate's test files",
+      "settled_by": "Probe error 'user_test.gno:6:1: missing import path' shows the typecheck parses test files, but their imports are never resolved (TestVerifierFetchesNoImportOnlyItsTestsName passes), so only the prose is loose and the code matches the validator: no code candidate."
+    }
+  ]
+}

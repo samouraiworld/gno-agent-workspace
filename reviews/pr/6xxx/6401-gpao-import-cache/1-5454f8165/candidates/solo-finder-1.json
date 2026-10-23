@@ -1,0 +1,101 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "contribs/gpao/oracle.go",
+      "line": 570,
+      "angle": "claims",
+      "summary": "No test reaches the settled re-check after verification, because the diff moved every settled case to the new pre-check",
+      "failure_scenario": "ADR pr6401_gpao_settled_before_verify decision 2 keeps the check after verification for a package that goes live while it is being verified. Delete the `if o.recordIfSettled(ctx, path, key) { return }` block at oracle.go:570 and every gpao test stays green. TestSettledPackageIsNotVerified is answered by the pre-check at :513, and TestRedeployParkedOverLivePrivateRealmIsEnabled asserts the not-settled branch. A regression that drops the re-check would send MsgEnablePackage for a package another approver enabled mid-verification, paying the full fee to be told it is live, and no test would catch it.",
+      "verify_by": "In contribs/gpao at 5454f8165, delete oracle.go lines 570-572 and run `go test ./...`. Expect a red test; all stay green. `grep -n 'already active' *_test.go` lists only issettled_test.go:151 and :207, and both are reached without the re-check.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n \"already active\\|isSettled\\|recordIfSettled\" *_test.go: issettled_test.go:151 (NotEqual, not-settled path), :207 (replay answered by the pre-check), :223 (isSettled alone). No test enables a package between the two checks.",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "contribs/gpao/oracle.go",
+      "line": 345,
+      "angle": "lines",
+      "summary": "The reset signal fires on any tip one block below the last read height, so a lagging backend drops the genesis cache and logs a chain restart that never happened",
+      "failure_scenario": "gpao has read through height T, so height is T+1. Its --remote fronts two nodes, and the next Status lands on the one at T-1. The test `latest < height-1` becomes T-1 < T: importsStale is set, errf prints 'the chain's tip T-1 is below height T, already read; dropping the genesis import cache', and the next verification fetches the whole genesis closure again (141 queries for r/sys/names, per the ADR). Every lag repeats this, so on such a remote the cache saves nothing and the operator's error log reports restarts that did not happen. The same line fires at startup when --start-height is above the tip: it says height N-1 was 'already read' although nothing was read.",
+      "verify_by": "Add a case to TestGenesisImportsFollowTheChain (importcache_test.go:240) with tips {6, 7, 6, 8}, a one-block lag and no reset, expecting kept 1: o.genesisImports() returns 0 entries. Read oracle.go:345-350.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "oracle.go:345 `if latest < height-1 && !reset {`; :350 `reset = latest < height-1`; queryLatestHeight (oracle.go:635) reads only status.SyncInfo.LatestBlockHeight.",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "contribs/gpao/oracle.go",
+      "line": 345,
+      "angle": "lines",
+      "summary": "A chain reset that the poll never sees below the read height leaves the old genesis in the cache, and the child verifies against it",
+      "failure_scenario": "gpao's read height is 50: it is early in a --start-height catch-up, or the block reader is blocked in enqueue on a full queue. The chain is relaunched with a new genesis. By the next Status the new chain is at 60, so `latest < height-1` never holds and importsStale stays false. closure then hands the child the old chain's genesis sources from o.imports instead of fetching the new chain's. The typecheck judges the candidate against code the chain does not hold. That ends either in an approval the chain refuses after the fee is paid, or in a rejection that retires valid bytes for the life of the process. Only heights are compared, and nothing ties the cache to the chain it was read from, such as the genesis or block-1 hash.",
+      "verify_by": "Read run() at oracle.go:338-350: its only input is Status().LatestBlockHeight. A resetRPC whose tips go {6, 9} across a relaunch cannot be told from a growing chain, and TestGenesisImportsFollowTheChain's 'growing chain' case asserts that such a chain keeps the cache.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "oracle.go:345-350 compare latest to height-1 only; enqueue (oracle.go:478) blocks the reader with no poll while the queue is full; importcache.go:26 clears only on importsStale.",
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "contribs/gpao/verifyone.go",
+      "line": 120,
+      "angle": "catalog",
+      "summary": "An import seed the child cannot read, or the parent cannot encode, is filed as a rejection of the candidate",
+      "failure_scenario": "execVerifyOne returns 'read import seed' and 'decode import seed' (verifyone.go:120, :123) as plain errors, which exit 1 before the ready marker. verify reads any exit >= 0 other than 3 and 4 as a verdict, so handleCandidate records statusRejected and marks the bytes seen. 'encode import seed' (verifyone.go:261) also returns a plain error, and handleCandidate files it as a rejection. Both are failures of gpao's own hand-off of dependency packages and say nothing about the candidate. The parent writes a decodable seed today, so this is latent: it is reached by a seed whose shape changes between the parent and a binary replaced on disk.",
+      "verify_by": "Read verifyone.go:116-125 and :258-262 against handleCandidate at oracle.go:518-560: neither path wraps errVerifyUnavailable or calls exitNoVerdict, so both land in the `if err != nil` rejection branch.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "verifyone.go:120 `return fmt.Errorf(\"read import seed: %w\", err)`; :261 `return fmt.Errorf(\"encode import seed: %w\", err)`.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "contribs/gpao/oracle.go",
+      "line": 513,
+      "angle": "lines",
+      "summary": "The pre-verification isSettled runs outside the prepare clock, so a stalled node holds each candidate before verification starts",
+      "settled_by": "oracle.go:447-455 runVerifier passes the daemon ctx; tm2/pkg/bft/rpc/client/client.go:19 `const defaultTimeout = 60 * time.Second` bounds each query. A candidate handled during a stall ends pending (errVerifyUnavailable) either way and is never re-offered, so a slower stall consumes no more candidates. The ctx makes shutdown prompt, which is what TestSettledCheckEndsWithItsContext pins."
+    },
+    {
+      "file": "contribs/gpao/importcache.go",
+      "line": 38,
+      "angle": "catalog",
+      "summary": "The parent now parses untrusted import blocks, and packages.FileImports panics when strconv.Unquote rejects a literal the parser accepted",
+      "settled_by": "A go run probe of parser.ParseFile(..., parser.ImportsOnly) gave `\"\\q\"`, an unterminated `\"abc`, `\"\\xff\"` and `\"a\" \"b\"`: all 'parse err', so FileImports returns before the panic. A raw literal holding \\r gave 'lit \"`ab`\" unquote err <nil>'."
+    },
+    {
+      "file": "contribs/gpao/importcache.go",
+      "line": 56,
+      "angle": "claims",
+      "summary": "A submitter writes `[addpkg] height = 0` so that a post-genesis package passes as genesis and grows the cache",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go:637-639 stampGnomod assigns `gm.AddPkg.Height = int(height)` unconditionally, and both AddPackage paths call it with ctx.BlockHeight() (keeper.go:1014, :1129)."
+    },
+    {
+      "file": "contribs/gpao/verifyone.go",
+      "line": 124,
+      "angle": "catalog",
+      "summary": "A seeded MemPackage loses its Type in the amino JSON round trip, so the child cannot build it",
+      "settled_by": "TestOnlyGenesisImportsOutliveAVerification spawns the child with a seeded genesis import and requires NoError, and .github/workflows/ci-dir-contribs.yml:40 builds the matrix from every contribs/*/ module, gpao included, so CI catches it."
+    },
+    {
+      "file": "contribs/gpao/README.md",
+      "line": 46,
+      "angle": "claims",
+      "summary": "Packages from a hard-fork genesis that replays history carry their historical [addpkg] height, so they are never cached",
+      "settled_by": "gno.land/pkg/gnoland/app.go:903-905 `if metadata.BlockHeight > 0 { header.Height = metadata.BlockHeight }`: those packages are refetched every verification. That costs queries only, and the fix is the README/ADR wording, so it is not a candidate."
+    }
+  ]
+}
