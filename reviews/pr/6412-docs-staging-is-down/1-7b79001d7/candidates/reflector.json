@@ -1,0 +1,53 @@
+{
+ "dropped": [],
+ "candidates": [
+  {
+   "index": 1001,
+   "file": "docs/users/interact-with-gnokey.md",
+   "line": 412,
+   "angle": "removed",
+   "summary": "the Counter realm link replacing a staging URL is an absolute GitHub link pinned to master, where the docs' links into the repo are relative",
+   "failure_scenario": "A reader of docs at a release tag, or of docs.gno.land built from it, opens https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/counter and gets master's code; once the realm moves on master (a quarantined package graduating), the link 404s for every version, while ../../examples/gno.land/r/demo/counter stays valid at the version being read",
+   "verify_by": "sed -n '412p' docs/users/interact-with-gnokey.md at 7b79001d7; git grep -c '\\.\\./\\.\\./examples/' -- 'docs/*.md' for the relative convention the PR body states for links leaving docs/",
+   "band": "Nit",
+   "fix_kind": "docs",
+   "checked": true
+  },
+  {
+   "index": 1002,
+   "file": "docs/resources/effective-gno.md",
+   "line": 964,
+   "angle": "removed",
+   "summary": "the foo20 See also link replacing a staging URL is an absolute GitHub link pinned to master, where the docs' links into the repo are relative",
+   "failure_scenario": "A reader of docs at a release tag, or of docs.gno.land built from it, opens https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/defi/foo20 and gets master's code; once the realm moves on master (a quarantined package graduating), the link 404s for every version, while ../../examples/gno.land/r/demo/defi/foo20 stays valid at the version being read",
+   "verify_by": "sed -n '964p' docs/resources/effective-gno.md at 7b79001d7; git grep -c '\\.\\./\\.\\./examples/' -- 'docs/*.md' for the relative convention the PR body states for links leaving docs/",
+   "band": "Nit",
+   "fix_kind": "docs",
+   "checked": true
+  },
+  {
+   "index": 1003,
+   "file": "docs/users/explore-with-gnoweb.md",
+   "line": 77,
+   "angle": "removed",
+   "summary": "the r/docs/hello link replacing a staging URL is an absolute GitHub link pinned to master, where the docs' links into the repo are relative",
+   "failure_scenario": "A reader of docs at a release tag, or of docs.gno.land built from it, opens https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/hello and gets master's code; once the realm moves on master (a quarantined package graduating), the link 404s for every version, while ../../examples/quarantined/gno.land/r/docs/hello stays valid at the version being read",
+   "verify_by": "sed -n '77p' docs/users/explore-with-gnoweb.md at 7b79001d7; git grep -c '\\.\\./\\.\\./examples/' -- 'docs/*.md' for the relative convention the PR body states for links leaving docs/",
+   "band": "Nit",
+   "fix_kind": "docs",
+   "checked": true
+  },
+  {
+   "index": 1004,
+   "file": "docs/users/explore-with-gnoweb.md",
+   "line": 125,
+   "angle": "removed",
+   "summary": "the r/docs/source link replacing a staging URL is an absolute GitHub link pinned to master, where the docs' links into the repo are relative",
+   "failure_scenario": "A reader of docs at a release tag, or of docs.gno.land built from it, opens https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/source and gets master's code; once the realm moves on master (a quarantined package graduating), the link 404s for every version, while ../../examples/quarantined/gno.land/r/docs/source stays valid at the version being read",
+   "verify_by": "sed -n '125p' docs/users/explore-with-gnoweb.md at 7b79001d7; git grep -c '\\.\\./\\.\\./examples/' -- 'docs/*.md' for the relative convention the PR body states for links leaving docs/",
+   "band": "Nit",
+   "fix_kind": "docs",
+   "checked": true
+  }
+ ]
+}

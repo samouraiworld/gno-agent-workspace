@@ -1,0 +1,62 @@
+[
+ {
+  "index": 1001,
+  "angle": "removed",
+  "state": "CONFIRMED",
+  "band": "Nit",
+  "file": "docs/users/interact-with-gnokey.md",
+  "line": 412,
+  "verify_by": "sed -n '412p' docs/users/interact-with-gnokey.md at 7b79001d7; git grep -c '\\.\\./\\.\\./examples/' -- 'docs/*.md' for the relative convention the PR body states for links leaving docs/",
+  "tldr": "the Counter realm link points at github.com/gnolang/gno/tree/master instead of the relative ../../examples/gno.land/r/demo/counter",
+  "details": "Line 412 at head reads the absolute master URL. The PR body says relative links that leave docs/ stay relative because they hold at the version being read, and docs/resources/community-packages.md, gno-packages.md and gnoland-networks.md link into examples/ and misc/ relatively; the four links this PR adds to replace staging URLs take the other form. No linter enforces either form.",
+  "evidence": "sed -n '412p' docs/users/interact-with-gnokey.md: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/counter; git grep -c '../../examples/' docs: community-packages.md 15, gno-packages.md 4, gno-data-structures.md 3",
+  "repro_path": "",
+  "base_behaves_the_same": false,
+  "refuted_by": ""
+ },
+ {
+  "index": 1002,
+  "angle": "removed",
+  "state": "CONFIRMED",
+  "band": "Nit",
+  "file": "docs/resources/effective-gno.md",
+  "line": 964,
+  "verify_by": "sed -n '964p' docs/resources/effective-gno.md at 7b79001d7; git grep -c '\\.\\./\\.\\./examples/' -- 'docs/*.md' for the relative convention the PR body states for links leaving docs/",
+  "tldr": "the foo20 See also link points at github.com/gnolang/gno/tree/master instead of the relative ../../examples/gno.land/r/demo/defi/foo20",
+  "details": "Line 964 at head reads the absolute master URL. The PR body says relative links that leave docs/ stay relative because they hold at the version being read, and docs/resources/community-packages.md, gno-packages.md and gnoland-networks.md link into examples/ and misc/ relatively; the four links this PR adds to replace staging URLs take the other form. No linter enforces either form.",
+  "evidence": "sed -n '964p' docs/resources/effective-gno.md: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/defi/foo20; git grep -c '../../examples/' docs: community-packages.md 15, gno-packages.md 4, gno-data-structures.md 3",
+  "repro_path": "",
+  "base_behaves_the_same": false,
+  "refuted_by": ""
+ },
+ {
+  "index": 1003,
+  "angle": "removed",
+  "state": "CONFIRMED",
+  "band": "Nit",
+  "file": "docs/users/explore-with-gnoweb.md",
+  "line": 77,
+  "verify_by": "sed -n '77p' docs/users/explore-with-gnoweb.md at 7b79001d7; git grep -c '\\.\\./\\.\\./examples/' -- 'docs/*.md' for the relative convention the PR body states for links leaving docs/",
+  "tldr": "the r/docs/hello link points at github.com/gnolang/gno/tree/master instead of the relative ../../examples/quarantined/gno.land/r/docs/hello",
+  "details": "Line 77 at head reads the absolute master URL. The PR body says relative links that leave docs/ stay relative because they hold at the version being read, and docs/resources/community-packages.md, gno-packages.md and gnoland-networks.md link into examples/ and misc/ relatively; the four links this PR adds to replace staging URLs take the other form. No linter enforces either form.",
+  "evidence": "sed -n '77p' docs/users/explore-with-gnoweb.md: https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/hello; git grep -c '../../examples/' docs: community-packages.md 15, gno-packages.md 4, gno-data-structures.md 3",
+  "repro_path": "",
+  "base_behaves_the_same": false,
+  "refuted_by": ""
+ },
+ {
+  "index": 1004,
+  "angle": "removed",
+  "state": "CONFIRMED",
+  "band": "Nit",
+  "file": "docs/users/explore-with-gnoweb.md",
+  "line": 125,
+  "verify_by": "sed -n '125p' docs/users/explore-with-gnoweb.md at 7b79001d7; git grep -c '\\.\\./\\.\\./examples/' -- 'docs/*.md' for the relative convention the PR body states for links leaving docs/",
+  "tldr": "the r/docs/source link points at github.com/gnolang/gno/tree/master instead of the relative ../../examples/quarantined/gno.land/r/docs/source",
+  "details": "Line 125 at head reads the absolute master URL. The PR body says relative links that leave docs/ stay relative because they hold at the version being read, and docs/resources/community-packages.md, gno-packages.md and gnoland-networks.md link into examples/ and misc/ relatively; the four links this PR adds to replace staging URLs take the other form. No linter enforces either form.",
+  "evidence": "sed -n '125p' docs/users/explore-with-gnoweb.md: https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/source; git grep -c '../../examples/' docs: community-packages.md 15, gno-packages.md 4, gno-data-structures.md 3",
+  "repro_path": "",
+  "base_behaves_the_same": false,
+  "refuted_by": ""
+ }
+]
