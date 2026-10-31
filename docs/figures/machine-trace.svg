@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 380" width="760" height="380" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 394" width="760" height="394" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,20 +30,22 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="380" class="f-bg" rx="8"/>
+<rect width="760" height="394" class="f-bg" rx="8"/>
 <text x="20" y="24" class="f-m b">func f(a, b int) int { x := a + b; return x }   called as f(2, 3)</text>
-<text x="20" y="44" class="f-t s">The stacks after doOpEval has expanded a + b. Gas so far: 212, OpExec 130 plus OpEval 82.</text>
-<g class="f-hot " data-note="Opcodes wait here; the loop pops from the top. Pushes went in reverse, so OpEval for a runs first, then OpEval for b, then OpAdd, then OpDefine." tabindex="0">
+<text x="20" y="44" class="f-t s">The stacks after doOpEval has expanded a + b. Gas so far: 155, OpBody 73 plus OpEval 82.</text>
+<g class="f-hot " data-note="Opcodes wait here; the loop pops from the top. Pushes went in reverse, so OpEval for a runs first, then OpEval for b, then OpAdd, then OpDefine. OpBody stays beneath, sticky, and takes return x next." tabindex="0">
 <rect x="20" y="60" width="136" height="244" rx="4" class="f-box mut"/>
 <text x="88" y="78" class="f-t b" text-anchor="middle">Ops</text>
 <rect x="28" y="274" width="120" height="26" rx="4" class="f-box "/>
-<text x="88" y="291" class="f-m" text-anchor="middle">OpDefine</text>
+<text x="88" y="291" class="f-m" text-anchor="middle">OpBody</text>
 <rect x="28" y="244" width="120" height="26" rx="4" class="f-box "/>
-<text x="88" y="261" class="f-m" text-anchor="middle">OpAdd</text>
+<text x="88" y="261" class="f-m" text-anchor="middle">OpDefine</text>
 <rect x="28" y="214" width="120" height="26" rx="4" class="f-box "/>
-<text x="88" y="231" class="f-m" text-anchor="middle">OpEval</text>
-<rect x="28" y="184" width="120" height="26" rx="4" class="f-box acc"/>
+<text x="88" y="231" class="f-m" text-anchor="middle">OpAdd</text>
+<rect x="28" y="184" width="120" height="26" rx="4" class="f-box "/>
 <text x="88" y="201" class="f-m" text-anchor="middle">OpEval</text>
+<rect x="28" y="154" width="120" height="26" rx="4" class="f-box acc"/>
+<text x="88" y="171" class="f-m" text-anchor="middle">OpEval</text>
 </g>
 <g class="f-hot " data-note="The binary expression stays underneath its operands until doOpAdd pops it. Each OpEval on a name pops that name." tabindex="0">
 <rect x="168" y="60" width="136" height="244" rx="4" class="f-box mut"/>
@@ -55,28 +57,31 @@
 <rect x="176" y="214" width="120" height="26" rx="4" class="f-box acc"/>
 <text x="236" y="231" class="f-m" text-anchor="middle">a</text>
 </g>
-<g class="f-hot " data-note="doOpExec only peeked the statement. doOpDefine pops it at the end." tabindex="0">
+<g class="f-hot " data-note="OpBody holds the statement as the cursor&#x27;s active one; doOpDefine pops it at the end." tabindex="0">
 <rect x="316" y="60" width="136" height="244" rx="4" class="f-box mut"/>
 <text x="384" y="78" class="f-t b" text-anchor="middle">Stmts</text>
-<rect x="324" y="274" width="120" height="26" rx="4" class="f-box acc"/>
+<rect x="324" y="256" width="120" height="44" rx="4" class="f-box acc"/>
+<text x="384" y="272" class="f-t s" text-anchor="middle">f&#x27;s body cursor</text>
 <text x="384" y="291" class="f-m" text-anchor="middle">x := a + b</text>
 </g>
-<g class="f-hot " data-note="Empty until the names are read. After both: 2, 3. After OpAdd: 5, computed in place into a&#x27;s slot on the stack." tabindex="0">
+<g class="f-hot " data-note="The function value f sits at the bottom for the whole call, and the return writes the result over it. After both names: f, 2, 3. doOpAdd then adds 3 into the 2 beneath it, leaving f, 5." tabindex="0">
 <rect x="464" y="60" width="136" height="244" rx="4" class="f-box mut"/>
 <text x="532" y="78" class="f-t b" text-anchor="middle">Values</text>
-<text x="532" y="280" class="f-t s" text-anchor="middle">(empty)</text>
+<rect x="472" y="274" width="120" height="26" rx="4" class="f-box acc"/>
+<text x="532" y="291" class="f-m" text-anchor="middle">f</text>
 </g>
-<g class="f-hot " data-note="The scope stack. OpDefine writes 5 into slot 3 of f&#x27;s block, or into the heap item there if x were captured." tabindex="0">
+<g class="f-hot " data-note="The blocks a name climbs: f&#x27;s block, its parent the file block, then the package block. Name lookup ignores the Blocks stack and follows these parent pointers. OpDefine writes 5 into slot 3 of f&#x27;s block, or into the heap item there if x were captured." tabindex="0">
 <rect x="612" y="60" width="136" height="244" rx="4" class="f-box mut"/>
-<text x="680" y="78" class="f-t b" text-anchor="middle">Blocks</text>
-<rect x="620" y="274" width="120" height="26" rx="4" class="f-box "/>
+<text x="680" y="78" class="f-t b" text-anchor="middle">Parent chain</text>
+<rect x="620" y="274" width="120" height="26" rx="4" class="f-box acc"/>
 <text x="680" y="291" class="f-m" text-anchor="middle">f: a=2 b=3</text>
 <rect x="620" y="244" width="120" height="26" rx="4" class="f-box "/>
 <text x="680" y="261" class="f-m" text-anchor="middle">file</text>
-<rect x="620" y="214" width="120" height="26" rx="4" class="f-box acc"/>
+<rect x="620" y="214" width="120" height="26" rx="4" class="f-box "/>
 <text x="680" y="231" class="f-m" text-anchor="middle">package</text>
 </g>
-<text x="20" y="332" class="f-t s">Frames: one for the call to f, recording the stack heights to unwind to. The top cell of each column runs next.</text>
-<text x="20" y="350" class="f-t s">Gas per opcode, from machine.go: OpExec 130, OpEval 82 plus 4 per block hop for a name, int add 81, OpDefine 114 plus 79 per name.</text>
-<text x="20" y="368" class="f-t s">The site steps through all seven states.</text>
+<text x="20" y="332" class="f-t s">Frames: one for the call to f, recording the stack heights to unwind to. The top cell of each stack runs next.</text>
+<text x="20" y="348" class="f-t s">Gas per opcode, from machine.go: OpBody 73, OpEval 82 plus 4 per unit of depth for a name, int add 81, OpDefine</text>
+<text x="20" y="364" class="f-t s">114 plus 79 per name: 601 for the statement.</text>
+<text x="20" y="380" class="f-t s">The site steps through all seven states.</text>
 </svg>

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 330" width="760" height="330" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 378" width="760" height="378" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,84 +30,91 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="330" class="f-bg" rx="8"/>
-<g class="f-hot " data-note="A MemPackage is a name, a path, a list of files and a type tag. No timestamps, owners or subdirectories, so the same bytes hash the same everywhere." tabindex="0">
-<rect x="20" y="40" width="136" height="150" rx="6" class="f-box "/>
+<rect width="760" height="378" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="A MemPackage is a name, a path, a list of files and a type tag. No timestamps, owners or subdirectories, so the same files encode to the same bytes everywhere; the keeper stamps the creator and the height into gnomod.toml instead." tabindex="0">
+<rect x="20" y="40" width="136" height="174" rx="6" class="f-box "/>
 <text x="30" y="58" class="f-t b">1 · MemPackage</text>
 <text x="30" y="74" class="f-t s">name, path, files</text>
-<text x="30" y="87" class="f-t s">the path letter</text>
-<text x="30" y="100" class="f-t s">picks the kind: r</text>
-<text x="30" y="113" class="f-t s">realm, p pure, e</text>
-<text x="30" y="126" class="f-t s">ephemeral</text>
-<text x="30" y="139" class="f-t s">gnomod.toml:</text>
-<text x="30" y="152" class="f-t s">module, gno 0.9</text>
+<text x="30" y="92" class="f-t s">the path letter</text>
+<text x="30" y="105" class="f-t s">picks the kind: r</text>
+<text x="30" y="118" class="f-t s">realm, p pure, e</text>
+<text x="30" y="131" class="f-t s">ephemeral</text>
+<text x="30" y="149" class="f-t s">gnomod.toml:</text>
+<text x="30" y="162" class="f-t s">module, gno 0.9</text>
 </g>
-<path d="M156 115L169 115" class="f-ar "/>
+<path d="M156 121L169 121" class="f-ar "/>
 <g class="f-hot " data-note="Gno&#x27;s own parser is lax, so Go&#x27;s type checker runs first, with a generated shim declaring the names Go does not know." tabindex="0">
-<rect x="170" y="40" width="136" height="150" rx="6" class="f-box "/>
+<rect x="170" y="40" width="136" height="174" rx="6" class="f-box "/>
 <text x="180" y="58" class="f-t b">2 · Type-check</text>
-<text x="180" y="74" class="f-t s">go/types, the</text>
-<text x="180" y="87" class="f-t s">checker gopls uses</text>
-<text x="180" y="100" class="f-t s">.gnobuiltins.gno</text>
-<text x="180" y="113" class="f-t s">declares realm,</text>
-<text x="180" y="126" class="f-t s">address, cross,</text>
-<text x="180" y="139" class="f-t s">revive</text>
-<text x="180" y="152" class="f-t s">modes: strict,</text>
-<text x="180" y="165" class="f-t s">genesis, relaxed</text>
+<text x="180" y="74" class="f-t s">go/types, from</text>
+<text x="180" y="87" class="f-t s">Go&#x27;s standard</text>
+<text x="180" y="100" class="f-t s">library</text>
+<text x="180" y="118" class="f-t s">.gnobuiltins.gno</text>
+<text x="180" y="131" class="f-t s">declares realm,</text>
+<text x="180" y="144" class="f-t s">address, cross,</text>
+<text x="180" y="157" class="f-t s">revive</text>
+<text x="180" y="175" class="f-t s">modes: strict,</text>
+<text x="180" y="188" class="f-t s">genesis-strict,</text>
+<text x="180" y="201" class="f-t s">relaxed</text>
 </g>
-<path d="M306 115L319 115" class="f-ar "/>
-<g class="f-hot " data-note="Go2Gno walks the go/ast tree and builds Gno nodes. Nodes that open a scope carry a StaticBlock recording the names declared there." tabindex="0">
-<rect x="320" y="40" width="136" height="150" rx="6" class="f-box "/>
+<path d="M306 121L319 121" class="f-ar "/>
+<g class="f-hot " data-note="The parser charges one gas per token, plus one per level of nesting. Go2Gno walks the go/ast tree and builds Gno nodes. Nodes that open a scope carry a StaticBlock recording the names declared there." tabindex="0">
+<rect x="320" y="40" width="136" height="174" rx="6" class="f-box "/>
 <text x="330" y="58" class="f-t b">3 · Parse</text>
-<text x="330" y="74" class="f-t s">go/parser, then</text>
-<text x="330" y="87" class="f-t s">Go2Gno builds the</text>
-<text x="330" y="100" class="f-t s">Gno nodes</text>
-<text x="330" y="113" class="f-t s">additions:</text>
-<text x="330" y="126" class="f-t s">ConstExpr, RefNode,</text>
-<text x="330" y="139" class="f-t s">StaticBlock</text>
-<text x="330" y="152" class="f-t s">a node&#x27;s span is</text>
-<text x="330" y="165" class="f-t s">its identity</text>
+<text x="330" y="74" class="f-t s">gnovm/pkg/parser,</text>
+<text x="330" y="87" class="f-t s">a patched</text>
+<text x="330" y="100" class="f-t s">go/parser, then</text>
+<text x="330" y="113" class="f-t s">Go2Gno</text>
+<text x="330" y="131" class="f-t s">additions:</text>
+<text x="330" y="144" class="f-t s">ConstExpr,</text>
+<text x="330" y="157" class="f-t s">RefNode,</text>
+<text x="330" y="170" class="f-t s">StaticBlock</text>
+<text x="330" y="188" class="f-t s">a node&#x27;s span is</text>
+<text x="330" y="201" class="f-t s">its identity</text>
 </g>
-<path d="M456 115L469 115" class="f-ar "/>
-<g class="f-hot " data-note="The compile step. Every name becomes a ValuePath, every constant expression a ConstExpr. A file is preprocessed exactly once." tabindex="0">
-<rect x="470" y="40" width="136" height="150" rx="6" class="f-box acc"/>
+<path d="M456 121L469 121" class="f-ar "/>
+<g class="f-hot " data-note="The compile step. Every name becomes a ValuePath, every constant expression a ConstExpr. A finished node is skipped if met again; a restart preprocesses every file again." tabindex="0">
+<rect x="470" y="40" width="136" height="174" rx="6" class="f-box acc"/>
 <text x="480" y="58" class="f-t b">4 · Preprocess</text>
 <text x="480" y="74" class="f-t s">PredefineFileSet,</text>
 <text x="480" y="87" class="f-t s">then one walk per</text>
 <text x="480" y="100" class="f-t s">file</text>
-<text x="480" y="113" class="f-t s">names become slots,</text>
-<text x="480" y="126" class="f-t s">constants fold,</text>
-<text x="480" y="139" class="f-t s">crossing rules are</text>
-<text x="480" y="152" class="f-t s">checked</text>
-<text x="480" y="165" class="f-t s">block nodes saved</text>
-<text x="480" y="178" class="f-t s">by location</text>
+<text x="480" y="118" class="f-t s">names become</text>
+<text x="480" y="131" class="f-t s">slots, constants</text>
+<text x="480" y="144" class="f-t s">fold, crossing</text>
+<text x="480" y="157" class="f-t s">rules are checked</text>
+<text x="480" y="175" class="f-t s">block nodes saved</text>
+<text x="480" y="188" class="f-t s">by location</text>
 </g>
-<path d="M606 115L619 115" class="f-ar "/>
+<path d="M606 121L619 121" class="f-ar "/>
 <g class="f-hot " data-note="runMemPackage: variable declarations in dependency order, then every init function in file order with the deployer as the previous realm." tabindex="0">
-<rect x="620" y="40" width="136" height="150" rx="6" class="f-box "/>
+<rect x="620" y="40" width="136" height="174" rx="6" class="f-box "/>
 <text x="630" y="58" class="f-t b">5 · Run once</text>
 <text x="630" y="74" class="f-t s">package variables</text>
 <text x="630" y="87" class="f-t s">in Kahn order</text>
-<text x="630" y="100" class="f-t s">save, run init.1,</text>
-<text x="630" y="113" class="f-t s">init.2, ..., save</text>
-<text x="630" y="126" class="f-t s">again</text>
-<text x="630" y="139" class="f-t s">types stored under</text>
-<text x="630" y="152" class="f-t s">their id</text>
+<text x="630" y="105" class="f-t s">save, run each</text>
+<text x="630" y="118" class="f-t s">init.&lt;n&gt;, save</text>
+<text x="630" y="131" class="f-t s">again</text>
+<text x="630" y="149" class="f-t s">types stored under</text>
+<text x="630" y="162" class="f-t s">their id</text>
 </g>
-<g class="f-hot " data-note="Only values and types are persisted. The syntax tree is rebuilt from source at node start." tabindex="0">
-<rect x="470" y="230" width="270" height="70" rx="6" class="f-box mut"/>
-<text x="480" y="248" class="f-t b">Saved package</text>
-<text x="480" y="264" class="f-t s">package value and blocks, objects, types</text>
-<text x="480" y="277" class="f-t s">under tid:. Block nodes are not stored: on</text>
-<text x="480" y="290" class="f-t s">restart every package is re-preprocessed</text>
-<text x="480" y="303" class="f-t s">to rebuild them.</text>
+<g class="f-hot " data-note="Only values, types and source are persisted. The syntax tree is rebuilt from source at node start." tabindex="0">
+<rect x="420" y="250" width="320" height="112" rx="6" class="f-box mut"/>
+<text x="430" y="268" class="f-t b">Saved package</text>
+<text x="430" y="284" class="f-t s">package value and blocks, objects, types under</text>
+<text x="430" y="297" class="f-t s">tid:</text>
+<text x="430" y="314" class="f-t s">source under pkg:&lt;path&gt;, test files under</text>
+<text x="430" y="327" class="f-t s">pkg:&lt;path&gt;#allbutprod</text>
+<text x="430" y="344" class="f-t s">Block nodes are not stored: on restart every</text>
+<text x="430" y="357" class="f-t s">package is re-preprocessed to rebuild them.</text>
 </g>
-<path d="M620 190L620 229" class="f-ar "/>
+<path d="M688 214L688 249" class="f-ar "/>
 <g class="f-hot " data-note="A call after upload does no type-check, no parse and no preprocess: it loads the package value and runs." tabindex="0">
-<rect x="20" y="230" width="400" height="70" rx="6" class="f-box "/>
-<text x="30" y="248" class="f-t b">Every later call</text>
-<text x="30" y="264" class="f-t s">MsgCall on a stored package loads the saved values lazily and</text>
-<text x="30" y="277" class="f-t s">skips straight to execution. Steps 2 to 5 ran once, at upload.</text>
+<rect x="20" y="250" width="380" height="70" rx="6" class="f-box "/>
+<text x="30" y="268" class="f-t b">Every later call</text>
+<text x="30" y="284" class="f-t s">MsgCall on a stored package loads the saved values</text>
+<text x="30" y="297" class="f-t s">lazily and skips straight to execution. Steps 2 to 5 ran</text>
+<text x="30" y="310" class="f-t s">once, at upload.</text>
 </g>
-<path d="M469 265L421 265" class="f-ar dash"/>
+<path d="M419 285L401 285" class="f-ar dash"/>
 </svg>

@@ -47,7 +47,7 @@
 <rect x="20" y="188" width="300" height="36" rx="6" class="f-box "/>
 <text x="30" y="203" class="f-m">var c = mark(&quot;c&quot;, 2)</text>
 </g>
-<text x="20" y="236" class="f-t s">Dependencies recorded by codaInitOrderDeps, method bodies included</text>
+<text x="20" y="236" class="f-t s">Dependencies recorded by codaInitOrderDeps, method bodies and method expressions included</text>
 <path d="M320 62 C360 62 360 110 320 110" class="f-ar "/>
 <path d="M320 110 C360 110 360 158 320 158" class="f-ar "/>
 <path d="M320 158 C360 158 360 206 320 206" class="f-ar "/>

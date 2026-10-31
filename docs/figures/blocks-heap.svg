@@ -31,7 +31,7 @@
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
 <rect width="760" height="500" class="f-bg" rx="8"/>
-<text x="20" y="24" class="f-t h">Blocks alive inside add(3), from the names filetest above</text>
+<text x="20" y="24" class="f-t h">Blocks alive inside add(3)</text>
 <g class="f-hot " data-note="The bottom of every scope chain in this package. Its parent is the universe block. Package variables sit in heap items, which is why the dump marks them with ~." tabindex="0">
 <rect x="20" y="44" width="210" height="82" rx="6" class="f-box "/>
 <text x="30" y="61" class="f-t b">package block</text>
@@ -44,7 +44,7 @@
 <text x="30" y="173" class="f-t b">file block</text>
 <text x="30" y="190" class="f-m s">(one per file)</text>
 </g>
-<g class="f-hot " data-note="Created by OpCall from add&#x27;s source node with one slot per declared name. NewBlock pre-fills the heap-marked slots with heap items; writes go into the item, not over it." tabindex="0">
+<g class="f-hot " data-note="Taken from the machine&#x27;s block pool by OpCall, or allocated when the pool has none that fits, with one slot per declared name. Each heap-marked slot starts with a heap item; writes go into the item, not over it." tabindex="0">
 <rect x="20" y="236" width="210" height="98" rx="6" class="f-box acc"/>
 <text x="30" y="253" class="f-t b">add&#x27;s block</text>
 <text x="30" y="270" class="f-m s">0  n      → HeapItem</text>
@@ -61,7 +61,8 @@
 <text x="258" y="151" class="f-t s" text-anchor="middle">Parent</text>
 <path d="M230 246L230 210" class="f-ar "/>
 <path d="M230 374L230 338" class="f-ar "/>
-<text x="20" y="438" class="f-t s">The if arm gets a block too, with no names of its own here.</text>
+<text x="20" y="438" class="f-t s">The if arm gets a block too, with no names</text>
+<text x="20" y="453" class="f-t s">of its own here.</text>
 <g class="f-hot " id="hi-n" data-note="A one-slot box. Pointers and captures reference the item, so the value survives the block it was declared in." tabindex="0">
 <rect x="330" y="236" width="170" height="46" rx="6" class="f-box mut"/>
 <text x="340" y="254" class="f-t b">HeapItem</text>
@@ -74,13 +75,13 @@
 </g>
 <path d="M230 266L329 259" class="f-ar "/>
 <path d="M230 298L329 323" class="f-ar "/>
-<g class="f-hot " data-note="Created by OpFuncLit. The capture list from the dump, sum then n, is copied out of add&#x27;s block into Captures. Each call of f copies the items into a fresh block, so a persisted closure never references the block it was born in." tabindex="0">
+<g class="f-hot " data-note="Created by OpFuncLit. The capture list, sum then n, is copied out of add&#x27;s block into Captures. Each call of f puts the same items into its new block, and a closure has no parent block, so a saved closure never references the block it was born in." tabindex="0">
 <rect x="540" y="236" width="200" height="92" rx="6" class="f-box "/>
 <text x="550" y="254" class="f-t b">FuncValue f</text>
 <text x="550" y="271" class="f-t s">Captures: [HeapItem sum,</text>
 <text x="550" y="285" class="f-t s">HeapItem n]</text>
 <text x="550" y="299" class="f-t s">body: return sum + n</text>
-<text x="550" y="313" class="f-t s">source, type, parent block</text>
+<text x="550" y="313" class="f-t s">source, type; no parent block</text>
 </g>
 <path d="M540 276L501 259" class="f-ar acc"/>
 <path d="M540 286L501 323" class="f-ar acc"/>
@@ -91,8 +92,8 @@
 <text x="550" y="395" class="f-m s">HeapItem, Index 0}</text>
 </g>
 <path d="M540 369L501 330" class="f-ar dash"/>
-<text x="330" y="436" class="f-t s">When add returns, its block and the for and if blocks are popped</text>
-<text x="330" y="451" class="f-t s">and gone. The two heap items stay alive inside f&#x27;s captures. That</text>
-<text x="330" y="466" class="f-t s">is the whole memory model: blocks are transient, heap items are</text>
-<text x="330" y="481" class="f-t s">what escape.</text>
+<text x="330" y="436" class="f-t s">When add returns, its block and the for and if blocks are</text>
+<text x="330" y="451" class="f-t s">popped, zeroed and returned to the machine&#x27;s block pool. The two</text>
+<text x="330" y="466" class="f-t s">heap items stay alive inside f&#x27;s captures. That is the whole</text>
+<text x="330" y="481" class="f-t s">memory model: blocks are transient, heap items are what escape.</text>
 </svg>

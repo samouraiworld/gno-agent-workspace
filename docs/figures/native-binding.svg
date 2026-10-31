@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 250" width="760" height="250" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 298" width="760" height="298" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,52 +30,64 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="250" class="f-bg" rx="8"/>
+<rect width="760" height="298" class="f-bg" rx="8"/>
 <g class="f-hot " data-note="A standard library function declared without a body and marked injected has a Go implementation in a sibling .go file." tabindex="0">
-<rect x="20" y="40" width="136" height="110" rx="6" class="f-box acc"/>
+<rect x="20" y="40" width="136" height="152" rx="6" class="f-box acc"/>
 <text x="30" y="58" class="f-t b">time.gno</text>
-<text x="30" y="76" class="f-m s">func now() int64</text>
-<text x="30" y="91" class="f-m s">// injected</text>
-<text x="30" y="106" class="f-m s">no body</text>
+<text x="30" y="76" class="f-m s">func now() (</text>
+<text x="30" y="91" class="f-m s">  sec int64,</text>
+<text x="30" y="106" class="f-m s">  nsec int32,</text>
+<text x="30" y="121" class="f-m s">  mono int64)</text>
+<text x="30" y="136" class="f-m s">// injected</text>
+<text x="30" y="151" class="f-m s">no body</text>
 </g>
-<path d="M156 95L169 95" class="f-ar "/>
-<g class="f-hot " data-note="A generator run at build time, not on chain." tabindex="0">
-<rect x="170" y="40" width="136" height="110" rx="6" class="f-box "/>
+<path d="M156 116L169 116" class="f-ar "/>
+<g class="f-hot " data-note="A generator run by go generate, never on chain." tabindex="0">
+<rect x="170" y="40" width="136" height="152" rx="6" class="f-box "/>
 <text x="180" y="58" class="f-t b">misc/genstd</text>
 <text x="180" y="74" class="f-t s">scans the stdlibs</text>
-<text x="180" y="87" class="f-t s">writes generated.go</text>
+<text x="180" y="91" class="f-t s">writes</text>
+<text x="180" y="104" class="f-t s">generated.go</text>
 </g>
-<path d="M306 95L319 95" class="f-ar "/>
-<g class="f-hot " data-note="The table the store consults. Gno values are marshalled to Go with reflection and back." tabindex="0">
-<rect x="320" y="40" width="136" height="110" rx="6" class="f-box "/>
+<path d="M306 116L319 116" class="f-ar "/>
+<g class="f-hot " data-note="The table the store consults. Gno values are converted to Go with reflection and back." tabindex="0">
+<rect x="320" y="40" width="136" height="152" rx="6" class="f-box "/>
 <text x="330" y="58" class="f-t b">generated.go</text>
-<text x="330" y="74" class="f-t s">45 bindings at this</text>
-<text x="330" y="87" class="f-t s">commit</text>
-<text x="330" y="100" class="f-t s">path + name → Go</text>
-<text x="330" y="113" class="f-t s">func</text>
-<text x="330" y="126" class="f-t s">reflection marshals</text>
-<text x="330" y="139" class="f-t s">values</text>
+<text x="330" y="74" class="f-t s">72 bindings at</text>
+<text x="330" y="87" class="f-t s">this commit</text>
+<text x="330" y="104" class="f-t s">package path and</text>
+<text x="330" y="117" class="f-t s">name → a Go</text>
+<text x="330" y="130" class="f-t s">closure</text>
+<text x="330" y="147" class="f-t s">reflection</text>
+<text x="330" y="160" class="f-t s">converts the</text>
+<text x="330" y="173" class="f-t s">values</text>
 </g>
-<path d="M456 95L469 95" class="f-ar "/>
-<g class="f-hot " data-note="Native functions are persisted like any FuncValue; the body is re-attached on every load." tabindex="0">
-<rect x="470" y="40" width="136" height="110" rx="6" class="f-box "/>
+<path d="M456 116L469 116" class="f-ar "/>
+<g class="f-hot " data-note="The body is never saved; the first call after a load looks it up again by package path and name." tabindex="0">
+<rect x="470" y="40" width="136" height="152" rx="6" class="f-box "/>
 <text x="480" y="58" class="f-t b">NativeResolver</text>
 <text x="480" y="74" class="f-t s">a store hook</text>
-<text x="480" y="87" class="f-t s">attaches the Go</text>
-<text x="480" y="100" class="f-t s">body when the</text>
-<text x="480" y="113" class="f-t s">FuncValue is loaded</text>
+<text x="480" y="91" class="f-t s">attaches the Go</text>
+<text x="480" y="104" class="f-t s">body at</text>
+<text x="480" y="117" class="f-t s">preprocessing,</text>
+<text x="480" y="130" class="f-t s">again on the first</text>
+<text x="480" y="143" class="f-t s">call after a load</text>
 </g>
-<path d="M606 95L619 95" class="f-ar "/>
+<path d="M606 116L619 116" class="f-ar "/>
 <g class="f-hot " data-note="A native that needs chain state takes the Machine and reads its Context. That is how time.Now returns the block time." tabindex="0">
-<rect x="620" y="40" width="136" height="110" rx="6" class="f-box mut"/>
+<rect x="620" y="40" width="136" height="152" rx="6" class="f-box mut"/>
 <text x="630" y="58" class="f-t b">ExecContext</text>
-<text x="630" y="74" class="f-t s">chain id, height,</text>
-<text x="630" y="87" class="f-t s">timestamp</text>
-<text x="630" y="100" class="f-t s">origin caller,</text>
-<text x="630" y="113" class="f-t s">coins sent</text>
-<text x="630" y="126" class="f-t s">banker, parameter</text>
-<text x="630" y="139" class="f-t s">store</text>
+<text x="630" y="74" class="f-t s">chain id and</text>
+<text x="630" y="87" class="f-t s">domain</text>
+<text x="630" y="104" class="f-t s">height, timestamp</text>
+<text x="630" y="121" class="f-t s">origin caller,</text>
+<text x="630" y="134" class="f-t s">coins sent</text>
+<text x="630" y="151" class="f-t s">banker, parameters</text>
+<text x="630" y="168" class="f-t s">event logger,</text>
+<text x="630" y="181" class="f-t s">session account</text>
 </g>
-<text x="20" y="186" class="f-t s">Under test, gnovm/tests/stdlibs overlays a testing package: SetRealm, SetOriginCaller, SkipHeights, IssueCoins rewrite the mock context.</text>
-<text x="20" y="204" class="f-t s">Native gas: a base plus a slope on the argument length, from a table keyed by package and name.</text>
+<text x="20" y="222" class="f-t s">Under test, gnovm/tests/stdlibs overlays a testing package: SetRealm, SetOriginCaller, SetOriginSend, SetHeight,</text>
+<text x="20" y="238" class="f-t s">SkipHeights and IssueCoins rewrite the mock context.</text>
+<text x="20" y="256" class="f-t s">Native gas: each binding&#x27;s row charges a base plus up to two slopes on argument lengths, and may charge on</text>
+<text x="20" y="272" class="f-t s">result lengths after the call; a native with no row panics.</text>
 </svg>

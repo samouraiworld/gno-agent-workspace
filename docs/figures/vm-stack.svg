@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 470" width="760" height="470" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 690" width="760" height="690" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,60 +30,116 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="470" class="f-bg" rx="8"/>
-<g class="f-hot " data-note="The user signs a message: which package, which function, which arguments, how much gas. Nothing here knows about the VM." tabindex="0">
-<rect x="40" y="30" width="400" height="42" rx="6" class="f-box "/>
+<rect width="760" height="690" class="f-bg" rx="8"/>
+<g class="f-hot " data-note="The user signs a transaction: its messages, the gas wanted and a flat fee in ugnot. Nothing here knows about the VM." tabindex="0">
+<rect x="40" y="30" width="400" height="46" rx="6" class="f-box "/>
 <text x="50" y="48" class="f-t b">Wallet</text>
 <text x="50" y="65" class="f-t s">gnokey maketx call: a signed transaction</text>
 </g>
-<path d="M240 72L240 93" class="f-ar "/>
-<text x="248" y="87" class="f-t s">RPC</text>
-<g class="f-hot " data-note="Consensus. Every validator receives the same transactions in the same order and hands them to the application one by one." tabindex="0">
-<rect x="40" y="94" width="400" height="42" rx="6" class="f-box "/>
-<text x="50" y="112" class="f-t b">Tendermint2</text>
-<text x="50" y="129" class="f-t s">orders transactions into blocks</text>
+<path d="M240 76L240 111" class="f-ar "/>
+<text x="248" y="99" class="f-t s">sent by RPC, after a trial run with .app/simulate</text>
+<g class="f-hot " data-note="CheckTx admits a transaction to the mempool. One validator proposes a chain block; it is final once validators holding more than two thirds of the voting power sign it." tabindex="0">
+<rect x="40" y="112" width="400" height="46" rx="6" class="f-box "/>
+<text x="50" y="130" class="f-t b">Tendermint2, the consensus engine</text>
+<text x="50" y="147" class="f-t s">mempool, proposer, prevote, precommit</text>
 </g>
-<path d="M240 136L240 157" class="f-ar "/>
-<text x="248" y="151" class="f-t s">ABCI</text>
-<g class="f-hot " data-note="The application layer. The ante handler verifies the signature and takes the fee, then each message goes to the handler registered for its route." tabindex="0">
-<rect x="40" y="158" width="400" height="42" rx="6" class="f-box "/>
-<text x="50" y="176" class="f-t b">BaseApp, tm2/pkg/sdk</text>
-<text x="50" y="193" class="f-t s">ante handler: signature, fee. runMsgs: route by route string</text>
+<path d="M240 158L240 193" class="f-ar "/>
+<text x="248" y="181" class="f-t s">ABCI</text>
+<path d="M280 177L469 177" class="f-ar thin dash"/>
+<g class="f-hot " data-note="The ante handler checks the gas wanted, takes the fee, verifies signatures and increments sequence numbers; gno.land adds the session and code-submission checks. A failed message keeps only the ante handler&#x27;s writes." tabindex="0">
+<rect x="40" y="194" width="400" height="106" rx="6" class="f-box "/>
+<text x="50" y="212" class="f-t b">BaseApp, tm2/pkg/sdk</text>
+<text x="50" y="229" class="f-t s">runTx: decode, ValidateBasic, then:</text>
 </g>
-<path d="M240 200L240 221" class="f-ar "/>
-<text x="248" y="215" class="f-t s">route &quot;vm&quot;</text>
-<g class="f-hot " data-note="The keeper owns one long-lived gno.Store and creates one gno.Machine per message. It is the only chain code that calls the interpreter." tabindex="0">
-<rect x="40" y="222" width="400" height="42" rx="6" class="f-box "/>
-<text x="50" y="240" class="f-t b">vm keeper, gno.land/pkg/sdk/vm</text>
-<text x="50" y="257" class="f-t s">MsgAddPackage, MsgCall, MsgRun; queries vm/qeval, vm/qrender</text>
+<g class="f-hot " data-note="Refuses a gas wanted above the chain block&#x27;s limit, takes the whole fee, checks each signature and increments the account&#x27;s sequence number, so the same signed bytes cannot run twice." tabindex="0">
+<rect x="52" y="240" width="182" height="50" rx="6" class="f-box mut"/>
+<text x="62" y="258" class="f-t b">ante handler</text>
+<text x="62" y="275" class="f-t s">gas, fee, signatures</text>
 </g>
-<path d="M240 264L240 285" class="f-ar "/>
-<text x="248" y="279" class="f-t s">one Machine per message</text>
+<path d="M234 265L245 265" class="f-ar "/>
+<g class="f-hot " data-note="Looks up each message&#x27;s handler by its route and calls it, one message after the other, stopping at the first failure." tabindex="0">
+<rect x="246" y="240" width="182" height="50" rx="6" class="f-box mut"/>
+<text x="256" y="258" class="f-t b">runMsgs</text>
+<text x="256" y="275" class="f-t s">route each message</text>
+</g>
+<path d="M270 290L270 359" class="f-ar "/>
+<text x="262" y="330" class="f-t s" text-anchor="end">route &quot;vm&quot;</text>
+<path d="M310 290L310 317" class="f-ar thin"/>
+<g class="f-hot " data-note="gno.land registers four routes: auth, bank, params and vm. Each goes to its own module&#x27;s handler." tabindex="0">
+<rect x="290" y="318" width="40" height="20" rx="4" class="f-box mut"/>
+<text x="310" y="332" class="f-m s" text-anchor="middle">auth</text>
+</g>
+<path d="M359 290L359 317" class="f-ar thin"/>
+<g class="f-hot " data-note="gno.land registers four routes: auth, bank, params and vm. Each goes to its own module&#x27;s handler." tabindex="0">
+<rect x="338" y="318" width="42" height="20" rx="4" class="f-box mut"/>
+<text x="359" y="332" class="f-m s" text-anchor="middle">bank</text>
+</g>
+<path d="M414 290L414 317" class="f-ar thin"/>
+<g class="f-hot " data-note="gno.land registers four routes: auth, bank, params and vm. Each goes to its own module&#x27;s handler." tabindex="0">
+<rect x="388" y="318" width="52" height="20" rx="4" class="f-box mut"/>
+<text x="414" y="332" class="f-m s" text-anchor="middle">params</text>
+</g>
+<text x="448" y="332" class="f-t s">the other routes</text>
+<g class="f-hot " data-note="The keeper owns one long-lived gno.Store, forked per transaction, and builds a fresh gno.Machine for each run of Gno code." tabindex="0">
+<rect x="40" y="360" width="400" height="72" rx="6" class="f-box "/>
+<text x="50" y="378" class="f-t b">vm keeper, gno.land/pkg/sdk/vm</text>
+<text x="50" y="395" class="f-t s">five messages: MsgAddPackage, MsgCall, MsgRun,</text>
+<text x="50" y="409" class="f-t s">MsgEnablePackage, MsgRejectPackage</text>
+<text x="50" y="423" class="f-t s">14 query paths, such as vm/qrender</text>
+</g>
+<path d="M240 432L240 469" class="f-ar "/>
+<text x="248" y="456" class="f-t s">a fresh Machine for each run</text>
 <g class="f-hot " data-note="The interpreter state: stacks, the active package and realm, the allocator, the gas meter, and a Context the standard library reads." tabindex="0">
-<rect x="40" y="286" width="400" height="42" rx="6" class="f-box acc"/>
-<text x="50" y="304" class="f-t b">gno.Machine, gnovm/pkg/gnolang</text>
-<text x="50" y="321" class="f-t s">parse, preprocess, execute, finalize</text>
+<rect x="40" y="470" width="400" height="46" rx="6" class="f-box acc"/>
+<text x="50" y="488" class="f-t b">gno.Machine, gnovm/pkg/gnolang</text>
+<text x="50" y="505" class="f-t s">parse, preprocess, execute, finalize</text>
 </g>
-<path d="M240 328L240 349" class="f-ar "/>
-<g class="f-hot " data-note="The layer between the interpreter and the database. Forked at the start of each transaction, committed only if the transaction succeeded." tabindex="0">
-<rect x="40" y="350" width="400" height="42" rx="6" class="f-box "/>
-<text x="50" y="368" class="f-t b">gno.Store</text>
-<text x="50" y="385" class="f-t s">per-transaction caches for objects, types, syntax trees</text>
+<path d="M240 516L240 539" class="f-ar "/>
+<g class="f-hot " data-note="The layer between the interpreter and the database. Forked before a transaction runs its messages, written back only if every message succeeded." tabindex="0">
+<rect x="40" y="540" width="400" height="46" rx="6" class="f-box "/>
+<text x="50" y="558" class="f-t b">gno.Store</text>
+<text x="50" y="575" class="f-t s">per-transaction caches for objects, types, syntax trees</text>
 </g>
-<path d="M240 392L240 413" class="f-ar "/>
-<g class="f-hot " data-note="Two key-value stores. Only the IAVL contents feed the block&#x27;s application hash." tabindex="0">
-<rect x="40" y="414" width="400" height="42" rx="6" class="f-box "/>
-<text x="50" y="432" class="f-t b">tm2 stores, then the database</text>
-<text x="50" y="449" class="f-t s">baseStore for objects, iavlStore for the Merkle tree</text>
+<path d="M240 586L240 609" class="f-ar "/>
+<g class="f-hot " data-note="Two key-value stores. Only the B+32 tree&#x27;s contents feed the application hash." tabindex="0">
+<rect x="40" y="610" width="400" height="62" rx="6" class="f-box "/>
+<text x="50" y="628" class="f-t b">tm2 stores, then the database</text>
+<text x="50" y="645" class="f-t s">plain store: objects</text>
+<text x="50" y="659" class="f-t s">B+32 tree: package sources and hashes of shared objects</text>
 </g>
+<g class="f-hot " data-note="ABCI is a Go interface with one method per event. For each committed chain block a node calls BeginBlock, DeliverTx once per transaction, EndBlock, then Commit, which returns the application hash." tabindex="0">
+<rect x="470" y="112" width="270" height="144" rx="6" class="f-box "/>
+<text x="480" y="130" class="f-t b">ABCI: one call per event</text>
+<text x="480" y="150" class="f-m s">InitChain</text>
+<text x="566" y="150" class="f-t s">at genesis: first state</text>
+<text x="480" y="166" class="f-m s">CheckTx</text>
+<text x="566" y="166" class="f-t s">admit to the mempool</text>
+<text x="480" y="182" class="f-m s">BeginBlock</text>
+<text x="566" y="182" class="f-t s">open a chain block</text>
+<text x="480" y="198" class="f-m s">DeliverTx</text>
+<text x="566" y="198" class="f-t s">run one transaction</text>
+<text x="480" y="214" class="f-m s">EndBlock</text>
+<text x="566" y="214" class="f-t s">gas price, validators</text>
+<text x="480" y="230" class="f-m s">Commit</text>
+<text x="566" y="230" class="f-t s">save, return the hash</text>
+<text x="480" y="246" class="f-m s acc">Query</text>
+<text x="566" y="246" class="f-t s acc">answer a read</text>
+</g>
+<path d="M700 256L700 386Q700 396 690 396L442 396" class="f-ar acc dash"/>
+<text x="452" y="374" class="f-t s acc">Query: no transaction, no fee,</text>
+<text x="452" y="388" class="f-t s acc">over a read-only snapshot</text>
 <g class="f-hot " data-note="gno test and gno run build a Machine the same way the keeper does, over an in-memory store." tabindex="0">
-<rect x="480" y="240" width="260" height="130" rx="6" class="f-box mut"/>
-<text x="490" y="258" class="f-t b">Off-chain: gno test, gno run, filetests</text>
-<text x="490" y="275" class="f-t s">The same interpreter with no chain. A</text>
-<text x="490" y="289" class="f-t s">Machine over an in-memory store seeded</text>
-<text x="490" y="303" class="f-t s">from examples/ and stdlibs/, with a mock</text>
-<text x="490" y="317" class="f-t s">context: fixed height, timestamp and</text>
-<text x="490" y="331" class="f-t s">caller.</text>
+<rect x="470" y="470" width="270" height="172" rx="6" class="f-box mut"/>
+<text x="480" y="488" class="f-t b">Without a chain</text>
+<text x="480" y="505" class="f-t s">gno test, gno run and the filetest</text>
+<text x="480" y="519" class="f-t s">runner build the same Machine over an</text>
+<text x="480" y="533" class="f-t s">in-memory store.</text>
+<text x="480" y="552" class="f-t s">Each import loads on first use:</text>
+<text x="480" y="566" class="f-t s">gnovm/stdlibs, the given packages, and</text>
+<text x="480" y="580" class="f-t s">examples/ for gno run and the</text>
+<text x="480" y="594" class="f-t s">filetests.</text>
+<text x="480" y="613" class="f-t s">Mock context: chain id dev, height 123,</text>
+<text x="480" y="627" class="f-t s">timestamp 1234567890.</text>
 </g>
-<path d="M480 305L442 307" class="f-ar dash"/>
+<path d="M470 493L442 493" class="f-ar dash"/>
 </svg>

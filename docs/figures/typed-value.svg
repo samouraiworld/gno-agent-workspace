@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 332" width="760" height="332" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 350" width="760" height="350" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,7 +30,7 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="332" class="f-bg" rx="8"/>
+<rect width="760" height="350" class="f-bg" rx="8"/>
 <text x="20" y="24" class="f-t h">TypedValue{T, V, N}: nine values, three cells each</text>
 <g class="f-hot " data-note="An int lives in the eight bytes: SetInt writes an int64 straight into N. No allocation." tabindex="0">
 <rect x="20" y="40" width="236" height="82" rx="6" class="f-box "/>
@@ -60,7 +60,7 @@
 <text x="30" y="180" class="f-m s">V StringValue &quot;hi&quot;</text>
 <text x="30" y="206" class="f-m s">N  0</text>
 </g>
-<g class="f-hot " data-note="A pointer is a slot address: the base object, an array, struct, block or heap item, plus an index into it." tabindex="0">
+<g class="f-hot " data-note="A pointer is a slot address: the base object, an array, struct, block, map or heap item, plus an index into it." tabindex="0">
 <rect x="262" y="130" width="236" height="82" rx="6" class="f-box "/>
 <text x="272" y="147" class="f-m b">p := &amp;node</text>
 <text x="272" y="166" class="f-m s">T  *InnerNode</text>
@@ -91,12 +91,13 @@
 <text x="272" y="270" class="f-m s">V nil</text>
 <text x="272" y="296" class="f-m s">N  0</text>
 </g>
-<g class="f-hot " data-note="A composite read from another realm&#x27;s storage carries the magic bytes in N. The mark survives copies and arguments; writing through it panics." tabindex="0">
+<g class="f-hot " data-note="An interface has no box: converting to an interface leaves T as the concrete type, so this slot is filled exactly as x := 7 is." tabindex="0">
 <rect x="504" y="220" width="236" height="82" rx="6" class="f-box acc"/>
-<text x="514" y="237" class="f-m b">lib.Data (other realm)</text>
-<text x="514" y="256" class="f-m s">T  its type</text>
-<text x="514" y="270" class="f-m s">V the object</text>
-<text x="514" y="296" class="f-m s">N  &quot;ReaDoNLY&quot;</text>
+<text x="514" y="237" class="f-m b">var e any = 7</text>
+<text x="514" y="256" class="f-m s">T  int</text>
+<text x="514" y="270" class="f-m s">V nil</text>
+<text x="514" y="296" class="f-m s">N  7</text>
 </g>
-<text x="20" y="322" class="f-t s">T is the concrete type, V a Value, N eight bytes. Fixed-size numbers use N only; everything with identity is a Value that is also an Object.</text>
+<text x="20" y="322" class="f-t s">T is the concrete type, V a Value, N eight bytes. Fixed-size numbers use N only; everything with identity is a</text>
+<text x="20" y="338" class="f-t s">Value that is also an Object.</text>
 </svg>

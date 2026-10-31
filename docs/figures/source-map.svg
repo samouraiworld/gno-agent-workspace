@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 450" width="760" height="450" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 526" width="760" height="526" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,79 +30,83 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="450" class="f-bg" rx="8"/>
+<rect width="760" height="526" class="f-bg" rx="8"/>
 <text x="20" y="24" class="f-t h">Direct imports between the documented directories, from go list</text>
-<path d="M114 86L644 120" class="f-ar thin"/>
-<path d="M114 86L514 190" class="f-ar thin"/>
-<path d="M114 86L314 330" class="f-ar acc"/>
-<path d="M114 86L114 400" class="f-ar thin"/>
-<path d="M114 86L414 260" class="f-ar thin"/>
-<path d="M114 86L114 190" class="f-ar thin"/>
-<path d="M114 86L314 190" class="f-ar thin"/>
-<path d="M314 366L514 400" class="f-ar thin"/>
-<path d="M314 366L114 400" class="f-ar thin"/>
-<path d="M114 226L314 330" class="f-ar acc"/>
-<path d="M114 226L414 260" class="f-ar thin"/>
-<path d="M114 226L114 260" class="f-ar thin"/>
-<path d="M314 226L314 330" class="f-ar acc"/>
-<path d="M314 226L114 260" class="f-ar thin"/>
-<path d="M514 226L314 330" class="f-ar acc"/>
-<path d="M514 226L114 400" class="f-ar thin"/>
-<path d="M514 226L414 260" class="f-ar thin"/>
-<path d="M114 296L314 330" class="f-ar acc"/>
-<path d="M414 296L314 330" class="f-ar acc"/>
-<path d="M414 296L114 400" class="f-ar thin"/>
-<path d="M644 156L514 190" class="f-ar thin"/>
-<path d="M644 156L314 330" class="f-ar acc"/>
-<path d="M644 156L114 400" class="f-ar thin"/>
-<path d="M644 156L114 260" class="f-ar thin"/>
-<path d="M644 86L644 120" class="f-ar thin"/>
-<path d="M644 86L314 330" class="f-ar acc"/>
-<path d="M644 86L414 260" class="f-ar thin"/>
+<path d="M164 82C164 107 621 107 621 132" class="f-ar thin"/>
+<path d="M144 82C144 103 495 103 495 124L495 170C495 191 621 191 621 212" class="f-ar thin"/>
+<path d="M44 82C44 103 219 103 219 124L219 170C219 187 229.455 187 229.455 204L229.455 250C229.455 267 54.6667 267 54.6667 284L54.6667 330C54.6667 351 51.5 351 51.5 372" class="f-ar thin"/>
+<path d="M104 82C104 103 265 103 265 124L265 170C265 187 363.273 187 363.273 204L363.273 250C363.273 271 327.5 271 327.5 292" class="f-ar thin"/>
+<path d="M64 82C64 107 104 107 104 132" class="f-ar thin"/>
+<path d="M124 82C124 107 380 107 380 132" class="f-ar thin"/>
+<path d="M380 402C380 427 380 427 380 452" class="f-ar thin"/>
+<path d="M150.667 162C150.667 183 329.818 183 329.818 204L329.818 250C329.818 271 362.5 271 362.5 292" class="f-ar thin"/>
+<path d="M57.3333 162C57.3333 187 57.3333 187 57.3333 212" class="f-ar thin"/>
+<path d="M345 162C345 187 104 187 104 212" class="f-ar thin"/>
+<path d="M609.333 242C609.333 263 483.667 263 483.667 284L483.667 330C483.667 351 156.5 351 156.5 372" class="f-ar thin"/>
+<path d="M702.667 242C702.667 267 432.5 267 432.5 292" class="f-ar thin"/>
+<path d="M345 322C345 347 86.5 347 86.5 372" class="f-ar thin"/>
+<path d="M708.5 162C708.5 187 691 187 691 212" class="f-ar thin"/>
+<path d="M603.5 162C603.5 183 430.182 183 430.182 204L430.182 250C430.182 267 241.333 267 241.333 284L241.333 330C241.333 351 121.5 351 121.5 372" class="f-ar thin"/>
+<path d="M638.5 162C638.5 187 150.667 187 150.667 212" class="f-ar thin"/>
+<path d="M702.667 82C702.667 107 691 107 691 132" class="f-ar thin"/>
+<path d="M656 82C656 103 541 103 541 124L541 170C541 187 463.636 187 463.636 204L463.636 250C463.636 271 397.5 271 397.5 292" class="f-ar thin"/>
+<path d="M84 82C84 103 242 103 242 124L242 170C242 187 296.364 187 296.364 204L296.364 250C296.364 267 194.667 267 194.667 284L194.667 330C194.667 351 318.75 351 318.75 372" class="f-ar acc"/>
+<path d="M104 162C104 183 262.909 183 262.909 204L262.909 250C262.909 267 148 267 148 284L148 330C148 351 336.25 351 336.25 372" class="f-ar acc"/>
+<path d="M415 162C415 183 396.727 183 396.727 204L396.727 250C396.727 267 495.333 267 495.333 284L495.333 330C495.333 351 371.25 351 371.25 372" class="f-ar acc"/>
+<path d="M656 242C656 263 530.333 263 530.333 284L530.333 330C530.333 351 441.25 351 441.25 372" class="f-ar acc"/>
+<path d="M104 242C104 263 101.333 263 101.333 284L101.333 330C101.333 351 353.75 351 353.75 372" class="f-ar acc"/>
+<path d="M415 322C415 347 388.75 347 388.75 372" class="f-ar acc"/>
+<path d="M673.5 162C673.5 183 530.545 183 530.545 204L530.545 250C530.545 267 518.667 267 518.667 284L518.667 330C518.667 351 423.75 351 423.75 372" class="f-ar acc"/>
+<path d="M609.333 82C609.333 103 518 103 518 124L518 170C518 187 497.091 187 497.091 204L497.091 250C497.091 267 507 267 507 284L507 330C507 351 406.25 351 406.25 372" class="f-ar acc"/>
+<path d="M464 387L571 387" class="f-ar thin"/>
+<path d="M296 387L189 387" class="f-ar thin"/>
 <g class="f-hot " data-note="The command line tool. It imports everything, including the keeper, which it uses for the query commands." tabindex="0">
-<rect x="30" y="50" width="168" height="36" rx="6" class="f-box "/>
-<text x="38" y="65" class="f-m">gnovm/cmd/gno</text>
+<rect x="20" y="52" width="168" height="30" rx="6" class="f-box "/>
+<text x="104" y="71" class="f-m" text-anchor="middle">gnovm/cmd/gno</text>
 </g>
-<g class="f-hot " data-note="The node application: mounts the stores and registers the vm route." tabindex="0">
-<rect x="560" y="50" width="168" height="36" rx="6" class="f-box "/>
-<text x="568" y="65" class="f-m">gno.land/pkg/gnoland</text>
-</g>
-<g class="f-hot " data-note="The keeper. The only chain code that constructs a Machine." tabindex="0">
-<rect x="560" y="120" width="168" height="36" rx="6" class="f-box "/>
-<text x="568" y="135" class="f-m">gno.land/pkg/sdk/vm</text>
+<g class="f-hot " data-note="The node application: mounts the stores, installs the ante handler and registers the routes." tabindex="0">
+<rect x="572" y="52" width="168" height="30" rx="6" class="f-box "/>
+<text x="656" y="71" class="f-m" text-anchor="middle">gno.land/pkg/gnoland</text>
 </g>
 <g class="f-hot " data-note="The test harness: store construction, filetest directives, package loading." tabindex="0">
-<rect x="30" y="190" width="168" height="36" rx="6" class="f-box "/>
-<text x="38" y="205" class="f-m">gnovm/pkg/test</text>
+<rect x="20" y="132" width="168" height="30" rx="6" class="f-box "/>
+<text x="104" y="151" class="f-m" text-anchor="middle">gnovm/pkg/test</text>
 </g>
-<g class="f-hot " data-note="Gno to Go source translation, behind gno lint and gno fix." tabindex="0">
-<rect x="230" y="190" width="168" height="36" rx="6" class="f-box "/>
-<text x="238" y="205" class="f-m">gnovm/pkg/transpiler</text>
+<g class="f-hot " data-note="Gno to Go source translation, behind gno tool transpile." tabindex="0">
+<rect x="296" y="132" width="168" height="30" rx="6" class="f-box "/>
+<text x="380" y="151" class="f-m" text-anchor="middle">gnovm/pkg/transpiler</text>
 </g>
-<g class="f-hot " data-note="The gno doc engine, also served by vm/qdoc." tabindex="0">
-<rect x="430" y="190" width="168" height="36" rx="6" class="f-box "/>
-<text x="438" y="205" class="f-m">gnovm/pkg/doc</text>
+<g class="f-hot " data-note="The keeper. The only chain code that constructs a Machine." tabindex="0">
+<rect x="572" y="132" width="168" height="30" rx="6" class="f-box "/>
+<text x="656" y="151" class="f-m" text-anchor="middle">gno.land/pkg/sdk/vm</text>
 </g>
 <g class="f-hot " data-note="The standard library sources and their Go native bodies. It needs the VM for the value types the natives marshal." tabindex="0">
-<rect x="30" y="260" width="168" height="36" rx="6" class="f-box "/>
-<text x="38" y="275" class="f-m">gnovm/stdlibs</text>
+<rect x="20" y="212" width="168" height="30" rx="6" class="f-box "/>
+<text x="104" y="231" class="f-m" text-anchor="middle">gnovm/stdlibs</text>
+</g>
+<g class="f-hot " data-note="The gno doc engine, also served by vm/qdoc." tabindex="0">
+<rect x="572" y="212" width="168" height="30" rx="6" class="f-box "/>
+<text x="656" y="231" class="f-m" text-anchor="middle">gnovm/pkg/doc</text>
 </g>
 <g class="f-hot " data-note="Package discovery on disk." tabindex="0">
-<rect x="330" y="260" width="168" height="36" rx="6" class="f-box "/>
-<text x="338" y="275" class="f-m">gnovm/pkg/packages</text>
-</g>
-<g class="f-hot " data-note="The VM itself. It imports only the manifest reader and the optional benchmarking hooks, so nothing above it is needed to run Gno." tabindex="0">
-<rect x="230" y="330" width="168" height="36" rx="6" class="f-box acc"/>
-<text x="238" y="345" class="f-m">gnovm/pkg/gnolang</text>
+<rect x="296" y="292" width="168" height="30" rx="6" class="f-box "/>
+<text x="380" y="311" class="f-m" text-anchor="middle">gnovm/pkg/packages</text>
 </g>
 <g class="f-hot " data-note="The gnomod.toml manifest. A leaf." tabindex="0">
-<rect x="30" y="400" width="168" height="36" rx="6" class="f-box "/>
-<text x="38" y="415" class="f-m">gnovm/pkg/gnomod</text>
+<rect x="20" y="372" width="168" height="30" rx="6" class="f-box "/>
+<text x="104" y="391" class="f-m" text-anchor="middle">gnovm/pkg/gnomod</text>
+</g>
+<g class="f-hot " data-note="The VM itself. It imports only the manifest reader, the parser copy and the optional benchmarking hooks, so nothing above it is needed to run Gno." tabindex="0">
+<rect x="296" y="372" width="168" height="30" rx="6" class="f-box acc"/>
+<text x="380" y="391" class="f-m" text-anchor="middle">gnovm/pkg/gnolang</text>
 </g>
 <g class="f-hot " data-note="Per-opcode timing when compiled in. A leaf." tabindex="0">
-<rect x="430" y="400" width="168" height="36" rx="6" class="f-box "/>
-<text x="438" y="415" class="f-m">gnovm/pkg/benchops</text>
+<rect x="572" y="372" width="168" height="30" rx="6" class="f-box "/>
+<text x="656" y="391" class="f-m" text-anchor="middle">gnovm/pkg/benchops</text>
 </g>
-<text x="560" y="300" class="f-t s">accent arrows: an import of the VM</text>
-<text x="560" y="316" class="f-t s">grey arrows: every other direct import</text>
+<g class="f-hot " data-note="Go&#x27;s go/parser, patched to charge gas per token. A leaf." tabindex="0">
+<rect x="296" y="452" width="168" height="30" rx="6" class="f-box "/>
+<text x="380" y="471" class="f-m" text-anchor="middle">gnovm/pkg/parser</text>
+</g>
+<text x="20" y="510" class="f-t s">Green arrows: imports of the VM, gnovm/pkg/gnolang. Grey arrows: every other direct import.</text>
 </svg>

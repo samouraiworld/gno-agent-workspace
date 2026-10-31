@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 350" width="760" height="350" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 364" width="760" height="364" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,55 +30,57 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="350" class="f-bg" rx="8"/>
+<rect width="760" height="364" class="f-bg" rx="8"/>
 <rect x="20" y="30" width="720" height="160" rx="6" class="f-box mut"/>
 <text x="30" y="50" class="f-t b">defaultStore, the only Store implementation</text>
-<g class="f-hot " data-note="Objects live here. The adapter commits with no hash, so this store does not feed the block&#x27;s application hash." tabindex="0">
+<g class="f-hot " data-note="Objects live here. The adapter commits with no hash, so this store does not feed the application hash." tabindex="0">
 <rect x="30" y="62" width="345" height="118" rx="6" class="f-box "/>
 <text x="40" y="80" class="f-t b">baseStore: a plain database adapter on baseKey</text>
 <text x="40" y="98" class="f-m s">oid:&lt;pkgid&gt;:&lt;newtime&gt;   objects, hash || bytes</text>
 <text x="40" y="113" class="f-m s">tid:&lt;typeid&gt;            types</text>
-<text x="40" y="128" class="f-m s">#realm                  realm records</text>
-<text x="40" y="143" class="f-m s">pkgidx:                 the ordered package list</text>
+<text x="40" y="128" class="f-m s">oid:&lt;pkgid&gt;:1#realm     realm records</text>
+<text x="40" y="143" class="f-m s">pkgidx:                 the list of uploads</text>
 <text x="40" y="158" class="f-m s">commits with no hash: not in the application hash</text>
 </g>
-<g class="f-hot " data-note="Only the IAVL contents are part of consensus state. Package sources and the hashes of escaped objects are what every validator agrees on." tabindex="0">
+<g class="f-hot " data-note="Only the Merkle tree&#x27;s contents feed the application hash: package files, escaped hashes, inert packages, and the other keepers&#x27; accounts, balances and parameters." tabindex="0">
 <rect x="385" y="62" width="345" height="118" rx="6" class="f-box acc"/>
-<text x="395" y="80" class="f-t b">iavlStore: the Merkle tree on mainKey</text>
-<text x="395" y="98" class="f-m s">pkg:&lt;path&gt;              package sources</text>
-<text x="395" y="113" class="f-m s">escaped object hashes   under their ids</text>
-<text x="395" y="128" class="f-m s"></text>
-<text x="395" y="143" class="f-m s">its root feeds the application hash</text>
-<text x="395" y="158" class="f-m s">a Merkle read costs a depth-scaled fee</text>
+<text x="395" y="80" class="f-t b">iavlStore: the B+32 tree on mainKey</text>
+<text x="395" y="98" class="f-m s">pkg:&lt;path&gt;              production files</text>
+<text x="395" y="113" class="f-m s">pkg:&lt;path&gt;#allbutprod   test files</text>
+<text x="395" y="128" class="f-m s">inert_pkg:&lt;path&gt;        inert packages</text>
+<text x="395" y="143" class="f-m s">&lt;pkgid&gt;:&lt;newtime&gt;       escaped object hashes</text>
+<text x="395" y="158" class="f-m s">its root feeds the application hash</text>
 </g>
-<g class="f-hot " data-note="The base app creates the forked store at the start of each transaction and commits it only on success." tabindex="0">
-<rect x="20" y="206" width="232" height="118" rx="6" class="f-box "/>
+<g class="f-hot " data-note="The keeper forks the store from the base app&#x27;s begin hook; the end hook calls Write only when the transaction succeeded." tabindex="0">
+<rect x="20" y="206" width="232" height="140" rx="6" class="f-box "/>
 <text x="30" y="224" class="f-t b">Per transaction</text>
 <text x="30" y="240" class="f-t s">BeginTransaction forks the store</text>
 <text x="30" y="253" class="f-t s">with fresh object, type and realm</text>
 <text x="30" y="266" class="f-t s">caches and a write log around the</text>
-<text x="30" y="279" class="f-t s">syntax-node cache. Write commits</text>
-<text x="30" y="292" class="f-t s">the log, only when the transaction</text>
-<text x="30" y="305" class="f-t s">succeeded.</text>
+<text x="30" y="279" class="f-t s">syntax-node cache. Write seals</text>
+<text x="30" y="292" class="f-t s">and publishes the log, only when</text>
+<text x="30" y="305" class="f-t s">the transaction succeeded.</text>
 </g>
-<g class="f-hot " data-note="The two hooks make the store complete; the stdlib cache keeps library reads free." tabindex="0">
-<rect x="264" y="206" width="232" height="118" rx="6" class="f-box "/>
+<g class="f-hot " data-note="The two hooks make the store complete; the in-memory standard library keeps library reads free of I/O gas." tabindex="0">
+<rect x="264" y="206" width="232" height="140" rx="6" class="f-box "/>
 <text x="274" y="224" class="f-t b">Hooks</text>
-<text x="274" y="240" class="f-t s">PackageGetter: loads packages from</text>
-<text x="274" y="253" class="f-t s">disk on first import, off-chain.</text>
-<text x="274" y="266" class="f-t s">NativeResolver: attaches Go bodies</text>
-<text x="274" y="279" class="f-t s">to native functions after a</text>
-<text x="274" y="292" class="f-t s">FuncValue is loaded. Standard</text>
-<text x="274" y="305" class="f-t s">library bytes are cached at node</text>
-<text x="274" y="318" class="f-t s">start and read without I/O gas.</text>
+<text x="274" y="240" class="f-t s">PackageGetter loads a package</text>
+<text x="274" y="253" class="f-t s">from disk on first import,</text>
+<text x="274" y="266" class="f-t s">off-chain only. NativeResolver</text>
+<text x="274" y="279" class="f-t s">attaches the Go body of a native</text>
+<text x="274" y="292" class="f-t s">function. Standard library</text>
+<text x="274" y="305" class="f-t s">objects and types sit in memory</text>
+<text x="274" y="318" class="f-t s">from node start: no I/O gas.</text>
 </g>
-<g class="f-hot " data-note="The object cache is per transaction; the GC pass keeps it from growing across one." tabindex="0">
-<rect x="508" y="206" width="232" height="118" rx="6" class="f-box "/>
+<g class="f-hot " data-note="The object cache is per message; the garbage-collection pass keeps it from growing within one." tabindex="0">
+<rect x="508" y="206" width="232" height="140" rx="6" class="f-box "/>
 <text x="518" y="224" class="f-t b">Between messages</text>
-<text x="518" y="240" class="f-t s">ClearObjectCache runs before every</text>
-<text x="518" y="253" class="f-t s">message so nothing leaks between</text>
-<text x="518" y="266" class="f-t s">them. GarbageCollectObjectCache</text>
-<text x="518" y="279" class="f-t s">drops cached objects the last GC</text>
-<text x="518" y="292" class="f-t s">cycle did not visit.</text>
+<text x="518" y="240" class="f-t s">ClearObjectCache runs at the</text>
+<text x="518" y="253" class="f-t s">start of every message so nothing</text>
+<text x="518" y="266" class="f-t s">leaks between them.</text>
+<text x="518" y="279" class="f-t s">GarbageCollectObjectCache drops</text>
+<text x="518" y="292" class="f-t s">the cached objects the last</text>
+<text x="518" y="305" class="f-t s">garbage-collection pass did not</text>
+<text x="518" y="318" class="f-t s">reach.</text>
 </g>
 </svg>

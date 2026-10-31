@@ -33,7 +33,7 @@
 <rect width="760" height="420" class="f-bg" rx="8"/>
 <text x="20" y="24" class="f-m b">zrealm1.gno: root = InnerNode{Key: &quot;somekey&quot;}, inside a realm call</text>
 <g class="f-hot " id="obj-1" data-note="Every realm&#x27;s first object. It holds the package block and one block per file." tabindex="0">
-<rect x="20" y="44" width="220" height="52" rx="6" class="f-box "/>
+<rect x="20" y="44" width="220" height="56" rx="6" class="f-box "/>
 <text x="30" y="62" class="f-t b">:1 PackageValue</text>
 <text x="30" y="79" class="f-t s">the package itself; always</text>
 <text x="30" y="93" class="f-t s">NewTime 1</text>
@@ -44,7 +44,7 @@
 <text x="30" y="165" class="f-t s">IsEscaped, RefCount 2</text>
 <text x="30" y="179" class="f-t s">slot 0 → :3</text>
 </g>
-<path d="M130 96L130 129" class="f-ar "/>
+<path d="M130 100L130 129" class="f-ar "/>
 <g class="f-hot " id="obj-3" data-note="The heap item behind the package variable root. Assign2 writes into it and calls DidUpdate with the old child, none, and the new child, the struct." tabindex="0">
 <rect x="300" y="130" width="220" height="66" rx="6" class="f-box "/>
 <text x="310" y="148" class="f-t b">:3 HeapItem root</text>
@@ -62,25 +62,25 @@
 <g class="f-hot " id="writes" data-note="Exactly what the filetest&#x27;s Realm: directive prints. Children are saved before parents, and only new or dirty objects are written." tabindex="0">
 <rect x="540" y="44" width="200" height="252" rx="6" class="f-box mut"/>
 <text x="550" y="62" class="f-t b">Realm: writes, in order</text>
-<text x="550" y="81" class="f-m s">c[...:6]  (269 bytes)</text>
+<text x="550" y="81" class="f-m s">c[...:6]  (+269 bytes)</text>
 <text x="550" y="97" class="f-m s">  the new struct, owner :3</text>
-<text x="550" y="113" class="f-m s">u[...:3]</text>
+<text x="550" y="113" class="f-m s">u[...:3]  (+156 bytes)</text>
 <text x="550" y="129" class="f-m s">  Value: RefType InnerNode</text>
 <text x="550" y="145" class="f-m s">  + RefValue{:6, hash}</text>
-<text x="550" y="161" class="f-m s">u[...:2]</text>
+<text x="550" y="161" class="f-m s">u[...:2]  (+5 bytes)</text>
 <text x="550" y="177" class="f-m s">  hash of :3 changed,</text>
 <text x="550" y="193" class="f-m s">  ModTime 0 → 6</text>
 <text x="550" y="209" class="f-m s"></text>
-<text x="550" y="225" class="f-m s">then: byte delta per realm</text>
+<text x="550" y="225" class="f-m s">then: 430 bytes in all</text>
 <text x="550" y="241" class="f-m s">  → storage deposit</text>
 </g>
 <text x="20" y="322" class="f-t s">1 new-real marks: ids depth-first, children counted</text>
 <text x="390" y="322" class="f-t s">2 deleted marks: children decremented</text>
 <text x="20" y="338" class="f-t s">3 escaped marks: demote or confirm</text>
 <text x="390" y="338" class="f-t s">4 realm record saved if the counter moved</text>
-<text x="20" y="354" class="f-t s">5 dirty ancestors up to the package block</text>
+<text x="20" y="354" class="f-t s">5 owners marked dirty, up to an escaped object</text>
 <text x="390" y="354" class="f-t s">6 save new and dirty, children first</text>
 <text x="20" y="370" class="f-t s">7 remove the deleted</text>
 <text x="390" y="370" class="f-t s">8 byte deltas per realm, for the deposit</text>
-<text x="20" y="404" class="f-t s">FinalizeRealmTransaction runs when a call returns across a realm boundary, and again after package initialization.</text>
+<text x="20" y="404" class="f-t s">FinalizeRealmTransaction runs when a call returns across a realm boundary, and twice when a package is deployed.</text>
 </svg>

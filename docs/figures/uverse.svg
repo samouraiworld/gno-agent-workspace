@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 330" width="760" height="330" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 352" width="760" height="352" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,7 +30,7 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="330" class="f-bg" rx="8"/>
+<rect width="760" height="352" class="f-bg" rx="8"/>
 <g class="f-hot " data-note="A name written in the if arm reaches this block at this depth." tabindex="0">
 <rect x="20" y="30" width="150" height="30" rx="6" class="f-box "/>
 <text x="30" y="45" class="f-t b">if block</text>
@@ -61,36 +61,36 @@
 </g>
 <text x="180" y="225" class="f-t s">Depth 5</text>
 <path d="M95 236L95 250" class="f-ar "/>
-<g class="f-hot " data-note="The universe block, a package named .uverse at the root of every chain. A name whose path has Depth 0 is read from it directly: the op_eval fast path checks nx.Path.Depth == 0 before climbing anything." tabindex="0">
+<g class="f-hot " data-note="The universe block, a package named .uverse at the root of every chain. A name no scope declares resolves here with Depth 0, and the preprocessor replaces each builtin name with a constant holding its value, so running code never looks a builtin up." tabindex="0">
 <rect x="20" y="250" width="150" height="30" rx="6" class="f-box acc"/>
 <text x="30" y="265" class="f-t b">.uverse</text>
 </g>
 <text x="180" y="269" class="f-t s">Depth 0</text>
-<text x="20" y="322" class="f-t s">Depth counts hops from the block where the name is used, so the same name has a different depth in each scope.</text>
+<text x="20" y="340" class="f-t s">Depth counts hops from the block where the name is used, so the same name has a different depth in each scope.</text>
 <g class="f-hot " data-note="The basic types are defined here, as type values in the block&#x27;s slots." tabindex="0">
-<rect x="260" y="30" width="480" height="50" rx="6" class="f-box "/>
+<rect x="260" y="30" width="480" height="54" rx="6" class="f-box "/>
 <text x="270" y="48" class="f-t b">Types</text>
-<text x="270" y="64" class="f-m s">bool string int int8 ... uint64 float32 float64 byte rune any</text>
-<text x="270" y="77" class="f-m s">error address realm</text>
+<text x="270" y="64" class="f-m s">bool string int int8 ... uint64 float32 float64 byte rune any error</text>
+<text x="270" y="77" class="f-m s">address realm</text>
 </g>
 <g class="f-hot " data-note="Constants, resolved by the preprocessor into ConstExprs." tabindex="0">
-<rect x="260" y="86" width="480" height="50" rx="6" class="f-box "/>
-<text x="270" y="104" class="f-t b">Values</text>
-<text x="270" y="120" class="f-m s">true false nil iota</text>
+<rect x="260" y="88" width="480" height="54" rx="6" class="f-box "/>
+<text x="270" y="106" class="f-t b">Values</text>
+<text x="270" y="122" class="f-m s">true false nil iota</text>
 </g>
 <g class="f-hot " data-note="Each is a FuncValue whose body is a Go closure over the Machine, installed by DefineNative." tabindex="0">
-<rect x="260" y="142" width="480" height="50" rx="6" class="f-box "/>
-<text x="270" y="160" class="f-t b">Functions</text>
-<text x="270" y="176" class="f-m s">append cap copy delete len make new print println panic recover</text>
+<rect x="260" y="146" width="480" height="54" rx="6" class="f-box "/>
+<text x="270" y="164" class="f-t b">Functions</text>
+<text x="270" y="180" class="f-m s">append cap copy delete len make new print println panic recover</text>
 </g>
-<g class="f-hot " data-note="cross checks its argument is the running frame&#x27;s own cur. revive works only when the machine enables it, which tests do." tabindex="0">
-<rect x="260" y="198" width="480" height="50" rx="6" class="f-box "/>
-<text x="270" y="216" class="f-t b">Gno additions</text>
-<text x="270" y="232" class="f-m s">cross attach (reserved, panics) istypednil revive</text>
+<g class="f-hot " data-note="cross checks that its argument is the cur of the innermost crossing call still running, or a sub-realm minted from it. revive works only when the machine enables it, which tests do." tabindex="0">
+<rect x="260" y="204" width="480" height="54" rx="6" class="f-box "/>
+<text x="270" y="222" class="f-t b">Gno additions</text>
+<text x="270" y="238" class="f-m s">cross attach (reserved, panics) istypednil revive</text>
 </g>
-<g class="f-hot " data-note="For the compiler&#x27;s own use. The leading dot or reserved spelling means user source cannot produce them." tabindex="0">
-<rect x="260" y="254" width="480" height="50" rx="6" class="f-box mut"/>
-<text x="270" y="272" class="f-t b">Hidden</text>
-<text x="270" y="288" class="f-m s">.cur .origin cross1</text>
+<g class="f-hot " data-note="For the compiler&#x27;s own use. The leading dot means user source cannot spell them." tabindex="0">
+<rect x="260" y="262" width="480" height="54" rx="6" class="f-box mut"/>
+<text x="270" y="280" class="f-t b">Hidden</text>
+<text x="270" y="296" class="f-m s">.cur .origin .grealm .runtimeError</text>
 </g>
 </svg>

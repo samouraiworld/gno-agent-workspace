@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 340" width="760" height="340" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 362" width="760" height="362" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,7 +30,7 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="340" class="f-bg" rx="8"/>
+<rect width="760" height="362" class="f-bg" rx="8"/>
 <g class="f-hot " data-note="What the interpreter holds in memory: a pointer to the child object and a pointer to the type." tabindex="0">
 <rect x="20" y="30" width="250" height="120" rx="6" class="f-box "/>
 <text x="30" y="48" class="f-t b">Live object :3, HeapItemValue</text>
@@ -40,7 +40,7 @@
 <text x="30" y="111" class="f-m s">ObjectInfo{ID :3, Owner :2, ...}</text>
 </g>
 <path d="M270 90L309 90" class="f-ar "/>
-<g class="f-hot " data-note="From the zrealm1 trace. Every child object becomes a RefValue with its id and hash, every declared type a RefType with its id, every syntax node a RefNode with its location." tabindex="0">
+<g class="f-hot " data-note="From the zrealm1 trace. An owned child becomes a RefValue with its id and hash, an escaped child with its id alone, a package with its path; every declared type a RefType with its id, every syntax node a RefNode with its location." tabindex="0">
 <rect x="310" y="30" width="430" height="140" rx="6" class="f-box acc"/>
 <text x="320" y="48" class="f-t b">Persist copy, made by copyValueWithRefs</text>
 <text x="320" y="66" class="f-m s">&quot;Value&quot;: {</text>
@@ -66,6 +66,8 @@
 <text x="30" y="230" class="f-t s">stays in place until the slot is read:</text>
 <text x="30" y="243" class="f-t s">fillValueTV swaps in the object then.</text>
 </g>
-<text x="20" y="308" class="f-t s">The same three stand-ins cover the three kinds of reference: RefValue for objects, RefType for declared types, RefNode for syntax nodes.</text>
-<text x="20" y="326" class="f-t s">A RefNode carries only a Location: package path, file, line and column span. The store loads the node on demand.</text>
+<text x="20" y="308" class="f-t s">The same three stand-ins cover the three kinds of reference: RefValue for objects, RefType for declared types,</text>
+<text x="20" y="324" class="f-t s">RefNode for syntax nodes.</text>
+<text x="20" y="342" class="f-t s">A RefNode carries only a Location: package path, file, line and column span. The store looks the node up by that</text>
+<text x="20" y="358" class="f-t s">location.</text>
 </svg>

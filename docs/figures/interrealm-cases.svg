@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 420" width="760" height="420" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 436" width="760" height="436" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,7 +30,7 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="420" class="f-bg" rx="8"/>
+<rect width="760" height="436" class="f-bg" rx="8"/>
 <text x="20" y="24" class="f-t h">Code running in r/demo/app, calling into r/demo/lib</text>
 <text x="28" y="52" class="f-t s">call written in app</text>
 <text x="338" y="52" class="f-t s">identity</text>
@@ -45,37 +45,37 @@
 <text x="518" y="86" class="f-t b">✓  crossing call</text>
 <text x="28" y="104" class="f-t s">a new cur whose prev is app</text>
 </g>
-<g class="f-hot " data-note="A pure package method on a receiver that belongs to app runs with app&#x27;s storage, so avl.Tree.Set can write the tree app owns. cur.Previous() is unchanged." tabindex="0">
+<g class="f-hot " data-note="A plain call to a function another realm declared runs with that realm&#x27;s storage, so Reset can write lib&#x27;s variables. The identity stays app." tabindex="0">
 <rect x="20" y="120" width="720" height="48" rx="4" class="f-box acc"/>
-<text x="28" y="140" class="f-m b">tree.Set(k, v)</text>
+<text x="28" y="140" class="f-m b">lib.Reset()</text>
 <text x="338" y="140" class="f-m">app</text>
-<text x="428" y="140" class="f-m">app</text>
-<text x="518" y="140" class="f-t b">✓  borrow rule 2</text>
-<text x="28" y="158" class="f-t s">tree is owned by app, Set comes from p/avl</text>
+<text x="428" y="140" class="f-m">lib</text>
+<text x="518" y="140" class="f-t b">✓  borrow rule 1</text>
+<text x="28" y="158" class="f-t s">Reset is declared in lib</text>
+</g>
+<g class="f-hot " data-note="A pure package method on a receiver another realm owns runs with that realm&#x27;s storage. Any realm holding the pointer can write lib&#x27;s tree this way." tabindex="0">
+<rect x="20" y="174" width="720" height="48" rx="4" class="f-box acc"/>
+<text x="28" y="194" class="f-m b">lib.Tree().Set(k, v)</text>
+<text x="338" y="194" class="f-m">app</text>
+<text x="428" y="194" class="f-m">lib</text>
+<text x="518" y="194" class="f-t b">✓  borrow rule 2</text>
+<text x="28" y="212" class="f-t s">the tree is stamped lib, Set comes from p/nt/avl/v0</text>
 </g>
 <g class="f-hot " data-note="A crossing function of another realm called with a bare cur. The preprocessor refuses it; only cross(cur) may switch identity." tabindex="0">
-<rect x="20" y="174" width="720" height="48" rx="4" class="f-box warn"/>
-<text x="28" y="194" class="f-m b">lib.F(cur, x)</text>
-<text x="338" y="194" class="f-m">·</text>
-<text x="428" y="194" class="f-m">·</text>
-<text x="518" y="194" class="f-t b">✗  rejected</text>
-<text x="28" y="212" class="f-t s">cur belongs to app</text>
-</g>
-<g class="f-hot " data-note="Reading a field, element or package variable of another realm marks the result readonly. The mark survives copies and arguments, and any write through it panics." tabindex="0">
 <rect x="20" y="228" width="720" height="48" rx="4" class="f-box warn"/>
-<text x="28" y="248" class="f-m b">lib.Data.N = 1</text>
-<text x="338" y="248" class="f-m">app</text>
-<text x="428" y="248" class="f-m">app</text>
-<text x="518" y="248" class="f-t b">✗  readonly taint</text>
-<text x="28" y="266" class="f-t s">the value was read from lib&#x27;s storage</text>
+<text x="28" y="248" class="f-m b">lib.F(cur, x)</text>
+<text x="338" y="248" class="f-m">·</text>
+<text x="428" y="248" class="f-m">·</text>
+<text x="518" y="248" class="f-t b">✗  rejected</text>
+<text x="28" y="266" class="f-t s">cur belongs to app</text>
 </g>
-<g class="f-hot " data-note="A write to a real object is refused unless the object&#x27;s realm is the active storage realm." tabindex="0">
+<g class="f-hot " data-note="Before every write the VM compares the stamp of the object being written with the storage realm, and panics when they differ." tabindex="0">
 <rect x="20" y="282" width="720" height="48" rx="4" class="f-box warn"/>
-<text x="28" y="302" class="f-m b">obj.N = 1</text>
+<text x="28" y="302" class="f-m b">lib.Data.N = 1</text>
 <text x="338" y="302" class="f-m">app</text>
 <text x="428" y="302" class="f-m">app</text>
 <text x="518" y="302" class="f-t b">✗  ownership</text>
-<text x="28" y="320" class="f-t s">obj is a real object of lib, and lib is not the storage realm</text>
+<text x="28" y="320" class="f-t s">lib.Data is stamped with lib, and app is the storage realm</text>
 </g>
 <g class="f-hot " data-note="A composite literal, new or make of a type declared in another realm panics at the allocation site." tabindex="0">
 <rect x="20" y="336" width="720" height="48" rx="4" class="f-box warn"/>
@@ -85,5 +85,6 @@
 <text x="518" y="356" class="f-t b">✗  construction</text>
 <text x="28" y="374" class="f-t s">lib&#x27;s types only through lib&#x27;s constructors</text>
 </g>
-<text x="20" y="404" class="f-t s">Identity is who acts, cur; storage is whose objects may be written. The borrow rules set storage for every call that is not an explicit cross.</text>
+<text x="20" y="404" class="f-t s">Identity is who acts, cur; storage is whose objects may be written. The borrow rules set storage for every call</text>
+<text x="20" y="420" class="f-t s">that is not an explicit cross.</text>
 </svg>

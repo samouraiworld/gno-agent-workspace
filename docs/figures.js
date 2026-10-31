@@ -11,30 +11,30 @@
   // stack's top is its first cell), hl (ids in the SVG to highlight).
   var STEPS = {
     'machine-trace': {
-      intro: 'f(2, 3) is running. Blocks: f’s block holds a=2, b=3, .res.0 and x.',
-      stacks: ['Ops', 'Exprs', 'Stmts', 'Values'],
+      intro: 'f(2, 3) is running: f’s block holds a = 2, b = 3, the result and x. Each stack lists its top first.',
+      stacks: ['Ops', 'Exprs', 'Values'],
       steps: [
         { title: 'Before the statement', gas: 0,
-          note: 'OpExec is waiting for the statement. Nothing has been read yet.',
-          Ops: ['OpExec'], Exprs: [], Stmts: ['x := a + b'], Values: [] },
-        { title: 'doOpExec, gas 130', gas: 130,
-          note: 'The statement is peeked, not popped. For a define, OpDefine goes on first, then OpEval for the right-hand side, so the eval runs first.',
-          Ops: ['OpEval', 'OpDefine'], Exprs: ['a + b'], Stmts: ['x := a + b'], Values: [] },
-        { title: 'doOpEval on a + b, gas 82', gas: 212,
-          note: 'A binary expression pushes the operator, then an eval of the right side, then an eval of the left side. The expression itself stays under its operands.',
-          Ops: ['OpEval', 'OpEval', 'OpAdd', 'OpDefine'], Exprs: ['a', 'b', 'a + b'], Stmts: ['x := a + b'], Values: [] },
-        { title: 'doOpEval on a, gas 82 + 4', gas: 298,
-          note: 'The name fast path: pop the expression, climb Depth − 1 blocks, read slot Index, push the value. The 4 is the per-hop slope for a name at depth 1.',
-          Ops: ['OpEval', 'OpAdd', 'OpDefine'], Exprs: ['b', 'a + b'], Stmts: ['x := a + b'], Values: ['2'] },
-        { title: 'doOpEval on b, gas 82 + 4', gas: 384,
+          note: 'The sticky OpBody walks f’s statements through a cursor in f’s block. The function value f sits at the bottom of Values for the whole call.',
+          Ops: ['OpBody'], Exprs: [], Values: ['f'] },
+        { title: 'OpBody takes x := a + b, gas 73', gas: 73,
+          note: 'OpBody hands the statement to the statement switch. For a define it pushes OpDefine, then OpEval for the right-hand side, so the eval runs first. The statement stays in the cursor, where OpDefine will find it.',
+          Ops: ['OpEval', 'OpDefine', 'OpBody'], Exprs: ['a + b'], Values: ['f'] },
+        { title: 'doOpEval on a + b, gas 82', gas: 155,
+          note: 'A binary expression pushes the operator, then an eval for each side, the right side first so that the left side runs first. The expression itself stays under its operands.',
+          Ops: ['OpEval', 'OpEval', 'OpAdd', 'OpDefine', 'OpBody'], Exprs: ['a', 'b', 'a + b'], Values: ['f'] },
+        { title: 'doOpEval on a, gas 82 + 4', gas: 241,
+          note: 'The name fast path: pop the expression, climb Depth − 1 blocks, read slot Index, push the value. The 4 is the price per unit of depth for a name at depth 1.',
+          Ops: ['OpEval', 'OpAdd', 'OpDefine', 'OpBody'], Exprs: ['b', 'a + b'], Values: ['2', 'f'] },
+        { title: 'doOpEval on b, gas 82 + 4', gas: 327,
           note: 'Same path for b. Both operands are now on the values stack, a below b.',
-          Ops: ['OpAdd', 'OpDefine'], Exprs: ['a + b'], Stmts: ['x := a + b'], Values: ['3', '2'] },
-        { title: 'doOpAdd, gas 81 for ints', gas: 465,
-          note: 'Pops the expression and the right operand, adds into the left operand in place with a per-kind switch. Floats would go through software floating point.',
-          Ops: ['OpDefine'], Exprs: [], Stmts: ['x := a + b'], Values: ['5'] },
-        { title: 'doOpDefine, gas 114 + 79', gas: 658,
-          note: 'Pops the statement and the result, writes 5 into slot 3 of f’s block, or into the heap item in that slot if x were captured. Total for the statement: 658 gas.',
-          Ops: [], Exprs: [], Stmts: [], Values: [] }
+          Ops: ['OpAdd', 'OpDefine', 'OpBody'], Exprs: ['a + b'], Values: ['3', '2', 'f'] },
+        { title: 'doOpAdd, gas 81 for ints', gas: 408,
+          note: 'Pops a + b and the 3, and adds the 3 into the 2 beneath it with a switch on the operand type. Floats would go through software floating point.',
+          Ops: ['OpDefine', 'OpBody'], Exprs: [], Values: ['5', 'f'] },
+        { title: 'doOpDefine, gas 114 + 79', gas: 601,
+          note: 'Pops 5 and the statement, and writes 5 into x’s slot, or into the heap item in that slot when a closure captured x. OpBody is on top again and takes return x. Total for the statement: 601 gas.',
+          Ops: ['OpBody'], Exprs: [], Values: ['f'] }
       ]
     },
     'call-sequence': {
@@ -48,19 +48,19 @@
           note: 'Three evals later the values stack holds the function value under its arguments.',
           Ops: ['OpPrecall', 'OpDefine'], Values: ['b', 'a', 'f'], Frames: ['caller'] },
         { title: '2 · OpPrecall', hl: ['call-2'],
-          note: 'Peeks the callee under the arguments. A function value: push a frame that records the stack heights, the callee, the package and realm to restore, then OpCall. A crossing function adds OpEnterCrossing; cross(rlm) installs a fresh cur on the frame.',
+          note: 'Looks at the callee beneath the arguments. A function value: push a call frame that records the stack heights, the callee, and the package and realm to restore, then OpCall. A crossing callee adds OpEnterCrossing, and a call written with cross(cur) gets a fresh cur on the frame. A nil function panics.',
           Ops: ['OpCall', 'OpDefine'], Values: ['b', 'a', 'f'], Frames: ['f: heights, package, realm', 'caller'] },
         { title: '3 · OpCall', hl: ['call-3'],
-          note: 'A new block from f’s source node and parent block; captured heap items copied in; a and b popped into slots 0 and 1; .res.0 zeroed. OpBody carries the statements, plus a synthetic return if f declared no results.',
+          note: 'f’s block comes from the Machine’s pool, or is allocated, with the file block as its parent; a closure’s captured heap items go into the last slots; named results are zeroed; a and b are popped into the first slots. OpBody carries the statements, plus a synthetic empty return if f declares no results.',
           Ops: ['OpBody', 'OpDefine'], Values: [], Frames: ['f: heights, package, realm', 'caller'] },
         { title: '4 · body runs', hl: ['call-4'],
           note: 'OpBody executes the statements one by one. A defer evaluates its function and arguments now and pushes a Defer onto the frame. A native function would have pushed OpReturn and OpCallNativeBody instead.',
           Ops: ['OpBody', 'OpDefine'], Values: ['(result)'], Frames: ['f: defers []', 'caller'] },
         { title: '5 · OpReturn', hl: ['call-5'],
-          note: 'One of four flavors, chosen by the preprocessor and the frame: OpReturn, OpReturnAfterCopy, OpReturnFromBlock, or OpReturnToBlock followed by the sticky OpReturnCallDefers when the frame holds defers.',
+          note: 'One of four forms, chosen by the return statement and the frame: OpReturn; OpReturnAfterCopy when the results are named and return lists values; OpReturnFromBlock for a bare return with named results; OpReturnCallDefers when the frame holds deferred calls.',
           Ops: ['OpReturn', 'OpDefine'], Values: ['(result)'], Frames: ['f', 'caller'] },
         { title: '6 · frame popped', hl: ['call-6'],
-          note: 'Every stack is truncated to the heights the frame recorded, the result moves down to where the callee was, and the caller’s Package and Realm are restored. If the frame crossed a realm boundary, maybeFinalize finalizes the realm now. OpDefine then stores the result in y.',
+          note: 'If the frame is a realm boundary, maybeFinalize finalizes the realm first. Then every stack is cut back to the frame’s heights, the call’s blocks go back to the pool, the result moves down over the callee, and the caller’s Package and Realm are restored. OpDefine then stores the result in y.',
           Ops: ['OpDefine'], Values: ['(result)'], Frames: ['caller'] }
       ]
     },
@@ -69,23 +69,23 @@
       stacks: [],
       steps: [
         { title: 'During the call: Assign2', hl: ['obj-3', 'obj-6'],
-          note: 'The write into the heap item goes through PointerValue.Assign2, which calls Realm.DidUpdate with the parent :3, no old child, and the new struct. :3 is marked dirty; the struct is marked new-real and stamped with the realm’s PkgID, NewTime still 0.' },
+          note: 'The write into the heap item goes through PointerValue.Assign2, which calls Realm.DidUpdate with the parent :3, no child before, and the struct after. :3 is marked dirty with ModTime 5; the struct gains a reference, takes :3 as its owner and is marked new-real. Its PkgID was stamped when it was allocated; NewTime is still 0.' },
         { title: '1 · processNewCreatedMarks', hl: ['obj-6'],
-          note: 'Every object marked new-real gets an id depth-first: the struct becomes :6. Its children are counted; the string inside is not an object, so nothing further becomes real.' },
+          note: 'Every object marked new-real gets an id, depth first: the struct becomes :6. Its fields hold a string and two nils, none of them objects, so nothing further becomes real.' },
         { title: '2 · processNewDeletedMarks', hl: [],
-          note: 'Objects whose reference count hit zero are walked and their children decremented, recursively. Nothing was dropped here: root held {} before.' },
+          note: 'Objects still at zero references are deleted, and each of their children loses a reference, recursively. Nothing is deleted here: root was nil before.' },
         { title: '3 · processNewEscapedMarks', hl: ['obj-2'],
-          note: 'Objects that ended the transaction with one reference are demoted, the rest confirmed as escaped. :2, the package block, stays escaped with two references.' },
+          note: 'An object marked new-escaped that ended with one reference is demoted, and the others are confirmed. Nothing escapes here; :2, the package block, was already escaped with two references.' },
         { title: '4 · realm record', hl: [],
-          note: 'The realm’s counter moved, from 5 to 6, so its record under #realm is saved.' },
+          note: 'The realm’s counter moved, from 5 to 6, so its record under oid:<pkgid>:1#realm is saved.' },
         { title: '5 · markDirtyAncestors', hl: ['obj-3', 'obj-2'],
-          note: 'From every changed object up to the package block, using the persisted owner id: :6 has owner :3, :3 has owner :2. Parent hashes will be refreshed.' },
+          note: 'From each created or dirty object up through its owners, each owner marked dirty so it stores a fresh hash of its child: :6 has owner :3, and :3 has owner :2. The walk stops at :2, because it is escaped.' },
         { title: '6 · saveUnsavedObjects', hl: ['writes', 'obj-6', 'obj-3', 'obj-2'],
-          note: 'New and dirty objects are written, children first, after checking that nothing references a private package’s types. The Realm: directive prints exactly this: c[:6], then u[:3], then u[:2].' },
+          note: 'Created objects are written children first, then dirty ones, refusing an object or a type of a private package and any realm value. The Realm: directive prints exactly this: c[:6], then u[:3], then u[:2].' },
         { title: '7 · removeDeletedObjects', hl: [],
-          note: 'The dead ones are deleted from the store. None this time.' },
+          note: 'Dead objects are deleted from the store, and an escaped one’s Merkle tree entry with them. None this time.' },
         { title: '8 · byte deltas', hl: ['writes'],
-          note: 'The size of each write minus the last saved size, summed per realm into the store’s storage-diff map. After the message, processStorageDeposit locks delta × 100 ugnot per byte from the caller into the realm’s deposit address.' }
+          note: 'Each save returns its change in bytes, summed per realm on the store: 269 + 156 + 5 = 430 for gno.land/r/test. After the message, the keeper locks 430 × storage_price from the caller into the realm’s deposit address.' }
       ]
     }
   };
@@ -97,11 +97,11 @@
     ['ok := true', 'bool', 'nil', '01 00 00 00 00 00 00 00', 'SetBool writes the bool into the first byte of N.'],
     ['f := 2.5', 'float64', 'nil', '0x4004000000000000', 'SetFloat64 stores the IEEE-754 bits. Arithmetic runs in software so every node computes the same bits.'],
     ['s := "hi"', 'string', 'StringValue("hi")', '0', 'A Go string in V. Not an Object: no identity, saved inside its holder.'],
-    ['p := &node', '*InnerNode', 'PointerValue{TV, Base, Index}', '0', 'A slot address: the base object, an array, struct, block or heap item, plus an index into it. Index −1 is a block’s blank slot, −2 a map entry reached through Key.'],
+    ['p := &node', '*InnerNode', 'PointerValue{TV, Base, Index}', '0', 'A slot address: the base object, an array, struct, block, map or heap item, plus an index into it. Index −1 is a block’s blank slot, −2 a map entry reached through Key.'],
     ['xs := []int{1, 2}', '[]int', 'SliceValue{Base, Offset: 0, Length: 2, Maxcap: 2}', '0', 'A window onto an ArrayValue, which is the Object with identity. Copying the slice copies the window.'],
     ['v := InnerNode{...}', 'gno.land/r/test.InnerNode', '*StructValue{ObjectInfo, Fields: [3]TypedValue}', '0', 'An Object: ObjectInfo carries id, owner, reference count and the dirty marks. Copying a struct copies its fields into a new object.'],
     ['var e any', 'nil', 'nil', '0', 'The undefined typed value: no type, no value. In the zrealm1 trace the nil Left and Right fields serialize as {}.'],
-    ['lib.Data, read from another realm', 'its type', 'the object', '"ReaDoNLY"', 'The magic bytes mark a composite read from another realm’s storage. The mark survives copies and arguments; a write through it panics with "cannot directly modify readonly tainted object".']
+    ['var e any = 7', 'int', 'nil', '7', 'An interface has no box of its own: converting 7 to any leaves the cell as it is, so T holds the concrete type int, exactly as for x := 7.']
   ];
 
   // ---------------------------------------------------------------- helpers

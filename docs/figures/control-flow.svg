@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 320" width="760" height="320" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 364" width="760" height="364" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,69 +30,71 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="320" class="f-bg" rx="8"/>
+<rect width="760" height="364" class="f-bg" rx="8"/>
 <text x="20" y="24" class="f-m b">for i := 0; i &lt; n; i++ { body }</text>
 <g class="f-hot " data-note="Every for, range, switch and function call pushes a frame, so break, continue and return know how far to unwind." tabindex="0">
-<rect x="20" y="40" width="200" height="64" rx="6" class="f-box "/>
+<rect x="20" y="40" width="200" height="80" rx="6" class="f-box "/>
 <text x="30" y="58" class="f-t b">Frame</text>
-<text x="30" y="75" class="f-t s">label, stack heights to unwind</text>
-<text x="30" y="89" class="f-t s">to</text>
+<text x="30" y="74" class="f-t s">label, stack heights to</text>
+<text x="30" y="87" class="f-t s">unwind to</text>
 </g>
 <g class="f-hot " data-note="The loop block owns a bodyStmt that remembers the next statement index, the condition and the post statement. The sticky OpForLoop walks that state." tabindex="0">
-<rect x="236" y="40" width="210" height="64" rx="6" class="f-box "/>
+<rect x="236" y="40" width="214" height="80" rx="6" class="f-box "/>
 <text x="246" y="58" class="f-t b">Block</text>
-<text x="246" y="75" class="f-m s">i.loopvar;</text>
-<text x="246" y="89" class="f-m s">bodyStmt{NextBodyIndex,</text>
-<text x="246" y="103" class="f-m s">Cond, Post}</text>
+<text x="246" y="74" class="f-t s">i.loopvar, and the cursor</text>
+<text x="246" y="87" class="f-t s">bodyStmt: next statement</text>
+<text x="246" y="100" class="f-t s">index, condition, post</text>
+<text x="246" y="113" class="f-t s">statement</text>
 </g>
 <g class="f-hot " data-note="Evaluate the condition." tabindex="0">
 <rect x="20" y="140" width="100" height="36" rx="6" class="f-box acc"/>
 <text x="30" y="155" class="f-t b">Cond</text>
 </g>
-<g class="f-hot " data-note="OpExec on the next statement of the body; the index advances." tabindex="0">
+<g class="f-hot " data-note="One body statement per turn of OpForLoop; the index advances." tabindex="0">
 <rect x="170" y="140" width="190" height="36" rx="6" class="f-box acc"/>
-<text x="180" y="155" class="f-t b">body stmt at</text>
-<text x="180" y="169" class="f-t b">NextBodyIndex</text>
+<text x="180" y="155" class="f-t b">next body statement</text>
 </g>
-<g class="f-hot " data-note="i++ runs, then back to the condition. continue jumps here." tabindex="0">
-<rect x="380" y="140" width="90" height="36" rx="6" class="f-box acc"/>
+<g class="f-hot " data-note="Captured loop variables get fresh heap items, i++ runs, then back to the condition. continue jumps here." tabindex="0">
+<rect x="380" y="140" width="76" height="36" rx="6" class="f-box acc"/>
 <text x="390" y="155" class="f-t b">Post</text>
 </g>
 <path d="M120 158L169 158" class="f-ar "/>
 <text x="132" y="152" class="f-t s">true</text>
 <path d="M360 158L379 158" class="f-ar "/>
-<path d="M425 176 C425 215 70 215 70 176" class="f-ar "/>
-<text x="230" y="228" class="f-t s" text-anchor="middle">OpForLoop is sticky: popped and pushed back every iteration, so loops do not recurse</text>
+<path d="M418 176 C418 215 70 215 70 176" class="f-ar "/>
+<text x="20" y="230" class="f-t s">OpForLoop is sticky: it stays on the stack, so loops do not recurse</text>
 <g class="f-hot " data-note="Leaving the loop restores the stacks to the heights the frame recorded." tabindex="0">
-<rect x="20" y="240" width="420" height="60" rx="6" class="f-box mut"/>
-<text x="30" y="258" class="f-t b">Cond false, or break</text>
-<text x="30" y="274" class="f-t s">pop the block, pop the frame, drop the sticky opcode. break and</text>
-<text x="30" y="287" class="f-t s">continue pop frames until the loop with the right label.</text>
+<rect x="20" y="244" width="430" height="64" rx="6" class="f-box mut"/>
+<text x="30" y="262" class="f-t b">Cond false, or break</text>
+<text x="30" y="278" class="f-t s">pop the block, pop the frame, drop the sticky opcode. break and</text>
+<text x="30" y="291" class="f-t s">continue pop frames until the loop with the right label.</text>
 </g>
-<g class="f-hot " data-note="pushes a block only, no frame; the block is expanded with the chosen arm&#x27;s names" tabindex="0">
-<rect x="470" y="40" width="270" height="60" rx="6" class="f-box "/>
-<text x="480" y="58" class="f-t b">if</text>
-<text x="480" y="74" class="f-t s">pushes a block only, no frame; the block</text>
-<text x="480" y="87" class="f-t s">is expanded with the chosen arm&#x27;s names</text>
+<g class="f-hot " data-note="An if pushes no frame, because no branch statement targets an if. OpPopBlock releases its block afterwards." tabindex="0">
+<rect x="470" y="36" width="270" height="74" rx="6" class="f-box "/>
+<text x="480" y="54" class="f-t b">if</text>
+<text x="480" y="70" class="f-t s">pushes a block only, no frame; the</text>
+<text x="480" y="83" class="f-t s">block is expanded with the chosen arm&#x27;s</text>
+<text x="480" y="96" class="f-t s">names</text>
 </g>
-<g class="f-hot " data-note="a frame; clauses and cases tried one at a time; a type switch compares type ids or checks interface implementation" tabindex="0">
-<rect x="470" y="106" width="270" height="60" rx="6" class="f-box "/>
-<text x="480" y="124" class="f-t b">switch</text>
-<text x="480" y="140" class="f-t s">a frame; clauses and cases tried one at a</text>
-<text x="480" y="153" class="f-t s">time; a type switch compares type ids or</text>
-<text x="480" y="166" class="f-t s">checks interface implementation</text>
+<g class="f-hot " data-note="default runs only once every other clause has failed. fallthrough swaps in the next clause&#x27;s names. A type switch also checks each interface case against the value&#x27;s methods." tabindex="0">
+<rect x="470" y="116" width="270" height="74" rx="6" class="f-box "/>
+<text x="480" y="134" class="f-t b">switch</text>
+<text x="480" y="150" class="f-t s">a frame and one shared block; cases</text>
+<text x="480" y="163" class="f-t s">tried one at a time; default runs last;</text>
+<text x="480" y="176" class="f-t s">a type switch compares type ids</text>
 </g>
-<g class="f-hot " data-note="one opcode per kind: arrays and slices, strings (one rune per step), maps (one linked-list entry per step)" tabindex="0">
-<rect x="470" y="172" width="270" height="60" rx="6" class="f-box "/>
-<text x="480" y="190" class="f-t b">range</text>
-<text x="480" y="206" class="f-t s">one opcode per kind: arrays and slices,</text>
-<text x="480" y="219" class="f-t s">strings (one rune per step), maps (one</text>
-<text x="480" y="232" class="f-t s">linked-list entry per step)</text>
+<g class="f-hot " data-note="Arrays and slices, with pointers to arrays under their own opcode; strings, one rune per step; maps, one list entry per step, in insertion order." tabindex="0">
+<rect x="470" y="196" width="270" height="74" rx="6" class="f-box "/>
+<text x="480" y="214" class="f-t b">range</text>
+<text x="480" y="230" class="f-t s">one opcode per kind: arrays and slices,</text>
+<text x="480" y="243" class="f-t s">pointers to arrays, strings one rune</text>
+<text x="480" y="256" class="f-t s">per step, maps one entry per step</text>
 </g>
-<g class="f-hot " data-note="resets the stacks to the heights recorded on the body statement" tabindex="0">
-<rect x="470" y="238" width="270" height="60" rx="6" class="f-box "/>
-<text x="480" y="256" class="f-t b">goto</text>
-<text x="480" y="272" class="f-t s">resets the stacks to the heights recorded</text>
-<text x="480" y="285" class="f-t s">on the body statement</text>
+<g class="f-hot " data-note="The preprocessor counted the frames and blocks between the goto and its label, and the label&#x27;s statement index." tabindex="0">
+<rect x="470" y="276" width="270" height="74" rx="6" class="f-box "/>
+<text x="480" y="294" class="f-t b">goto</text>
+<text x="480" y="310" class="f-t s">pops frames and blocks, cuts the stacks</text>
+<text x="480" y="323" class="f-t s">back to the heights of the target body,</text>
+<text x="480" y="336" class="f-t s">moves its cursor to the label</text>
 </g>
 </svg>

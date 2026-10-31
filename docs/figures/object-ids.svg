@@ -33,32 +33,35 @@
 <rect width="760" height="275" class="f-bg" rx="8"/>
 <text x="20" y="24" class="f-t h">PkgID</text>
 <g class="f-hot " data-note="The path is the only input. The same path on any node yields the same id." tabindex="0">
-<rect x="20" y="40" width="118" height="76" rx="6" class="f-box "/>
+<rect x="20" y="40" width="118" height="80" rx="6" class="f-box "/>
 <text x="28" y="55" class="f-t s">&quot;gno.land/r/test&quot;</text>
-<text x="28" y="69" class="f-t s">the package path</text>
+<text x="28" y="69" class="f-t s">the package</text>
+<text x="28" y="83" class="f-t s">path</text>
 </g>
-<path d="M138 78L150 78" class="f-ar "/>
-<g class="f-hot " data-note="Measured: sha256 of the path starts with a8ad. The id in the zrealm1 trace starts with 08ad." tabindex="0">
-<rect x="152" y="40" width="140" height="76" rx="6" class="f-box "/>
-<text x="160" y="55" class="f-t s">sha256</text>
+<path d="M138 80L150 80" class="f-ar "/>
+<g class="f-hot " data-note="Measured: the SHA-256 of the path starts with a8ad. The id in the zrealm1 trace starts with 08ad." tabindex="0">
+<rect x="152" y="40" width="128" height="80" rx="6" class="f-box "/>
+<text x="160" y="55" class="f-t s">SHA-256</text>
 <text x="160" y="69" class="f-t s">a8ada09dee16 ...</text>
-<text x="160" y="83" class="f-t s">084a30, 32 bytes</text>
+<text x="160" y="83" class="f-t s">59dad84c, 32</text>
+<text x="160" y="97" class="f-t s">bytes</text>
 </g>
-<path d="M292 78L304 78" class="f-ar "/>
-<g class="f-hot " data-note="Immutable covers standard library and pure packages, whose objects are never reference-counted from other realms." tabindex="0">
-<rect x="306" y="40" width="180" height="76" rx="6" class="f-box "/>
-<text x="314" y="55" class="f-t s">keep 20 bytes</text>
-<text x="314" y="69" class="f-t s">then the top four bits</text>
-<text x="314" y="83" class="f-t s">become flags: stdlib,</text>
-<text x="314" y="97" class="f-t s">immutable, internal</text>
+<path d="M280 80L292 80" class="f-ar "/>
+<g class="f-hot " data-note="Immutable covers the standard library, pure packages, _test overlays and .uverse; their objects are not counted from other packages." tabindex="0">
+<rect x="294" y="40" width="196" height="80" rx="6" class="f-box "/>
+<text x="302" y="55" class="f-t s">keep 20 bytes</text>
+<text x="302" y="69" class="f-t s">the top four bits become</text>
+<text x="302" y="83" class="f-t s">flags: standard library,</text>
+<text x="302" y="97" class="f-t s">immutable, internal,</text>
+<text x="302" y="111" class="f-t s">reserved</text>
 </g>
-<path d="M486 78L498 78" class="f-ar "/>
+<path d="M490 80L502 80" class="f-ar "/>
 <g class="f-hot " data-note="The id in the zrealm1 filetest trace, produced by the same path." tabindex="0">
-<rect x="500" y="40" width="232" height="76" rx="6" class="f-box acc"/>
-<text x="508" y="55" class="f-m s">08ada09dee16d791fd40</text>
-<text x="508" y="69" class="f-m s">6d629fe29bb0ed084a30</text>
-<text x="508" y="83" class="f-m s">PkgID: a user realm has no</text>
-<text x="508" y="97" class="f-m s">flag set, so a8 became 08</text>
+<rect x="504" y="40" width="232" height="80" rx="6" class="f-box acc"/>
+<text x="512" y="55" class="f-m s">08ada09dee16d791fd40</text>
+<text x="512" y="69" class="f-m s">6d629fe29bb0ed084a30</text>
+<text x="512" y="83" class="f-m s">PkgID: a user realm has no flag</text>
+<text x="512" y="97" class="f-m s">set, so a8 became 08</text>
 </g>
 <text x="20" y="150" class="f-t h">ObjectID</text>
 <g class="f-hot " data-note="NewTime is a per-realm counter. The package value itself is always :1." tabindex="0">
@@ -67,11 +70,11 @@
 <text x="30" y="196" class="f-m s">08ada09d...084a30:6 the struct created</text>
 <text x="30" y="211" class="f-m s">in zrealm1</text>
 </g>
-<g class="f-hot " data-note="The allocator stamps the creating realm as soon as it sees the object. Only finalization takes a counter value, and only a finalized object is real." tabindex="0">
+<g class="f-hot " data-note="The allocator stamps a PkgID while building the object: the realm that declared its type, or else the active realm. Only finalization takes a counter value, and only a finalized object is real." tabindex="0">
 <rect x="340" y="166" width="400" height="56" rx="6" class="f-box "/>
 <text x="350" y="184" class="f-t b">Three states</text>
 <text x="350" y="201" class="f-m s">empty → allocated: PkgID stamped, NewTime 0 →</text>
 <text x="350" y="215" class="f-m s">finalized: counter taken</text>
 </g>
-<text x="20" y="254" class="f-t s">An object is saved under the realm that allocated it, even when another realm&#x27;s code did the saving.</text>
+<text x="20" y="254" class="f-t s">An object is saved under the realm its PkgID names, even when another realm&#x27;s code did the saving.</text>
 </svg>

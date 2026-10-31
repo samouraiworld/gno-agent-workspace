@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 280" width="760" height="280" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 760 292" width="760" height="292" font-family="ui-sans-serif, system-ui, sans-serif">
 <style>
 .f-bg{fill:#fbfaf7}
 .f-box{fill:#fff;stroke:#c9c4b6;stroke-width:1}
@@ -30,9 +30,9 @@
 <marker id="f-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#226b5b"/></marker>
 <marker id="f-ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b3423f"/></marker>
 </defs>
-<rect width="760" height="280" class="f-bg" rx="8"/>
+<rect width="760" height="292" class="f-bg" rx="8"/>
 <text x="20" y="24" class="f-m b">MsgCall app.F, where F calls lib.G(cross(cur), ...)</text>
-<g class="f-hot " data-note="At the chain root there is no caller frame. MsgCall synthesizes pkg.F(.origin, args...), and .origin lowers to a crossing call whose prev is built from the signer." tabindex="0">
+<g class="f-hot " data-note="At the chain root there is no caller frame. MsgCall synthesizes pkg.F(.origin, args...), and .origin lowers to a crossing call whose prev is built from the signer: its address, an empty package path and no link further." tabindex="0">
 <rect x="20" y="44" width="200" height="68" rx="6" class="f-box mut"/>
 <text x="30" y="62" class="f-t b">signer</text>
 <text x="30" y="80" class="f-m s">g1abc... the</text>
@@ -41,13 +41,13 @@
 <g class="f-hot " data-note="installCrossingCur minted this .grealm value for F. cur.Previous() is the signer, unforgeably." tabindex="0">
 <rect x="280" y="44" width="200" height="68" rx="6" class="f-box acc"/>
 <text x="290" y="62" class="f-t b">F&#x27;s cur</text>
-<text x="290" y="80" class="f-m s">addr: r/demo/app</text>
+<text x="290" y="80" class="f-m s">path: r/demo/app</text>
 <text x="290" y="95" class="f-m s">prev → signer</text>
 </g>
 <g class="f-hot " data-note="Minted for G because F wrote cross(cur). G sees app as its previous realm, whatever helper made the call." tabindex="0">
 <rect x="540" y="44" width="200" height="68" rx="6" class="f-box acc"/>
 <text x="550" y="62" class="f-t b">G&#x27;s cur</text>
-<text x="550" y="80" class="f-m s">addr: r/demo/lib</text>
+<text x="550" y="80" class="f-m s">path: r/demo/lib</text>
 <text x="550" y="95" class="f-m s">prev → app</text>
 </g>
 <path d="M220 78L279 78" class="f-ar "/>
@@ -59,18 +59,20 @@
 <path d="M280 100 C250 130 40 130 21 100" class="f-ar dash"/>
 <text x="150" y="138" class="f-t s" text-anchor="middle">cur.Previous()</text>
 <g class="f-hot " data-note="Calling a crossing function with a bare cur is only legal within its own realm." tabindex="0">
-<rect x="20" y="160" width="350" height="74" rx="6" class="f-box "/>
+<rect x="20" y="160" width="350" height="86" rx="6" class="f-box "/>
 <text x="30" y="178" class="f-t b">H(cur) inside the same realm</text>
-<text x="30" y="194" class="f-t s">no new link: H receives F&#x27;s cur unchanged. Written</text>
-<text x="30" y="207" class="f-t s">against another realm&#x27;s function, the preprocessor</text>
-<text x="30" y="220" class="f-t s">rejects it.</text>
+<text x="30" y="194" class="f-t s">no new link: H runs as F&#x27;s cur, which must be F&#x27;s</text>
+<text x="30" y="207" class="f-t s">own live value. Written against another realm&#x27;s</text>
+<text x="30" y="220" class="f-t s">function, the preprocessor rejects it.</text>
 </g>
-<g class="f-hot " data-note="The older API. Prefer cur.Previous(), which reads the captured chain." tabindex="0">
-<rect x="390" y="160" width="350" height="74" rx="6" class="f-box warn"/>
+<g class="f-hot " data-note="The older API. Prefer cur.Previous(): it answers for the function that holds cur." tabindex="0">
+<rect x="390" y="160" width="350" height="86" rx="6" class="f-box warn"/>
 <text x="400" y="178" class="f-t b">chain/runtime/unsafe</text>
-<text x="400" y="194" class="f-t s">PreviousRealm and CurrentRealm walk the frames counting</text>
-<text x="400" y="207" class="f-t s">WithCross frames and can be fooled from a helper. Hence</text>
-<text x="400" y="220" class="f-t s">the name.</text>
+<text x="400" y="194" class="f-t s">PreviousRealm and CurrentRealm read the chain of</text>
+<text x="400" y="207" class="f-t s">the nearest crossing frame. In a plain function of</text>
+<text x="400" y="220" class="f-t s">realm B called by realm A, PreviousRealm names</text>
+<text x="400" y="233" class="f-t s">whoever called A. Hence the name.</text>
 </g>
-<text x="20" y="262" class="f-t s">Realm values are never persisted: store the address instead. main(cur realm) and init(cur realm) are called with .cur, already crossed.</text>
+<text x="20" y="270" class="f-t s">A realm value cannot be saved, the signer&#x27;s link at the chain root aside: store the address instead. main(cur</text>
+<text x="20" y="286" class="f-t s">realm) and init(cur realm) are called with .cur, already crossed.</text>
 </svg>

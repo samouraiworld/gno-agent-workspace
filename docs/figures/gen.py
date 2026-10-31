@@ -2,7 +2,7 @@
 """Draws the figures beside gnovm-architecture.md.
 
 Run it from anywhere: python3 docs/figures/gen.py. It rewrites every *.svg beside it. Each
-figure states what the document states, at gnolang/gno a7e4c34b0; the numbers
+figure states what the document states, at gnolang/gno 5a51b55f4; the numbers
 that come from a run are named in the figure. The site (../figures.js) inlines
 these files and reads their data-note attributes, so a note written here shows
 up there as hover text and nowhere else.
@@ -14,6 +14,11 @@ W = 760
 SANS = 6.7      # px per character, 13px sans
 SMALL = 5.9     # 11.5px sans
 MONO = 7.25     # 12px mono
+# Wider estimates for wrapping new text, so it still fits in system fonts
+# wider than Helvetica: SF Pro, Segoe UI, Inter.
+SAFE_SMALL = 6.4
+SAFE_SANS = 7.3
+SAFE_MONO_S = 6.7
 
 STYLE = """
 .f-bg{fill:#fbfaf7}
@@ -106,7 +111,7 @@ class Fig:
         return y + len(lines) * lh
 
     def box(self, x, y, w, h, title=None, lines=(), cls='', note=None, id=None,
-            tcls='f-t b', lcls='f-t s', lh=14, pad=10, nowrap=False):
+            tcls='f-t b', lcls='f-t s', lh=14, pad=10, nowrap=False, cw=None, para=0):
         """A rounded box with a title and wrapped lines. Returns the bottom y of the text."""
         if note or id:
             self.open_hot(note, id)
@@ -117,12 +122,13 @@ class Fig:
             ty += lh + 3
         else:
             ty = y + 15
-        cw = MONO if 'f-m' in lcls else (SMALL if ' s' in lcls else SANS)
+        cw = cw or (MONO if 'f-m' in lcls else (SMALL if ' s' in lcls else SANS))
         maxc = max(8, int((w - 2 * pad) / cw))
         for l in lines:
             for piece in ([l] if nowrap else wrap(l, maxc)):
                 self.text(x + pad, ty, piece, lcls)
                 ty += lh
+            ty += para
         if note or id:
             self.close()
         return ty
@@ -139,6 +145,10 @@ class Fig:
         for i, l in enumerate(lines):
             self.text(x, y + i * lh, l, cls)
         return y + len(lines) * lh
+
+    def foot(self, y, text, x=20, w=720, lh=16):
+        """Small text wrapped to the width, for the lines under a figure. Returns the next y."""
+        return self.lines(x, y, wrap(text, int(w / SAFE_SMALL)), 'f-t s', lh=lh)
 
     def render(self):
         return ('<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 %d %d" width="%d" height="%d" '
@@ -178,40 +188,79 @@ def fig(fn):
 
 @fig
 def vm_stack():
-    f = Fig('vm-stack', 470)
-    x, w, bh, gap = 40, 400, 42, 22
-    layers = [
-        ('Wallet', 'gnokey maketx call: a signed transaction',
-         'The user signs a message: which package, which function, which arguments, how much gas. Nothing here knows about the VM.'),
-        ('Tendermint2', 'orders transactions into blocks',
-         'Consensus. Every validator receives the same transactions in the same order and hands them to the application one by one.'),
-        ('BaseApp, tm2/pkg/sdk', 'ante handler: signature, fee. runMsgs: route by route string',
-         'The application layer. The ante handler verifies the signature and takes the fee, then each message goes to the handler registered for its route.'),
-        ('vm keeper, gno.land/pkg/sdk/vm', 'MsgAddPackage, MsgCall, MsgRun; queries vm/qeval, vm/qrender',
-         'The keeper owns one long-lived gno.Store and creates one gno.Machine per message. It is the only chain code that calls the interpreter.'),
-        ('gno.Machine, gnovm/pkg/gnolang', 'parse, preprocess, execute, finalize',
-         'The interpreter state: stacks, the active package and realm, the allocator, the gas meter, and a Context the standard library reads.'),
-        ('gno.Store', 'per-transaction caches for objects, types, syntax trees',
-         'The layer between the interpreter and the database. Forked at the start of each transaction, committed only if the transaction succeeded.'),
-        ('tm2 stores, then the database', 'baseStore for objects, iavlStore for the Merkle tree',
-         'Two key-value stores. Only the IAVL contents feed the block\'s application hash.'),
-    ]
-    labels = ['RPC', 'ABCI', 'route "vm"', 'one Machine per message', '', '', '']
-    y = 30
-    for i, (t, l, n) in enumerate(layers):
-        f.box(x, y, w, bh, t, [l], 'acc' if i == 4 else '', note=n)
-        if i < len(layers) - 1:
-            f.arrow(x + w / 2, y + bh, x + w / 2, y + bh + gap - 1)
-            if labels[i]:
-                f.text(x + w / 2 + 8, y + bh + 15, labels[i], 'f-t s')
-        y += bh + gap
-    # off-chain
-    ox, oy, ow, oh = 480, 240, 260, 130
-    f.box(ox, oy, ow, oh, 'Off-chain: gno test, gno run, filetests',
-          ['The same interpreter with no chain. A Machine over an in-memory store seeded from examples/ and stdlibs/, with a mock context: fixed height, timestamp and caller.'],
-          'mut', note='gno test and gno run build a Machine the same way the keeper does, over an in-memory store.')
-    my = 30 + 4 * (bh + gap) + bh / 2
-    f.path('M%g %gL%g %g' % (ox, oy + oh / 2, x + w + 2, my), 'dash')
+    f = Fig('vm-stack', 690)
+    x, w, cx = 40, 400, 240
+    f.box(x, 30, w, 46, 'Wallet', ['gnokey maketx call: a signed transaction'],
+          note='The user signs a transaction: its messages, the gas wanted and a flat fee in ugnot. Nothing here knows about the VM.')
+    f.arrow(cx, 76, cx, 111)
+    f.text(cx + 8, 99, 'sent by RPC, after a trial run with .app/simulate', 'f-t s')
+    f.box(x, 112, w, 46, 'Tendermint2, the consensus engine', ['mempool, proposer, prevote, precommit'],
+          note='CheckTx admits a transaction to the mempool. One validator proposes a chain block; it is final once validators holding more than two thirds of the voting power sign it.')
+    f.arrow(cx, 158, cx, 193)
+    f.text(cx + 8, 181, 'ABCI', 'f-t s')
+    f.path('M%g 177L469 177' % (cx + 40), 'thin dash')
+
+    # the application: runTx, with the ante handler before the messages
+    f.box(x, 194, w, 106, 'BaseApp, tm2/pkg/sdk', ['runTx: decode, ValidateBasic, then:'],
+          note='The ante handler checks the gas wanted, takes the fee, verifies signatures and increments sequence numbers; gno.land adds the session and code-submission checks. A failed message keeps only the ante handler\'s writes.')
+    f.box(52, 240, 182, 50, 'ante handler', ['gas, fee, signatures'], 'mut',
+          note='Refuses a gas wanted above the chain block\'s limit, takes the whole fee, checks each signature and increments the account\'s sequence number, so the same signed bytes cannot run twice.')
+    f.arrow(234, 265, 245, 265)
+    f.box(246, 240, 182, 50, 'runMsgs', ['route each message'], 'mut',
+          note='Looks up each message\'s handler by its route and calls it, one message after the other, stopping at the first failure.')
+    f.arrow(270, 290, 270, 359)
+    f.text(262, 330, 'route "vm"', 'f-t s', 'end')
+    for px, pw, name in ((290, 40, 'auth'), (338, 42, 'bank'), (388, 52, 'params')):
+        f.arrow(px + pw / 2, 290, px + pw / 2, 317, 'thin')
+        f.open_hot('gno.land registers four routes: auth, bank, params and vm. Each goes to its own module\'s handler.')
+        f.rect(px, 318, pw, 20, 'mut', r=4)
+        f.text(px + pw / 2, 332, name, 'f-m s', 'middle')
+        f.close()
+    f.text(448, 332, 'the other routes', 'f-t s')
+
+    f.box(x, 360, w, 72, 'vm keeper, gno.land/pkg/sdk/vm',
+          ['five messages: MsgAddPackage, MsgCall, MsgRun, MsgEnablePackage, MsgRejectPackage',
+           '14 query paths, such as vm/qrender'],
+          note='The keeper owns one long-lived gno.Store, forked per transaction, and builds a fresh gno.Machine for each run of Gno code.',
+          cw=SAFE_SMALL)
+    f.arrow(cx, 432, cx, 469)
+    f.text(cx + 8, 456, 'a fresh Machine for each run', 'f-t s')
+    f.box(x, 470, w, 46, 'gno.Machine, gnovm/pkg/gnolang', ['parse, preprocess, execute, finalize'], 'acc',
+          note='The interpreter state: stacks, the active package and realm, the allocator, the gas meter, and a Context the standard library reads.')
+    f.arrow(cx, 516, cx, 539)
+    f.box(x, 540, w, 46, 'gno.Store', ['per-transaction caches for objects, types, syntax trees'],
+          note='The layer between the interpreter and the database. Forked before a transaction runs its messages, written back only if every message succeeded.')
+    f.arrow(cx, 586, cx, 609)
+    f.box(x, 610, w, 62, 'tm2 stores, then the database',
+          ['plain store: objects', 'B+32 tree: package sources and hashes of shared objects'],
+          note='Two key-value stores. Only the B+32 tree\'s contents feed the application hash.', nowrap=True)
+
+    # the seven ABCI calls
+    tx, ty = 470, 112
+    calls = [('InitChain', 'at genesis: first state'), ('CheckTx', 'admit to the mempool'),
+             ('BeginBlock', 'open a chain block'), ('DeliverTx', 'run one transaction'),
+             ('EndBlock', 'gas price, validators'), ('Commit', 'save, return the hash'),
+             ('Query', 'answer a read')]
+    f.open_hot('ABCI is a Go interface with one method per event. For each committed chain block a node calls BeginBlock, DeliverTx once per transaction, EndBlock, then Commit, which returns the application hash.')
+    f.rect(tx, ty, 270, 144, '')
+    f.text(tx + 10, ty + 18, 'ABCI: one call per event', 'f-t b')
+    for i, (name, what) in enumerate(calls):
+        acc = ' acc' if name == 'Query' else ''
+        f.text(tx + 10, ty + 38 + i * 16, name, 'f-m s' + acc)
+        f.text(tx + 96, ty + 38 + i * 16, what, 'f-t s' + acc)
+    f.close()
+    # a query skips runTx and the ante handler
+    f.path('M700 256L700 386Q700 396 690 396L442 396', 'acc dash')
+    f.lines(452, 374, ['Query: no transaction, no fee,', 'over a read-only snapshot'], 'f-t s acc', lh=14)
+
+    # the same VM with no chain
+    f.box(470, 470, 270, 172, 'Without a chain',
+          ['gno test, gno run and the filetest runner build the same Machine over an in-memory store.',
+           'Each import loads on first use: gnovm/stdlibs, the given packages, and examples/ for gno run and the filetests.',
+           'Mock context: chain id dev, height 123, timestamp 1234567890.'],
+          'mut', note='gno test and gno run build a Machine the same way the keeper does, over an in-memory store.',
+          cw=SAFE_SMALL, para=5)
+    f.path('M470 493L442 493', 'dash')
     return f
 
 
@@ -219,19 +268,24 @@ def vm_stack():
 
 @fig
 def source_map():
-    f = Fig('source-map', 450, 'Direct imports between the documented directories, from go list')
-    bw, bh = 168, 36
-    pos = {
-        'gnovm/cmd/gno': (30, 50), 'gno.land/pkg/gnoland': (560, 50),
-        'gno.land/pkg/sdk/vm': (560, 120),
-        'gnovm/pkg/test': (30, 190), 'gnovm/pkg/transpiler': (230, 190), 'gnovm/pkg/doc': (430, 190),
-        'gnovm/stdlibs': (30, 260), 'gnovm/pkg/packages': (330, 260),
-        'gnovm/pkg/gnolang': (230, 330),
-        'gnovm/pkg/gnomod': (30, 400), 'gnovm/pkg/benchops': (430, 400),
+    bw, bh, rh, top = 168, 30, 80, 52
+    cols = [20, 296, 572]
+    # row and column of each box: every import points down the page, or
+    # sideways from the VM to the leaves beside it
+    slot = {
+        'gnovm/cmd/gno': (0, 0), 'gno.land/pkg/gnoland': (0, 2),
+        'gnovm/pkg/test': (1, 0), 'gnovm/pkg/transpiler': (1, 1), 'gno.land/pkg/sdk/vm': (1, 2),
+        'gnovm/stdlibs': (2, 0), 'gnovm/pkg/doc': (2, 2),
+        'gnovm/pkg/packages': (3, 1),
+        'gnovm/pkg/gnomod': (4, 0), 'gnovm/pkg/gnolang': (4, 1), 'gnovm/pkg/benchops': (4, 2),
+        'gnovm/pkg/parser': (5, 1),
     }
+    # GOTOOLCHAIN=local go list -f '{{.ImportPath}} {{join .Imports " "}}' \
+    #   ./gnovm/... ./gno.land/pkg/sdk/vm/... ./gno.land/pkg/gnoland/...
+    # mapped onto the boxes by exact import path
     edges = {
         'gnovm/cmd/gno': ['gno.land/pkg/sdk/vm', 'gnovm/pkg/doc', 'gnovm/pkg/gnolang', 'gnovm/pkg/gnomod', 'gnovm/pkg/packages', 'gnovm/pkg/test', 'gnovm/pkg/transpiler'],
-        'gnovm/pkg/gnolang': ['gnovm/pkg/benchops', 'gnovm/pkg/gnomod'],
+        'gnovm/pkg/gnolang': ['gnovm/pkg/benchops', 'gnovm/pkg/gnomod', 'gnovm/pkg/parser'],
         'gnovm/pkg/test': ['gnovm/pkg/gnolang', 'gnovm/pkg/packages', 'gnovm/stdlibs'],
         'gnovm/pkg/transpiler': ['gnovm/pkg/gnolang', 'gnovm/stdlibs'],
         'gnovm/pkg/doc': ['gnovm/pkg/gnolang', 'gnovm/pkg/gnomod', 'gnovm/pkg/packages'],
@@ -241,29 +295,94 @@ def source_map():
         'gno.land/pkg/gnoland': ['gno.land/pkg/sdk/vm', 'gnovm/pkg/gnolang', 'gnovm/pkg/packages'],
     }
     notes = {
-        'gnovm/pkg/gnolang': 'The VM itself. It imports only the manifest reader and the optional benchmarking hooks, so nothing above it is needed to run Gno.',
+        'gnovm/pkg/gnolang': 'The VM itself. It imports only the manifest reader, the parser copy and the optional benchmarking hooks, so nothing above it is needed to run Gno.',
+        'gnovm/pkg/parser': 'Go\'s go/parser, patched to charge gas per token. A leaf.',
         'gnovm/stdlibs': 'The standard library sources and their Go native bodies. It needs the VM for the value types the natives marshal.',
         'gnovm/pkg/test': 'The test harness: store construction, filetest directives, package loading.',
         'gnovm/cmd/gno': 'The command line tool. It imports everything, including the keeper, which it uses for the query commands.',
         'gno.land/pkg/sdk/vm': 'The keeper. The only chain code that constructs a Machine.',
-        'gno.land/pkg/gnoland': 'The node application: mounts the stores and registers the vm route.',
-        'gnovm/pkg/transpiler': 'Gno to Go source translation, behind gno lint and gno fix.',
+        'gno.land/pkg/gnoland': 'The node application: mounts the stores, installs the ante handler and registers the routes.',
+        'gnovm/pkg/transpiler': 'Gno to Go source translation, behind gno tool transpile.',
         'gnovm/pkg/doc': 'The gno doc engine, also served by vm/qdoc.',
         'gnovm/pkg/packages': 'Package discovery on disk.',
         'gnovm/pkg/gnomod': 'The gnomod.toml manifest. A leaf.',
         'gnovm/pkg/benchops': 'Per-opcode timing when compiled in. A leaf.',
     }
-    for src, targets in edges.items():
-        sx, sy = pos[src]
-        for t in targets:
-            tx, ty = pos[t]
-            cls = 'acc' if t == 'gnovm/pkg/gnolang' else 'thin'
-            f.path('M%g %gL%g %g' % (sx + bw / 2, sy + bh, tx + bw / 2, ty), cls)
+    nrows = 1 + max(r for r, c in slot.values())
+    h = top + (nrows - 1) * rh + bh + 44
+    f = Fig('source-map', h, 'Direct imports between the documented directories, from go list')
+    pos = {n: (cols[c], top + r * rh) for n, (r, c) in slot.items()}
+    down = [(s, t) for s, ts in edges.items() for t in ts if slot[s][0] < slot[t][0]]
+    side = [(s, t) for s, ts in edges.items() for t in ts if slot[s][0] == slot[t][0]]
+
+    def spread(n, others, key):
+        # one point per arrow along a box's edge, ordered left to right
+        others = sorted(others, key=key)
+        x = pos[n][0]
+        return {o: x + 14 + (bw - 28) * (i + .5) / len(others) for i, o in enumerate(others)}
+
+    outx = {s: spread(s, [t for a, t in down if a == s], lambda t: (pos[t][0], -pos[t][1])) for s in slot}
+    inx = {t: spread(t, [s for s, b in down if b == t], lambda s: (pos[s][0], pos[s][1])) for t in slot}
+
+    def gaps(r):
+        # the stretches of row r that no box covers, where an arrow may pass
+        occ = sorted(cols[c] for rr, c in slot.values() if rr == r)
+        out, x = [], 8
+        for o in occ:
+            if o - 8 > x + 8:
+                out.append((x, o - 8))
+            x = o + bw + 8
+        out.append((x, 752))
+        return out
+
+    # an arrow crossing a row passes through the gap nearest its straight line
+    routes, users = {}, {}
+    for s, t in down:
+        x0, y0 = outx[s][t], pos[s][1] + bh
+        x1, y1 = inx[t][s], pos[t][1]
+        way = []
+        for r in range(slot[s][0] + 1, slot[t][0]):
+            want = x0 + (x1 - x0) * (top + r * rh + bh / 2 - y0) / (y1 - y0)
+            g = min(gaps(r), key=lambda g: 0 if g[0] <= want <= g[1] else min(abs(want - g[0]), abs(want - g[1])))
+            way.append((r, g))
+            users.setdefault((r, g), []).append(((s, t), want))
+        routes[(s, t)] = (x0, y0, x1, y1, way)
+    # arrows sharing a gap get evenly spaced lanes in it
+    lane = {}
+    for (r, (a, b)), lst in users.items():
+        lst.sort(key=lambda e: e[1])
+        if b > 740:
+            b = a + 12 * len(lst) + 10
+        for i, (e, want) in enumerate(lst):
+            lane[(e, r)] = a + (b - a) * (i + 1) / (len(lst) + 1)
+
+    def curve(xa, ya, xb, yb):
+        k = (yb - ya) / 2
+        return 'C%g %g %g %g %g %g' % (xa, ya + k, xb, yb - k, xb, yb)
+
+    paths = []
+    for (s, t), (x0, y0, x1, y1, way) in routes.items():
+        d, xa, ya = 'M%g %g' % (x0, y0), x0, y0
+        for r, g in way:
+            xl = lane[((s, t), r)]
+            d += curve(xa, ya, xl, top + r * rh - 8) + 'L%g %g' % (xl, top + r * rh + bh + 8)
+            xa, ya = xl, top + r * rh + bh + 8
+        d += curve(xa, ya, x1, y1)
+        paths.append(('acc' if t == 'gnovm/pkg/gnolang' else 'thin', d))
+    for cls, d in sorted(paths, key=lambda p: p[0] != 'thin'):
+        f.path(d, cls)
+    for s, t in side:
+        (sx, sy), (tx, ty) = pos[s], pos[t]
+        if tx < sx:
+            f.path('M%g %gL%g %g' % (sx, sy + bh / 2, tx + bw + 1, ty + bh / 2), 'thin')
+        else:
+            f.path('M%g %gL%g %g' % (sx + bw, sy + bh / 2, tx - 1, ty + bh / 2), 'thin')
     for name, (x, y) in pos.items():
-        cls = 'acc' if name == 'gnovm/pkg/gnolang' else ''
-        f.box(x, y, bw, bh, None, [name], cls, note=notes[name], lcls='f-m', pad=8)
-    f.text(560, 300, 'accent arrows: an import of the VM', 'f-t s')
-    f.text(560, 316, 'grey arrows: every other direct import', 'f-t s')
+        f.open_hot(notes[name])
+        f.rect(x, y, bw, bh, 'acc' if name == 'gnovm/pkg/gnolang' else '')
+        f.text(x + bw / 2, y + 19, name, 'f-m', 'middle')
+        f.close()
+    f.text(20, h - 16, 'Green arrows: imports of the VM, gnovm/pkg/gnolang. Grey arrows: every other direct import.', 'f-t s')
     return f
 
 
@@ -271,33 +390,37 @@ def source_map():
 
 @fig
 def package_pipeline():
-    f = Fig('package-pipeline', 330)
+    f = Fig('package-pipeline', 378)
     stages = [
         ('1 · MemPackage', ['name, path, files', 'the path letter picks the kind: r realm, p pure, e ephemeral', 'gnomod.toml: module, gno 0.9'],
-         'A MemPackage is a name, a path, a list of files and a type tag. No timestamps, owners or subdirectories, so the same bytes hash the same everywhere.'),
-        ('2 · Type-check', ['go/types, the checker gopls uses', '.gnobuiltins.gno declares realm, address, cross, revive', 'modes: strict, genesis, relaxed'],
+         'A MemPackage is a name, a path, a list of files and a type tag. No timestamps, owners or subdirectories, so the same files encode to the same bytes everywhere; the keeper stamps the creator and the height into gnomod.toml instead.'),
+        ('2 · Type-check', ['go/types, from Go\'s standard library', '.gnobuiltins.gno declares realm, address, cross, revive', 'modes: strict, genesis-strict, relaxed'],
          'Gno\'s own parser is lax, so Go\'s type checker runs first, with a generated shim declaring the names Go does not know.'),
-        ('3 · Parse', ['go/parser, then Go2Gno builds the Gno nodes', 'additions: ConstExpr, RefNode, StaticBlock', 'a node\'s span is its identity'],
-         'Go2Gno walks the go/ast tree and builds Gno nodes. Nodes that open a scope carry a StaticBlock recording the names declared there.'),
+        ('3 · Parse', ['gnovm/pkg/parser, a patched go/parser, then Go2Gno', 'additions: ConstExpr, RefNode, StaticBlock', 'a node\'s span is its identity'],
+         'The parser charges one gas per token, plus one per level of nesting. Go2Gno walks the go/ast tree and builds Gno nodes. Nodes that open a scope carry a StaticBlock recording the names declared there.'),
         ('4 · Preprocess', ['PredefineFileSet, then one walk per file', 'names become slots, constants fold, crossing rules are checked', 'block nodes saved by location'],
-         'The compile step. Every name becomes a ValuePath, every constant expression a ConstExpr. A file is preprocessed exactly once.'),
-        ('5 · Run once', ['package variables in Kahn order', 'save, run init.1, init.2, ..., save again', 'types stored under their id'],
+         'The compile step. Every name becomes a ValuePath, every constant expression a ConstExpr. A finished node is skipped if met again; a restart preprocesses every file again.'),
+        ('5 · Run once', ['package variables in Kahn order', 'save, run each init.<n>, save again', 'types stored under their id'],
          'runMemPackage: variable declarations in dependency order, then every init function in file order with the deployer as the previous realm.'),
     ]
-    bw, bh, gap = 136, 150, 14
+    bw, bh, gap = 136, 174, 14
     for i, (t, ls, n) in enumerate(stages):
         x = 20 + i * (bw + gap)
-        f.box(x, 40, bw, bh, t, ls, 'acc' if i == 3 else '', note=n, lh=13)
+        f.box(x, 40, bw, bh, t, ls, 'acc' if i == 3 else '', note=n, lh=13, cw=SAFE_SMALL, para=5)
         if i < 4:
-            f.arrow(x + bw, 115, x + bw + gap - 1, 115)
-    f.box(470, 230, 270, 70, 'Saved package',
-          ['package value and blocks, objects, types under tid:. Block nodes are not stored: on restart every package is re-preprocessed to rebuild them.'],
-          'mut', note='Only values and types are persisted. The syntax tree is rebuilt from source at node start.', lh=13)
-    f.arrow(620, 190, 620, 229)
-    f.box(20, 230, 400, 70, 'Every later call',
+            f.arrow(x + bw, 121, x + bw + gap - 1, 121)
+    f.box(420, 250, 320, 112, 'Saved package',
+          ['package value and blocks, objects, types under tid:',
+           'source under pkg:<path>, test files under pkg:<path>#allbutprod',
+           'Block nodes are not stored: on restart every package is re-preprocessed to rebuild them.'],
+          'mut', note='Only values, types and source are persisted. The syntax tree is rebuilt from source at node start.',
+          lh=13, cw=SAFE_SMALL, para=4)
+    f.arrow(688, 214, 688, 249)
+    f.box(20, 250, 380, 70, 'Every later call',
           ['MsgCall on a stored package loads the saved values lazily and skips straight to execution. Steps 2 to 5 ran once, at upload.'],
-          '', note='A call after upload does no type-check, no parse and no preprocess: it loads the package value and runs.', lh=13)
-    f.arrow(469, 265, 421, 265, 'dash')
+          '', note='A call after upload does no type-check, no parse and no preprocess: it loads the package value and runs.',
+          lh=13, cw=SAFE_SMALL)
+    f.arrow(419, 285, 401, 285, 'dash')
     return f
 
 
@@ -380,7 +503,7 @@ def init_order():
     for i, (code, n) in enumerate(decls):
         y = 44 + i * 48
         f.box(20, y, 300, 36, None, [code], '', note=n, lcls='f-m', pad=10)
-    f.text(20, 236, 'Dependencies recorded by codaInitOrderDeps, method bodies included', 'f-t s')
+    f.text(20, 236, 'Dependencies recorded by codaInitOrderDeps, method bodies and method expressions included', 'f-t s')
     # dependency arrows on the right edge: a -> b, b -> f, f -> c
     for i in range(3):
         y1 = 44 + i * 48 + 18
@@ -402,28 +525,29 @@ def init_order():
 
 @fig
 def type_ids():
-    f = Fig('type-ids', 424, 'What each Type implementation puts into its TypeID')
+    f = Fig('type-ids', 466, 'What each Type implementation puts into its TypeID')
+    # the rule shows on the card; the extra joins it in the hover note
     cards = [
         ('int', 'PrimitiveType', 'One of the fixed kinds. The untyped constant kinds, bigint and bigdec, are primitive types too.',
-         'Also DataByteType, an internal view into a byte array.'),
+         'Also DataByteType, an internal view into one byte of a byte array, which has no id.'),
         ('[]int   *T   map[K]V', 'SliceType, PointerType, MapType', 'The id is built from the element ids. Channels have a type and no operations.',
          'ArrayType and ChanType complete the set.'),
         ('struct{ Key Key; Left Node }', 'StructType', 'The package path enters the id only for unexported field names: struct{ N int } from two packages is one type.',
-         'Carries the declaring package path for its own use.'),
-        ('func(cur realm, n int) string', 'FuncType', 'Parameter names are not part of the id. IsCrossing reads whether the first parameter is realm.',
+         'An embedded field is named as written: struct{ Int } has field Int. Carries the declaring package path for its own use.'),
+        ('func(cur realm, n int) string', 'FuncType', 'Parameter and result names are not part of the id. IsCrossing reads whether the first parameter is realm.',
          ''),
-        ('interface{ Render(...) }', 'InterfaceType', 'Methods sorted before hashing. VerifyImplementedBy is the runtime check behind a type assertion.',
-         ''),
+        ('interface{ Render(...) }', 'InterfaceType', 'Embedded interfaces are flattened into their methods, which are sorted by name before the id is formed.',
+         'checkImplementedBy, billed per method, is the check behind a type assertion and a type switch.'),
         ('type InnerNode struct{ ... }', 'DeclaredType', 'id: gno.land/r/test.InnerNode. Declared inside a function: pkgpath[location].Name.',
          'Name, package path, base type, method list.'),
         ('address   realm   error', 'Declared in the universe block', 'address is declared on string. realm is an interface; its hidden .grealm holds an address, a path and the previous realm.',
-         ''),
+         'A sub-realm\'s .grealm also holds its subpath and its parent. A .seal method no source can declare keeps user types out.'),
         ('RefType{ ID }', 'Placeholder', 'Stands in for a persisted type until the store loads it. Loading resolves it by id.',
          ''),
-        ('8 · 8 · 128 · 128', 'Limits, checked when a type is built', 'Embedding depth 8, type nesting depth 8, 128 methods through embedding, 128 struct fields.',
-         'They bound adversarial type shapes.'),
+        ('8 · 8 · 128 · 128', 'Limits on type shapes', 'Embedding depth 8, type nesting depth 8, 128 methods on an interface, embedded included, 128 struct fields, promoted included.',
+         'Checked when a type is built, they bound adversarial type shapes.'),
     ]
-    cw, ch = 236, 108
+    cw, ch = 236, 122
     for i, (code, impl, rule, extra) in enumerate(cards):
         col, row = i % 3, i // 3
         x, y = 20 + col * (cw + 6), 40 + row * (ch + 10)
@@ -431,12 +555,11 @@ def type_ids():
         f.rect(x, y, cw, ch, 'acc' if i == 5 else '')
         f.text(x + 10, y + 18, code, 'f-m b')
         f.text(x + 10, y + 34, impl, 'f-t s')
-        ty = y + 50
-        for piece in wrap(rule, 38)[:4]:
-            f.text(x + 10, ty, piece, 'f-t s')
-            ty += 14
+        pieces = wrap(rule, int((cw - 20) / SAFE_SMALL))
+        assert len(pieces) <= 5, impl
+        f.lines(x + 10, y + 50, pieces, 'f-t s', lh=14)
         f.close()
-    f.text(20, 406, 'Equality is TypeID equality, never pointer equality: the same type is deserialized in many transactions.', 'f-t s')
+    f.text(20, 448, 'Equality is TypeID equality, never pointer equality: each transaction loads its own copy of a saved type.', 'f-t s')
     return f
 
 
@@ -447,17 +570,17 @@ TV_CASES = [
     ('ok := true', 'bool', 'nil', '01 at byte 0', 'SetBool writes the bool into the first byte of N.'),
     ('f := 2.5', 'float64', 'nil', '0x4004000000000000', 'SetFloat64 stores the IEEE-754 bits in N. Arithmetic on them runs in software so every node computes the same bits.'),
     ('s := "hi"', 'string', 'StringValue "hi"', '0', 'A string is a Go string in V. Not an Object: it has no identity and is saved inside its holder.'),
-    ('p := &node', '*InnerNode', 'PointerValue{TV, Base, Index}', '0', 'A pointer is a slot address: the base object, an array, struct, block or heap item, plus an index into it.'),
+    ('p := &node', '*InnerNode', 'PointerValue{TV, Base, Index}', '0', 'A pointer is a slot address: the base object, an array, struct, block, map or heap item, plus an index into it.'),
     ('xs := []int{1, 2}', '[]int', 'SliceValue{Base, Offset 0, Length 2, Maxcap 2}', '0', 'A slice is a window onto an ArrayValue, which is the Object with identity.'),
     ('v := InnerNode{...}', 'InnerNode', '*StructValue{ObjectInfo, Fields}', '0', 'A struct is an Object: ObjectInfo carries its id, owner, reference count and dirty marks. Copying it copies the fields into a new object.'),
     ('var e any', 'nil', 'nil', '0', 'A nil interface value is the undefined typed value: no type, no value. It serializes as {} in a realm trace.'),
-    ('lib.Data (other realm)', 'its type', 'the object', '"ReaDoNLY"', 'A composite read from another realm\'s storage carries the magic bytes in N. The mark survives copies and arguments; writing through it panics.'),
+    ('var e any = 7', 'int', 'nil', '7', 'An interface has no box: converting to an interface leaves T as the concrete type, so this slot is filled exactly as x := 7 is.'),
 ]
 
 
 @fig
 def typed_value():
-    f = Fig('typed-value', 332, 'TypedValue{T, V, N}: nine values, three cells each')
+    f = Fig('typed-value', 350, 'TypedValue{T, V, N}: nine values, three cells each')
     cw, ch = 236, 82
     for i, (code, T, V, N, note) in enumerate(TV_CASES):
         col, row = i % 3, i // 3
@@ -470,7 +593,7 @@ def typed_value():
             f.text(x + 10, y + 50 + k * 13, piece, 'f-m s')
         f.text(x + 10, y + 76, 'N  ' + N, 'f-m s')
         f.close()
-    f.text(20, 322, 'T is the concrete type, V a Value, N eight bytes. Fixed-size numbers use N only; everything with identity is a Value that is also an Object.', 'f-t s')
+    f.foot(322, 'T is the concrete type, V a Value, N eight bytes. Fixed-size numbers use N only; everything with identity is a Value that is also an Object.')
     return f
 
 
@@ -478,7 +601,7 @@ def typed_value():
 
 @fig
 def blocks_heap():
-    f = Fig('blocks-heap', 500, 'Blocks alive inside add(3), from the names filetest above')
+    f = Fig('blocks-heap', 500, 'Blocks alive inside add(3)')
 
     def block(x, y, title, slots, note, cls='', w=210):
         h = 34 + 16 * len(slots)
@@ -495,7 +618,7 @@ def blocks_heap():
     hf = block(20, 44 + hp + 30, 'file block', ['(one per file)'],
                'One block per file, between the function blocks and the package block. It is why a package variable is three hops from a function body.')
     ha = block(20, 44 + hp + 30 + hf + 30, "add's block", ['0  n      → HeapItem', '1  .res.0', '2  sum    → HeapItem', '3  f      FuncValue'],
-               'Created by OpCall from add\'s source node with one slot per declared name. NewBlock pre-fills the heap-marked slots with heap items; writes go into the item, not over it.', 'acc')
+               'Taken from the machine\'s block pool by OpCall, or allocated when the pool has none that fits, with one slot per declared name. Each heap-marked slot starts with a heap item; writes go into the item, not over it.', 'acc')
     y_for = 44 + hp + 30 + hf + 30 + ha + 30
     hfor = block(20, y_for, 'for block', ['0  i.loopvar'],
                  'One per loop. At the end of each iteration the VM replaces every heap item in the init slots with a new one, which is how closures see Go 1.22 loop variables. Here i is not captured, so it is a plain slot.')
@@ -503,7 +626,7 @@ def blocks_heap():
     f.arrow(230, 44 + hp + 30 + 10, 230, 44 + hp + 4, label='Parent', dx=28, dy=3)
     f.arrow(230, 44 + hp + 30 + hf + 30 + 10, 230, 44 + hp + 30 + hf + 4)
     f.arrow(230, y_for + 10, 230, y_for - 26)
-    f.text(20, y_for + hfor + 24, 'The if arm gets a block too, with no names of its own here.', 'f-t s')
+    f.lines(20, y_for + hfor + 24, wrap('The if arm gets a block too, with no names of its own here.', 44), 'f-t s', lh=15)
 
     # heap items and the closure
     ay = 44 + hp + 30 + hf + 30
@@ -511,16 +634,17 @@ def blocks_heap():
     f.box(330, ay + 64, 170, 46, 'HeapItem', ['Value: sum'], 'mut', note='The same kind of box for sum. Assignments in the loop write into this item.', id='hi-sum')
     f.arrow(230, ay + 34 - 4, 329, ay + 23)
     f.arrow(230, ay + 34 + 32 - 4, 329, ay + 64 + 23)
-    f.box(540, ay, 200, 92, 'FuncValue f', ['Captures: [HeapItem sum, HeapItem n]', 'body: return sum + n', 'source, type, parent block'], '',
-          note='Created by OpFuncLit. The capture list from the dump, sum then n, is copied out of add\'s block into Captures. Each call of f copies the items into a fresh block, so a persisted closure never references the block it was born in.', lh=14)
+    f.box(540, ay, 200, 92, 'FuncValue f', ['Captures: [HeapItem sum, HeapItem n]', 'body: return sum + n', 'source, type; no parent block'], '',
+          note='Created by OpFuncLit. The capture list, sum then n, is copied out of add\'s block into Captures. Each call of f puts the same items into its new block, and a closure has no parent block, so a saved closure never references the block it was born in.', lh=14)
     f.arrow(540, ay + 40, 501, ay + 23, 'acc')
     f.arrow(540, ay + 50, 501, ay + 64 + 23, 'acc')
     f.box(540, ay + 110, 200, 60, '&sum', ['PointerValue{Base: HeapItem, Index 0}'], 'mut',
           note='Taking the address of a captured or escaping local yields a pointer whose base is the heap item, never the block.', lcls='f-m s')
     f.arrow(540, ay + 133, 501, ay + 64 + 30, 'dash')
-    f.lines(330, ay + 200, wrap('When add returns, its block and the for and if blocks are popped and gone. '
+    f.lines(330, ay + 200, wrap('When add returns, its block and the for and if blocks are popped, zeroed '
+                                'and returned to the machine\'s block pool. '
                                 'The two heap items stay alive inside f\'s captures. That is the whole memory model: '
-                                'blocks are transient, heap items are what escape.', 66), 'f-t s', lh=15)
+                                'blocks are transient, heap items are what escape.', int(410 / SAFE_SMALL)), 'f-t s', lh=15)
     return f
 
 
@@ -528,15 +652,15 @@ def blocks_heap():
 
 @fig
 def machine_trace():
-    f = Fig('machine-trace', 380)
+    f = Fig('machine-trace', 394)
     f.text(20, 24, 'func f(a, b int) int { x := a + b; return x }   called as f(2, 3)', 'f-m b')
-    f.text(20, 44, 'The stacks after doOpEval has expanded a + b. Gas so far: 212, OpExec 130 plus OpEval 82.', 'f-t s')
+    f.text(20, 44, 'The stacks after doOpEval has expanded a + b. Gas so far: 155, OpBody 73 plus OpEval 82.', 'f-t s')
     cols = [
-        ('Ops', ['OpDefine', 'OpAdd', 'OpEval', 'OpEval'], 'Opcodes wait here; the loop pops from the top. Pushes went in reverse, so OpEval for a runs first, then OpEval for b, then OpAdd, then OpDefine.'),
+        ('Ops', ['OpBody', 'OpDefine', 'OpAdd', 'OpEval', 'OpEval'], 'Opcodes wait here; the loop pops from the top. Pushes went in reverse, so OpEval for a runs first, then OpEval for b, then OpAdd, then OpDefine. OpBody stays beneath, sticky, and takes return x next.'),
         ('Exprs', ['a + b', 'b', 'a'], 'The binary expression stays underneath its operands until doOpAdd pops it. Each OpEval on a name pops that name.'),
-        ('Stmts', ['x := a + b'], 'doOpExec only peeked the statement. doOpDefine pops it at the end.'),
-        ('Values', [], 'Empty until the names are read. After both: 2, 3. After OpAdd: 5, computed in place into a\'s slot on the stack.'),
-        ('Blocks', ['f: a=2 b=3', 'file', 'package'], 'The scope stack. OpDefine writes 5 into slot 3 of f\'s block, or into the heap item there if x were captured.'),
+        ('Stmts', [('f\'s body cursor', 'x := a + b')], 'OpBody holds the statement as the cursor\'s active one; doOpDefine pops it at the end.'),
+        ('Values', ['f'], 'The function value f sits at the bottom for the whole call, and the return writes the result over it. After both names: f, 2, 3. doOpAdd then adds 3 into the 2 beneath it, leaving f, 5.'),
+        ('Parent chain', ['f: a=2 b=3', 'file', 'package'], 'The blocks a name climbs: f\'s block, its parent the file block, then the package block. Name lookup ignores the Blocks stack and follows these parent pointers. OpDefine writes 5 into slot 3 of f\'s block, or into the heap item there if x were captured.'),
     ]
     cw, gap, cellh = 136, 12, 26
     base = 300
@@ -545,16 +669,25 @@ def machine_trace():
         f.open_hot(note)
         f.rect(x, 60, cw, base - 60 + 4, 'mut', r=4)
         f.text(x + cw / 2, 78, title, 'f-t b', 'middle')
+        cy = base - 26
         for k, c in enumerate(cells):
-            cy = base - 26 - k * (cellh + 4)
-            f.rect(x + 8, cy, cw - 16, cellh, 'acc' if k == len(cells) - 1 else '', r=4)
-            f.text(x + cw / 2, cy + 17, c, 'f-m', 'middle')
+            # a stack's top runs next; the parent chain marks f's block, where x goes
+            top = k == 0 if title == 'Parent chain' else k == len(cells) - 1
+            if isinstance(c, tuple):
+                # a cell holding a cursor: what it is, then its active statement
+                f.rect(x + 8, cy - 18, cw - 16, cellh + 18, 'acc' if top else '', r=4)
+                f.text(x + cw / 2, cy - 2, c[0], 'f-t s', 'middle')
+                f.text(x + cw / 2, cy + 17, c[1], 'f-m', 'middle')
+            else:
+                f.rect(x + 8, cy, cw - 16, cellh, 'acc' if top else '', r=4)
+                f.text(x + cw / 2, cy + 17, c, 'f-m', 'middle')
+            cy -= cellh + 4
         if not cells:
             f.text(x + cw / 2, base - 20, '(empty)', 'f-t s', 'middle')
         f.close()
-    f.text(20, 332, 'Frames: one for the call to f, recording the stack heights to unwind to. The top cell of each column runs next.', 'f-t s')
-    f.text(20, 350, 'Gas per opcode, from machine.go: OpExec 130, OpEval 82 plus 4 per block hop for a name, int add 81, OpDefine 114 plus 79 per name.', 'f-t s')
-    f.text(20, 368, 'The site steps through all seven states.', 'f-t s')
+    y = f.foot(332, 'Frames: one for the call to f, recording the stack heights to unwind to. The top cell of each stack runs next.')
+    y = f.foot(y, 'Gas per opcode, from machine.go: OpBody 73, OpEval 82 plus 4 per unit of depth for a name, int add 81, OpDefine 114 plus 79 per name: 601 for the statement.')
+    f.text(20, y, 'The site steps through all seven states.', 'f-t s')
     return f
 
 
@@ -562,38 +695,46 @@ def machine_trace():
 
 @fig
 def control_flow():
-    f = Fig('control-flow', 320)
+    f = Fig('control-flow', 364)
     f.text(20, 24, 'for i := 0; i < n; i++ { body }', 'f-m b')
-    f.box(20, 40, 200, 64, 'Frame', ['label, stack heights to unwind to'], '',
-          note='Every for, range, switch and function call pushes a frame, so break, continue and return know how far to unwind.')
-    f.box(236, 40, 210, 64, 'Block', ['i.loopvar; bodyStmt{NextBodyIndex, Cond, Post}'], '',
-          note='The loop block owns a bodyStmt that remembers the next statement index, the condition and the post statement. The sticky OpForLoop walks that state.', lcls='f-m s')
+    f.box(20, 40, 200, 80, 'Frame', ['label, stack heights to unwind to'], '',
+          note='Every for, range, switch and function call pushes a frame, so break, continue and return know how far to unwind.',
+          lh=13, cw=SAFE_SMALL)
+    f.box(236, 40, 214, 80, 'Block', ['i.loopvar, and the cursor bodyStmt: next statement index, condition, post statement'], '',
+          note='The loop block owns a bodyStmt that remembers the next statement index, the condition and the post statement. The sticky OpForLoop walks that state.',
+          lh=13, cw=SAFE_SMALL)
     # state machine
     sx = 20
-    nodes = [('Cond', 'Evaluate the condition.'), ('body stmt at NextBodyIndex', 'OpExec on the next statement of the body; the index advances.'), ('Post', 'i++ runs, then back to the condition. continue jumps here.')]
+    nodes = [('Cond', 'Evaluate the condition.'),
+             ('next body statement', 'One body statement per turn of OpForLoop; the index advances.'),
+             ('Post', 'Captured loop variables get fresh heap items, i++ runs, then back to the condition. continue jumps here.')]
     xs = [sx, sx + 150, sx + 360]
-    ws = [100, 190, 90]
+    ws = [100, 190, 76]
     for (t, n), x, w in zip(nodes, xs, ws):
         f.box(x, 140, w, 36, None, [t], 'acc', note=n, lcls='f-t b', pad=10)
     f.arrow(xs[0] + ws[0], 158, xs[1] - 1, 158)
     f.text(xs[0] + ws[0] + 12, 152, 'true', 'f-t s')
     f.arrow(xs[1] + ws[1], 158, xs[2] - 1, 158)
-    f.path('M%g 176 C%g 215 %g 215 %g 176' % (xs[2] + 45, xs[2] + 45, xs[0] + 50, xs[0] + 50))
-    f.text(230, 228, 'OpForLoop is sticky: popped and pushed back every iteration, so loops do not recurse', 'f-t s', 'middle')
-    f.box(20, 240, 420, 60, 'Cond false, or break',
+    f.path('M%g 176 C%g 215 %g 215 %g 176' % (xs[2] + 38, xs[2] + 38, xs[0] + 50, xs[0] + 50))
+    f.text(20, 230, 'OpForLoop is sticky: it stays on the stack, so loops do not recurse', 'f-t s')
+    f.box(20, 244, 430, 64, 'Cond false, or break',
           ['pop the block, pop the frame, drop the sticky opcode. break and continue pop frames until the loop with the right label.'],
-          'mut', note='Leaving the loop restores the stacks to the heights the frame recorded.', lh=13)
+          'mut', note='Leaving the loop restores the stacks to the heights the frame recorded.', lh=13, cw=SAFE_SMALL)
     # the others
     others = [
-        ('if', 'pushes a block only, no frame; the block is expanded with the chosen arm\'s names'),
-        ('switch', 'a frame; clauses and cases tried one at a time; a type switch compares type ids or checks interface implementation'),
-        ('range', 'one opcode per kind: arrays and slices, strings (one rune per step), maps (one linked-list entry per step)'),
-        ('goto', 'resets the stacks to the heights recorded on the body statement'),
+        ('if', 'pushes a block only, no frame; the block is expanded with the chosen arm\'s names',
+         'An if pushes no frame, because no branch statement targets an if. OpPopBlock releases its block afterwards.'),
+        ('switch', 'a frame and one shared block; cases tried one at a time; default runs last; a type switch compares type ids',
+         'default runs only once every other clause has failed. fallthrough swaps in the next clause\'s names. A type switch also checks each interface case against the value\'s methods.'),
+        ('range', 'one opcode per kind: arrays and slices, pointers to arrays, strings one rune per step, maps one entry per step',
+         'Arrays and slices, with pointers to arrays under their own opcode; strings, one rune per step; maps, one list entry per step, in insertion order.'),
+        ('goto', 'pops frames and blocks, cuts the stacks back to the heights of the target body, moves its cursor to the label',
+         'The preprocessor counted the frames and blocks between the goto and its label, and the label\'s statement index.'),
     ]
-    y = 40
-    for t, d in others:
-        f.box(470, y, 270, 60, t, [d], '', note=d, lh=13)
-        y += 66
+    y = 36
+    for t, d, n in others:
+        f.box(470, y, 270, 74, t, [d], '', note=n, lh=13, cw=SAFE_SMALL)
+        y += 80
     return f
 
 
@@ -602,28 +743,28 @@ def control_flow():
 CALL_STAGES = [
     ('1 · OpEval on the call', 'pushes OpPrecall, then an OpEval per argument in reverse, then one for the callee, so the callee evaluates first: Values f, a, b',
      'The call expression y := f(a, b). Because pushes go in reverse, the callee is read before any argument.'),
-    ('2 · OpPrecall', 'peeks the callee under the arguments. A type value: OpConvert. A function: push a Frame and OpCall; OpEnterCrossing for a crossing function; cross(rlm) installs a fresh cur',
-     'PushFrameCall also decides the storage realm for the call, the borrow rules.'),
-    ('3 · OpCall', 'new block from the callee\'s source node and parent block; captured heap items copied in; arguments popped into the first slots, variadic ones packed; named results zeroed',
-     'The block\'s slots follow the dump above: parameters, then results, then locals.'),
+    ('2 · OpPrecall', 'peeks the callee under the arguments. A type: OpConvert, no frame. A function: push a frame and OpCall, plus OpEnterCrossing for a crossing function. A nil callee panics: call of nil function',
+     'PushFrameCall also decides the storage realm for the call, the borrow rules. A call written f(cross(cur), ...) gets a fresh cur from installCrossingCur.'),
+    ('3 · OpCall', 'a block from the machine\'s pool or freshly allocated, its parent the file block; captured heap items copied in; results zeroed; arguments popped into the first slots, variadic ones packed',
+     'The block\'s slots hold the parameters, then the results, then the locals. The parent is the file block for a top-level function; a closure has none.'),
     ('4 · Body', 'Gno function: OpBody with the statements, plus a synthetic return when it declares no results. Native: OpReturn then OpCallNativeBody. defer: evaluate now, push a Defer on the frame',
-     'A native function is a FuncValue with a Go body attached by the store\'s NativeResolver.'),
-    ('5 · OpReturn, four flavors', 'OpReturn; OpReturnAfterCopy when named results live on the heap; OpReturnFromBlock when a bare return reads them; OpReturnToBlock plus the sticky OpReturnCallDefers when the frame holds defers',
-     'The preprocessor and the frame choose the flavor.'),
-    ('6 · Pop the frame', 'truncate every stack to the recorded heights, move the results down, restore the caller\'s Package and Realm. maybeFinalize finalizes the realm if the frame crossed a boundary',
+     'A native function is a FuncValue with a Go body, attached by DefineNative for builtins, looked up in the store for the standard library.'),
+    ('5 · OpReturn, four forms', 'OpReturn; OpReturnAfterCopy when results are named and return lists values; OpReturnFromBlock for a bare return; OpReturnToBlock plus the sticky OpReturnCallDefers when the frame holds defers',
+     'The return statement and the frame choose the form.'),
+    ('6 · Pop the frame', 'maybeFinalize saves the realm if the frame is a realm boundary; then the stacks are cut back to the recorded heights, the call\'s blocks released to the pool, the results moved down, the caller\'s package and realm restored',
      'This is where a realm call ends and its objects are saved.'),
 ]
 
 
 @fig
 def call_sequence():
-    f = Fig('call-sequence', 350)
+    f = Fig('call-sequence', 370)
     f.text(20, 24, 'y := f(a, b)', 'f-m b')
-    bw, bh = 232, 126
+    bw, bh = 232, 140
     for i, (t, d, n) in enumerate(CALL_STAGES):
         col, row = i % 3, i // 3
         x, y = 20 + col * (bw + 12), 40 + row * (bh + 30)
-        f.box(x, y, bw, bh, t, [d], 'acc' if i in (1, 5) else '', note=n, id='call-%d' % (i + 1), lh=13)
+        f.box(x, y, bw, bh, t, [d], 'acc' if i in (1, 5) else '', note=n, id='call-%d' % (i + 1), lh=13, cw=SAFE_SMALL)
         if col < 2:
             f.arrow(x + bw, y + bh / 2, x + bw + 11, y + bh / 2)
     f.path('M%g %g L%g %g L%g %g L%g %g' % (20 + 2 * 244 + bw / 2, 40 + bh, 20 + 2 * 244 + bw / 2, 40 + bh + 15,
@@ -635,30 +776,31 @@ def call_sequence():
 
 @fig
 def panic_unwind():
-    f = Fig('panic-unwind', 380)
-    f.box(20, 30, 340, 62, 'panic(v) inside an opcode handler',
+    f = Fig('panic-unwind', 476)
+    f.box(20, 30, 340, 72, 'panic(v) inside an opcode handler',
           ['pushPanic records the Exception, unwinds to the last call frame, pushes OpPanic2 and OpReturnCallDefers'],
-          'warn', note='The cooperative path. Nothing on the Go stack is consumed.', lh=13)
-    f.box(400, 30, 340, 62, 'Go panic carrying an Exception, from the value layer',
-          ['runOnce recovers it and Run converts it into the same path, so half a million panicking defers cost no Go stack'],
-          'mut', note='Machine.Panic or a direct panic with an Exception deep in values.go. The iterative-recovery record explains why.', lh=13)
-    f.arrow(190, 92, 190, 129)
-    f.path('M570 92 L570 110 L360 110 L360 129')
-    f.box(20, 130, 340, 40, None, ['the frame\'s deferred calls run, one at a time'], 'acc', note='doOpReturnCallDefers pops each Defer and runs it like a call.', lcls='f-t b')
-    f.arrow(190, 170, 190, 209)
-    f.box(20, 210, 340, 40, None, ['recover() called directly by a deferred function?'], '', note='The Go rule: only a direct call from the deferred function sees the exception.', lcls='f-t b')
-    f.arrow(360, 230, 399, 230, label='yes', dy=-6)
-    f.box(400, 210, 340, 40, None, ['exception cleared; the function returns normally'], 'acc', note='Recover returns the exception value and clears it. Exceptions chain to the previous one when a defer panics again.', lcls='f-t b')
-    f.arrow(190, 250, 190, 289, label='no', dx=14, dy=4)
-    f.box(20, 290, 340, 62, 'OpReturnCallDefers pops the frame',
+          'warn', note='The cooperative path. Nothing on the Go stack is consumed.', lh=13, cw=SAFE_SMALL)
+    f.box(400, 30, 340, 72, 'A Go panic carrying an Exception',
+          ['from the value layer: runOnce recovers it and Run takes the same path, so half a million panicking defers cannot crash the node'],
+          'mut', note='Machine.Panic or a direct panic with an Exception deep in values.go. The iterative-recovery record explains why.', lh=13, cw=SAFE_SMALL)
+    f.arrow(190, 102, 190, 139)
+    f.path('M570 102 L570 120 L360 120 L360 139')
+    f.box(20, 140, 340, 50, None, ['the frame\'s deferred calls run, one at a time'], 'acc', note='doOpReturnCallDefers pops each Defer and runs it like a call.', lcls='f-t b', cw=7.8, lh=16)
+    f.arrow(190, 190, 190, 219)
+    f.box(20, 220, 340, 50, None, ['recover() called directly by a deferred function?'], '', note='The Go rule: only a direct call from the deferred function sees the exception.', lcls='f-t b', cw=7.8, lh=16)
+    f.arrow(360, 245, 399, 245, label='yes', dy=-6)
+    f.box(400, 220, 340, 50, None, ['exception cleared; the function returns normally'], 'acc', note='Recover returns the exception value and clears it. Exceptions chain to the previous one when a defer panics again.', lcls='f-t b', cw=7.8, lh=16)
+    f.arrow(190, 270, 190, 299, label='no', dx=14, dy=4)
+    f.box(20, 300, 340, 80, 'OpReturnCallDefers pops the frame',
           ['and re-raises in the caller. The next frame up runs its own defers: back to the top.'], '',
-          note='The unwinding continues frame by frame, each one running its deferred calls first.', lh=13)
-    f.path('M10 321 L4 321 L4 150 L19 150', 'dash')
-    f.box(400, 290, 340, 62, 'Realm boundary reached',
-          ['the transaction aborts with UnhandledPanicError, unless a revive frame catches it. The callee\'s state may be half written, so the caller cannot recover it.'],
-          'warn', note='A panic that crosses a realm boundary is never recoverable by the caller. Tests use revive to observe the abort.', lh=13)
-    f.arrow(360, 321, 399, 321)
-    f.text(20, 372, 'Panic values print through a bounded printer: no user methods, 1024 bytes at most. A Stacktrace keeps 128 calls with the middle elided.', 'f-t s')
+          note='The unwinding continues frame by frame, each one running its deferred calls first.', lh=13, cw=SAFE_SMALL)
+    f.path('M10 340 L4 340 L4 165 L19 165', 'dash')
+    f.box(400, 300, 340, 80, 'Realm boundary reached',
+          ['the transaction aborts with UnhandledPanicError, unless a revive frame catches it. No caller recovers it, so one realm cannot catch another\'s refusal and retry.'],
+          'warn', note='A panic that crosses a realm boundary is never recoverable by the caller. Tests use revive to observe the abort.', lh=13, cw=SAFE_SMALL)
+    f.arrow(360, 340, 399, 340)
+    y = f.foot(406, 'On gno.land a bounded printer renders the latest exception alone, with no user methods, 1024 bytes at most. Elsewhere every chained exception prints, oldest first, and String and Error run, at 4 gas per output byte.')
+    f.foot(y, 'A panic while package variables initialize has no call frame to unwind to and fails the message at once. A Stacktrace keeps 128 calls with the middle elided.')
     return f
 
 
@@ -666,19 +808,19 @@ def panic_unwind():
 
 @fig
 def uverse():
-    f = Fig('uverse', 330)
+    f = Fig('uverse', 352)
     chain = [('if block', 'Depth 1'), ('for block', 'Depth 2'), ("add's block", 'Depth 3'), ('file block', 'Depth 4'), ('package block', 'Depth 5'), ('.uverse', 'Depth 0')]
     y = 30
     for i, (t, d) in enumerate(chain):
         cls = 'acc' if t == '.uverse' else ''
         f.box(20, y, 150, 30, None, [t], cls, lcls='f-t b', pad=10,
               note='A name written in the if arm reaches this block at this depth.' if t != '.uverse' else
-              'The universe block, a package named .uverse at the root of every chain. A name whose path has Depth 0 is read from it directly: the op_eval fast path checks nx.Path.Depth == 0 before climbing anything.')
+              'The universe block, a package named .uverse at the root of every chain. A name no scope declares resolves here with Depth 0, and the preprocessor replaces each builtin name with a constant holding its value, so running code never looks a builtin up.')
         f.text(180, y + 19, d, 'f-t s')
         if i < len(chain) - 1:
             f.arrow(95, y + 30, 95, y + 44)
         y += 44
-    f.text(20, 322, 'Depth counts hops from the block where the name is used, so the same name has a different depth in each scope.', 'f-t s')
+    f.text(20, 340, 'Depth counts hops from the block where the name is used, so the same name has a different depth in each scope.', 'f-t s')
     rows = [
         ('Types', 'bool string int int8 ... uint64 float32 float64 byte rune any error address realm',
          'The basic types are defined here, as type values in the block\'s slots.'),
@@ -686,13 +828,13 @@ def uverse():
         ('Functions', 'append cap copy delete len make new print println panic recover',
          'Each is a FuncValue whose body is a Go closure over the Machine, installed by DefineNative.'),
         ('Gno additions', 'cross   attach (reserved, panics)   istypednil   revive',
-         'cross checks its argument is the running frame\'s own cur. revive works only when the machine enables it, which tests do.'),
-        ('Hidden', '.cur   .origin   cross1', 'For the compiler\'s own use. The leading dot or reserved spelling means user source cannot produce them.'),
+         'cross checks that its argument is the cur of the innermost crossing call still running, or a sub-realm minted from it. revive works only when the machine enables it, which tests do.'),
+        ('Hidden', '.cur   .origin   .grealm   .runtimeError', 'For the compiler\'s own use. The leading dot means user source cannot spell them.'),
     ]
     y = 30
     for t, body, n in rows:
-        f.box(260, y, 480, 50, t, [body], 'mut' if t == 'Hidden' else '', note=n, lcls='f-m s', lh=13)
-        y += 56
+        f.box(260, y, 480, 54, t, [body], 'mut' if t == 'Hidden' else '', note=n, lcls='f-m s', lh=13, cw=SAFE_MONO_S)
+        y += 58
     return f
 
 
@@ -704,26 +846,27 @@ def object_ids():
     f.text(20, 24, 'PkgID', 'f-t h')
     steps = [
         ('"gno.land/r/test"', 'the package path', 118),
-        ('sha256', 'a8ada09dee16 ... 084a30, 32 bytes', 140),
-        ('keep 20 bytes', 'then the top four bits become flags: stdlib, immutable, internal', 180),
+        ('SHA-256', 'a8ada09dee16 ... 59dad84c, 32 bytes', 128),
+        ('keep 20 bytes', 'the top four bits become flags: standard library, immutable, internal, reserved', 196),
         ('08ada09dee16d791fd40 6d629fe29bb0ed084a30', 'PkgID: a user realm has no flag set, so a8 became 08', 232),
     ]
     x = 20
     notes = ['The path is the only input. The same path on any node yields the same id.',
-             'Measured: sha256 of the path starts with a8ad. The id in the zrealm1 trace starts with 08ad.',
-             'Immutable covers standard library and pure packages, whose objects are never reference-counted from other realms.',
+             'Measured: the SHA-256 of the path starts with a8ad. The id in the zrealm1 trace starts with 08ad.',
+             'Immutable covers the standard library, pure packages, _test overlays and .uverse; their objects are not counted from other packages.',
              'The id in the zrealm1 filetest trace, produced by the same path.']
     for (t, d, w), n in zip(steps, notes):
-        f.box(x, 40, w, 76, None, [t, d], 'acc' if w == 232 else '', note=n, lcls='f-m s' if w == 232 else 'f-t s', lh=14, pad=8)
+        f.box(x, 40, w, 80, None, [t, d], 'acc' if w == 232 else '', note=n, lcls='f-m s' if w == 232 else 'f-t s', lh=14, pad=8,
+              cw=SAFE_MONO_S if w == 232 else SAFE_SMALL)
         if w != 232:
-            f.arrow(x + w, 78, x + w + 12, 78)
+            f.arrow(x + w, 80, x + w + 12, 80)
         x += w + 14
     f.text(20, 150, 'ObjectID', 'f-t h')
     f.box(20, 166, 300, 56, None, ['PkgID : NewTime', '08ada09d...084a30:6  the struct created in zrealm1'], '', lcls='f-m s', lh=15,
           note='NewTime is a per-realm counter. The package value itself is always :1.')
     f.box(340, 166, 400, 56, 'Three states', ['empty  →  allocated: PkgID stamped, NewTime 0  →  finalized: counter taken'], '', lcls='f-m s',
-          note='The allocator stamps the creating realm as soon as it sees the object. Only finalization takes a counter value, and only a finalized object is real.')
-    f.text(20, 254, 'An object is saved under the realm that allocated it, even when another realm\'s code did the saving.', 'f-t s')
+          note='The allocator stamps a PkgID while building the object: the realm that declared its type, or else the active realm. Only finalization takes a counter value, and only a finalized object is real.')
+    f.text(20, 254, 'An object is saved under the realm its PkgID names, even when another realm\'s code did the saving.', 'f-t s')
     return f
 
 
@@ -731,22 +874,22 @@ def object_ids():
 
 @fig
 def refcount_escape():
-    f = Fig('refcount-escape', 250)
+    f = Fig('refcount-escape', 248)
     panels = [
         ('Owned: RefCount 1', 'acc',
-         ['one holder', 'owner id set', 'hash folded into the owner\'s bytes', 'one Merkle chain down the tree'],
+         ['one holder', 'owner id set', 'hash carried in the owner\'s bytes', 'one Merkle chain down the tree'],
          'The common case. A tree of singly referenced objects is one Merkle chain, saved with its root.', 1),
         ('Escaped: RefCount 2', '',
-         ['two holders', 'owner cleared, saved on its own', 'hash written to the IAVL store under its id', 'once escaped, always escaped'],
-         'The second reference makes the object independent. The separate Merkle index of escaped hashes is a stub at this commit.', 2),
+         ['two holders', 'owner cleared, saved on its own', 'hash written to the Merkle tree under its id', 'once escaped, always escaped'],
+         'Parents carry its id alone. SetObject writes the hash to the Merkle tree; the saveNewEscaped pass is an empty stub.', 2),
         ('Deleted: RefCount 0', 'warn',
-         ['no holder left', 'removed with everything it owned', 'cycles are not supported', 'named for a later phase'],
+         ['no holder left', 'deleted, with each child whose count falls to 0', 'a child with another holder stays', 'cycles are not supported'],
          'processNewDeletedMarks decrements the children recursively, so a dropped subtree goes in one pass.', 0),
     ]
     for i, (t, cls, ls, n, refs) in enumerate(panels):
         x = 20 + i * 246
         f.open_hot(n)
-        f.rect(x, 36, 234, 190, cls)
+        f.rect(x, 36, 234, 196, cls)
         f.text(x + 10, 56, t, 'f-t b')
         # little drawing
         cy = 96
@@ -759,10 +902,9 @@ def refcount_escape():
         f.text(x + 117, cy + 38, 'object', 'f-t s', 'middle')
         if refs == 0:
             f.path('M%g %g L%g %g M%g %g L%g %g' % (x + 92, cy + 22, x + 142, cy + 46, x + 142, cy + 22, x + 92, cy + 46), 'warn thin', arrow=False)
-        ty = 164
+        ty = 160
         for l in ls:
-            f.text(x + 10, ty, l, 'f-t s')
-            ty += 14
+            ty = f.lines(x + 10, ty, wrap(l, int(214 / SAFE_SMALL)), 'f-t s', lh=14)
         f.close()
     return f
 
@@ -773,11 +915,11 @@ def refcount_escape():
 def finalization():
     f = Fig('finalization', 420)
     f.text(20, 24, 'zrealm1.gno: root = InnerNode{Key: "somekey"}, inside a realm call', 'f-m b')
-    f.box(20, 44, 220, 52, ':1 PackageValue', ['the package itself; always NewTime 1'], '', id='obj-1',
+    f.box(20, 44, 220, 56, ':1 PackageValue', ['the package itself; always NewTime 1'], '', id='obj-1',
           note='Every realm\'s first object. It holds the package block and one block per file.')
     f.box(20, 130, 220, 66, ':2 Block (package)', ['IsEscaped, RefCount 2', 'slot 0 → :3'], '', id='obj-2',
           note='The package block. It is escaped because it has two holders, so it is saved on its own. Its ModTime moves from 0 to 6 in the trace.')
-    f.arrow(130, 96, 130, 129)
+    f.arrow(130, 100, 130, 129)
     f.box(300, 130, 220, 66, ':3 HeapItem root', ['owner :2, RefCount 1', 'Value: was {}, now → :6'], '', id='obj-3',
           note='The heap item behind the package variable root. Assign2 writes into it and calls DidUpdate with the old child, none, and the new child, the struct.')
     f.arrow(240, 163, 299, 163)
@@ -785,27 +927,27 @@ def finalization():
           note='Created this transaction. DidUpdate marked it new-real; processNewCreatedMarks assigned :6 depth-first. The string inside it is not an object, so nothing else became real.')
     f.arrow(410, 196, 410, 229)
     f.box(540, 44, 200, 252, 'Realm: writes, in order', [
-        'c[...:6]  (269 bytes)',
+        'c[...:6]  (+269 bytes)',
         '  the new struct, owner :3',
-        'u[...:3]',
+        'u[...:3]  (+156 bytes)',
         '  Value: RefType InnerNode',
         '  + RefValue{:6, hash}',
-        'u[...:2]',
+        'u[...:2]  (+5 bytes)',
         '  hash of :3 changed,',
         '  ModTime 0 → 6',
         '',
-        'then: byte delta per realm',
+        'then: 430 bytes in all',
         '  → storage deposit',
     ], 'mut', id='writes', lcls='f-m s', lh=16, nowrap=True,
         note='Exactly what the filetest\'s Realm: directive prints. Children are saved before parents, and only new or dirty objects are written.')
     steps = ['1 new-real marks: ids depth-first, children counted', '2 deleted marks: children decremented', '3 escaped marks: demote or confirm',
-             '4 realm record saved if the counter moved', '5 dirty ancestors up to the package block', '6 save new and dirty, children first',
+             '4 realm record saved if the counter moved', '5 owners marked dirty, up to an escaped object', '6 save new and dirty, children first',
              '7 remove the deleted', '8 byte deltas per realm, for the deposit']
     y = 322
     for i, s in enumerate(steps):
         col, row = i % 2, i // 2
         f.text(20 + col * 370, y + row * 16, s, 'f-t s')
-    f.text(20, 404, 'FinalizeRealmTransaction runs when a call returns across a realm boundary, and again after package initialization.', 'f-t s')
+    f.foot(404, 'FinalizeRealmTransaction runs when a call returns across a realm boundary, and twice when a package is deployed.')
     return f
 
 
@@ -813,7 +955,7 @@ def finalization():
 
 @fig
 def persist_copy():
-    f = Fig('persist-copy', 340)
+    f = Fig('persist-copy', 362)
     f.box(20, 30, 250, 120, 'Live object :3, HeapItemValue', [
         'Value: TypedValue{',
         '  T: *DeclaredType InnerNode',
@@ -830,7 +972,7 @@ def persist_copy():
         '        "ObjectID": "...:6",',
         '        "Hash": "9b6e58b7899427bb...328b4537d0"}}',
     ], 'acc', lcls='f-m s', lh=15, nowrap=True,
-        note='From the zrealm1 trace. Every child object becomes a RefValue with its id and hash, every declared type a RefType with its id, every syntax node a RefNode with its location.')
+        note='From the zrealm1 trace. An owned child becomes a RefValue with its id and hash, an escaped child with its id alone, a package with its path; every declared type a RefType with its id, every syntax node a RefNode with its location.')
     f.arrow(525, 170, 525, 199)
     f.box(310, 200, 430, 80, 'amino bytes, then the key', [
         'hash = sha256(bytes)[:20]',
@@ -842,8 +984,8 @@ def persist_copy():
         'loadObjectSafe decodes, allocates the size, resolves RefTypes. A RefValue stays in place until the slot is read: fillValueTV swaps in the object then.',
     ], '', lh=13,
         note='Reading one field of a large realm loads one path through the object graph, not the graph.')
-    f.text(20, 308, 'The same three stand-ins cover the three kinds of reference: RefValue for objects, RefType for declared types, RefNode for syntax nodes.', 'f-t s')
-    f.text(20, 326, 'A RefNode carries only a Location: package path, file, line and column span. The store loads the node on demand.', 'f-t s')
+    y = f.foot(308, 'The same three stand-ins cover the three kinds of reference: RefValue for objects, RefType for declared types, RefNode for syntax nodes.')
+    f.foot(y + 2, 'A RefNode carries only a Location: package path, file, line and column span. The store looks the node up by that location.')
     return f
 
 
@@ -851,34 +993,37 @@ def persist_copy():
 
 @fig
 def store_layout():
-    f = Fig('store-layout', 350)
+    f = Fig('store-layout', 364)
     f.rect(20, 30, 720, 160, 'mut')
     f.text(30, 50, 'defaultStore, the only Store implementation', 'f-t b')
     f.box(30, 62, 345, 118, 'baseStore: a plain database adapter on baseKey', [
         'oid:<pkgid>:<newtime>   objects, hash || bytes',
         'tid:<typeid>            types',
-        '#realm                  realm records',
-        'pkgidx:                 the ordered package list',
+        'oid:<pkgid>:1#realm     realm records',
+        'pkgidx:                 the list of uploads',
         'commits with no hash: not in the application hash',
     ], '', lcls='f-m s', lh=15, nowrap=True,
-        note='Objects live here. The adapter commits with no hash, so this store does not feed the block\'s application hash.')
-    f.box(385, 62, 345, 118, 'iavlStore: the Merkle tree on mainKey', [
-        'pkg:<path>              package sources',
-        'escaped object hashes   under their ids',
-        '',
+        note='Objects live here. The adapter commits with no hash, so this store does not feed the application hash.')
+    f.box(385, 62, 345, 118, 'iavlStore: the B+32 tree on mainKey', [
+        'pkg:<path>              production files',
+        'pkg:<path>#allbutprod   test files',
+        'inert_pkg:<path>        inert packages',
+        '<pkgid>:<newtime>       escaped object hashes',
         'its root feeds the application hash',
-        'a Merkle read costs a depth-scaled fee',
     ], 'acc', lcls='f-m s', lh=15, nowrap=True,
-        note='Only the IAVL contents are part of consensus state. Package sources and the hashes of escaped objects are what every validator agrees on.')
-    f.box(20, 206, 232, 118, 'Per transaction', [
-        'BeginTransaction forks the store with fresh object, type and realm caches and a write log around the syntax-node cache. Write commits the log, only when the transaction succeeded.',
-    ], '', lh=13, note='The base app creates the forked store at the start of each transaction and commits it only on success.')
-    f.box(264, 206, 232, 118, 'Hooks', [
-        'PackageGetter: loads packages from disk on first import, off-chain. NativeResolver: attaches Go bodies to native functions after a FuncValue is loaded. Standard library bytes are cached at node start and read without I/O gas.',
-    ], '', lh=13, note='The two hooks make the store complete; the stdlib cache keeps library reads free.')
-    f.box(508, 206, 232, 118, 'Between messages', [
-        'ClearObjectCache runs before every message so nothing leaks between them. GarbageCollectObjectCache drops cached objects the last GC cycle did not visit.',
-    ], '', lh=13, note='The object cache is per transaction; the GC pass keeps it from growing across one.')
+        note='Only the Merkle tree\'s contents feed the application hash: package files, escaped hashes, inert packages, and the other keepers\' accounts, balances and parameters.')
+    f.box(20, 206, 232, 140, 'Per transaction', [
+        'BeginTransaction forks the store with fresh object, type and realm caches and a write log around the syntax-node cache. Write seals and publishes the log, only when the transaction succeeded.',
+    ], '', lh=13, cw=SAFE_SMALL,
+        note='The keeper forks the store from the base app\'s begin hook; the end hook calls Write only when the transaction succeeded.')
+    f.box(264, 206, 232, 140, 'Hooks', [
+        'PackageGetter loads a package from disk on first import, off-chain only. NativeResolver attaches the Go body of a native function. Standard library objects and types sit in memory from node start: no I/O gas.',
+    ], '', lh=13, cw=SAFE_SMALL,
+        note='The two hooks make the store complete; the in-memory standard library keeps library reads free of I/O gas.')
+    f.box(508, 206, 232, 140, 'Between messages', [
+        'ClearObjectCache runs at the start of every message so nothing leaks between them. GarbageCollectObjectCache drops the cached objects the last garbage-collection pass did not reach.',
+    ], '', lh=13, cw=SAFE_SMALL,
+        note='The object cache is per message; the garbage-collection pass keeps it from growing within one.')
     return f
 
 
@@ -886,12 +1031,12 @@ def store_layout():
 
 @fig
 def cur_chain():
-    f = Fig('cur-chain', 280)
+    f = Fig('cur-chain', 292)
     f.text(20, 24, 'MsgCall app.F, where F calls lib.G(cross(cur), ...)', 'f-m b')
     boxes = [
-        ('signer', ['g1abc... the transaction\'s signer'], 'mut', 'At the chain root there is no caller frame. MsgCall synthesizes pkg.F(.origin, args...), and .origin lowers to a crossing call whose prev is built from the signer.'),
-        ('F\'s cur', ['addr: r/demo/app', 'prev → signer'], 'acc', 'installCrossingCur minted this .grealm value for F. cur.Previous() is the signer, unforgeably.'),
-        ('G\'s cur', ['addr: r/demo/lib', 'prev → app'], 'acc', 'Minted for G because F wrote cross(cur). G sees app as its previous realm, whatever helper made the call.'),
+        ('signer', ['g1abc... the transaction\'s signer'], 'mut', 'At the chain root there is no caller frame. MsgCall synthesizes pkg.F(.origin, args...), and .origin lowers to a crossing call whose prev is built from the signer: its address, an empty package path and no link further.'),
+        ('F\'s cur', ['path: r/demo/app', 'prev → signer'], 'acc', 'installCrossingCur minted this .grealm value for F. cur.Previous() is the signer, unforgeably.'),
+        ('G\'s cur', ['path: r/demo/lib', 'prev → app'], 'acc', 'Minted for G because F wrote cross(cur). G sees app as its previous realm, whatever helper made the call.'),
     ]
     x = 20
     for t, ls, cls, n in boxes:
@@ -903,11 +1048,11 @@ def cur_chain():
     f.text(380, 138, 'cur.Previous()', 'f-t s', 'middle')
     f.path('M280 100 C250 130 40 130 21 100', 'dash')
     f.text(150, 138, 'cur.Previous()', 'f-t s', 'middle')
-    f.box(20, 160, 350, 74, 'H(cur) inside the same realm', ['no new link: H receives F\'s cur unchanged. Written against another realm\'s function, the preprocessor rejects it.'], '', lh=13,
+    f.box(20, 160, 350, 86, 'H(cur) inside the same realm', ['no new link: H runs as F\'s cur, which must be F\'s own live value. Written against another realm\'s function, the preprocessor rejects it.'], '', lh=13, cw=SAFE_SMALL,
           note='Calling a crossing function with a bare cur is only legal within its own realm.')
-    f.box(390, 160, 350, 74, 'chain/runtime/unsafe', ['PreviousRealm and CurrentRealm walk the frames counting WithCross frames and can be fooled from a helper. Hence the name.'], 'warn', lh=13,
-          note='The older API. Prefer cur.Previous(), which reads the captured chain.')
-    f.text(20, 262, 'Realm values are never persisted: store the address instead. main(cur realm) and init(cur realm) are called with .cur, already crossed.', 'f-t s')
+    f.box(390, 160, 350, 86, 'chain/runtime/unsafe', ['PreviousRealm and CurrentRealm read the chain of the nearest crossing frame. In a plain function of realm B called by realm A, PreviousRealm names whoever called A. Hence the name.'], 'warn', lh=13, cw=SAFE_SMALL,
+          note='The older API. Prefer cur.Previous(): it answers for the function that holds cur.')
+    f.foot(270, 'A realm value cannot be saved, the signer\'s link at the chain root aside: store the address instead. main(cur realm) and init(cur realm) are called with .cur, already crossed.')
     return f
 
 
@@ -916,14 +1061,14 @@ def cur_chain():
 CASES = [
     ('lib.F(cross(cur), x)', 'lib', 'lib', True, 'crossing call: a new cur whose prev is app',
      'The explicit switch. Identity and storage both move to lib for the duration of F, and finalization runs when F returns.'),
-    ('tree.Set(k, v)', 'app', 'app', True, 'borrow rule 2: tree is owned by app, Set comes from p/avl',
-     'A pure package method on a receiver that belongs to app runs with app\'s storage, so avl.Tree.Set can write the tree app owns. cur.Previous() is unchanged.'),
+    ('lib.Reset()', 'app', 'lib', True, 'borrow rule 1: Reset is declared in lib',
+     'A plain call to a function another realm declared runs with that realm\'s storage, so Reset can write lib\'s variables. The identity stays app.'),
+    ('lib.Tree().Set(k, v)', 'app', 'lib', True, 'borrow rule 2: the tree is stamped lib, Set comes from p/nt/avl/v0',
+     'A pure package method on a receiver another realm owns runs with that realm\'s storage. Any realm holding the pointer can write lib\'s tree this way.'),
     ('lib.F(cur, x)', '', '', False, 'rejected: cur belongs to app',
      'A crossing function of another realm called with a bare cur. The preprocessor refuses it; only cross(cur) may switch identity.'),
-    ('lib.Data.N = 1', 'app', 'app', False, 'readonly taint: the value was read from lib\'s storage',
-     'Reading a field, element or package variable of another realm marks the result readonly. The mark survives copies and arguments, and any write through it panics.'),
-    ('obj.N = 1', 'app', 'app', False, 'ownership: obj is a real object of lib, and lib is not the storage realm',
-     'A write to a real object is refused unless the object\'s realm is the active storage realm.'),
+    ('lib.Data.N = 1', 'app', 'app', False, 'ownership: lib.Data is stamped with lib, and app is the storage realm',
+     'Before every write the VM compares the stamp of the object being written with the storage realm, and panics when they differ.'),
     ('lib.T{}   new(lib.T)   make(lib.S, n)', 'app', 'app', False, 'construction: lib\'s types only through lib\'s constructors',
      'A composite literal, new or make of a type declared in another realm panics at the allocation site.'),
 ]
@@ -931,7 +1076,7 @@ CASES = [
 
 @fig
 def interrealm_cases():
-    f = Fig('interrealm-cases', 420)
+    f = Fig('interrealm-cases', 436)
     f.text(20, 24, 'Code running in r/demo/app, calling into r/demo/lib', 'f-t h')
     cols = [(20, 'call written in app'), (330, 'identity'), (420, 'storage'), (510, 'verdict')]
     for x, t in cols:
@@ -948,7 +1093,7 @@ def interrealm_cases():
         f.text(28, y + 38, verdict.split(': ', 1)[1] if ': ' in verdict else '', 'f-t s')
         f.close()
         y += 54
-    f.text(20, y + 14, 'Identity is who acts, cur; storage is whose objects may be written. The borrow rules set storage for every call that is not an explicit cross.', 'f-t s')
+    f.foot(y + 14, 'Identity is who acts, cur; storage is whose objects may be written. The borrow rules set storage for every call that is not an explicit cross.')
     return f
 
 
@@ -956,25 +1101,39 @@ def interrealm_cases():
 
 @fig
 def gas_sources():
-    f = Fig('gas-sources', 306)
+    f = Fig('gas-sources', 514)
     srcs = [
-        ('CPU', ['a constant per opcode: OpExec 130, OpEval 82, int add 81, OpDefine 114', 'slopes: per block hop, per defined name, per parameter, per element, per bit', 'natives: a table by package and name'],
+        ('CPU', ['a constant per opcode: OpExec 130, OpEval 82, int add 81, OpDefine 114', 'slopes: per unit of name depth, per name defined, per parameter, per element, per bit', 'natives: a table by package and name', 'output formatting: 4 gas per byte'],
          'One gas is one nanosecond on the reference Xeon. cmd/calibrate produced the constants.'),
-        ('Allocation', ['bytes per value, 500 MB per transaction', 'gas from a table indexed by log2 of the size', 'over budget: recount every reachable object, charged per visit, and continue if it fits'],
+        ('Allocation', ['bytes per value, 500,000,000 per message', 'gas from a table by the base-2 log of the size', 'over budget: recount every reachable object, charged per visit, and continue if it fits'],
          'An accounting GC: Go\'s collector frees the memory, the VM only recounts.'),
-        ('Store', ['a cache miss: amino decode gas per byte, plus tm2 I/O gas', 'a Merkle read: a depth-scaled flat fee plus a per-byte fee', 'a cache hit costs nothing'],
-         'The constants and the reasoning are in the gas refactor record.'),
-        ('Storage deposit', ['byte delta per realm × 100 ugnot per byte', 'locked from the caller into the realm\'s deposit address', 'refunded on a negative delta: the one cost that comes back'],
-         'Settled after the message by processStorageDeposit, from the finalization byte deltas.'),
+        ('Store', ['encoding: 3 gas per byte, each way', 'a cache miss: a flat fee plus a per-byte fee; a hit is free', 'a write: a flat fee plus a per-byte fee; a key written twice is billed once', 'the Merkle tree scales the flat fee by depth'],
+         'Flat and per-byte fees are tm2 code defaults; depths are VM parameters.'),
+        ('Code size', ['MsgAddPackage and MsgRun', 'preprocess_gas_per_byte for each source byte', 'charged before the type-check'],
+         'preprocess_gas_per_byte is a VM parameter; its code default is 1,250.'),
     ]
-    bw = 172
+    bw, bh = 172, 226
     for i, (t, ls, n) in enumerate(srcs):
         x = 20 + i * (bw + 10)
-        f.box(x, 30, bw, 168, t, ls, 'acc' if i == 3 else '', note=n, lh=13)
-        f.arrow(x + bw / 2, 198, x + bw / 2, 230)
-    f.rect(20, 232, 720, 34, 'mut')
-    f.text(380, 254, 'one gas meter per transaction', 'f-t b', 'middle')
-    f.text(20, 294, 'Queries run under their own meter, 3 billion gas and a 1.5 GB allocator, and are never committed.', 'f-t s')
+        f.box(x, 30, bw, bh, t, ls, '', note=n, lh=13, cw=SAFE_SMALL, para=6)
+        f.arrow(x + bw / 2, 30 + bh, x + bw / 2, 30 + bh + 27)
+    f.rect(20, 284, 720, 46, 'mut')
+    f.text(380, 304, 'one gas meter per transaction', 'f-t b', 'middle')
+    f.text(380, 321, 'opened by the ante handler, which first charges the transaction\'s bytes and signatures', 'f-t s', 'middle')
+
+    # the storage deposit is coins, beside the meter
+    f.text(20, 358, 'Paid in coins, beside the meter, and returned when the bytes are freed:', 'f-t s')
+    f.box(20, 368, 360, 90, 'Storage deposit',
+          ['bytes a realm grew × storage_price, a VM parameter',
+           'refunded in proportion: deposit × freed bytes / stored bytes'],
+          'acc', note='Settled after each message by processStorageDeposit, from the byte changes finalization reports.',
+          lh=13, cw=SAFE_SMALL, para=6)
+    f.arrow(380, 413, 419, 413)
+    f.box(420, 368, 320, 90, 'The realm\'s storage deposit address',
+          ['coins locked from the caller; a refund goes back to the caller, or to storage_fee_collector when ugnot is restricted'],
+          '', note='An address computed from the realm\'s path. The total one message locks may not exceed the caller\'s -max-deposit, or default_deposit when none is set.',
+          lh=13, cw=SAFE_SMALL)
+    f.foot(482, 'Queries run under their own meter and allocator, 3 billion gas and 1.5 GB, both code constants, and are never committed.')
     return f
 
 
@@ -982,25 +1141,25 @@ def gas_sources():
 
 @fig
 def native_binding():
-    f = Fig('native-binding', 250)
+    f = Fig('native-binding', 298)
     steps = [
-        ('time.gno', ['func now() int64', '// injected', 'no body'], 'acc', 'A standard library function declared without a body and marked injected has a Go implementation in a sibling .go file.'),
-        ('misc/genstd', ['scans the stdlibs', 'writes generated.go'], '', 'A generator run at build time, not on chain.'),
-        ('generated.go', ['45 bindings at this commit', 'path + name → Go func', 'reflection marshals values'], '', 'The table the store consults. Gno values are marshalled to Go with reflection and back.'),
-        ('NativeResolver', ['a store hook', 'attaches the Go body when the FuncValue is loaded'], '', 'Native functions are persisted like any FuncValue; the body is re-attached on every load.'),
-        ('ExecContext', ['chain id, height, timestamp', 'origin caller, coins sent', 'banker, parameter store'], 'mut', 'A native that needs chain state takes the Machine and reads its Context. That is how time.Now returns the block time.'),
+        ('time.gno', ['func now() (', '  sec int64,', '  nsec int32,', '  mono int64)', '// injected', 'no body'], 'acc', 'A standard library function declared without a body and marked injected has a Go implementation in a sibling .go file.'),
+        ('misc/genstd', ['scans the stdlibs', 'writes generated.go'], '', 'A generator run by go generate, never on chain.'),
+        ('generated.go', ['72 bindings at this commit', 'package path and name → a Go closure', 'reflection converts the values'], '', 'The table the store consults. Gno values are converted to Go with reflection and back.'),
+        ('NativeResolver', ['a store hook', 'attaches the Go body at preprocessing, again on the first call after a load'], '', 'The body is never saved; the first call after a load looks it up again by package path and name.'),
+        ('ExecContext', ['chain id and domain', 'height, timestamp', 'origin caller, coins sent', 'banker, parameters', 'event logger, session account'], 'mut', 'A native that needs chain state takes the Machine and reads its Context. That is how time.Now returns the block time.'),
     ]
-    bw = 136
+    bw, bh = 136, 152
     for i, (t, ls, cls, n) in enumerate(steps):
         x = 20 + i * (bw + 14)
         if i == 0:
-            f.box(x, 40, bw, 110, t, ls, cls, note=n, lcls='f-m s', lh=15, nowrap=True)
+            f.box(x, 40, bw, bh, t, ls, cls, note=n, lcls='f-m s', lh=15, nowrap=True)
         else:
-            f.box(x, 40, bw, 110, t, ls, cls, note=n, lh=13)
+            f.box(x, 40, bw, bh, t, ls, cls, note=n, lh=13, cw=SAFE_SMALL, para=4)
         if i < 4:
-            f.arrow(x + bw, 95, x + bw + 13, 95)
-    f.text(20, 186, 'Under test, gnovm/tests/stdlibs overlays a testing package: SetRealm, SetOriginCaller, SkipHeights, IssueCoins rewrite the mock context.', 'f-t s')
-    f.text(20, 204, 'Native gas: a base plus a slope on the argument length, from a table keyed by package and name.', 'f-t s')
+            f.arrow(x + bw, 116, x + bw + 13, 116)
+    y = f.foot(222, 'Under test, gnovm/tests/stdlibs overlays a testing package: SetRealm, SetOriginCaller, SetOriginSend, SetHeight, SkipHeights and IssueCoins rewrite the mock context.')
+    f.foot(y + 2, 'Native gas: each binding\'s row charges a base plus up to two slopes on argument lengths, and may charge on result lengths after the call; a native with no row panics.')
     return f
 
 
@@ -1008,18 +1167,18 @@ def native_binding():
 
 @fig
 def keeper_flows():
-    f = Fig('keeper-flows', 400)
+    f = Fig('keeper-flows', 432)
     lanes = [
-        ('AddPackage', ['validate the path; refuse an existing public package', 'type-check strict, genesis-strict at height 0', 'namespace ownership; coins to the package address', 'preprocess allocator: folding is metered', 'run with save on: variables, then init.<n>', 'settle the storage deposit'],
-         'MsgAddPackage. The package runs once and is saved; every later call skips to execution.'),
-        ('Call', ['refuse a non-crossing function', 'bind the package as pkg in a throwaway main', 'parse pkg.F(cross, args...) written as text', 'replace the first argument with .origin', 'evaluate; results joined as strings', 'settle the storage deposit'],
+        ('AddPackage', ['validate the path; refuse an existing public package', 'gas per source byte; type-check production files, strict', 'manifest rules; names and CLA realms; coins to the package address', 'preprocess allocator: folding is metered', 'run with saving on: variables, then each init', 'settle the storage deposit'],
+         'MsgAddPackage. The package runs once and is saved; every later call skips to execution. Under the inert policy the package is parked instead, and MsgEnablePackage runs these steps after approval.'),
+        ('Call', ['refuse a non-crossing function', 'bind the package as pkg in a throwaway main', 'parse pkg.F(cross, args...) written as text', 'replace the first argument with .origin', 'evaluate; results joined as strings', 'refuse coins never read; settle the deposit'],
          'MsgCall. The arguments arrive as strings and are converted to the parameter types.'),
-        ('Run', ['path forced to <domain>/e/<caller>/run', 'type-check relaxed; a manifest is generated', 'the package is marked private', 'run without saving', 'main called in a second machine', 'nothing is stored'],
+        ('Run', ['path forced to <domain>/e/<caller>/run', 'gas per byte; relaxed type-check, manifest optional', 'the package is marked private', 'run without saving', 'main called in a second machine', 'output returned; the script is never stored'],
          'MsgRun. A throwaway main package; nothing persists beyond what its calls write into other realms.'),
-        ('Query', ['fork a throwaway store', 'load the package', 'parse the expression; .cur prepended for a crossing callee', 'evaluate under 3 billion gas and 1.5 GB', 'qrender is the same with Render(path)', 'never committed'],
+        ('Query', ['fork a throwaway store over a committed snapshot', 'load the package', 'parse the expression; .cur prepended for a crossing callee', 'evaluate under 3 billion gas and 1.5 GB', 'qrender is the same with Render(path)', 'never committed'],
          'vm/qeval and vm/qrender. Read-only, on a forked store that is dropped afterwards.'),
     ]
-    lw, ch = 172, 46
+    lw, ch = 172, 48
     for i, (t, steps, n) in enumerate(lanes):
         x = 20 + i * (lw + 10)
         f.open_hot(n)
@@ -1028,14 +1187,13 @@ def keeper_flows():
         for k, s in enumerate(steps):
             y = 66 + k * (ch + 6)
             f.rect(x, y, lw, ch, '', r=4)
-            ty = y + 16
-            for piece in wrap(s, 27)[:3]:
-                f.text(x + 8, ty, piece, 'f-t s')
-                ty += 13
+            pieces = wrap(s, int((lw - 16) / SAFE_SMALL))
+            assert len(pieces) <= 3, s
+            f.lines(x + 8, y + 16, pieces, 'f-t s', lh=13)
             if k < len(steps) - 1:
                 f.arrow(x + lw / 2, y + ch, x + lw / 2, y + ch + 5, 'thin')
         f.close()
-    f.text(20, 392, 'Restart: Initialize re-preprocesses every stored package, type-checks the standard library into the permanent cache, fills the byte cache.', 'f-t s')
+    f.foot(406, 'Restart: Initialize re-preprocesses every stored package, type-checks the standard library into the permanent cache and loads its bytes into memory.')
     return f
 
 
@@ -1043,7 +1201,7 @@ def keeper_flows():
 
 @fig
 def tooling_map():
-    f = Fig('tooling-map', 260)
+    f = Fig('tooling-map', 296)
     stages = ['MemPackage', 'type-check', 'preprocess', 'execute', 'finalize']
     bw, gap = 128, 20
     for i, s in enumerate(stages):
@@ -1060,12 +1218,13 @@ def tooling_map():
         f.text(x1 + 8, y + 17, label, 'f-t s')
         f.close()
 
-    span(84, 1, 2, 'gno lint: type-check and preprocess, no run', 'Per the lint and transpile record. Errors come out as file:line messages without executing anything.')
-    span(118, 0, 4, 'gno test, gno run: everything, over the production test store with a mock context', 'A filetest sets PKGPATH, MAXALLOC and SEND in comments and asserts on Output, Error, Realm, Events, Preprocessed, Stacktrace, Gas, Storage and TypeCheckError blocks.')
-    span(152, 0, 0, 'gno fix: transpiler', 'gno fix rewrites source from older Gno versions through the transpiler, Gno to Go source.', 'mut')
-    span(152, 3, 3, 'debugger: gno run -debug', 'Steps opcodes with breakpoints.', 'mut')
-    span(186, 3, 4, 'benchops: opcode and store timing', 'The numbers behind the gas constants come from cmd/calibrate and cmd/benchstore.', 'mut')
-    f.text(20, 240, 'Build tags debug and debugAssert turn on tracing and invariant panics. gno doc and vm/qdoc read the sources without running them.', 'f-t s')
+    span(84, 1, 2, 'gno lint: type-check and preprocess, no run', 'Per the lint and transpile record. Every file is checked, tests included, and errors come out as file:line messages without executing anything.')
+    span(118, 0, 4, 'gno test, gno run: every stage, over an in-memory store with a mock context', 'gno test runs Test functions, Example functions with an Output comment, and filetests. A filetest sets PKGPATH, MAXALLOC and SEND in comments and asserts on Output, Error, Realm, Events, Preprocessed, Stacktrace, Gas, Storage, Types and TypeCheckError blocks.')
+    span(152, 0, 0, 'gno fix: rewrites', 'gno fix applies named rewrites such as stdsplit; gno tool transpile is what uses the transpiler.', 'mut')
+    span(152, 3, 4, 'debugger: -debug on gno run, gno test', 'Stops at breakpoints and steps by source line or by single opcode.', 'mut')
+    span(186, 3, 4, 'benchops: opcode, store, native timing', 'The numbers behind the gas constants come from cmd/calibrate and cmd/benchstore.', 'mut')
+    span(220, 0, 4, 'gnodev: a whole node in memory, with the real keeper', 'gnodev reloads a changed package and replays past transactions, so state survives the edit. Unlike gno test and gno run, it runs the real keeper.', 'mut')
+    f.foot(274, 'Build tags debug and debugAssert turn on tracing and invariant panics. gno doc and vm/qdoc read the sources without running them.')
     return f
 
 
@@ -1073,26 +1232,28 @@ def tooling_map():
 
 @fig
 def determinism():
-    f = Fig('determinism', 250)
+    f = Fig('determinism', 330)
     f.text(20, 24, 'Source of drift between validators', 'f-t b')
-    f.text(390, 24, 'What the VM does', 'f-t b')
+    f.text(290, 24, 'What the VM does', 'f-t b')
     rows = [
-        ('goroutines, channels, select', 'the opcodes panic; the types exist, the operations do not'),
+        ('goroutines, channels, select', 'the parser refuses go, select and channels'),
         ('the CPU\'s floating point', 'software floats, so every node computes the same bits'),
-        ('Go map iteration order', 'a MapValue iterates its insertion-ordered list'),
-        ('clock, randomness, network', 'time.Now is the block timestamp; nothing else exists'),
-        ('the capacity of []byte(s)', 'equals the length; Go\'s growth policy is unspecified'),
-        ('type-check error text', 'the Go toolchain is pinned in the Makefile'),
+        ('Go map iteration order', 'a map ranges in insertion order'),
+        ('clock, randomness, network', 'time.Now is the block time; math/rand starts from a fixed seed'),
+        ('the capacity of []byte(s)', 'equals the length, for []rune(s) too; Go leaves it open'),
+        ('gas', 'constants by operand kind and size, never timed'),
+        ('the type-check verdict', 'Go 1.18 rules everywhere; a failure records one fixed error'),
+        ('panic messages', 'the hashed error is the panic value; traces go to the log'),
     ]
     y = 40
     for a, b in rows:
-        f.rect(20, y, 350, 26, 'warn', r=4)
+        f.rect(20, y, 250, 26, 'warn', r=4)
         f.text(30, y + 17, a, 'f-t')
-        f.arrow(370, y + 13, 389, y + 13)
-        f.rect(390, y, 350, 26, 'acc', r=4)
-        f.text(400, y + 17, b, 'f-t')
+        f.arrow(270, y + 13, 289, y + 13)
+        f.rect(290, y, 450, 26, 'acc', r=4)
+        f.text(300, y + 17, b, 'f-t')
         y += 32
-    f.text(20, y + 14, 'Determinism is enforced in the language, not trusted to the program: the same transaction yields the same state on every node.', 'f-t s')
+    f.foot(y + 14, 'Determinism is enforced in the language, not trusted to the program: the same transaction yields the same state on every node.')
     return f
 
 
