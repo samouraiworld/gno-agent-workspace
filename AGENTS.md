@@ -18,7 +18,10 @@ Knowledge base and review workspace for [gnolang/gno](https://github.com/gnolang
 - `scripts/` — Data-gathering and helper scripts
 - `docs/` — architecture references (`overview.md`, `gnovm-architecture.md`), the site that
   serves them on GitHub Pages, and `figures/gen.py`, which draws every `figures/*.svg`: edit the
-  script, never an SVG
+  script, never an SVG. `figures.js` holds the site's step-through data, so a change to a stepped
+  figure's text changes it too. `gnovm-architecture.md` is written for a reader who knows Go and
+  nothing of blockchains or the GnoVM: every part explained, every term outside Go defined where
+  it is first used, and nothing left out for being intricate
 
 ## PR Review
 
