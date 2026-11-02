@@ -1,4 +1,5 @@
 # Review: [#6326](https://github.com/gnolang/gno/pull/6326)
+Posted: https://github.com/gnolang/gno/pull/6326#pullrequestreview-5738623515
 Event: COMMENT
 Verdict: REQUEST CHANGES. The `$$`, `\\(` and `\\[` closers are missed after a link whose title or `<…>` destination holds a parenthesis, and a cached search hands a `$` opener a backtick run from another construct; the branch introduces both, so both block.
 Model: claude-opus-5-5, standard review; finders and judge high
@@ -12,7 +13,7 @@ Round: 2. The head moved from 82a20872a to f6a568ed8: cf44ce7f0, 25fd73c13 and 7
 
 > AI review, claude-opus-5-5, standard review, reviewed at [f6a568ed8](https://github.com/gnolang/gno/pull/6326/commits/f6a568ed830794fafe1ca4840786c30d4dc0c233), [skills](https://github.com/davd-gzl/skills) · [overview](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6326-math-sanitized-code-spans/overview.md) · [claims](https://github.com/samouraiworld/gno-agent-workspace/blob/main/reviews/pr/6xxx/6326-math-sanitized-code-spans/2-f6a568ed8/claims.md) · Status: REQUEST CHANGES
 
-## gno.land/pkg/gnoweb/markdown/ext_math.go:362 [gh](https://github.com/gnolang/gno/blob/f6a568ed830794fafe1ca4840786c30d4dc0c233/gno.land/pkg/gnoweb/markdown/ext_math.go#L362) · [↗](../../../../../.worktrees/gno-review-6326/gno.land/pkg/gnoweb/markdown/ext_math.go#L362) · Warning
+## gno.land/pkg/gnoweb/markdown/ext_math.go:362 [gh](https://github.com/gnolang/gno/blob/f6a568ed830794fafe1ca4840786c30d4dc0c233/gno.land/pkg/gnoweb/markdown/ext_math.go#L362) · [↗](../../../../../.worktrees/gno-review-6326/gno.land/pkg/gnoweb/markdown/ext_math.go#L362) · Warning [posted](https://github.com/gnolang/gno/pull/6326#discussion_r4443978295)
 
 The cache hit returns the earlier search's `sc.open` to a later `$` opener, so `$b c` closed by `d$` on the next line stays text once `` $a \\(`\\) `` precedes it.
 
@@ -56,7 +57,7 @@ The `$a` search counts the backtick inside `` \\(`\\) `` as an unclosed run and 
 
 </details>
 
-## gno.land/pkg/gnoweb/markdown/ext_math.go:542 [gh](https://github.com/gnolang/gno/blob/f6a568ed830794fafe1ca4840786c30d4dc0c233/gno.land/pkg/gnoweb/markdown/ext_math.go#L542) · [↗](../../../../../.worktrees/gno-review-6326/gno.land/pkg/gnoweb/markdown/ext_math.go#L542) · Warning
+## gno.land/pkg/gnoweb/markdown/ext_math.go:542 [gh](https://github.com/gnolang/gno/blob/f6a568ed830794fafe1ca4840786c30d4dc0c233/gno.land/pkg/gnoweb/markdown/ext_math.go#L542) · [↗](../../../../../.worktrees/gno-review-6326/gno.land/pkg/gnoweb/markdown/ext_math.go#L542) · Warning [posted](https://github.com/gnolang/gno/pull/6326#discussion_r4443978345)
 
 `parenEnd(b, j, depth)` counts parentheses inside a quoted title, so the closing `$$` of `$$ [a](x "(") b $$` is never found and the formula renders as text.
 
