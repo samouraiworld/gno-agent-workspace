@@ -1,0 +1,54 @@
+{
+ "candidates": [],
+ "dropped": [
+  {
+   "file": "tm2/pkg/bft/rpc/core/abci.go",
+   "line": 52,
+   "angle": "user-topic: every spelling refused",
+   "summary": "a spelling the app routes to .app/simulate or vm/qeval|qeval_json|qrender slips past runsCode",
+   "settled_by": "sed -n 437,470p tm2/pkg/sdk/baseapp.go: splitPath drops one leading empty segment, router.Route is an exact map lookup on path[0], handleQueryApp switches on path[1] exactly; vm secondPart(req.Path) then cut at '?'. runsCode trims one '/', cuts '?', and matches entry or entry+'/' prefix, so every routed spelling (leading '/', trailing '/x', '?x' on vm) is refused; '//vm/qeval', 'VM/qeval', '.app//simulate' are rejected by the app itself"
+  },
+  {
+   "file": "gno.land/pkg/sdk/vm/handler.go",
+   "line": 120,
+   "angle": "user-topic: every spelling refused",
+   "summary": "another vm query path or route runs code but is not in CodeExecutionQueryPaths",
+   "settled_by": "grep NewMachineWithOptions|m.Eval in gno.land/pkg/sdk/vm/*.go: query-side machine runs sit only in QueryEval, QueryEvalString (qrender), QueryEvalJSON via withQueryEvalMachine; others are Initialize, AddPackage, Call, Run, EnablePackage, callRealmBool; routes registered are auth, bank, params, vm only (gno.land/pkg/gnoland/app.go:278-281)"
+  },
+  {
+   "file": "tm2/pkg/bft/rpc/core/abci.go",
+   "line": 35,
+   "angle": "brief: transports reaching app Query without Environment.ABCIQuery",
+   "summary": "a transport or client reaches the app's Query without passing the guard",
+   "settled_by": "grep QuerySync(|ProxyAppQuery over the tree (non-test): only rpc/core/abci.go ABCIQuery and ABCIInfo use ProxyAppQuery; rpc/client/local.go:69 calls c.env.ABCIQuery; URI, JSON-RPC batch and websocket all dispatch to env.Routes; CheckTx skips handler.Process (baseapp.go:741), Simulate only reached from handleQueryApp"
+  },
+  {
+   "file": "gno.land/pkg/gnoland/node_inmemory.go",
+   "line": 140,
+   "angle": "brief: node wiring",
+   "summary": "a gno.land node constructor misses WithCodeExecutionQueryPaths, so false refuses only .app/simulate",
+   "settled_by": "grep node.NewNode(|DefaultNewNodeWithGenesisProvider( non-test: only gno.land/cmd/gnoland/start.go:306 and node_inmemory.go:140, both wired; gnodev, integration process.go and gnogenesis reach nodes through NewInMemoryNode; options applied at node.go:741 before configureRPC at node.go:766"
+  },
+  {
+   "file": "tm2/pkg/bft/rpc/config/config.go",
+   "line": 119,
+   "angle": "brief: config load, default, toml round-trip",
+   "summary": "a config built from a literal or zero value gets AllowCodeExecution false and silently refuses gnoweb's qrender",
+   "settled_by": "grep RPCConfig{ over the tree: only DefaultRPCConfig builds one; TestRPCConfig, tmcfg.TestConfig, NewDefaultTMConfig and DefaultTestingTMConfig derive from it; LoadConfigFile starts from DefaultConfig() (tm2/pkg/bft/config/toml.go:19); integration process.go round-trips TMConfig through json with the field's tag, no omitempty"
+  },
+  {
+   "file": "tm2/pkg/bft/rpc/core/abci.go",
+   "line": 32,
+   "angle": "user-topic: refused query never reaches the app",
+   "summary": "a refused query still reaches ProxyAppQuery",
+   "settled_by": "abci.go:32-34 returns before env.ProxyAppQuery.QuerySync; abci_test.go asserts conn.received() equals only the served paths over direct, URI, batch and websocket"
+  },
+  {
+   "file": "gno.land/pkg/sdk/vm/handler.go",
+   "line": 426,
+   "angle": "reach",
+   "summary": "'/vm/qeval' panics in vm secondPart (parts[0] is empty) rather than running code; pre-existing, not made reachable by the diff",
+   "settled_by": "sed -n 426,437p gno.land/pkg/sdk/vm/handler.go shows panic(\"should not happen\"); recovered by http_server.go:202 and handlers.go:686, so it answers an error; the diff only refuses it earlier"
+  }
+ ]
+}

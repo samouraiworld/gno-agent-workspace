@@ -1,0 +1,26 @@
+{
+  "candidates": [],
+  "dropped": [
+    {"file": "tm2/pkg/bft/rpc/core/abci.go", "line": 52, "angle": "user topic / brief: path spellings",
+     "summary": "a path spelling (case, double slash, dot segment, percent-encoding, trailing slash, '?' placement, NUL, space) reaches withQueryEvalMachine or the simulate branch without matching runsCode",
+     "settled_by": "go test ./gno.land/pkg/gnoland -run TestProbePathSpellings -timeout 2m -v (tests/solo-finder-1-path-spellings_test.go, real in-memory node): 35 spellings; executed with allow=true: vm/qeval, vm/qeval?, vm/qeval/, vm/qeval?a/b, vm/qeval/x/y, vm/qeval_json, vm/qeval_json?x, .app/simulate, /.app/simulate, .app/simulate/, .app/simulate/x, /.app/simulate/; every one refused after env.Config.AllowCodeExecution=false, no BYPASS line, 'ok github.com/gnolang/gno/gno.land/pkg/gnoland 1.072s'. vm//qeval, vm/./qeval, Vm/qeval, vm/QEVAL, vm/qeval%3F, //.app/simulate, .app/./simulate, .APP/simulate, .app/simulate? all answer unknown query; /vm/qeval panics in secondPart before any machine"},
+    {"file": "gno.land/pkg/sdk/vm/handler.go", "line": 120, "angle": "claims",
+     "summary": "CodeExecutionQueryPaths misses a vm query path that runs code",
+     "settled_by": "grep -rn withQueryEvalMachine gno.land (non-test): callers only QueryEval (keeper.go:1817), QueryEvalString (1850, called by queryRender handler.go:181) and QueryEvalJSON (1992); other module query handlers (auth, bank, params) and the remaining vm cases build no machine"},
+    {"file": "tm2/pkg/bft/rpc/core/abci.go", "line": 32, "angle": "user topic: every transport goes through Environment.ABCIQuery",
+     "summary": "an RPC transport or route reaches the app's Query without Environment.ABCIQuery",
+     "settled_by": "grep QuerySync/ABCIQuery in tm2/pkg/bft/rpc and tm2/pkg/bft/node: only abci.go:35 calls QuerySync; routes.go:38 abci_query -> env.ABCIQuery serves URI, JSON-RPC, batch and WebSocket; client/local.go:69 calls c.env.ABCIQuery; node.go:891 is the only Environment literal outside tests"},
+    {"file": "tm2/pkg/sdk/baseapp.go", "line": 741, "angle": "user topic: broadcast_tx_* runs no message",
+     "summary": "CheckTx runs message or realm code, so a false node still executes code on broadcast_tx_*",
+     "settled_by": "baseapp.go:741 'if mode != RunTxModeCheck {' gates handler.Process, and runTx returns at line 957 for RunTxModeCheck before runMsgs; callRealmBool callers are checkNamespacePermission and checkCLASignature (keeper.go:509, 550), both on AddPackage's Process path, not the ante handler"},
+    {"file": "gno.land/pkg/sdk/vm/handler.go", "line": 432, "angle": "line by line",
+     "summary": "a leading-slash vm query (/vm/qeval) panics in secondPart",
+     "settled_by": "probe log: '/vm/qeval executed=false panic'; predates the diff, and RecoverAndLogHandler (http_server.go:180) plus the websocket recover (handlers.go:686) catch it; with allow=false runsCode refuses it before the app"},
+    {"file": "tm2/pkg/crypto/keys/client/maketx.go", "line": 198, "angle": "claims",
+     "summary": "doc claims gnokey maketx needs -simulate skip and the URI transport answers 403",
+     "settled_by": "maketx.go:198 'if cfg.Simulate != SimulateSkip {' runs .app/simulate otherwise; handlers.go:405-407 maps HTTPStatusError to its code on the URI path; abci_test.go asserts http.StatusForbidden on the GET"},
+    {"file": "gno.land/cmd/gnoland/start.go", "line": 297, "angle": "catalog: twin input paths",
+     "summary": "one node constructor omits WithCodeExecutionQueryPaths, leaving vm/qeval open on a false node",
+     "settled_by": "grep node.NewNode/DefaultNewNodeWithGenesisProvider/NewInMemoryNode (non-test): start.go:297 and node_inmemory.go:149 both pass vm.CodeExecutionQueryPaths; gnodev, gnogenesis and integration build through NewInMemoryNode; start_test.go asserts vm/qrender refused through gnoland start"}
+  ]
+}
