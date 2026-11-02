@@ -4,43 +4,104 @@ PR: [gnolang/gno#6326](https://github.com/gnolang/gno/pull/6326)
 
 ## TLDR
 
-Before, `chain/markdown.EscapeInline` left `$` alone, so a user string passed through `sanitize.InlineText` could open a gnoweb formula, and the `$$`, `\\(` and `\\[` closers were found with `bytes.Index`, so a closer inside a code span or a link destination ended the formula. After, `$` is in the inline escape set but not the title set, and every closer goes through one scanner, `findClose`, which skips code spans, link destinations and autolinks. Only the single `$` keeps the stop at a label's `](`, because applying it to `$$` turned `$$ (0,1](x) $$` into text. `EscapeInline` is a VM native, so realm output changes, hence the `!` in the title.
+A dollar sign typed by a user, say in a proposal reason, could turn part of a realm's page into a formula, and a formula could end too early on a `$$` hidden inside code or a link. The change escapes the dollar in sanitized user text, and teaches gnoweb to look past code and links when it looks for the end of a formula. Prices stay prices, and code and links inside a formula stay whole.
+
+## The escape sets
+
+`chain/markdown` is a VM native that realms reach through `sanitize.InlineText` and `sanitize.TableCell`. It puts a backslash in front of every byte of its inline set, so that user text cannot open emphasis, a link or a heading. gnoweb reads `$` as the start of a formula, so the change adds `$` to that set: `Price $5` becomes `Price \$5`, which renders as a plain dollar. Link titles take a second set, built as a copy of the first, which takes `$` back out: a title is an HTML attribute that gnoweb never parses as math, and it shows its backslashes, so `\$5` would appear as written. Since the function is a native, every realm calling it stores and prints a different string after the upgrade, which is why the title carries the `!` breaking marker.
+
+## How a formula finds its end
+
+gnoweb has four inline openers: `$`, `$$`, `\\(` and `\\[`. When the parser meets one, it searches the rest of the line for the matching closer, and failing that the next line. On the merge base only `$` had a real scanner; the other three used `bytes.Index`, which stops at the first matching bytes wherever they sit. After the change all four go through one scanner, `findClose`, and differ only in the test for "this byte closes" and in one flag.
+
+## Code spans inside a formula
+
+A backtick run opens a code span when a run of the same length closes it, and inside a code span a `$` is code, not a closer. `findClose` skips every code span it meets. A backtick run left open on the opener's line may close on the next line, so the scanner reports the length of that run as `open`, and the next-line search starts inside the span, so a closer is accepted only after the span ends. A `tickRuns` index of the line's backtick runs, built once, answers "does this run close later" without rescanning the line for each run.
+
+## Links inside a formula
+
+gnoweb writes realm function links as `[label](/r/x$help&func=F)`, so a `$` inside a link destination must not close. When `findClose` meets `](` closing a label it saw open, `linkEnd` finds where goldmark ends that destination: at the balancing `)`, at its first space when no title follows, or, for a destination in `<…>` or a quoted title, at the `)` `parenEnd` returns. A destination goldmark reads as no link is read as text, so a closer in it closes: in `\\( [a,b](x \\)`, the `\\)` ends the formula. Autolinks (`<scheme:…>`) are skipped whole.
+
+## The label stop
+
+The single `$` keeps one more rule: an expression that opens inside a link label ends at that label's `](`, so `[Send $10](/r/x$help&func=Send)` stays a link instead of becoming math. The other three closers do not take it, because `$$ (0,1](x) $$` is a half-open interval, and stopping at its `](` would leave it as text. `findDelimClose` passes `stopAtLabel` false; `findDollarClose` passes true.
+
+## The search cache
+
+A line of many unclosed openers, `$a $a $a …`, would rescan the rest of the line once per opener. `findCloseCached` keeps the last search for each delimiter on two lines, the opener's and the next, and answers a later opener from an earlier search when that search started before it and either found its closer at or after it or found none before an end past it. The answer carries the earlier search's `open` run too, so a later opener inherits the code-span state the earlier one saw.
+
+## Before and after
+
+**Before:** `sanitize.InlineText` returned a `$` bare, and a `$$`, `\\(` or `\\[` formula ended at the first matching closer bytes, through `bytes.Index`, even inside a code span or a link destination.
+
+**After:** `sanitize.InlineText` returns `\$`, and `findClose` skips code spans, link destinations and autolinks before it accepts a closer.
+
+## What a user notices
+
+- A realm page that prints user text through `sanitize.InlineText` or `TableCell` shows dollars as dollars, whatever the realm.
+- A formula written with `$$`, `\\(` or `\\[` keeps a code span, a link destination or an autolink inside it whole.
+
+## What it leaves open
+
+The ADR lists these, each with its reason:
+
+- `sanitize.Block`, `BlockRich`, `Blockquote*` and `FootnoteDefinition` keep user math; whether posts may hold math is left to a follow-up.
+- A code span is followed from the opener's line to the next one only, and only the first run left open is carried.
+- `EscapeInline` turns a trailing `\` into `\\`, so a realm writing `(` right after a sanitized value can form a `\\(` opener.
+- The search cache can answer "no closer" for an opener after a link destination that never closes on its line.
 
 ## Words used here
 
 | Name | What it is |
 | --- | --- |
-| `EscapeInline` | VM native in `gnovm/stdlibs/chain/markdown` that backslash-escapes every byte of its inline set; `sanitize.InlineText` and `TableCell` call it. |
-| `EscapeTitle` | The same over the title set, the inline set plus `"` and `'` and minus `$`; `sanitize.LinkTitle` calls it. |
-| `findClose` | Scans an expression's line for its closer, skipping code spans, link destinations from `](` to the balancing `)`, and autolinks. |
-| `stopAtLabel` | `findClose` flag, true only for the single `$`: the search ends at a `](` closing a label opened before the expression. |
-| `findDelimClose` | Builds the `findClose` search for `$$`, `\\)` or `\\]`, with `stopAtLabel` false. |
-| `findCloseCached` | Remembers each search per delimiter, so unclosed openers on one line read it once. |
+| `EscapeInline` | VM native in `gnovm/stdlibs/chain/markdown` that backslash-escapes every byte of the inline set; `sanitize.InlineText` and `TableCell` call it. |
+| `EscapeTitle` | The same over the title set: the inline set plus `"` and `'`, minus `$`; `sanitize.LinkTitle` calls it. |
+| `findClose` | The scanner every closer search runs: returns the closer's index, or -1 with where it stopped, and the backtick run it left open. |
+| `findDollarClose` | The `$` search: a closer not after a space or a backslash and not before a digit, with `stopAtLabel` true. |
+| `findDelimClose` | Builds the search for `$$`, `\\)` or `\\]`, with `stopAtLabel` false. |
+| `linkEnd` | Returns where goldmark ends the link destination a `(` opens, or -1 when it reads no link there. |
+| `parenEnd` | Returns the `)` that closes a given depth of parentheses, or the line end. |
+| `tickRuns` | Per-line index of the last run of each backtick length, built once per line. |
+| `findCloseCached` | Remembers the last search per delimiter over two lines and answers later openers from it. |
 
 <details><summary>Read the code in this order</summary>
 
 `hot` is the risky code to read closely, `warm` other code, `cold` a test or a generated file.
 
-### 1. `hot` · The two closer searches, [`gno.land/pkg/gnoweb/markdown/ext_math.go`](https://github.com/gnolang/gno/pull/6326/files#diff-a2e6ab7b10eef5afb38ce4127cf4200698d3e482e5893fef01bfbcfe6c6b94a4R346-R361)
-`findDollarClose` and `findDelimClose` differ only in the closer test and in `stopAtLabel`.
-**If wrong:** a closer inside a code span or a link ends the formula, or a formula runs over a link.
+### 1. `hot` · The scanner, [`gno.land/pkg/gnoweb/markdown/ext_math.go`](https://github.com/gnolang/gno/pull/6326/files#diff-a2e6ab7b10eef5afb38ce4127cf4200698d3e482e5893fef01bfbcfe6c6b94a4R432-R512)
+`findClose` walks the line once, skipping code spans, links and autolinks, and tests each other byte for a closer.
+**If wrong:** a closer inside code or a link ends the formula, or a formula runs over a link.
+
+### 2. `hot` · The two searches, [`gno.land/pkg/gnoweb/markdown/ext_math.go`](https://github.com/gnolang/gno/pull/6326/files#diff-a2e6ab7b10eef5afb38ce4127cf4200698d3e482e5893fef01bfbcfe6c6b94a4R401-R416)
+`findDollarClose` and `findDelimClose` differ only in the closer test and in `stopAtLabel`. After:
 ```go
 func findDelimClose(end []byte) closeFinder {
-	return func(b []byte) (int, int) {
-		return findClose(b, false, func(b []byte, i int) bool { return bytes.HasPrefix(b[i:], end) })
+	return func(b []byte, ticks int, runs *tickRuns) (int, int, int) {
+		return findClose(b, ticks, runs, false, func(b []byte, i int) bool { return bytes.HasPrefix(b[i:], end) })
 	}
 }
 ```
+**If wrong:** `$$ (0,1](x) $$` turns into text, or a `$` formula swallows a link.
 
-### 2. `hot` · Routing each delimiter, [`gno.land/pkg/gnoweb/markdown/ext_math.go`](https://github.com/gnolang/gno/pull/6326/files#diff-a2e6ab7b10eef5afb38ce4127cf4200698d3e482e5893fef01bfbcfe6c6b94a4R185)
-`Parse` picks the search for the opener it saw, then tries the opener's line and, failing that, the next one.
-**If wrong:** `$$`, `\\(` and `\\[` keep the old `bytes.Index` behaviour.
+### 3. `hot` · Where a link ends, [`gno.land/pkg/gnoweb/markdown/ext_math.go`](https://github.com/gnolang/gno/pull/6326/files#diff-a2e6ab7b10eef5afb38ce4127cf4200698d3e482e5893fef01bfbcfe6c6b94a4R514-R567)
+`linkEnd` and `parenEnd` decide which bytes after `](` belong to the link and are skipped.
+**If wrong:** a closer after a link is hidden, or a closer inside a link closes.
 
-### 3. `warm` · The escape sets, [`gnovm/stdlibs/chain/markdown/markdown.go`](https://github.com/gnolang/gno/pull/6326/files#diff-b2830c20a5c5ccd4a8def378b5a0ac8b018aba28100a4ff343a50bb8829a735fR86-R92)
-`$` joins the inline set and is taken back out of the title set.
-**If wrong:** sanitized user text opens math again, or titles gain a visible backslash.
+### 4. `hot` · The search cache, [`gno.land/pkg/gnoweb/markdown/ext_math.go`](https://github.com/gnolang/gno/pull/6326/files#diff-a2e6ab7b10eef5afb38ce4127cf4200698d3e482e5893fef01bfbcfe6c6b94a4R344-R382)
+`findCloseCached` answers a later opener from an earlier search of the same line, `open` run included.
+**If wrong:** a line of unclosed openers costs quadratic time, or a later opener gets an answer its own search would not give.
+
+### 5. `hot` · The line and the next one, [`gno.land/pkg/gnoweb/markdown/ext_math.go`](https://github.com/gnolang/gno/pull/6326/files#diff-a2e6ab7b10eef5afb38ce4127cf4200698d3e482e5893fef01bfbcfe6c6b94a4R190-R212)
+`Parse` searches the opener's line, then the next line, starting inside the code span the first search left open.
+**If wrong:** a formula crossing the line break is missed, or a closer inside a code span crossing it closes.
+
+### 6. `hot` · The escape sets, [`gnovm/stdlibs/chain/markdown/markdown.go`](https://github.com/gnolang/gno/pull/6326/files#diff-b2830c20a5c5ccd4a8def378b5a0ac8b018aba28100a4ff343a50bb8829a735fR84-R94)
+`$` joins the inline set and is taken back out of the title set. After:
 ```go
 	titleEscapeSet = inlineEscapeSet
+	// A title is an HTML attribute, never parsed as math, and gnoweb shows
+	// its backslashes: "Price \$5" would read as such.
 	titleEscapeSet['$'] = false
 ```
+**If wrong:** sanitized user text opens math again, or titles gain a visible backslash.
 </details>

@@ -1,0 +1,63 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 362,
+      "angle": "reach",
+      "summary": "A cache hit hands a later opener the open backtick run of an earlier failed opener's search, so a run that goldmark consumed inside \\\\(...\\\\) math or a raw HTML tag still skips that later opener's closer on the next line",
+      "failure_scenario": "Source \"$a \\\\(`\\\\) $b c\\nd$ `e\". The $a search sees the backtick inside \\\\(`\\\\) as an unclosed run (open=1) and caches it. $a fails, the AMS parser turns \\\\(`\\\\) into math, then $b is asked and gets the answer from the cache, open=1 included. Its next-line search starts as if inside a 1-backtick code span, skips d$ up to `e, and $b c⏎d$ shows as plain text. Without the leading \"$a \" the same $b renders as math (\"x \\\\(`\\\\) $b c\\nd$ `e\" gives 2 <math>). The raw HTML variant \"$a <x y=\\\"`\\\"> $b c\\nd$ `e\" leaves it as text the same way. So whether a formula renders depends on an unrelated unclosed $ earlier on the line. That contradicts findCloseCached's own comment, which says a run before base that closes on the next line means goldmark reads the opener as code and never asks. Here the run belongs to another construct, and goldmark does ask. The failure leaves math as text and never turns text into math. It needs a backtick inside an AMS expression or an HTML tag between two $ openers, plus a backtick after the closer on the next line.",
+      "verify_by": "Copy tests/solo-finder-2-cached-open-run_test.go into gno.land/pkg/gnoweb/markdown/ and run go test ./gno.land/pkg/gnoweb/markdown -run TestZZCachedOpenRun -v. Expect 'alone: 2 math, withA: 1 math' and a FAIL on the withA and raw HTML assertions.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head f6a568ed8: 'alone: 2 math, withA: 1 math', then '$b c⏎d$ is left as text once an unclosed $a precedes it' and 'raw HTML variant: $b c⏎d$ left as text', --- FAIL. Probe output at head: \"$a \\\\(`\\\\) $b c\\nd$ `e\" renders <p>$a [MATH:`] $b c⏎d$ `e</p>, and \"x \\\\(`\\\\) $b c\\nd$ `e\" renders <p>x [MATH:`] [MATH:b c⏎d] `e</p>. Base 1cae57ed7 also counts 1 math for withA, but that math is $a pairing with d$ ('a \\\\(`\\\\) $b c⏎d'), since base carries no run. So at base the cause is different. A render differential over 300k random inputs, cache on vs off, found only the ADR's documented link-to-line-end limit. That case needs more tokens than the generator produced.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6326-math-sanitized-code-spans/2-f6a568ed8/tests/solo-finder-2-cached-open-run_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 362,
+      "angle": "reach",
+      "summary": "Cached answers diverge from a fresh search for later openers in general (tickRuns reuse, ticks key, end)",
+      "settled_by": "A render differential (TestZZRenderDiff, 300k random lines, cache forced off vs on) printed 'diffs: 2'. Both are \"$[\\\\(]($`$((\"-shaped: a link destination skipped to the line end, which is the ADR's documented known limit. A raw-level differential showed only bases inside a span the earlier search skipped, or bases preceded by a backslash or '$$', and none of those is an opener goldmark asks."
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 86,
+      "angle": "reach",
+      "summary": "The native escape set now holds `$`, so heading ids or TOC anchors built from InlineText headings could change",
+      "settled_by": "TestZZIDs with parser.WithAutoHeadingID and newLinearIDs: '## Price $5 off' and '## Price \\\\$5 off' both give id=\"price-5-off\"; '## Pay $x$ now' and '## Pay \\\\$x\\\\$ now' both give id=\"pay-x-now\"."
+    },
+    {
+      "file": "examples/gno.land/r/gov/dao/impl/v0/prop_requests.gno",
+      "line": 248,
+      "angle": "removed",
+      "summary": "Text stored already escaped (the gov/dao treasury Reason) keeps a raw `$` from before the upgrade, and replaying with the new native would change it",
+      "settled_by": "chain/markdown was added in 72aff5a95 (2026-05-28). grep -rln 'chain/markdown|nt/markdown/sanitize' over misc/deployments returned nothing, so no listed deployment carries the native. The rest is speculative."
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.gno",
+      "line": 33,
+      "angle": "removed",
+      "summary": "The godoc 'Set: \\\\ * _ [ ] ( ) ~ > - + . ! ` # < &' and the EscapeTitle line 'inline set plus \\\" and '' still describe the old set",
+      "settled_by": "The only fix is comment wording, and the ADR keeps it unchanged on purpose: a change to a stdlib .gno moves the app hash pinned by TestAppHashCrossrealm38. sed -n 33p prints the old set."
+    },
+    {
+      "file": "gno.land/adr/pr4879_gnoweb_math_extension.md",
+      "line": 309,
+      "angle": "removed",
+      "summary": "The earlier math ADR still says sanitize.InlineText and EscapeInline do not escape `$`",
+      "settled_by": "The ADR is the governing document the no-critique rule covers, it records a past decision, and the fix would be doc wording only (sed -n 309,313p shows 'do not escape `$` ... left to a follow-up PR')."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md",
+      "line": 211,
+      "angle": "removed",
+      "summary": "The InlineText 17, TableCell 4 and '260 fixtures' counts",
+      "settled_by": "TestSanitizeCoverageTableMatchesCorpus checks the Cases column against the corpus in CI, per SANITIZE.md's own text."
+    }
+  ]
+}

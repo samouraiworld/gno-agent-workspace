@@ -1,0 +1,72 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 542,
+      "angle": "lines",
+      "summary": "linkEnd/parenEnd count parentheses through a quoted title and a <...> destination, and skip an unclosed <, so a $$, \\( or \\[ closer after such a link is hidden: formulas master rendered turn to text, or pair with a later closer and swallow the text between",
+      "failure_scenario": "`$$ [a](x \"(\") b $$`, `\\\\( [a](x \"(\") b \\\\)`, `\\\\[ [a](x \"(\") b \\\\]`, `\\\\( [a](<x(>) b \\\\)`, `\\\\( [a](<x b \\\\)` and `$$ [a](x 'it(s') b $$` each render one <math> at the merge base and zero at head; goldmark alone reads the link as closed (title \"(\", dest \"x(\") or as no link. Worse: `Pay $$ [a](x \"(\") b $$ then` + newline + `see $$ below.` pairs with the next line's $$ at head, so \" then\\nsee\" becomes TeX; and `$$ [a](x \"(\") b $$` + newline + `some text` + newline + `$$` opens a display block at head (block Open now trusts findDelimClose) swallowing \"some text\". The same class as round 1's Warning (a destination misread hides the closer), via the title and pointy branches the space fix left; the ADR's 'It never makes a formula cross a link' and its known-limit list (only destinations that never close on their line) do not cover it. $ is unaffected: master counted parens the same way.",
+      "verify_by": "cp tests/solo-finder-1-dest-hides-closer_test.go gno.land/pkg/gnoweb/markdown/zz_dest_hides_closer_test.go && go test ./gno.land/pkg/gnoweb/markdown -run TestZZDestHidesCloser -v at f6a568ed8 and at 1cae57ed7: math=0 at head, math=1 at base for the six single-line shapes; PairsLater shows the annotation running past the first closer at head only",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: `$$ [a](x \"(\") b $$` math=0 (plain goldmark: <a href=\"x\" title=\"(\">a</a>); base: math=1. Same 0-vs-1 for \\\\( and \\\\[ with title \"(\", `\\\\( [a](<x(>) b \\\\)` (goldmark: <a href=\"x(\">), `\\\\( [a](<x b \\\\)` (goldmark: no link), `$$ [a](x 'it(s') b $$`. PairsLater head annotation: `[a](x &#34;(&#34;) b $$ then\\nsee`; base: `[a](x &#34;(&#34;) b `. Third shape: head opens <math display=\"block\"> outside <p> with `b $$` inside; base keeps it inline.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6326-math-sanitized-code-spans/2-f6a568ed8/tests/solo-finder-1-dest-hides-closer_test.go"
+    },
+    {
+      "index": 2,
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 86,
+      "angle": "catalog",
+      "summary": "Adding $ to the native EscapeInline set changes the result of a VM native that realms persist in state, a consensus-affecting change the PR does not call out",
+      "failure_scenario": "r/gov/dao/impl/v0/prop_requests.gno:248 stores sanitize.InlineText(reason) in a treasury payment proposal's description inside a transaction. A reason holding `$` is stored as `$` by a node on the old binary and `\\$` on this one, so replaying history across the upgrade, or two validators on different binaries, writes different realm state (and a different storage-byte delta/deposit). The ADR's Consequences mention only the rendered output; the native gas row (native_gas.go:179) is keyed on input length so gas itself does not move.",
+      "verify_by": "filetest in r/gov/dao/impl/v0 creating a treasury payment request with reason \"$5\" and printing the stored proposal description at base and head: `$5` vs `\\$5`; grep the PR body/labels for a breaking-change/consensus note",
+      "band": "Suggestion",
+      "fix_kind": "none",
+      "checked": true,
+      "run": false,
+      "evidence": "grep: prop_requests.gno:248 `safeReason := sanitize.InlineText(clampField(reason, maxRenderedReason))` feeds dao.NewSimpleExecutor/NewProposalRequest; native_gas.go:179 `{Pkg: \"chain/markdown\", Fn: \"EscapeInline\", ... SlopeKind: SizeLenString}`",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 542,
+      "angle": "claims",
+      "summary": "A quoted link title holding ')' is cut by parenEnd, so a $$ inside that title still closes the expression and breaks the link, against the ADR/test claim that a link with a title stays whole",
+      "failure_scenario": "`$$ [a](x \"t) $$ q\") c $$`: goldmark reads <a href=\"x\" title=\"t) $$ q\">a</a>; at head parenEnd stops at the ')' inside the quotes, the scan resumes in the title, and the $$ there closes: the math annotation is ` [a](x \"t) ` and the link is gone. Same at the merge base (bytes.Index), so not a regression, but TestMathClosesInBracketsThatAreNoLink's 'Still whole: a link with a title' and the ADR's 'now keeps ... a link destination whole' hold only for titles without parentheses.",
+      "verify_by": "TestZZDestHidesCloserPairsLater first case in tests/solo-finder-1-dest-hides-closer_test.go: links=0, annotation ` [a](x &#34;t) ` at head and base",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head and base both: math=1 links=0, annotation `[ANN: [a](x &#34;t) ]`; plain goldmark: <a href=\"x\" title=\"t) $$ q\">a</a>",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6326-math-sanitized-code-spans/2-f6a568ed8/tests/solo-finder-1-dest-hides-closer_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 517,
+      "angle": "lines",
+      "summary": "single $ regresses on the same title/pointy shapes",
+      "settled_by": "read of base findDollarClose (diff.md lines 545-559): master already skipped a destination by counting parentheses to depth 0 with no title or <> handling, the same count parenEnd does, so $ behaves as on master"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_math.go",
+      "line": 310,
+      "angle": "lines",
+      "summary": "tickRuns index built over the longest suffix misreads a run that a shorter suffix starts in the middle of",
+      "settled_by": "every searched b starts right after an opener ($, $$, \\\\(, \\\\[) whose last byte is not a backtick, or at a line start, so no suffix begins mid-run; all searches of one cache slot share the line end (stop), which last[] distances are measured from"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 86,
+      "angle": "catalog",
+      "summary": "global escape tables mutated at runtime race under parallel tests",
+      "settled_by": "markdown.go init(): inlineEscapeSet and titleEscapeSet are written only in init and read after; titleEscapeSet = inlineEscapeSet copies the [128]bool array by value, so clearing '$' on it leaves the inline set intact"
+    }
+  ]
+}

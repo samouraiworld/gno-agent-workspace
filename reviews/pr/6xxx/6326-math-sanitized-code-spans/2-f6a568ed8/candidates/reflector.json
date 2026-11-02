@@ -1,0 +1,22 @@
+{
+ "candidates": [
+  {
+   "index": 3001,
+   "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+   "line": 86,
+   "angle": "catalog",
+   "band": "Suggestion",
+   "verify_by": "store a treasury request reason holding $ with the merge-base binary, upgrade the node in place to head, render r/gov/dao: expect the stored $ to still open math",
+   "summary": "text a realm sanitized and stored before the upgrade keeps a bare $, so the fix reaches only values written after it",
+   "failure_scenario": "Catalog class 'Data an older binary wrote'. prop_requests.gno:248 escapes the reason once at creation and render.gno emits it raw, so a proposal stored by an older binary still opens math on render. Whether any chain carries such state across an in-place upgrade, rather than a genesis replay that re-runs the escape, is not settled here.",
+   "fix_kind": "none",
+   "checked": true,
+   "run": false
+  }
+ ],
+ "dropped": [],
+ "completeness": [
+  "Sibling sweep of TestMathUnclosedInlineOpenersAreLinear: $$ has no row, by design: findDelimClose(_dollarDisplay) closes at every later $$ on the line, so a line of unclosed $$ openers cannot be built.",
+  "Catalog: Determinism cleared (tickRuns.last is only looked up, never iterated; the native's escape sets are filled once in init). Gas cleared (native_gas.go:179 keyed on input length). Global mutable state cleared (inlineEscapeSet/titleEscapeSet written in init only; the search cache lives in parser.Context). Data an older binary wrote: candidate 3001. VM semantics, caller identity, coin, realm state safety: not touched."
+ ]
+}
