@@ -119,4 +119,4 @@ In `$$ [a](x "(") b $$` the `(` in the title raises the depth to 2, the `)` afte
 
 Suggestion: `'$'` in `inlineEscapeSet` misses stored text, since [`prop_requests.gno:248`](https://github.com/gnolang/gno/blob/f6a568ed830794fafe1ca4840786c30d4dc0c233/examples/gno.land/r/gov/dao/impl/v0/prop_requests.gno#L248) escapes a treasury reason once, so one stored before the upgrade keeps a bare `$`. I think the ADR should name that limit.
 
-Not posted: PLAUSIBLE, never run, since whether any chain carries such a reason across an in-place upgrade rather than a genesis replay that re-runs the escape is not settled here.
+Not posted: gnoland-1 escapes and stores the reason this way, but none of its 16 proposals holds a `$` outside its vote links, so nothing renders wrong today.
