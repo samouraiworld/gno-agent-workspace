@@ -270,6 +270,12 @@ From DD/MM to DD/MM  **: Samourai crew**
 
 Write `reports/weekly/YYYY-MM-DD/report.md` and `context.md`, period end-date; present per the core rule.
 
+When presenting `report.md`, and again when the user asks for the report text to paste on the platform, re-read the live state of every pull request on the `@highlight` line of the annotations file the generator ran with, a bare number being `gnolang/gno`, and apply the Highlight drop of *Formatting rules* to that line and to `report.md`, naming each dropped entry in the reply so the platform copy drops it too.
+
+```bash
+gh pr view <n> -R <owner/repo> --json state -q .state
+```
+
 ### 7. Discord ping
 
 Write `reports/weekly/YYYY-MM-DD/discord.md` — copy-paste block for Discord, one section. English, simple, plain markdown, no per-line emoji. Empty set → header plus `None.`. Present the block; note the count of recurrent/draft PRs excluded from it.
