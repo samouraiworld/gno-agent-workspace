@@ -1,4 +1,5 @@
 # Review: [#6375](https://github.com/gnolang/gno/pull/6375)
+Posted: https://github.com/gnolang/gno/pull/6375#pullrequestreview-5955203018
 
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. Two Warnings the branch introduces block it: a node upgraded in place to this binary panics at boot because its store lacks `crypto/bls12381`, and both natives charge `msg` flat gas while its hashing and its Go copy grow with its length, on a free query too; nine missing tests post beside them.
@@ -189,7 +190,7 @@ It passes at the head and fails with `SlopeIdx: 0` on the `fastAggregateVerifyEx
 
 </details>
 
-## gnovm/stdlibs/native_gas.go:196 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/native_gas.go#L196) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/native_gas.go#L196) · Warning
+## gnovm/stdlibs/native_gas.go:196 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/native_gas.go#L196) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/native_gas.go#L196) · Warning [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748273)
 
 `msg` is unbounded in the [wrapper](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.gno#L37) and unpriced here, so a 64 MiB message runs 25x longer for a 32-byte call's gas, in a transaction or a free [`vm/qeval`](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gno.land/pkg/sdk/vm/handler.go#L98) query.
 
@@ -402,7 +403,7 @@ The dispatcher copies `msg` through [`Gno2GoValue`](https://github.com/gnolang/g
 
 </details>
 
-## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:58 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L58) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L58) · Missing test
+## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:58 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L58) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L58) · Missing test [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748354)
 
 Missing test: no case passes the same key twice, a shape Altair [sync committees allow](https://github.com/ethereum/consensus-specs/blob/master/specs/altair/beacon-chain.md#get_next_sync_committee), so gnark's [doubling branch](https://github.com/Consensys/gnark-crypto/blob/v0.20.1/ecc/bls12-381/g1.go#L459-L462), reached from [`agg.AddMixed`](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L57), never runs under these tests.
 
@@ -455,7 +456,7 @@ It passes at the head.
 
 </details>
 
-## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:76 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L76) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L76) · Missing test
+## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:76 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L76) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L76) · Missing test [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748373)
 
 Missing test: every length case here is short, and gnark's [decoder](https://github.com/Consensys/gnark-crypto/blob/v0.20.1/ecc/bls12-381/marshal.go#L1163) ignores bytes past the 96th, so a [signature length check](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L43) of `<` instead of `!=` fails no test.
 
@@ -497,7 +498,7 @@ It passes at the head. With `!=` turned into `<` for `sig` at lines 43 and 82 an
 
 </details>
 
-## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:78-83 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L78-L83) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L78) · Missing test
+## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:78-83 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L78-L83) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L78) · Missing test [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748390)
 
 Missing test: apart from the infinity key, no case feeds a key outside the prime-order subgroup, so nothing pins the subgroup check the [`X_fastAggregateVerify`](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L39-L40) godoc promises.
 
@@ -535,7 +536,7 @@ func TestOutsideSubgroup(t *testing.T) {
 
 </details>
 
-## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:104 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L104) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L104) · Missing test
+## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:104 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L104) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L104) · Missing test [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748400)
 
 Missing test: no case pins the refusal of a non-canonical key or signature, such as an x at or above the field modulus, which gnark [refuses today](https://github.com/Consensys/gnark-crypto/blob/v0.20.1/ecc/bls12-381/marshal.go#L961).
 
@@ -576,7 +577,7 @@ It passes at the head. A key with a second encoding fails the caller's Merkle me
 
 </details>
 
-## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:185 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L185) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L185) · Missing test
+## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:185 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L185) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L185) · Missing test [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748418)
 
 Missing test: no excluded set names one key twice, so nothing pins that a member holding two committee seats and absent from both is [subtracted once per seat](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L91-L98).
 
@@ -600,7 +601,7 @@ It passes at the head.
 
 </details>
 
-## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:197 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L197) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L197) · Missing test
+## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:197 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L197) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L197) · Missing test [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748429)
 
 Missing test: no case excludes every member and sends the identity signature, the one input that `verifyAggregate`'s identity refusal alone stops from verifying any message.
 
@@ -623,7 +624,7 @@ With `bls12381.go` lines 116-118 deleted, this case fails and every existing `Te
 
 </details>
 
-## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:205 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L205) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L205) · Missing test
+## gnovm/stdlibs/crypto/bls12381/bls12381_test.go:205 [gh](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L205) · [↗](../../../../../.worktrees/gno-review-6375/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L205) · Missing test [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748446)
 
 Missing test: the signature mismatch alone refuses this identity aggregate, so deleting the [aggregate's identity check](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L86) keeps every test green while letting one key holder sign for an identity aggregate.
 

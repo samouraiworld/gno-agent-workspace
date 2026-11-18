@@ -1,22 +1,18 @@
-# Claims: https://github.com/gnolang/gno/pull/6375, BLS natives only (crypto/bls12381); review head 0ee53fefc, the round dir names 0ee53fe round 2, fd7e75152, claude-opus-5-5, deep review
-
-Round shape: 9 finders, one reflector, 18 candidates, the Criticals and Warnings run by their finders and judged by an agent that was not the finder, the rest judged by read; 1 refuted, none of them above Nit. Finders, reflector and judges ran at xhigh on the user's word.
-
 ## Findings
 
 | Line | # | Band | State | Merge base | Draft |
 | --- | --- | --- | --- | --- | --- |
 | [`generated.go:2733`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/generated.go#L2733) | 7 | Warning | CONFIRMED | differs | Body |
-| [`native_gas.go:196`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/native_gas.go#L196) | 9 | Warning | CONFIRMED | differs | posts |
+| [`native_gas.go:196`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/native_gas.go#L196) | 9 | Warning | CONFIRMED | differs | [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748273) |
 | [`bls12381.go:42`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381.go#L42) | 8 | Missing test | CONFIRMED | differs | not in the draft |
 | [`bls12381_test.gno:9`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.gno#L9) | 15 | Missing test | PLAUSIBLE | differs | SKIP |
 | [`bls12381_test.go:53`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L53) | 1 | Missing test | CONFIRMED | differs | SKIP |
-| [`bls12381_test.go:58`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L58) | 17 | Missing test | CONFIRMED | differs | posts |
-| [`bls12381_test.go:76`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L76) | 13 | Missing test | CONFIRMED | differs | posts |
+| [`bls12381_test.go:58`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L58) | 17 | Missing test | CONFIRMED | differs | [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748354) |
+| [`bls12381_test.go:76`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L76) | 13 | Missing test | CONFIRMED | differs | [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748373) |
 | [`bls12381_test.go:84`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L84) | 14 | Missing test | CONFIRMED | differs | SKIP |
-| [`bls12381_test.go:104`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L104) | 5 | Missing test | CONFIRMED | differs | posts |
+| [`bls12381_test.go:104`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L104) | 5 | Missing test | CONFIRMED | differs | [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748400) |
 | [`bls12381_test.go:163`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L163) | 2 | Missing test | CONFIRMED | differs | SKIP |
-| [`bls12381_test.go:205`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L205) | 16 | Missing test | CONFIRMED | differs | posts |
+| [`bls12381_test.go:205`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L205) | 16 | Missing test | CONFIRMED | differs | [posted](https://github.com/gnolang/gno/pull/6375#discussion_r4612748446) |
 | [`generated.go:1433`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/generated.go#L1433) | 10 | Missing test | CONFIRMED | differs | SKIP |
 | [`native_gas.go:201`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/native_gas.go#L201) | 12 | Missing test | CONFIRMED | differs | not in the draft |
 | [`pr6375_bls12381_native.md:15`](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/adr/pr6375_bls12381_native.md#L15) | 6 | Nit | CONFIRMED | differs | SKIP |
