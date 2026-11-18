@@ -3,7 +3,7 @@
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. Two Warnings the branch introduces block it: a node upgraded in place to this binary panics at boot because its store lacks `crypto/bls12381`, and both natives charge `msg` flat gas while its hashing and its Go copy grow with its length, on a free query too; nine missing tests post beside them.
 Model: claude-opus-5-5, deep review, high effort
-Commit: 0ee53fefc (latest), BLS natives slice only (`gnovm/stdlibs/crypto/bls12381/*`, their rows in `native_gas.go` and `generated.go`, `gnovm/adr/pr6375_bls12381_native.md`)
+Commit: 0ee53fefc (stale — +5 commits since, all to gno.land/adr/pr6375_ibc_ethereum.md, none in the BLS slice), BLS natives slice only (`gnovm/stdlibs/crypto/bls12381/*`, their rows in `native_gas.go` and `generated.go`, `gnovm/adr/pr6375_bls12381_native.md`)
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6375 0ee53fefc`
