@@ -1,4 +1,5 @@
 # Review: [#6110](https://github.com/gnolang/gno/pull/6110)
+Posted: https://github.com/gnolang/gno/pull/6110#pullrequestreview-5953389693
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. A `[]byte` call argument now reaches the realm with a capacity set by line breaks in its base64 encoding, and a `map[any]` literal with two typed-nil pointer keys is rejected at preprocess; the branch introduces both.
 Model: claude-opus-5-5, standard review
@@ -9,7 +10,7 @@ Round: 3. The head moved from c800a571a to a5370a166 with three commits and a me
 
 ## Body
 
-## gno.land/pkg/sdk/vm/convert.go:216 [gh](https://github.com/gnolang/gno/blob/a5370a166b459689a3febf222f3a5edd8739058e/gno.land/pkg/sdk/vm/convert.go#L216) · [↗](../../../../../.worktrees/gno-review-6110/gno.land/pkg/sdk/vm/convert.go#L216) · Warning
+## gno.land/pkg/sdk/vm/convert.go:216 [gh](https://github.com/gnolang/gno/blob/a5370a166b459689a3febf222f3a5edd8739058e/gno.land/pkg/sdk/vm/convert.go#L216) · [↗](../../../../../.worktrees/gno-review-6110/gno.land/pkg/sdk/vm/convert.go#L216) · Warning [posted](https://github.com/gnolang/gno/pull/6110#discussion_r4611293877)
 `alloc.NewSliceFromData(bz)` keeps the whole decode buffer, so line breaks the base64 decoder ignores grow `cap(b)`, the stored array and the allocation charge.
 
 ```suggestion
@@ -41,7 +42,7 @@ The string to `[]byte` conversion, the other caller of `NewSliceFromData`, clips
 
 </details>
 
-## gnovm/pkg/gnolang/preprocess.go:2503 [gh](https://github.com/gnolang/gno/blob/a5370a166b459689a3febf222f3a5edd8739058e/gnovm/pkg/gnolang/preprocess.go#L2503) · [↗](../../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/preprocess.go#L2503) · Warning
+## gnovm/pkg/gnolang/preprocess.go:2503 [gh](https://github.com/gnolang/gno/blob/a5370a166b459689a3febf222f3a5edd8739058e/gnovm/pkg/gnolang/preprocess.go#L2503) · [↗](../../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/preprocess.go#L2503) · Warning [posted](https://github.com/gnolang/gno/pull/6110#discussion_r4611293901)
 The guard admits a typed-nil pointer key, which is no Go constant, so preprocessing rejects `map[any]int{(*int)(nil): 1, (*int)(nil): 2}` as a duplicate. Restrict the check to bool, string and numeric keys, which also accepts `map[*int]int{nil: 1, nil: 2}` and keeps the duplicate-key filetests green.
 
 <details><summary>repro</summary>
