@@ -98,3 +98,10 @@ Hit rate per tier, from the record: hot 5/5 confirmed over 4 files, warm 0/0 con
 - Both fixes in `tests/judge-fixes.patch` were applied at head and run: the two cap tests print cap = len, and 25 filetests (`maplit*`, `map0`, `map42`, the nil-key fixtures) pass.
 - Repros in the draft were run from the `tests/` files with `cp`, not through the `curl` line, and no txtar was written for row 1: the budget went to the base runs.
 - Parent rerun before the post, go1.25.9: rows 1 and 2 reproduce at a5370a166 and pass at 6c49f5420; with `tests/judge-fixes.patch` the three encodings print cap 3 and 73 `TestFiles/(zz_finder1_nk1|maplit*|map*)` filetests pass. `go run` of `map[any]int{(*int)(nil): 1, (*int)(nil): 2}` and `map[*int]int{nil: 1, nil: 2}` prints `1 1`; the patched head runs the second as a filetest with `// Output: 1`, ok.
+
+## Retro
+
+- What failed: the first judge stopped on the disk floor, 499 MB free against the 1024 MB the pipeline asks, after setup had read 774 MB and launched anyway; nothing was written. 20.3 GB of Docker build cache was pruned on the user's word, and the run resumed with `disk_retry` 1, the finders replaying from cache. Measured cost over 4 agent runs on claude-opus-5-5 at high: 98k output, 9.6M cache read, about $7.20.
+- What worked: all 5 of the finders' candidates were CONFIRMED, the two finders reaching each Warning independently, and both Warnings landed on lines round 2's answers changed; the reflector's sibling sweep was refuted by a read, as it should be.
+- Hit rate per tier: hot 5/5 over 4 files, warm 0/0 over 1, cold 0/0 over 3.
+- Upgrade: `./scripts/review-setup.sh` should stop when `free_mb` is under the pipeline's `DISK_MB` floor, so a round never launches finders whose judge cannot run; logged in the workspace `TODO.md`, since a script a rule names waits for the review loop of *Editing this corpus*.
