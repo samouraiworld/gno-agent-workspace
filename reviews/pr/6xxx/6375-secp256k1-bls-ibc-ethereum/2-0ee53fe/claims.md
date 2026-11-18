@@ -1,3 +1,7 @@
+# Claims: https://github.com/gnolang/gno/pull/6375, BLS natives only (crypto/bls12381); review head 0ee53fefc, the round dir names 0ee53fe round 2, fd7e75152, claude-opus-5-5, deep review
+
+Round shape: 9 finders, one reflector, 18 candidates, the Criticals and Warnings run by their finders and judged by an agent that was not the finder, the rest judged by read; 1 refuted, none of them above Nit. Finders, reflector and judges ran at xhigh on the user's word.
+
 ## Findings
 
 | Line | # | Band | State | Merge base | Draft |
