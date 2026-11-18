@@ -1,0 +1,43 @@
+{
+ "dropped": [],
+ "candidates": [
+  {
+   "index": 2001,
+   "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.go",
+   "line": 197,
+   "angle": "tests",
+   "summary": "the Excluding 'nobody signed' subtest passes the real signature, so the identity guard that stops an excluded-everyone forgery is pinned only through FastAggregateVerify's test",
+   "failure_scenario": "A refactor moves verifyAggregate's pk.IsInfinity() refusal into X_fastAggregateVerify alone (or drops it): TestFastAggregateVerifyExcluding stays green, and FastAggregateVerifyExcluding(aggregate, every member, any message, identity signature) returns true, since e(0, H(m)) == e(-G1, 0)",
+   "verify_by": "delete bls12381.go:116-118 and run go test -run 'TestFastAggregateVerifyExcluding$' plus tests/judge-2001-excluding-identity_test.go: expect the PR's test green and the judge test red",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": true,
+   "evidence": "with lines 116-118 deleted: --- PASS: TestFastAggregateVerifyExcluding; --- FAIL: TestJudgeExcludingIdentity; at head both pass",
+   "repro_path": "tests/judge-2001-excluding-identity_test.go"
+  },
+  {
+   "index": 2002,
+   "file": "gnovm/adr/pr6375_bls12381_native.md",
+   "line": 72,
+   "angle": "claims",
+   "summary": "the ADR prices a 512-key verification at about 47M gas, the slope term alone; the row charges about 49.1M once its 2.02M base is added",
+   "failure_scenario": "A reader sizing a light-client update from the ADR budgets 47M gas per 512-key verification; the chain charges 49.1M for the native call",
+   "verify_by": "gno test -v on tests/judge-r1-gas-512_test.gno: GAS of TestKeys512 minus TestKeys0",
+   "band": "Nit",
+   "fix_kind": "doc",
+   "checked": true,
+   "run": true,
+   "evidence": "TestKeys512 GAS 49486865, TestKeys0 GAS 360230 (allocation only): 49126635 for the call; row formula 2024000 + 1962000*24576/1024 = 49112000",
+   "repro_path": "tests/judge-r1-gas-512_test.gno"
+  }
+ ],
+ "completeness": [
+  "Thin angle: tests. No candidate made the PR's tests go red; the judge deleted verifyAggregate's identity guard (bls12381.go:116-118): TestFastAggregateVerify/identity_aggregate fails, so FastAggregateVerify's guard is pinned, while TestFastAggregateVerifyExcluding stays green (candidate 2001).",
+  "Thin angle: claims on the ADR's numbers. The 47M figure at line 72 was run (candidate 2002); the Excluding base 2116000 matches 2024000 + one 48-byte key (2115968).",
+  "Catalog, Gas: covered by 1001 (msg unsloped). Charge happens before the work: the 512-key call with zero bytes is charged 49.1M though it returns false at the first key.",
+  "Catalog, Determinism and Global mutable state: negG1Gen and ethDST are package vars set at init() and never written after; no candidate needed.",
+  "Catalog, Error & panic handling: every gnark error maps to false; no swallowed error reaches state. Other catalog classes (realm state, caller, coin, storage deposit, twin inputs, old data, VM semantics, preprocess) are not touched by the slice.",
+  "Sibling sweep by shape: the wrapper length guard has its Go twin at bls12381.go:43 and :82, same conditions; the Excluding 'malformed' subtest repeats FAV's infinity-key case (both pinned)."
+ ]
+}
