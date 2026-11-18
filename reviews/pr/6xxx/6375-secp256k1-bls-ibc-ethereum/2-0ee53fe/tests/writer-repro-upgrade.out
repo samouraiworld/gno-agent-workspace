@@ -1,0 +1,5 @@
+=== RUN   TestUpgradeBootWithoutNewStdlib
+        	Error:      	Expected nil, but got: "invalid memory address or nil pointer dereference"
+--- FAIL: TestUpgradeBootWithoutNewStdlib (1.53s)
+=== RUN   TestUpgradeBootControl
+--- PASS: TestUpgradeBootControl (0.79s)

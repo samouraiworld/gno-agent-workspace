@@ -1,0 +1,118 @@
+{
+ "candidates": [
+  {
+   "file": "gnovm/stdlibs/generated.go",
+   "line": 2733,
+   "angle": "topic",
+   "summary": "crypto/bls12381 joins stdlibs.InitOrder(), but stdlibs reach a chain's store only in InitChainer; a node booting this binary on a store written by an earlier binary panics in VMKeeper.Initialize, and the package is never importable on such a chain",
+   "failure_scenario": "mainnet.gno.land and onyx upgrade in place (upgrades.json: halt_height plus halt_min_version, same data dir). The base stdlib set equals v1.6.0's (diff of gnomod.toml paths, rc=0), so crypto/bls12381 is the first stdlib past the deployed set. On the first boot of a binary carrying it, VMKeeper.Initialize (run by NewAppWithOptions before checkNodeStartupParams) loops over InitOrder, GetMemPackage(\"crypto/bls12381\") returns nil, and TypeCheckMemPackage(nil) dereferences mpkg.Path (gotypecheck.go:198 from keeper.go:218): every validator fails to start after the halt. With that guarded, the package is still absent from the store, so a realm importing crypto/bls12381 (the PR's IBC light client) cannot be added on any chain not started from a fresh genesis. Neither the ADR (its consequences list the apphash move only) nor the PR names a migration loading the new stdlib at the upgrade height.",
+   "verify_by": "cp tests/topic4-upgrade-new-stdlib_test.go gno.land/pkg/sdk/vm/ && go test ./gno.land/pkg/sdk/vm -run 'TestTopic4UpgradeBoot' -count=1 -v -timeout 2m: expect WithoutNewStdlib red with a nil pointer dereference, Control green; then confirm whether the next mainnet upgrade carrying this PR is in place or a genesis replay (app.go 'Chain upgrade genesis replay' path loads stdlibs fresh)",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "TestTopic4UpgradeBootWithoutNewStdlib: 'recovered: runtime error: invalid memory address or nil pointer dereference', stack gotypecheck.go:198 <- keeper.go:218; --- FAIL. TestTopic4UpgradeBootControl (same boot, key kept): --- PASS. Base stdlib set vs v1.6.0: diff rc=0. v1.7.0 tag (mainnet's current) is not in the local clone, so its set was not compared.",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6375-secp256k1-bls-ibc-ethereum/2-0ee53fe/tests/topic4-upgrade-new-stdlib_test.go"
+  },
+  {
+   "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+   "line": 42,
+   "angle": "topic",
+   "summary": "the new native is absent from misc/multiarch-determinism/corpus.gno, the CI job diffing amd64 against arm64 output, while its sibling crypto/bn254 is in it and gnark-crypto's BLS12-381 field ships separate amd64 and arm64 assembly",
+   "failure_scenario": "A gnark-crypto bump that changes ecc/bls12-381/fp/element_arm64.s (present beside element_amd64.s in v0.20.1) and returns a different FastAggregateVerify verdict on arm64 splits validators by architecture; ci-multiarch-determinism runs on every gnovm/** change but its corpus never calls crypto/bls12381, so it stays green.",
+   "verify_by": "grep -c bls12381 misc/multiarch-determinism/corpus.gno (0) against grep -c 'bn254\\.' (3 call sites); add a FastAggregateVerify and FastAggregateVerifyExcluding case with the bls12381_test.gno vectors and run the job's two drivers",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "corpus.gno imports crypto/bech32, bn254, chacha20, ed25519, keccak256, merkle, modexp, sha256, subtle; no bls12381. Today's code agrees across arches on the vectors: CGO_ENABLED=0 GOARCH=arm64 go test -exec qemu-aarch64 ./gnovm/stdlibs/crypto/bls12381 -run 'TestFastAggregateVerify|TestFastAggregateVerifyExcluding' -> ok.",
+   "repro_path": ""
+  },
+  {
+   "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+   "line": 42,
+   "angle": "topic",
+   "summary": "no gno.land integration test exercises crypto/bls12381 from a realm on a node (addpkg type-check, tx, vm/qeval, restart); stdlib_ibc_crypto_determinism.txtar covers bn254, keccak256, merkle and modexp only",
+   "failure_scenario": "A regression in the node-level path (VMKeeper.Initialize type-check of the new stdlib, stdlib byte cache after restart, gas pinned across restart) ships with gno test of the stdlib still green, since that runs on the test store and never boots a node.",
+   "verify_by": "cp tests/topic4-bls-reach.txtar gno.land/pkg/integration/testdata/topic4_bls_reach.txtar && go test ./gno.land/pkg/integration -run 'TestTestdata/topic4_bls_reach' -count=1 -v -timeout 2m",
+   "band": "Missing test",
+   "fix_kind": "test",
+   "checked": true,
+   "run": false,
+   "evidence": "The txtar written for this round passes at head: Verify '(true bool)' GAS USED 13208430, qeval 'data: (true bool)', 512-key Big '(false bool)' GAS USED 56054845, Verify after restart '(true bool)' GAS USED 13208461; a control with two more Verify calls before the restart shows 13208461 on both sides, so the 31-gas step is account state, not the restart.",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6375-secp256k1-bls-ibc-ethereum/2-0ee53fe/tests/topic4-bls-reach.txtar"
+  },
+  {
+   "file": "gnovm/stdlibs/native_gas.go",
+   "line": 98,
+   "angle": "topic",
+   "summary": "the table header the diff edited now lists crypto/bls12381 among the trailing 12 entries 'measured on Intel Xeon Silver 4114', while its own row comment (line 193) and the ADR say M4 Pro scaled by 2.3x",
+   "failure_scenario": "A maintainer regenerating only the rows not yet on Xeon reads line 98 and skips the two bls12381 rows, which were never measured on that machine.",
+   "verify_by": "sed -n '97,100p;193,195p' gnovm/stdlibs/native_gas.go",
+   "band": "Nit",
+   "fix_kind": "comment",
+   "checked": true,
+   "run": false,
+   "evidence": "line 98-99: 'The trailing 12 IBC-crypto entries (crypto/bls12381, ...) are draft fits measured on Intel Xeon Silver 4114'; line 193: 'bls12381 was measured on Apple M4 Pro ... scaled by 2.3x toward the Xeon Silver 4114'. Count of 12 trailing rows confirmed.",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gnovm/stdlibs/generated.go",
+   "line": 2733,
+   "angle": "topic",
+   "summary": "crypto/bls12381 not importable or callable by a realm on a running node",
+   "settled_by": "go test ./gno.land/pkg/integration -run 'TestTestdata/topic4_bls_reach' -> 'ok github.com/gnolang/gno/gno.land/pkg/integration 3.147s' (addpkg OK, Verify '(true bool)', vm/qeval 'data: (true bool)', after gnoland restart '(true bool)')"
+  },
+  {
+   "file": "gnovm/stdlibs/generated.go",
+   "line": 2087,
+   "angle": "topic",
+   "summary": "generated bindings disagree with the .gno native signatures or a gas row's SlopeIdx",
+   "settled_by": "read: fastAggregateVerify 3x[]byte->bool, fastAggregateVerifyExcluding 4x[]byte->bool match bls12381.gno; SlopeIdx 0 = pubkeys, 1 = excluded; go test ./gnovm/stdlibs -run TestEveryRowValidates -> ok; gno test -v ./crypto/bls12381 -> 3 PASS"
+  },
+  {
+   "file": "gnovm/stdlibs/native_gas.go",
+   "line": 97,
+   "angle": "topic",
+   "summary": "'74 entries, exhaustive coverage' claim off after the two new rows",
+   "settled_by": "awk over calibratedNativeGas: 74 'Pkg:' rows; awk over nativeFuncs: 74 entries"
+  },
+  {
+   "file": "gnovm/adr/pr6375_bls12381_native.md",
+   "line": 74,
+   "angle": "topic",
+   "summary": "apphash pin move attributed to the new stdlib may come from other PR changes",
+   "settled_by": "go test ./gno.land/pkg/sdk/vm -run 'TestAppHashCrossrealm38$' on the BLS-only slice -> actual \"6c71bc7cc8d2108a152bf00966693e7051a35ed68e2332337bc15cc369b9342e\", equal to the PR head's pinned value"
+  },
+  {
+   "file": "gnovm/stdlibs/crypto/bls12381/bls12381.gno",
+   "line": 1,
+   "angle": "topic",
+   "summary": "gno lint or gno doc fails on the new package",
+   "settled_by": "gno lint ./crypto/bls12381 -> exit=0; gno doc crypto/bls12381 renders package doc and both funcs; 'const PubKeySize ' with no value is the same rendering as crypto/sha256's 'const Size '"
+  },
+  {
+   "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+   "line": 42,
+   "angle": "topic",
+   "summary": "arm64 verdict differs from amd64 today",
+   "settled_by": "CGO_ENABLED=0 GOARCH=arm64 go test -exec qemu-aarch64 ./gnovm/stdlibs/crypto/bls12381 -run 'TestFastAggregateVerify|TestFastAggregateVerifyExcluding' -> 'ok ... 0.183s'"
+  },
+  {
+   "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+   "line": 42,
+   "angle": "topic",
+   "summary": "gas of a bls call drifts across a node restart (cold vs warm)",
+   "settled_by": "txtar control: Verify GAS USED 13208461 twice before gnoland restart and 13208461 after; the first call's 13208430 differs by account state"
+  },
+  {
+   "file": "gnovm/stdlibs/generated.go",
+   "line": 2733,
+   "angle": "topic",
+   "summary": "gnovm/tests/stdlibs shadows crypto/bls12381 for filetests",
+   "settled_by": "ls gnovm/tests/stdlibs/crypto -> 'No such file or directory'"
+  }
+ ]
+}

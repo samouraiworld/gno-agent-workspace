@@ -1,0 +1,59 @@
+| File | Link | Resolves | Lines |
+| --- | --- | --- | --- |
+| comment_claude-opus-5-5.md | [gno.land/pkg/sdk/vm/keeper.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gno.land/pkg/sdk/vm/keeper.go#L217-L218) | yes | L217-L218 of 2568 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/generated.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/generated.go#L2733) | yes | L2733-L2733 of 2775 |
+| comment_claude-opus-5-5.md | [gno.land/pkg/gnoland/app.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gno.land/pkg/gnoland/app.go#L418) | yes | L418-L418 of 1677 |
+| comment_claude-opus-5-5.md | [misc/multiarch-determinism/corpus.gno](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/misc/multiarch-determinism/corpus.gno#L11-L23) | yes | L11-L23 of 286 |
+| comment_claude-opus-5-5.md | [misc/multiarch-determinism/corpus.gno](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/misc/multiarch-determinism/corpus.gno#L261-L269) | yes | L261-L269 of 286 |
+| comment_claude-opus-5-5.md | [gno.land/pkg/integration/testdata/stdlib_ibc_crypto_determinism.txtar](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gno.land/pkg/integration/testdata/stdlib_ibc_crypto_determinism.txtar#L1-L2) | yes | L1-L2 of 119 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/native_gas.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/native_gas.go#L196-L201) | yes | L196-L201 of 315 |
+| comment_claude-opus-5-5.md | [gno.land/pkg/gnoland/app.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gno.land/pkg/gnoland/app.go#L290) | yes | L290-L290 of 1677 |
+| comment_claude-opus-5-5.md | [gno.land/pkg/sdk/vm/keeper.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gno.land/pkg/sdk/vm/keeper.go#L188) | yes | L188-L188 of 2568 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/native_gas_validate_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/native_gas_validate_test.go#L85-L99) | yes | L85-L99 of 99 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/native_gas.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/native_gas.go#L196) | yes | L196-L196 of 315 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.gno](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.gno#L37) | yes | L37-L37 of 73 |
+| comment_claude-opus-5-5.md | [gno.land/pkg/sdk/vm/handler.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gno.land/pkg/sdk/vm/handler.go#L98) | yes | L98-L98 of 427 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L123) | yes | L123-L123 of 132 |
+| comment_claude-opus-5-5.md | [gno.land/pkg/sdk/vm/keeper.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gno.land/pkg/sdk/vm/keeper.go#L50) | yes | L50-L50 of 2568 |
+| comment_claude-opus-5-5.md | [gnovm/adr/native_input_bounds.md](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/adr/native_input_bounds.md?plain=1#L82) | yes | L82-L82 of 133 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/generated.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/generated.go#L1426-L1428) | yes | L1426-L1428 of 2775 |
+| comment_claude-opus-5-5.md | [gnovm/pkg/gnolang/gonative.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/pkg/gnolang/gonative.go#L365) | yes | L365-L365 of 375 |
+| comment_claude-opus-5-5.md | [gno.land/pkg/sdk/vm/keeper.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gno.land/pkg/sdk/vm/keeper.go#L51) | yes | L51-L51 of 2568 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L58) | yes | L58-L58 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L57) | yes | L57-L57 of 132 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L76) | yes | L76-L76 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L43) | yes | L43-L43 of 132 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.gno](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.gno#L37) | yes | L37-L37 of 73 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L78-L83) | yes | L78-L83 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L39-L40) | yes | L39-L40 of 132 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L104) | yes | L104-L104 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L185) | yes | L185-L185 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L91-L98) | yes | L91-L98 of 132 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L197) | yes | L197-L197 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L205) | yes | L205-L205 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L86) | yes | L86-L86 of 132 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L53) | yes | L53-L53 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L84) | yes | L84-L84 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L163) | yes | L163-L163 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.gno](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.gno#L9) | yes | L9-L9 of 101 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/generated.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/generated.go#L1433) | yes | L1433-L1433 of 2775 |
+| comment_claude-opus-5-5.md | [gnovm/adr/pr6375_bls12381_native.md](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/adr/pr6375_bls12381_native.md?plain=1#L15) | yes | L15-L15 of 75 |
+| comment_claude-opus-5-5.md | [gnovm/adr/pr6375_bls12381_native.md](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/adr/pr6375_bls12381_native.md?plain=1#L72) | yes | L72-L72 of 75 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L86) | yes | L86-L86 of 132 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go#L67-L69) | yes | L67-L69 of 132 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381_test.go#L21) | yes | L21-L21 of 227 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/native_gas.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/native_gas.go#L98) | yes | L98-L98 of 315 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/crypto/bls12381/bls12381.gno](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.gno#L50) | yes | L50-L50 of 73 |
+| comment_claude-opus-5-5.md | [gnovm/adr/pr6375_bls12381_native.md](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/adr/pr6375_bls12381_native.md?plain=1#L55-L57) | yes | L55-L57 of 75 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/native_gas.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/native_gas.go#L193) | yes | L193-L193 of 315 |
+| comment_claude-opus-5-5.md | [gnovm/cmd/calibrate/ibc_native_bench_test.go](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/cmd/calibrate/ibc_native_bench_test.go#L77-L84) | yes | L77-L84 of 496 |
+| comment_claude-opus-5-5.md | [gnovm/cmd/calibrate/gen_native_table.py](https://github.com/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/cmd/calibrate/gen_native_table.py#L217-L225) | yes | L217-L225 of 914 |
+| overview.md | [go.mod](https://github.com/gnolang/gno/blob/0ee53fefc/go.mod#L13) | yes | L13-L13 of 110 |
+| overview.md | [gnovm/pkg/gnolang/native_gas.go](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/pkg/gnolang/native_gas.go#L282-L289) | yes | L282-L289 of 396 |
+| overview.md | [gnovm/pkg/gnolang/op_call.go](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/pkg/gnolang/op_call.go#L542-L549) | yes | L542-L549 of 959 |
+| overview.md | [gnovm/adr/native_input_bounds.md](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/adr/native_input_bounds.md?plain=1#L42-L43) | yes | L42-L43 of 133 |
+| overview.md | [gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go](https://github.com/gnolang/gno/blob/0ee53fefc/gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go#L240) | yes | L240-L240 of 317 |
+| overview.md | [gnovm/stdlibs/crypto/bls12381/gnomod.toml](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/stdlibs/crypto/bls12381/gnomod.toml) | yes | 2 lines, no anchor |
+| overview.md | [gnovm/pkg/gnolang/native_gas.go](https://github.com/gnolang/gno/blob/0ee53fefc/gnovm/pkg/gnolang/native_gas.go#L282-L289) | yes | L282-L289 of 396 |
+
+55 links over 2 files, 0 missing.

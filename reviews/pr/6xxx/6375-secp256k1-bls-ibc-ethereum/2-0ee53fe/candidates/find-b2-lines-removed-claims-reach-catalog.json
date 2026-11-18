@@ -1,0 +1,104 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 196,
+      "angle": "reach",
+      "summary": "Extends round 1's msg Warning with a new case. The dispatcher's Go copy of msg is outside the VM allocator, and the unpaid vm/qeval path multiplies it: one free query with a 1 GiB msg allocated 4.3 GB of Go heap against maxAllocQuery 1.5e9, and ~1300 calls fit in one query's gas",
+      "failure_scenario": "A realm exports Spin(n, k) that holds make([]byte, n) and calls bls12381.FastAggregateVerify(pk, msg, sig) k times with one valid key and signature. The bls12381 rows (native_gas.go:196 and :201) slope on pubkeys or excluded only. generated.go:1426-1428 (and :1474-1476 for Excluding) runs Gno2GoValue on msg, which does make([]byte, svl) plus copy (gonative.go:365-366) and never touches m.Alloc. So each call pays the flat ~2.1M gas, allocates len(msg) bytes of Go heap that maxAllocTx/maxAllocQuery never count, and SHA-256s all of it in HashToG2. vm/qeval charges no fee and runs under maxGasQuery 3e9 and maxAllocQuery 1.5e9 (keeper.go:51-52, withQueryEvalMachine). One query therefore buys ~1300 calls, each a 1 GiB copy plus a 1 GiB hash. The query took 506x the wall time of the same 3 calls with a 32-byte msg, and its Go heap ran past the allocation budget the keeper sets. adr/acd01fa29_gno2go_slice_gas.md closed this shape for capacity (an unmetered Go allocation and memcpy for the flat native base cost). Its Alternatives rely on native pricing to cover the Length copy, and these two rows do not price it",
+      "verify_by": "cp tests/b2-lines-removed-claims-reach-catalog-query-msg_test.go gno.land/pkg/sdk/vm/zz_bls_query_test.go && go test -run TestBLSQueryMsg -v -timeout 2m ./gno.land/pkg/sdk/vm/ : expect msg=1GiB calls=3 err=<nil> with goHeapAlloc above maxAllocQuery, and calls=1300 ok / 1500 out of gas at msg=32. Then the gno test RSS harness in tests/b2-lines-removed-claims-reach-catalog-msg-go-copy_test.gno: maxrss grows by len(msg) with the call, and gas does not",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TestBLSQueryMsg at fd7e75152: 'msg=32 calls=1300 err=<nil>'; 'msg=32 calls=1500 err=out of gas in location: CPUCycles'; 'msg=1GiB calls=3 err=<nil> goHeapAlloc=4295503920 bytes (maxAllocQuery=1500000000) small goHeapAlloc=558968'; 'wall-time growth 1GiB/32B at 3 calls: 506x'. gno test RSS harness: TestSmallVerify maxrss_kb 234128 GAS 5119566 (32 B msg); TestAllocVerify maxrss_kb 495268 / 493160 GAS 5120542 (256 MiB msg); TestAllocOnly (same msg, no call) maxrss_kb 233056 / 239280. The call adds ~256 MiB resident for 976 more gas. Gno2GoValue signature (gonative.go:230) takes no allocator, and gonative.go:365 is 'data := make([]byte, svl)'.",
+      "repro_path": "tests/b2-lines-removed-claims-reach-catalog-query-msg_test.go"
+    },
+    {
+      "file": "gnovm/stdlibs/generated.go",
+      "line": 1433,
+      "angle": "catalog",
+      "summary": "The new gnark-backed native is missing from the cross-architecture determinism corpus, which covers its sibling crypto/bn254. Nothing compares fastAggregateVerify's answer between the amd64 and arm64 assembly paths of gnark's bls12-381 field arithmetic",
+      "failure_scenario": "misc/multiarch-determinism/corpus.gno imports crypto/bech32, bn254, chacha20, ed25519, keccak256, merkle, modexp, sha256, subtle and hash/adler32, but not crypto/bls12381. ci-multiarch-determinism.yml builds the driver for amd64 and arm64 and diffs the output on every gnovm/** change. gnark-crypto v0.20.1 ships ecc/bls12-381/fp/element_amd64.s, element_arm64.s and element_purego.go. A divergence in one of those paths would make validators on different architectures disagree on FastAggregateVerify, and CI would stay green. The amd64 ADX and non-ADX branches are not covered either. stdlib_ibc_crypto_determinism.txtar, the restart gas pin for the IBC crypto stdlibs, also omits bls12381. The fix is a corpus case: a known-good Ethereum sync-committee vector for FastAggregateVerify and FastAggregateVerifyExcluding, plus one off-subgroup key",
+      "verify_by": "grep -n '\"crypto/' misc/multiarch-determinism/corpus.gno (no bls12381); ls $(go env GOMODCACHE)/github.com/consensys/gnark-crypto@v0.20.1/ecc/bls12-381/fp/ | grep -E 'amd64|arm64|purego'; sed -n 55,75p .github/workflows/ci-multiarch-determinism.yml (for arch in amd64 arm64)",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "evidence": "corpus.gno imports at lines 12-22: bech32, bn254, chacha20, ed25519, keccak256, merkle, modexp, sha256, subtle, adler32, strconv. gnark fp dir lists element_amd64.go, element_amd64.s, element_arm64.go, element_arm64.s, element_purego.go. The workflow's 'for arch in amd64 arm64; do GOOS=linux GOARCH=\"$arch\" go build'. The txtar header names 'crypto/bn254, crypto/keccak256, crypto/merkle, crypto/modexp'.",
+      "run": false,
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 193,
+      "angle": "claims",
+      "summary": "The bls12381 rows apply the 2.3x hardware factor to an Apple M4 Pro measurement. That factor was derived for an AMD Ryzen 7 7840U against the Xeon (ibc_native_bench_test.go:76-85), and on a Ryzen 7840HS the calls run 1.2x to 1.28x the M4 figures, so the rows sit below what the table's own method projects",
+      "failure_scenario": "ibc_native_bench_test.go:76-85 records the 2.19-2.33x factor as measured on an AMD Ryzen 7 7840U and picks 2.3, the high end, 'a larger factor charges more, so the high end is the safe choice'. native_gas.go:193-196 multiplies M4 Pro figures (base 0.88ms, 40us per key) by that same 2.3. The M4 runs these calls faster than the Ryzen class the factor maps to the Xeon. On this host (Ryzen 7 7840HS) the 1-key call takes 1.2x and the 512-key call 1.28x the M4 figures the row scales. So the projected Base and Slope land about 1.2-1.28x under what the same method gives from a Ryzen measurement, the low side the modexp row's comment calls unsafe. The rows are draft, so this is a provenance gap rather than a shipped charge",
+      "verify_by": "Run tests/b2-lines-removed-claims-reach-catalog-key-growth_test.go (BenchmarkKeyGrowth -benchtime 20x) on a Ryzen 7 7840U-class host and compare keys=1 and keys=512 against 0.88ms+40us and 0.88ms+512*40us; read ibc_native_bench_test.go:76-85 for the factor's source machine",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "evidence": "BenchmarkKeyGrowth on AMD Ryzen 7 7840HS: fav/keys=1 1099756 ns/op, fav/keys=512 27406970 ns/op, excl/excluded=1 1094064, excl/excluded=512 26945441. The ratios against the M4 figures in native_gas.go:193 are 1.2x and 1.28x. ibc_native_bench_test.go:77: 'AMD Ryzen 7 7840U ... This is NOT the reference Xeon ... measure 2.19-2.33x faster here'.",
+      "run": true,
+      "repro_path": "tests/b2-lines-removed-claims-reach-catalog-key-growth_test.go"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 98,
+      "angle": "removed",
+      "summary": "The rewritten table header now counts crypto/bls12381 among the 'draft fits measured on Intel Xeon Silver 4114', though line 193 says those rows were measured on an M4 and scaled. Its sibling paragraph at :77-80 still says 'production's 66' and lists the IBC natives without bls12381",
+      "failure_scenario": "The diff rewrites :97-99 (72 to 74 entries, 10 to 12 IBC entries) and adds bls12381 to the Xeon-measured list, so the header contradicts the row comment at :193-195. The same block's provenance paragraph at :77-80 was left unswept: 'native_gas_table.go.txt holds 46 rows against production's 66' (74 now, and already 72 at the base) and 'no bench lines for any of the IBC crypto natives (bn254, cometbls, keccak256, merkle, modexp)', whose list now misses bls12381. A maintainer regenerating the table reads the wrong machine for these two rows",
+      "verify_by": "sed -n '77,80p;97,100p;193,195p' gnovm/stdlibs/native_gas.go; grep -c 'Pkg: \"' gnovm/stdlibs/native_gas.go (74)",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "evidence": "native_gas.go:98 '// The trailing 12 IBC-crypto entries (crypto/bls12381, crypto/bn254,' followed by '... are draft fits measured on Intel Xeon Silver 4114'. :193 '// bls12381 was measured on Apple M4 Pro'. :78 'holds 46 rows against production's 66'. The row count is 74.",
+      "run": false,
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 196,
+      "angle": "claims",
+      "summary": "The per-key slope might not track the base, so a 512-key call could be underpriced relative to a 1-key call",
+      "settled_by": "BenchmarkKeyGrowth (tests/b2-lines-removed-claims-reach-catalog-key-growth_test.go): time ratio 512 keys over 1 key is 24.9x for fastAggregateVerify and 24.6x for Excluding, against the row's gas ratio of 23.2x. They track"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 201,
+      "angle": "claims",
+      "summary": "The Excluding row's claim of 'same per-key work as fastAggregateVerify' might not hold, since Excluding adds a Neg per key",
+      "settled_by": "BenchmarkKeyGrowth: excl/excluded=512 26945441 ns/op against fav/keys=512 27406970 ns/op, and excl/excluded=1 1094064 against fav/keys=1 1099756"
+    },
+    {
+      "file": "gnovm/stdlibs/generated.go",
+      "line": 1433,
+      "angle": "catalog",
+      "summary": "The package-level ethDST might be mutated by HashToG2 (an append onto spare capacity), which would be a race across parallel callers",
+      "settled_by": "gnark-crypto@v0.20.1 field/hash/hashutils.go:37 'if _, err := h.Write(dst); err != nil'. ExpandMsgXmd only reads dst, and negG1Gen is set once in init and copied by value into the PairingCheck slice literal"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 201,
+      "angle": "lines",
+      "summary": "SlopeIdx 1 on the Excluding row might slope on the wrong parameter",
+      "settled_by": "generated.go:1444-1481 declares p0..p3 and calls X_fastAggregateVerifyExcluding(p0, p1, p2, p3), and bls12381.gno:73 declares (aggregate, excluded, msg, sig), so index 1 is excluded. nativeSizeFromBlock reads m.LastBlock().Values[idx] (gnolang/native_gas.go:328)"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 196,
+      "angle": "catalog",
+      "summary": "Gas might be charged after the work, or Slope*len might overflow",
+      "settled_by": "op_call.go:544 'gi := m.chargeNativeGas(fv)' runs before 'fv.nativeBody(m)', and the cost is Base + Slope*len/1024. 1962000*len overflows int64 only past ~4.7e12 bytes, three orders above maxAllocQuery 1.5e9"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 97,
+      "angle": "claims",
+      "summary": "The '74 entries' and '12 IBC-crypto entries' counts might be wrong",
+      "settled_by": "grep -c 'Pkg: \"' gnovm/stdlibs/native_gas.go gives 74. The IBC rows are keccak256 1, bn254 3, bls12381 2, cometbls 1, merkle 4 and modexp 1, which makes 12"
+    }
+  ]
+}

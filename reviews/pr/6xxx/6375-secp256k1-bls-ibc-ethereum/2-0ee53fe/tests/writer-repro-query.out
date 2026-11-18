@@ -1,0 +1,8 @@
+    bls_query_msg_test.go:84: msg=32: k=1300 err=<nil>; k=1500 err=out of gas in location: CPUCycles; 
+    bls_query_msg_test.go:84: msg=4194304: k=1300 err=<nil>; k=1500 err=out of gas in location: CPUCycles; 
+    bls_query_msg_test.go:98: msg=       32 B: wall-time ratio to 32 B    1.0x; Go heap per call beyond Hold 1239.08 x len(msg)
+    bls_query_msg_test.go:98: msg=  1048576 B: wall-time ratio to 32 B    1.3x; Go heap per call beyond Hold 1.03 x len(msg)
+    bls_query_msg_test.go:98: msg= 16777216 B: wall-time ratio to 32 B    7.4x; Go heap per call beyond Hold 1.00 x len(msg)
+    bls_query_msg_test.go:98: msg= 67108864 B: wall-time ratio to 32 B   32.8x; Go heap per call beyond Hold 1.00 x len(msg)
+    bls_query_msg_test.go:102: per-call gas is flat in len(msg) on the free query path
+--- FAIL: TestBLSQueryMsg (13.08s)

@@ -1,0 +1,111 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.go",
+      "line": 205,
+      "angle": "tests",
+      "summary": "Excluding's infinity-aggregate assertion holds on the signature mismatch, so deleting the agg.IsInfinity() refusal at bls12381.go:86 leaves the suite green",
+      "failure_scenario": "The 'malformed' subtest calls X_fastAggregateVerifyExcluding(identity, excluded, msg, sig) with the 13-signer partial sig: with or without the guard, signers = -(pk2+pk5+pk11) and the pairing fails, so the assertion is true by construction. With '|| agg.IsInfinity()' deleted at bls12381.go:86, Excluding(identity, [-pk_a], m, sk_a*H(m)) computes signers = 0 - (-pk_a) = pk_a (gnark G1Jac.FromAffine of infinity sets Z=0, AddMixed then takes the point) and returns true; no test notices the KeyValidate on the aggregate going away.",
+      "verify_by": "delete '|| agg.IsInfinity()' at bls12381.go:86; go test -count=1 -timeout 2m -run 'TestFastAggregateVerifyExcluding' ./gnovm/stdlibs/crypto/bls12381/ stays PASS; add require.False(t, X_fastAggregateVerifyExcluding(infBytes, negPkA, m, skA*H(m))) and it turns red under the deletion, green at head",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "sed -n 205p bls12381_test.go: 'require.False(t, X_fastAggregateVerifyExcluding(ib[:], excluded, msg, sig))'; sig is committee(t, 16, ...) signed by the 13 non-absent members (bls12381_test.go:168); gnark g1.go:446-450 AddMixed 'if p.Z.IsZero() { p.X = a.X; p.Y = a.Y; p.Z.SetOne() }'. The sibling at :206 (infinity in excluded) is pinned: AddMixed returns p unchanged for an infinity a (g1.go:442-444), so deleting bls12381.go:93's IsInfinity yields the valid signer sum and true.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.go",
+      "line": 58,
+      "angle": "reach",
+      "summary": "no test feeds a repeated key, though Ethereum sync committees carry duplicate members and their aggregate_pubkey sums every copy",
+      "failure_scenario": "consensus-specs altair get_next_sync_committee: 'Return the next sync committee, with possible pubkey duplicates', aggregate_pubkey = eth_aggregate_pubkeys(pubkeys) over all 512 positions. A light client therefore passes a repeated key to FastAggregateVerify, or one member several times in excluded. signers() and committee() draw fresh random keys and the gno vectors are four distinct keys, so a change that refuses repeated keys (a tempting rogue-key hardening) or an adder losing gnark's P==Q doubling branch leaves every test green while each update of a committee with a repeated participant is rejected for that whole sync-committee period.",
+      "verify_by": "grep -n -i 'dup\\|twice\\|repeat\\|pubkeys\\[0\\]' gnovm/stdlibs/crypto/bls12381/*_test.*: only :185, a signer appended to excluded, not a repeat; add X_fastAggregateVerify(pk||pk||pk2, m, (2sk+sk2)*H(m)) and X_fastAggregateVerifyExcluding(2pk+pk2, pk, m, (sk+sk2)*H(m)) expecting true; mutate X_fastAggregateVerify to return false on a key equal to an earlier one and watch the PR's tests stay green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep returned only bls12381_test.go:185; WebFetch of consensus-specs/specs/altair/beacon-chain.md: get_next_sync_committee_indices 'Return the sync committee indices, with possible duplicates', get_next_sync_committee 'with possible pubkey duplicates', 'aggregate_pubkey = eth_aggregate_pubkeys(pubkeys)'. Head code handles it today: gnark g1.go:459-462 'if U2.Equal(&p.X) && S2.Equal(&p.Y) { return p.DoubleMixed(a) }'.",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.gno",
+      "line": 37,
+      "angle": "claims",
+      "summary": "the wrapper's length guards are unpinned: deleting bls12381.gno:37-39 and :65-67 leaves every test green, though their stated job (:35-36) is keeping the native charge and the Go copy off malformed input",
+      "failure_scenario": "The native repeats each check (bls12381.go:43 and :82), so every malformed case in bls12381_test.gno returns false either way and only gas differs: with the guard FastAggregateVerify(pks[1:], msg, sig) charges no native row; without it the fastAggregateVerify row charges Base 2024000 plus 1962000*143/1024 = 273996 before returning false. No test reads that gas, so a refactor dropping the guard (or the Excluding one) ships green and moves gas, which is consensus.",
+      "verify_by": "delete bls12381.gno:37-39 and :65-67; go test -count=1 -timeout 2m -run TestStdlibs ./gnovm/pkg/gnolang/ (walks gnovm/stdlibs) stays green; gno test -v on a package calling FastAggregateVerify(pks[1:], msg, sig) shows GAS rise by about 2.3M under the deletion",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "sed -n 37p bls12381.gno: 'if len(pubkeys) == 0 || len(pubkeys)%PubKeySize != 0 || len(sig) != SignatureSize {'; bls12381.go:43 and :82 carry the same conditions; grep -rn -i gas gnovm/stdlibs/crypto/bls12381/: no output; TestStdlibs walks ../../stdlibs/ with fs.WalkDir (files_test.go:164-190).",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.go",
+      "line": 21,
+      "angle": "claims",
+      "summary": "signers' godoc says it returns n random secret keys; it returns only (pubkeys, sig)",
+      "failure_scenario": "A reader writing a new case from the helper's doc expects the secret keys back to sign a second message and finds a two-value return.",
+      "verify_by": "sed -n 21,23p bls12381_test.go: doc 'returns n random secret keys, their concatenated compressed public keys, and ...' against 'func signers(tb testing.TB, n int, msg []byte) (pubkeys, sig []byte)'",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "sed -n 21p: '// signers returns n random secret keys, their concatenated compressed public'; bundle-4.md line 218: 'func signers(tb testing.TB, n int, msg []byte) (pubkeys, sig []byte) {'",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.gno",
+      "line": 9,
+      "angle": "claims",
+      "summary": "the gno test vectors might not derive from the secret keys their comments name (0x1234567, 0x89abcdef, 0x7654321, 0x5555; second and fourth excluded)",
+      "settled_by": "go test -count=1 -run TestB4VectorProvenance -v (tests/b4-lines-claims-tests-reach-catalog-vector-provenance_test.go) at fd7e75152: vecPubKeys, vecSig, vecAggregate, vecExcluded, vecPartialSig each 'matches'; --- PASS"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 14,
+      "angle": "catalog",
+      "summary": "t.Parallel subtests share the package vars ethDST ([]byte) and negG1Gen; a write through HashToG2 or PairingCheck would race",
+      "settled_by": "go test -count=1 -race -timeout 2m -run 'TestFastAggregateVerify' ./gnovm/stdlibs/crypto/bls12381/ at fd7e75152: 'ok ... 1.028s', no race report"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.gno",
+      "line": 34,
+      "angle": "reach",
+      "summary": "every gno test slicing an input at an offset expects false, so the native might read a sub-slice from its backing array's start, or mishandle a fixed-array slice, unnoticed",
+      "settled_by": "gno test -v on tests/b4-lines-claims-tests-reach-catalog-slice-shapes_test.gno (prebuilt head gno, GNOROOT at 0ee53fefc): offset windows with spare cap, slices of [N]byte arrays, three windows of one backing array, both natives: '--- PASS: TestShapesFastAggregateVerify', '--- PASS: TestShapesFastAggregateVerifyExcluding'"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.go",
+      "line": 206,
+      "angle": "tests",
+      "summary": "the infinity-excluded-key case might stay green with bls12381.go:93's pk.IsInfinity() deleted",
+      "settled_by": "gnark-crypto v0.20.1 g1.go:441-444 AddMixed 'if a.IsInfinity() { return p }' and Neg of (0,0) stays (0,0): subtracting the identity leaves the 13-signer sum, the valid sig verifies, require.False turns red under the deletion"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 50,
+      "angle": "catalog",
+      "summary": "a 48-byte key (or 96-byte sig) carrying the uncompressed or uncompressed-infinity flag might make gnark slice past the buffer, a bare Go panic escaping the VM",
+      "settled_by": "gnark-crypto v0.20.1 marshal.go:895-912 setBytes: 'if (mData == mUncompressed) || (mData == mUncompressedInfinity) { if len(buf) < SizeOfG1AffineUncompressed { return 0, io.ErrShortBuffer } }' before any slice; isMaskInvalid refuses 111/011/001"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.gno",
+      "line": 54,
+      "angle": "tests",
+      "summary": "vecInfSig, vecG1 or vecNegG1 of the wrong length would make TestFastAggregateVerifyIdentityAggregate pass on the wrapper's length guard instead of the identity refusal",
+      "settled_by": "python hex count over bls12381_test.gno: vecG1 96 hex (48 bytes), vecNegG1 96 (48), vecInfSig 192 (96); the identity case reaches verifyAggregate"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.gno",
+      "line": 18,
+      "angle": "catalog",
+      "summary": "the new stdlib's symbols might not resolve under gno lint for an importing package (Type-check and preprocess class)",
+      "settled_by": "gno lint . on the b4shapes package importing crypto/bls12381 and using PubKeySize in array lengths: 'lint exit 0'"
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 201,
+      "angle": "claims",
+      "summary": "No test pins the bls12381 rows' slope parameter, so the per-key pricing the ADR names (excluded bytes for Excluding at :201, pubkeys for FastAggregateVerify at :196) can move to a fixed-size or msg parameter and every test and boot check stays green",
+      "failure_scenario": "A regeneration or a hand edit sets the Excluding row's SlopeIdx to 0 (aggregate, always 48 B) or 2 (msg). validateRow (native_gas.go:271-285) only checks SizeModExpWork rows, so boot passes. A call with N excluded keys is then charged Base plus 48 bytes whatever N is, while the native decodes and subgroup-checks all N keys (bls12381.go:91-99). The ADR (pr6375_bls12381_native.md:57-58) names the excluded-bytes slope as the pricing. TestInnerHashGasMetersBothOperands (native_gas_test.go:210-235) is the existing guard of this shape for merkle.innerHash, and nothing like it names crypto/bls12381: grep -c bls12381 on native_gas_test.go and native_gas_validate_test.go returns 0 and 0.",
+      "verify_by": "grep -c bls12381 gnovm/stdlibs/native_gas_test.go gnovm/stdlibs/native_gas_validate_test.go (expect 0, 0); set native_gas.go:201 SlopeIdx: 0 (and separately :196 SlopeIdx: 1), then run go test ./gnovm/stdlibs/ -run 'Gas|Validate' -timeout 2m and go test ./gnovm/stdlibs/crypto/bls12381/ -timeout 2m: expect all green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -c 'bls12381' native_gas_test.go: 0, native_gas_validate_test.go: 0; validateRow body read at native_gas.go:271-285: the only SlopeIdx check is under 'if e.SlopeKind == SizeModExpWork'; Excluding params (aggregate, excluded, msg, sig) at bls12381.gno:73, every one []byte",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.gno",
+      "line": 50,
+      "angle": "claims",
+      "summary": "FastAggregateVerifyExcluding's doc gives membership and PoP as the caller's obligations. A realm that meets both still accepts one committee member's signature as full participation unless it derives its participant count from excluded itself",
+      "failure_scenario": "A realm ports Ethereum's validate_light_client_update. It counts participants from sync_committee_bits for the 2/3 check and, as bls12381.gno:50-53 asks, verifies a Merkle proof of each relayer-supplied excluded key against the pubkeys root. A relayer that holds the key of one sync-committee member m sets every bit, passes the other 511 members (each a proven member) as excluded, and signs a forged header with sk_m alone. Aggregate minus excluded is pk_m, so the native returns true and the realm sees 512/512 participation. The reference consumer avoids this only because nonSignerKeys (allinbits/gno-realms master, gno.land/p/aib/ibc/lightclient/ethereum/v0/ethereum.gno:472-501) checks that the non-signers are exactly the unset-bit members, each proven at its own index (gindex size+i). The godoc does not state that obligation.",
+      "verify_by": "read bls12381.gno:43-58 for any sentence tying excluded to the caller's participant count (expect none); Go test in package bls12381: pubkeys, aggregate, sig := committee(t, 512, msg, func(i int) bool { return i == 0 }); X_fastAggregateVerifyExcluding(aggregate, concat(pubkeys[1:]), msg, sig) returns true",
+      "band": "Suggestion",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "bls12381.gno:50-53 'The caller MUST have verified that every key in excluded is a member of the committee behind aggregate ... and every member MUST have passed proof-of-possession verification': no count obligation. Consumer ethereum.gno:472-501: 'if bits[i/8]&(1<<(i%8)) != 0 { continue } ... isValidMerkleBranch(pubkeyLeaf(ns.Pubkey), ns.Branch, size+i, active.PubkeysHash) ... more non-signers than unset participation bits'",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/adr/pr6375_bls12381_native.md",
+      "line": 44,
+      "angle": "claims",
+      "summary": "the 2.3x M4-to-Xeon scaling might price the bls12381 rows off the Xeon draft rows around them",
+      "settled_by": "go test -run 'TestB1ClaimsXeonScaling$' -v (tests/b1-claims-xeon-scaling_test.go, scratch worktree at fd7e75152, AMD Ryzen 7 7840HS): priced/measured 0.53-0.66 against bn254.pairingCheck, 1.46-1.76 against bn254.g1Mul, 0.15-0.17 against keccak256.sum256. The Xeon neighbour rows disagree with each other by up to 10x on this host, so no direction can be read from it. The substance is round 1's 1002 (no BLS calibration bench)"
+    },
+    {
+      "file": "gnovm/adr/pr6375_bls12381_native.md",
+      "line": 42,
+      "angle": "claims",
+      "summary": "the 0.88ms base / 40us per key split might not hold on x86, so the 512-key call might be priced off the 1-key call",
+      "settled_by": "same run: work grows from bls 1 key to 512 keys by 25.06x (71.42/2.85) and 25.40x (81.54/3.21), against 23.2x in the rows (49112000/2115968). This is within 10%, and topic2-keyslope measures it at 4096 keys"
+    },
+    {
+      "file": "gnovm/adr/pr6375_bls12381_native.md",
+      "line": 39,
+      "angle": "claims",
+      "summary": "the ADR cites native_input_bounds.md for its wrapper, but msg breaks that ADR's one rule in both natives",
+      "settled_by": "native_input_bounds.md:82-83 'a variable-length parameter is bounded in the .gno wrapper or sloped in gnovm/stdlibs/native_gas.go'. msg is neither (bls12381.gno:37, :65; native_gas.go:196, :201). This is round 1's Warning 1001 and is not re-filed; the line is extra evidence for it"
+    },
+    {
+      "file": "gnovm/adr/pr6375_bls12381_native.md",
+      "line": 72,
+      "angle": "claims",
+      "summary": "the 512-key call might not be 'well under the block limit'",
+      "settled_by": "tm2/pkg/bft/types/params.go:52 'MaxBlockMaxGas int64 = 3000000000', gno.land/cmd/gnoland/start.go:431 'MaxGas: 3_000_000_000'. The 49.1M round 1 measured is 1.6% of that. The 47M figure itself is round 1's Nit 2002"
+    },
+    {
+      "file": "gnovm/adr/pr6375_bls12381_native.md",
+      "line": 74,
+      "angle": "claims",
+      "summary": "the apphash pin might not have moved with the new stdlib",
+      "settled_by": "git diff --stat c32ca7b6 0ee53fefc -- gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go: '10 insertions(+), 1 deletion(-)'; gh pr checks 6375: 82 pass, 1 skipping, none failing at 0ee53fefc"
+    },
+    {
+      "file": "gnovm/adr/pr6375_bls12381_native.md",
+      "line": 10,
+      "angle": "claims",
+      "summary": "gnark-crypto might not already be a dependency through bn254 and cometbls",
+      "settled_by": "grep -ln gnark-crypto: gnovm/stdlibs/crypto/bn254/bn254.go, gnovm/stdlibs/crypto/cometbls/verifier.go; go.mod:13 'github.com/consensys/gnark-crypto v0.20.1'"
+    },
+    {
+      "file": "gnovm/adr/pr6375_bls12381_native.md",
+      "line": 57,
+      "angle": "claims",
+      "summary": "Excluding's per-key slope might not sit on the excluded parameter",
+      "settled_by": "native_gas.go:201 'SlopeIdx: 1'; bls12381.gno:73 'func fastAggregateVerifyExcluding(aggregate, excluded, msg, sig []byte) bool', so param 1 is excluded. moul's thread measured the correct SlopeIdx. That no test pins it is the Missing test candidate at native_gas.go:201"
+    },
+    {
+      "file": "gnovm/adr/pr6375_bls12381_native.md",
+      "line": 27,
+      "angle": "claims",
+      "summary": "ADR says both obligations are 'stated in the imperative in the package doc' and that there is 'one native'",
+      "settled_by": "Prose only, no code misdescribed. sed -n 1,17p bls12381.gno: the package doc states the PoP obligation, and the membership MUST is on FastAggregateVerifyExcluding's own doc (bls12381.gno:50-53). bls12381.gno:71,73 carry two '// injected' natives, which the ADR describes at line 49"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/gnomod.toml",
+      "line": 2,
+      "angle": "claims",
+      "summary": "the new stdlib's gnomod.toml might differ from its siblings",
+      "settled_by": "grep -h '^gno' over every gnovm/stdlibs/**/gnomod.toml: '51 gno = \"0.9\"', identical to the new file"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 98,
+      "angle": "claims (a comment past the finders' Nit cap)",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "summary": "The rewritten table header puts crypto/bls12381 among the trailing IBC rows it calls 'draft fits measured on Intel Xeon Silver 4114', but the bls12381 row's own comment (:193-195) says it was measured on an Apple M4 Pro and scaled by 2.3x",
+      "failure_scenario": "Someone regenerating the table, or judging how far each draft row is from the reference machine, reads :97-100 and takes the two bls12381 rows for Xeon measurements like bn254's. They are an M4 figure multiplied by a factor derived on another machine, so the header makes them look more measured than they are. Fix: name the exception, e.g. '... crypto/modexp) are draft fits measured on Intel Xeon Silver 4114, except crypto/bls12381, measured on Apple M4 Pro and scaled 2.3x (see its row)'.",
+      "verify_by": "sed -n '97,100p;193,196p' gnovm/stdlibs/native_gas.go at fd7e75152",
+      "checked": true,
+      "run": true,
+      "evidence": "native_gas.go:98-100 '// The trailing 12 IBC-crypto entries (crypto/bls12381, crypto/bn254, // crypto/cometbls, crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured // on Intel Xeon Silver 4114'; :193-194 '// bls12381 was measured on Apple M4 Pro (base 0.88ms, 40us per 48-byte key // for decompression + subgroup check) and scaled by 2.3x toward the Xeon'. Count claims hold: 74 rows against 74 natives in generated.go (72/72 at base), and the trailing 14 Pkg fields hold exactly 12 IBC rows.",
+      "repro_path": ""
+    }
+  ]
+}

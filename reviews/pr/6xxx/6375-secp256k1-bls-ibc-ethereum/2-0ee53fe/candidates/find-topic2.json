@@ -1,0 +1,62 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 196,
+      "angle": "topic: gas and DoS on every path",
+      "summary": "extends round 1 row 1001 with a stronger consequence: the unsloped msg reaches block scale and free queries; one MsgCall at 92% of MaxBlockMaxGas runs 34.9x the wall time at 64 MiB for a gas ratio of 1.0035, and a free vm/qeval query does the same (35.0x) with msg reaching 768 MiB, past maxAllocTx",
+      "failure_scenario": "Deploy a realm whose Burn(n, k) calls bls12381.FastAggregateVerify k times with one valid key, a valid G2 encoding and one n-byte msg. Tx path: one MsgCall BurnTx(64 MiB, 1300) with gas meter MaxBlockMaxGas (tm2/pkg/bft/types/params.go:52, 3_000_000_000) consumes 2782277240 gas, ratio 1.0035 over the 32 B call, and every validator replays it at 34.9x the wall time; per-call work keeps growing to 448 MiB (5.8x over 64 MiB at k=4), so a block-filling tx near maxAllocTx is about 200x by extrapolation, unrun. Query path: vm/qeval and vm/qrender run under maxGasQuery 3_000_000_000 and maxAllocQuery 1_500_000_000 (keeper.go:51-52, :1872-1875) and need no fee; Burn(64 MiB, 1300) completes and Burn(64 MiB, 1500) is out of gas, the same threshold as at 32 B, while the query takes 35.0x the time; Burn(768 MiB, 1) completes, and the dispatcher copies msg into a fresh Go slice outside the allocator (gonative.go:137), so that query holds two 768 MiB copies. The query runs under the mutex every ABCI connection shares (tm2/pkg/bft/proxy/client.go:52 hands &l.mtx to every client; local_client.go:189-191 QuerySync and :173-175 DeliverTxSync lock it), so the serving node's block processing waits for it (read, not run). The tree already guards this class for one native: native_gas_test.go:210 TestInnerHashGasMetersBothOperands pins innerHash's per-byte slope on both operands because its flat charge let 1MiB+1MiB run about 300x over its price.",
+      "verify_by": "cp tests/topic2-query-msg_test.go gno.land/pkg/sdk/vm/topic2_query_msg_test.go at fd7e75152 (or 0ee53fefc); cd gno.land && go test -run 'TestTopic2TxBlockGas$' -v -timeout 2m ./pkg/sdk/vm/, then the same with TestTopic2QueryMsg$, TestTopic2TxNearAllocCap$, TestTopic2QueryPastTxAlloc$: expect the gas ratio near 1 and the wall-time ratio far above it",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TestTopic2TxBlockGas: 'tx msg=32 k=1300: \"(1300 int)\" gas=2772488179', 'tx msg=67108864 k=1300: \"(1300 int)\" gas=2782277240', 'gas ratio 64MiB/32B: 1.0035, wall-time ratio: 34.9x'. TestTopic2QueryMsg: 'msg=32B k=1500: out of gas in location: CPUCycles', 'msg=64MiB k=1300: (1300 int)', 'msg=64MiB k=1500: out of gas in location: CPUCycles', 'wall-time ratio of the k=1300 query, 64MiB over 32B: 35.0x'. TestTopic2TxNearAllocCap: 'k=4, 448MiB over 64MiB: gas ratio 3.7623, wall-time ratio 5.8x' (the gas ratio is the msg allocation, charged once per tx). TestTopic2QueryPastTxAlloc: 'msg=768MiB k=1 (maxAllocTx is 500_000_000): (1 int)' PASS. Read: op_call.go:544-545 charge then nativeBody; generated.go:1424-1432 DeepFill and Gno2GoValue per param; gonative.go:137 copy(data, svb.Data[svo:svo+svl]).",
+      "repro_path": "tests/topic2-query-msg_test.go"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 201,
+      "angle": "topic: gas and DoS on every path",
+      "summary": "no test pins which parameter the bls12381 rows slope on: SlopeIdx 1 to 0 (aggregate, always 48 B) on the Excluding row, or 0 to 1 (msg) on the fastAggregateVerify row, leaves every test green while the keys go unpriced",
+      "failure_scenario": "A recalibration or hand edit sets the Excluding row's SlopeIdx to 0: the charge becomes flat at about one key, and 4096 excluded keys, measured at 198.3x the 0-excluded native work, pay 1x. validateRow (native_gas.go) checks SizeModExpWork rows only, TestEveryRowValidates runs that guard, and no test in gnovm/stdlibs names bls12381; the innerHash row has its own shape test (native_gas_test.go:210) for this exact class, the BLS rows have none.",
+      "verify_by": "set SlopeIdx: 0 on native_gas.go:201 (and separately SlopeIdx: 1 on :196), run go test -run 'TestEveryRowValidates|TestInnerHashGasMetersBothOperands|TestFastAggregateVerify' ./gnovm/stdlibs/ ./gnovm/stdlibs/crypto/bls12381/ and gno test ./gnovm/stdlibs/crypto/bls12381: expect all green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rl bls12381 over gnovm/stdlibs/native_gas_test.go, native_gas_validate_test.go, gnovm/tests, gno.land, examples at the full PR head: only apphash_crossrealm38_test.go and gno.land/adr/pr6375_ibc_ethereum.md, neither pins a charge. validateRow body: 'if e.SlopeKind == SizeModExpWork' is its only row check. Native growth from tests/topic2-keyslope_test.go: excluded=4096 at 198.3x the excluded=0 call.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 196,
+      "angle": "topic: gas and DoS on every path",
+      "summary": "the per-key slope of fastAggregateVerify might under-price key decompression and subgroup checks at 512 keys or beyond",
+      "settled_by": "go test -run '^$' -bench BenchmarkTopic2 -benchtime 20x (tests/topic2-keyslope_test.go): ns/op 1 key 1096350, 512 keys 26299574 (24.0x), 4096 keys 198903278 (181.4x); the row's gas grows 23.2x and 179.0x, within 4%"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 201,
+      "angle": "topic: gas and DoS on every path",
+      "summary": "Excluding with many excluded keys might cost more per key than the shared slope (an extra Neg and AddMixed per key)",
+      "settled_by": "same bench: excluded=0 1019832, 512 25865041, 4096 202232656 ns/op; per excluded key (202232656-1019832)/4096 is within 2% of a fastAggregateVerify key (198903278-1096350)/4095, both charged the same 1962000 slope; the ratio gap over its own base (198.3x vs 179.0x) comes from a base measured 7% under the 1-key call"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 50,
+      "angle": "topic: gas and DoS on every path",
+      "summary": "an early-failing call (first key undecodable) pays the full 512-key charge for almost no work",
+      "settled_by": "bench keys=512/first-invalid 35.55 ns/op against 26299574 for the full call: an overcharge the caller pays, the charge taken before the native as op_call.go:544 shows; no work escapes its price, so no DoS"
+    },
+    {
+      "file": "gnovm/stdlibs/generated.go",
+      "line": 1424,
+      "angle": "topic: gas and DoS on every path",
+      "summary": "the generated dispatcher might copy pubkeys or excluded into Go before the gas charge, so an oversized key list costs memory before running out of gas",
+      "settled_by": "op_call.go:542-545 'gi := m.chargeNativeGas(fv)' then 'fv.nativeBody(m)'; the DeepFill and Gno2GoValue copies at generated.go:1424-1432 run inside nativeBody, after the charge, and the charge reads the slice length only (nativeSizeOf: return int64(tv.GetLength()))"
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.go",
+      "line": 163,
+      "angle": "topic: duplicates (IETF / Ethereum edges)",
+      "summary": "No test feeds a duplicated key, in pubkeys or in excluded, although Ethereum sync committees carry duplicates and the native's per-entry (multiset) subtraction is what makes them verify",
+      "failure_scenario": "Ethereum's get_next_sync_committee_indices returns 'the sync committee indices, with possible duplicates' (consensus-specs electra/beacon-chain.md:831), and process_sync_aggregate builds the non-participant list per position (altair/beacon-chain.md:644-646), so a member sampled twice and absent twice must be subtracted twice. Today the native does that: committee {pk1,pk2,pk2,pk3}, excluded [pk2,pk2], sig s1+s3 verifies; excluded [pk2] does not. Every in-tree committee is random distinct keys (signers(), committee()) or three/four fixed distinct keys (.gno vectors), so a refactor that deduplicates keys (a map cache of decompressed keys, a 'reject duplicate excluded' guard) keeps every test green while every update from a committee with a duplicated absent member fails to verify.",
+      "verify_by": "grep -c -i 'dup\\|twice\\|repeat' gnovm/stdlibs/crypto/bls12381/bls12381_test.go gnovm/stdlibs/crypto/bls12381/bls12381_test.gno (0 and 0); then add a case: committee {k1,k2,k2,k3} with excluded [k2,k2] verifies and [k2] does not, and FastAggregateVerify([k1,k1], 2*s1) verifies; mutate X_fastAggregateVerifyExcluding to skip a key already subtracted and watch only the new case go red",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -c over both test files: 0 and 0. Semantics measured at fd7e75152 with tests/topic5-edge-semantics_test.go: 'Excl agg(1,2,2,3) excl [pk2,pk2] sig s1+s3 got=true', 'Excl agg(1,2,2,3) excl [pk2] (deduped) sig s1+s3 got=false', 'FAV [pk1,pk1] sig 2*s1 got=true'. Spec: electra/beacon-chain.md:831 'Return the sync committee indices, with possible duplicates'.",
+      "repro_path": "tests/topic5-edge-semantics_test.go"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 86,
+      "angle": "topic: aggregate not a plain sum / equivalence claim",
+      "summary": "The identity check on aggregate refuses a committee whose keys sum to the identity before excluded is applied, so Excluding answers false where FastAggregateVerify over the same signers answers true, against the equivalence bls12381.go:67-69 states",
+      "failure_scenario": "Committee {pk, -pk} (one operator holding sk and -sk, each key with a valid PoP): aggregate is the identity, excluded [-pk], sig = sk*H(m). FastAggregateVerify([pk], m, sig) is true; FastAggregateVerifyExcluding(identity, [-pk], m, sig) is false at line 86. Ethereum's own process_sync_aggregate subtracts from bytes48_to_G1(aggregate_pubkey) with no identity check on it (altair/beacon-chain.md:650-655). Only a false rejection, no forgery, and only for a committee summing to the identity; verifyAggregate already refuses an identity signers' key, so dropping '|| agg.IsInfinity()' loses no check.",
+      "verify_by": "go test -run TestTopic5IdentitySumCommittee -v ./gnovm/stdlibs/crypto/bls12381/ with tests/topic5-edge-semantics_test.go copied in: expect FAV true and Excluding false; then delete '|| agg.IsInfinity()' at line 86 and rerun TestTopic5 and TestFastAggregateVerifyExcluding: all green",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "TestTopic5IdentitySumCommittee at fd7e75152: 'committee {pk,-pk} aggregate is identity: true', 'FAV over signers [pk]=true, Excluding(agg={pk,-pk}, excl [-pk])=false', '--- FAIL: TestTopic5IdentitySumCommittee'",
+      "repro_path": "tests/topic5-edge-semantics_test.go"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.gno",
+      "line": 50,
+      "angle": "topic: duplicates in excluded (doc vs native)",
+      "summary": "The Gno doc reads excluded as a set ('the members ... that are not in excluded', 'every key in excluded is a member') while the native subtracts per entry, so a realm that deduplicates excluded rejects valid signatures from a committee with a duplicated absent member",
+      "failure_scenario": "Ethereum committee {pk1,pk2,pk2,pk3}, pk2 absent at both positions. A realm following the doc literally lists pk2 once (it is 'in excluded'); the native returns false for the honest s1+s3. It needs one entry per absent position, as process_sync_aggregate builds it (altair/beacon-chain.md:644-646). Stating 'one entry per absent committee position, duplicates included' at .gno:43-46/50-52 closes it.",
+      "verify_by": "go test -run TestTopic5Duplicates -v with tests/topic5-edge-semantics_test.go: 'Excl agg(1,2,2,3) excl [pk2] (deduped) sig s1+s3 got=false' against '[pk2,pk2] ... got=true'; read bls12381.gno:43-62 for any mention of positions or duplicates",
+      "band": "Suggestion",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": true,
+      "evidence": "TestTopic5Duplicates at fd7e75152: 'Excl agg(1,2,2,3) excl [pk2,pk2] sig s1+s3 got=true', 'Excl agg(1,2,2,3) excl [pk2] (deduped) sig s1+s3 got=false'; bls12381.gno:43-62 names no position or duplicate",
+      "repro_path": "tests/topic5-edge-semantics_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 57,
+      "angle": "topic: duplicate keys in pubkeys",
+      "summary": "FastAggregateVerify might dedupe or mishandle repeated keys (doubling branch of AddMixed) unlike the IETF draft, which sums them",
+      "settled_by": "go test -run TestTopic5Duplicates: 'FAV [pk1,pk1] sig 2*s1 got=true want=true', 'FAV [pk1,pk1] sig s1 got=false', 'FAV [pk1,pk2,pk1] sig 2*s1+s2 got=true'"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 98,
+      "angle": "topic: duplicate keys in excluded",
+      "summary": "Subtracting a member listed twice might open a forgery or diverge from Ethereum",
+      "settled_by": "TestTopic5Duplicates: 'Excl agg(1,2,3) excl [pk2,pk2] sig s1+s3 got=false' (signers' key pk1+pk3-pk2 needs sk2), 'Excl agg(1,2,2,3) excl [pk2,pk2] sig s1+s3 got=true' matching altair/beacon-chain.md:644-655 per-position subtraction"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 116,
+      "angle": "topic: excluded holding the aggregate or every member",
+      "summary": "excluded = [aggregate] leaves the identity, which might verify the identity signature",
+      "settled_by": "TestTopic5Duplicates: 'Excl excl [agg] any sig got=false want=false' (verifyAggregate IsInfinity guard); every-member case is round 1's Missing test, not re-filed"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.gno",
+      "line": 54,
+      "angle": "topic: documented forgery",
+      "summary": "The documented forgery (excluded = e1 || aggregate - pk_a - e1) might not hold as written",
+      "settled_by": "TestTopic5DocumentedForgery: 'documented forgery holds as written got=true want=true', 'single-key variant of the forgery got=true'"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 112,
+      "angle": "topic: identity signature with a non-identity key",
+      "summary": "The identity signature might pass under a non-identity key since the signature is only subgroup-checked",
+      "settled_by": "TestTopic5IdentitySignature: 'FAV [pk] identity sig got=false', 'Excl agg=pk excl [] identity sig got=false', 'FAV [pk] identity sig empty msg got=false'"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 50,
+      "angle": "topic: compressed-infinity and flag encodings with stray bits",
+      "summary": "0xc0 infinity with stray bits, flags 000/001/010/011/111, non-canonical X+p, might decode",
+      "settled_by": "TestTopic5Encodings: every flag 00/20/40/60/c0/e0 on pubkey, sig and aggregate got=false; infinity stray bit at bytes 0,1,47 (key) and 0,1,48,95 (sig) got=false; 'sig 0xe0 zeros got=false'; 'pubkey non-canonical X+p got=false'; gnark-crypto@v0.20.1 marshal.go:903-906 isMaskInvalid, :916-918 isZeroed"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.gno",
+      "line": 9,
+      "angle": "topic: interop with Ethereum",
+      "summary": "The in-tree vector's provenance is unstated; gnark's HashToG2 / encoding might diverge from Ethereum's BLS",
+      "settled_by": "TestTopic5EthereumVectors: the three consensus-spec pubkeys match, 'gnark sign(sk0, 0x56*32) = 882730e5d03f...503a43eb' equals the sign_case vector, 'eth fast_aggregate_verify_valid (0xab*32) got=true'; the in-tree vector already pins today's output (round 1 DST mutation red)"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.gno",
+      "line": 13,
+      "angle": "topic: PoP note",
+      "summary": "Ethereum deposit signatures might not be checked for every admitted key, voiding the PoP note",
+      "settled_by": "consensus-specs electra/beacon-chain.md:1113-1119: 'if deposit.pubkey not in validator_pubkeys: # Verify the deposit signature (proof of possession) ... if is_valid_deposit_signature(...): add_validator_to_registry'"
+    }
+  ]
+}

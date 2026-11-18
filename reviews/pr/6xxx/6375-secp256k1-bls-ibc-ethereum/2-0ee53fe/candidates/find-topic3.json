@@ -1,0 +1,62 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.go",
+      "line": 53,
+      "angle": "topic3",
+      "summary": "No test sends a duplicated public key, so gnark's AddMixed doubling branch, reached by bls12381.go:57 when the running sum equals the next key, has zero hits under the package's tests",
+      "failure_scenario": "Ethereum sync committees are sampled with possible duplicates, so a real committee can carry the same key twice, leading [pk, pk, ...] included. That shape makes agg.AddMixed(&pk) at bls12381.go:57 take gnark's p == a path (g1.go:460-461, DoubleMixed), the branch an incomplete addition formula gets wrong. Today it is right: [pk,pk] with sig 2*sk*H(m) verifies true. But a gnark-crypto bump that broke it would leave every test green while valid sync-committee updates with a leading duplicate fail, or the wrong sum passes. The same untested branch is reached by FastAggregateVerifyExcluding at bls12381.go:98 when an excluded key equals minus the running sum.",
+      "verify_by": "cd gnovm/stdlibs/crypto/bls12381 && go test -run '^(TestFastAggregateVerify|TestFastAggregateVerifyExcluding)$' -timeout 2m -coverpkg=github.com/consensys/gnark-crypto/ecc/bls12-381 -coverprofile=c.out . && grep 'bls12-381/g1.go:460.38' c.out  (expect count 0); then TestTopic3Determinism in tests/topic3-determinism-builds_test.go, case dup2, gives count 1 and true",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "existing tests: 'github.com/consensys/gnark-crypto/ecc/bls12-381/g1.go:460.38,462.3 1 0'; with dup2/dup3/excl==-agg added: 'g1.go:460.38,462.3 1 1', all expected verdicts pass",
+      "repro_path": "tests/topic3-determinism-builds_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 127,
+      "angle": "topic3",
+      "summary": "CPU-dependent field arithmetic in gnark-crypto v0.20.1 (ADX asm, non-ADX asm fallback, purego, arm64 asm) could give validators on different architectures different verdicts",
+      "settled_by": "TestTopic3Determinism (tests/topic3-determinism-builds_test.go) digests every verdict plus the decoded keys, Jacobian aggregate, HashToG2 and the full GT product over 504 seeded cases (valid aggregates n=1..64, nil/empty/1/32/1000-byte msgs, duplicates, excluded edges, 200 random inputs over all 8 flag masks). Every build printed 'DIGEST 4f9b8674157603753c70d0693e074238a77c934df5c392301f57930ffe0f6247 cases=504': default (Ryzen 7840HS, ADX+AVX-512), -tags noadx, -tags purego, GOARCH=386, and GOARCH=arm64 under qemu-aarch64"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 42,
+      "angle": "topic3",
+      "summary": "goroutines or shared mutable state in the reached gnark path (ethDST, negG1Gen, gnark globals) race when queries run natives concurrently with block execution",
+      "settled_by": "go test -race -run TestTopic3Concurrent (16 goroutines x 4 calls of both natives) printed 'ok ... 1.054s'. In ecc/bls12-381, grep finds parallel.Execute only in isInSubGroupBatchG1Naive/Prob, BatchJacobianToAffineG1, isInSubGroupBatchG2*, partitionScalars/MSM and the Decoder (marshal.go:284,349). The 'go func' hits are only in fp/vector.go, and none of these is reached. ethDST has spare capacity (43 bytes, 48 class), so an append inside ExpandMsgXmd would have raced, and none did"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 50,
+      "angle": "topic3",
+      "summary": "a crafted key or signature panics inside gnark decode, hash-to-curve or pairing, handing the VM a Go panic",
+      "settled_by": "marshal.go:895-990 (G1) and 1162-1276 (G2) return an error for every bad shape: ErrShortBuffer for 0b000/0b010 masks in a 48/96-byte slot, ErrInvalidEncoding for 0b001/0b011/0b111, ErrInvalidInfinityEncoding, a SetBytesCanonical error for x >= p, a nil Sqrt or Legendre == -1, and a subgroup error. HashToG2 errors only for a DST over 255 bytes, and PairingCheck only on a length mismatch. 200 random inputs across all 8 mask values ran through both natives with no panic"
+    },
+    {
+      "file": "gnovm/stdlibs/generated.go",
+      "line": 1433,
+      "angle": "topic3",
+      "summary": "nil vs empty slices, or offset/array-backed []byte arguments, convert wrongly through the dispatcher (Gno2GoValue) into the natives",
+      "settled_by": "gno run tests/topic3-dispatcher-nil-offset.gno printed 'offset53 true', 'array true', 'sig-offset true', 'nilmsg true', 'emptymsg true', 'emptymsg-wrongsig false', 'excl-nil-vs-empty true'. gonative.go:340-357 returns nil for V == nil and copies svb.Data[svo:svo+svl]"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 57,
+      "angle": "topic3",
+      "summary": "gnark v0.20.1's endomorphism G1 subgroup check accepts a key carrying a small-order cofactor component",
+      "settled_by": "TestTopic3SmallOrder printed 'SetBytes accepted=false' for points of order 3, 11, 10177, 859267 and 52437899, for G1 plus each of them, and for (0,2) and (0,-2), all with onCurve=true"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 20,
+      "angle": "topic3",
+      "summary": "package init order or a gnark-crypto version that differs between binaries could change negG1Gen or the arithmetic between validator builds",
+      "settled_by": "negG1Gen comes from bls.Generators(), which is set in gnark's own init, and that init runs first since it is an import. grep finds gnark-crypto v0.20.1 in all 13 go.mod files at the PR head (root, misc/*, contribs/*), and go.mod and go.sum are unchanged between base and head"
+    }
+  ]
+}

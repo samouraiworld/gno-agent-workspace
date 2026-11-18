@@ -3,7 +3,7 @@
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. The `msg` argument of both BLS natives is charged flat gas while the hashing it buys grows with its length, a Warning this branch introduces; two missing tests post beside it.
 Model: claude-opus-5-5, standard review
-Commit: `0ee53fefc`, BLS natives slice only (`gnovm/stdlibs/crypto/bls12381/*`, their rows in `native_gas.go` and `generated.go`, `gnovm/adr/pr6375_bls12381_native.md`)
+Commit: 0ee53fefc (latest), BLS natives slice only (`gnovm/stdlibs/crypto/bls12381/*`, their rows in `native_gas.go` and `generated.go`, `gnovm/adr/pr6375_bls12381_native.md`)
 Overview: [overview](../overview.md)
 Open the code: [github.dev](https://github.dev/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go) · [vscode.dev](https://vscode.dev/github/gnolang/gno/blob/0ee53fefc33a77f709709151ea84958dbca7e5f9/gnovm/stdlibs/crypto/bls12381/bls12381.go)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6375 0ee53fefc`

@@ -1,0 +1,48 @@
+{
+ "verdicts": [
+  {
+   "index": 4,
+   "angle": "topic",
+   "verify_by": "cp tests/topic1-excluding-bitfield_test.go gnovm/stdlibs/crypto/bls12381/ && go test -count=1 -timeout 2m -run TestTopic1ExcludingBitfield -v ./gnovm/stdlibs/crypto/bls12381/ : expect X_fastAggregateVerifyExcluding true with 16/16 bits and 15 proven-member excluded keys; then grep bls12381.gno/bls12381.go/ADR for any obligation tying excluded to the participation bits or to the signer count (none at head)",
+   "state": "CONFIRMED",
+   "band": "Suggestion",
+   "file": "gnovm/stdlibs/crypto/bls12381/bls12381.gno",
+   "line": 50,
+   "tldr": "A realm that meets both documented Excluding obligations still accepts one member's signature as full participation when it counts signers from the update's participation bits instead of committee size minus excluded.",
+   "details": "In a 16-key committee, member 0 signs a header nobody else saw, and the update lists the other 15 genuine members as excluded with every participation bit set: X_fastAggregateVerifyExcluding returns true. The function answers correctly by its own definition (bls12381.go:66, the signers' aggregate is aggregate minus excluded). But the doc at bls12381.gno:50-58 presents membership as what stops the attacker's own signature from verifying against the trusted aggregate, and a member attacker gets exactly that outcome with membership checked. No realm in the PR head imports crypto/bls12381, so the risk is latent: a future light client that follows the ADR's flow (pr6375_bls12381_native.md:55-57) and Ethereum's threshold on the bits would accept a forged header signed by one member. Fix: state in bls12381.gno and bls12381.go that the signer count is the committee size minus the excluded keys, that each excluded key is bound by its Merkle branch to a distinct committee index whose participation bit is clear, and that the realm thresholds on that count.",
+   "evidence": "Reran tests/topic1-excluding-bitfield_test.go at fd7e75152 in a scratch worktree: 'membership of all 15 excluded keys: proven; bits set: 16/16; 2/3 threshold met: true; X_fastAggregateVerifyExcluding: true; signers by excluded: 1', --- FAIL. grep -i 'bit|signer|count|threshold|distinct|duplicate' over bls12381.gno, bls12381.go and the ADR: no obligation ties excluded to the participation bits or to a signer count. grep -rln '\"crypto/bls12381\"' over examples/ and gno.land/ of the full head 0ee53fefc: no importer. The merge base c32ca7b60 has no crypto/bls12381.",
+   "repro_path": "tests/topic1-excluding-bitfield_test.go",
+   "base_behaves_the_same": false
+  },
+  {
+   "index": 7,
+   "angle": "topic",
+   "verify_by": "cp tests/topic4-upgrade-new-stdlib_test.go gno.land/pkg/sdk/vm/ && go test ./gno.land/pkg/sdk/vm -run 'TestTopic4UpgradeBoot' -count=1 -v -timeout 2m: expect WithoutNewStdlib red with a nil pointer dereference, Control green; then confirm whether the next mainnet upgrade carrying this PR is in place or a genesis replay (app.go 'Chain upgrade genesis replay' path loads stdlibs fresh)",
+   "state": "CONFIRMED",
+   "band": "Warning",
+   "mechanism": "new-stdlib-missing-from-upgraded-store",
+   "file": "gnovm/stdlibs/generated.go",
+   "line": 2733,
+   "tldr": "Every validator that upgrades in place to a binary carrying this PR panics at boot: Initialize type-checks crypto/bls12381 from a store that never received it.",
+   "details": "VMKeeper.Initialize (keeper.go:216-218) passes GetMemPackage(stdlib) for every InitOrder entry straight to TypeCheckMemPackage, but stdlibs reach the store only in InitChainer (app.go:418). A store written by any released binary therefore lacks crypto/bls12381, and the boot dereferences a nil mempackage at gotypecheck.go:198. NewAppWithOptions runs this at app.go:290, before the halt_min_version check at :294. Mainnet's upgrades.json records v1.3.0, v1.4.0, v1.5.0 and v1.7.0 as kind 'upgrade', each a coordinated halt on the single chain_id gnoland-1 and genesis, and every release checked carries the same 50 stdlibs, so this is the first stdlib to arrive through such an upgrade. Initialize's nil handling predates the diff (a store missing crypto/bech32 panics on both trees); the diff makes it reachable for the first time. Fix: write the new stdlib's mempackage into the store at the activation height through an upgrade step every node runs, make Initialize fail with a named error instead of a nil dereference when a listed stdlib is absent, and name the migration in the ADR's consequences.",
+   "evidence": "Reran tests/topic4-upgrade-new-stdlib_test.go at fd7e75152: WithoutNewStdlib 'recovered: runtime error: invalid memory address or nil pointer dereference', --- FAIL; Control --- PASS. Built tests/judge-7-upgrade-boot-base.go and ran it on both trees. Head fd7e75152: 'store lacks crypto/bls12381; in InitOrder: true; boot panic: runtime error: invalid memory address or nil pointer dereference ... gotypecheck.go:198 ... sdk/vm/keeper.go:218', FAIL. Base c32ca7b60: 'store lacks crypto/bls12381; in InitOrder: false; boot panic: <nil>', PASS. crypto/bech32 deleted: the same panic on both trees. Stdlib gnomod.toml count is 50 at v1.2.0, v1.3.0, v1.4.0, v1.5.0, v1.5.1, v1.6.0-rc.1 and the base; the v1.7.0 commit e4c2e7d9 is absent from the clone, so it was not measured. upgrades.schema.json: ran_as is 'the image digest the network actually ran', not a genesis. Not run: whether crypto/bls12381 becomes importable on such a chain once the panic is guarded. Parent: gnoland-1 vm/qfile returned files for all 50 stdlibs in the merge base initOrder and /vm.InvalidPackageError for crypto/bls12381 (rpc.gno.land, height 1648224), so the branch lists the first stdlib the live chain never stored.",
+   "repro_path": "tests/judge-7-upgrade-boot-base.go",
+   "base_behaves_the_same": false
+  },
+  {
+   "index": 9,
+   "angle": "reach + topic: gas and DoS on every path + reach",
+   "verify_by": "cp tests/b2-lines-removed-claims-reach-catalog-query-msg_test.go gno.land/pkg/sdk/vm/zz_bls_query_test.go && go test -run TestBLSQueryMsg -v -timeout 2m ./gno.land/pkg/sdk/vm/ : expect msg=1GiB calls=3 err=<nil> with goHeapAlloc above maxAllocQuery, and calls=1300 ok / 1500 out of gas at msg=32. Then the gno test RSS harness in tests/b2-lines-removed-claims-reach-catalog-msg-go-copy_test.gno: maxrss grows by len(msg) with the call, and gas does not | cp tests/topic2-query-msg_test.go gno.land/pkg/sdk/vm/topic2_query_msg_test.go at fd7e75152 (or 0ee53fefc); cd gno.land && go test -run 'TestTopic2TxBlockGas$' -v -timeout 2m ./pkg/sdk/vm/, then the same with TestTopic2QueryMsg$, TestTopic2TxNearAllocCap$, TestTopic2QueryPastTxAlloc$: expect the gas ratio near 1 and the wall-time ratio far above it | cp 2-0ee53fe/tests/b3-lines-claims-reach-catalog-msg-query-path_test.go gno.land/pkg/sdk/vm/blsmsg_query_test.go; cd gno.land && go test -count=1 -timeout 2m -v -run 'TestBLSMsg' ./pkg/sdk/vm/",
+   "state": "CONFIRMED",
+   "band": "Warning",
+   "mechanism": "unsloped-native-param",
+   "file": "gnovm/stdlibs/native_gas.go",
+   "line": 196,
+   "tldr": "A free vm/qeval query buys the same ~1300 BLS calls whatever len(msg) is, and each call copies msg into Go heap the query's allocation budget never counts, so the query's run time escapes its gas bound in proportion to msg.",
+   "details": "Both bls12381 rows slope only on pubkeys or excluded (native_gas.go:196, :201). The dispatcher copies msg through Gno2GoValue (generated.go:1426-1428), whose 'data := make([]byte, svl)' (gonative.go:365) takes no allocator, and HashToG2 hashes the whole copy. vm/qeval charges no fee and runs under maxAllocQuery 1.5e9, three times the transaction's maxAllocTx 5e8 (keeper.go:50-52), so a query can hold a 1 GiB msg (counted once) while each call adds an uncounted 1 GiB copy, which puts the live heap past maxAllocQuery; the finder's 4.3 GB figure is cumulative TotalAlloc over 3 calls, not peak. The uncounted copy applies to every []byte native and predates the diff, but base rows such as crypto/sha256 sum256 (native_gas.go:121) slope on length; only the bls12381 rows leave it unpriced. Fix: cap len(msg) in both Gno wrappers (an Ethereum signing root is 32 bytes) or price it per byte, the same fix round 1's Warning asks for.",
+   "evidence": "Reran tests/b2-lines-removed-claims-reach-catalog-query-msg_test.go at fd7e75152: 'msg=32 calls=1300 err=<nil>', 'msg=32 calls=1500 err=out of gas in location: CPUCycles', 'msg=1GiB calls=3 err=<nil> goHeapAlloc=4295504288 bytes (maxAllocQuery=1500000000)', 'wall-time growth 1GiB/32B at 3 calls: 411x' (the finder measured 506x), PASS. Built tests/judge-9-query-msg-growth.go: the out-of-gas threshold is identical at msg=32 and msg=4194304 (k=1300 ok, k=1500 'out of gas in location: CPUCycles'); 3-call wall-time ratio against 32 B is 1.7x / 9.2x / 33.2x at 1 / 16 / 64 MiB; Go heap per call beyond the same msg held without a call is 1.03 / 1.00 / 1.00 x len(msg); --- FAIL 'per-call gas is flat in len(msg) on the free query path'. The merge base c32ca7b60 has no crypto/bls12381.",
+   "repro_path": "tests/judge-9-query-msg-growth.go",
+   "base_behaves_the_same": false
+  }
+ ]
+}

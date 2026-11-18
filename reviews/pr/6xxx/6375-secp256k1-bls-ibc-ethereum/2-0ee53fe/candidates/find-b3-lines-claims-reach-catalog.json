@@ -1,0 +1,83 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 196,
+      "angle": "reach",
+      "summary": "Extends 1001 to the allocator's extremes on the chain path: a MsgCall pays the 32-byte per-call gas for a 256 MiB msg at 130x the wall time, and qeval, which charges nobody, admits a 1 GiB msg the transaction path refuses, at 563x",
+      "failure_scenario": "A realm makes one msg of n bytes and calls bls12381.FastAggregateVerify(pk, msg, sig) in a loop; bls12381.go:123 hands all of msg to bls.HashToG2. Through the keeper's MsgCall, per-call gas is 2130918 at 32 B and at 256 MiB alike. The 256 MiB allocation is metered, but once per transaction (42784199 - 4372192 = 38.4M gas, about 18 calls' worth), so a 3e9-gas transaction buys about 1388 calls, each priced as a 32-byte call and taking 130x its time. QueryEval on the same realm function needs no account and pays no fee. It admits msg up to maxAllocQuery (1.5e9 bytes), three times maxAllocTx, and 2 calls on 1 GiB run 563x the same query on 32 B, with maxGasQuery as the only bound. Correction to round 1's evidence: its 'allocation near-free, 16 MiB cost 24 gas' came from gno test. On the keeper path the allocation is charged, once per transaction and amortised over every call after it.",
+      "verify_by": "cp 2-0ee53fe/tests/b3-lines-claims-reach-catalog-msg-query-path_test.go gno.land/pkg/sdk/vm/blsmsg_query_test.go; cd gno.land && go test -count=1 -timeout 2m -v -run 'TestBLSMsg' ./pkg/sdk/vm/",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "At fd7e75152, in a scratch worktree: 'tx  msg=32 x1 gas=4372192 x8 gas=19288618 per-call gas=2130918'; 'tx  msg=268435456 x1 gas=42784199 x8 gas=57700625 per-call gas=2130918'; 'tx  per-call gas ratio 256MiB/32B 1.0000, per-call wall-time growth 130x'; 'tx  msg=1GiB err=allocation limit exceeded'; 'qeval msg=1GiB calls=2 res=(2 int)'; 'qeval wall-time growth 563x at the same call count'; ok 5.258s. keeper.go:50-52 maxAllocTx 500_000_000, maxAllocQuery 1_500_000_000, maxGasQuery 3_000_000_000. Per appconn/multi_app_conn.go:84-86 the query connection never blocks consensus and admits a bounded number of concurrent callers: the cost is node CPU on the RPC path, not a consensus stall.",
+      "repro_path": "tests/b3-lines-claims-reach-catalog-msg-query-path_test.go"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.go",
+      "line": 76,
+      "angle": "lines",
+      "summary": "No test sends a signature or an aggregate longer than its size, and gnark ignores trailing bytes, so the length checks at bls12381.go:43/:82 and bls12381.gno:37/:65 are the only refusal of sig||junk and no test pins them",
+      "failure_scenario": "gnark-crypto v0.20.1 marshal.go setBytes checks only len(buf) < SizeOfG2AffineCompressed, and its compressed path reads buf[:96] (G1: buf[:48]). Every length case in the tests is short: sig[1:] at bls12381_test.go:76, aggregate[1:] at :201, agg[1:] at bls12381_test.gno:98. SetBytes refuses each of those with io.ErrShortBuffer whatever the guard does. Mutate `len(sig) != signatureSize` to `<` in bls12381.go:43 and :82 and in bls12381.gno:37 and :65: every test stays green, and FastAggregateVerify(pubkeys, msg, sig||0x00) returns true. Two byte strings now verify as the same signature, so a realm that deduplicates updates by their signature bytes accepts a replay as new. The same holds for aggregate||0x00 in Excluding.",
+      "verify_by": "grep -n 'sig\\[1:\\]\\|aggregate\\[1:\\]\\|agg\\[1:\\]' over both test files (only short cases); apply the != to < mutation at bls12381.go:43,:82 and bls12381.gno:37,:65; go test -run 'TestFastAggregateVerify' ./gnovm/stdlibs/crypto/bls12381/ and gno test gnovm/stdlibs/crypto/bls12381 stay green; a case X_fastAggregateVerify(pubkeys, msg, append(sig, 0)) expecting false turns red",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep returned only bls12381_test.go:76 sig[1:], :201 aggregate[1:], bls12381_test.gno:98 agg[1:]; grep -c 'SignatureSize\\|len(sig' bls12381_test.gno = 0; marshal.go:1162-1164 'if len(buf) < SizeOfG2AffineCompressed { return 0, io.ErrShortBuffer }', compressed path copies buf[:fp.Bytes] and reads buf[fp.Bytes:fp.Bytes*2] only",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.go",
+      "line": 84,
+      "angle": "reach",
+      "summary": "No test repeats a key. The identity-aggregate case pins AddMixed's cancel branch (p == -a), but nothing reaches its doubling branch (p == a), which is the shape of an Ethereum sync committee that samples one validator twice",
+      "failure_scenario": "The Altair get_next_sync_committee_indices returns indices 'with possible duplicates', so FastAggregateVerify can receive the same 48-byte key twice. With pubkeys = pk||pk, the accumulator at bls12381.go:57 holds pk when pk arrives again. Only gnark's doubling branch (g1.go:459-462, `if U2.Equal(&p.X) && S2.Equal(&p.Y) { return p.DoubleMixed(a) }`) keeps the sum at 2pk instead of collapsing it to the identity, which verifyAggregate then refuses. That branch is correct today, but no test pins it: a gnark upgrade or a hand-rolled accumulator that drops it rejects a valid committee signature, and every test stays green. Excluding has the same gap when the running sum equals a negated excluded key.",
+      "verify_by": "grep both test files for a key appended twice (none: signers/committee draw fresh random keys, identity aggregate pairs key with its negation); add X_fastAggregateVerify(pk||pk, msg, 2*sig_pk) == true and X_fastAggregateVerifyExcluding(agg(pk,pk,q), pk, msg, sig_pk+sig_q) == true; replace g1.go's doubling check with a plain add in a vendored copy and watch only the new cases go red",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "gnark-crypto@v0.20.1/ecc/bls12-381/g1.go:459-462 read; bls12381_test.go:23-51 and :130-161 draw a fresh random sk per member; :84-99 builds only key||neg(key)",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381_test.gno",
+      "line": 9,
+      "angle": "claims",
+      "summary": "Every accepting vector is self-generated (the Go tests sign with gnark, and the source of the .gno vector is unstated), so nothing from an independent Ethereum implementation pins the G2 compressed encoding or the accept and refuse parity the godoc claims",
+      "failure_scenario": "The package doc claims Ethereum's parameters in compressed (ZCash) encoding. vecG1 (97f1d3a7...) pins the G1 encoding against the standard generator, and gnark carries the RFC 9380 hash-to-curve vectors. A non-identity G2 signature, though, is checked only against bytes gnark itself produced. If gnark's G2 compressed layout or sign flag disagreed with blst's, every real sync-committee signature would fail while all tests pass. Accept and refuse parity with the consensus-spec-tests cases (fast_aggregate_verify_infinity_pubkey, na_pubkeys_and_infinity_signature) is likewise unpinned.",
+      "verify_by": "run ethereum/consensus-spec-tests general/phase0/bls/fast_aggregate_verify/small/* (valid, infinity_pubkey, tampered, na_pubkeys) through X_fastAggregateVerify; expect every output to match",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "bls12381_test.gno:9-17 comment names secret keys only, no source; bls12381_test.go:23-51 signs with bls.HashToG2 and gnark ScalarMultiplication; python3 -c 'import py_ecc' -> ModuleNotFoundError, no blst in GOMODCACHE, so no independent signer was available to run here",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 57,
+      "angle": "lines",
+      "summary": "A repeated key in pubkeys might miscompute the aggregate, since the accumulator equals the addend (AddMixed's p == a case)",
+      "settled_by": "sed gnark-crypto@v0.20.1/ecc/bls12-381/g1.go:459-462: '// if p == a, we double instead / if U2.Equal(&p.X) && S2.Equal(&p.Y) { return p.DoubleMixed(a) }' (the remaining test gap is filed as a Missing test)"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 196,
+      "angle": "reach",
+      "summary": "A long qeval on a big msg might hold the ABCI mutex that DeliverTx takes and stall block execution",
+      "settled_by": "tm2/pkg/bft/appconn/multi_app_conn.go:84-86: '// query connection — never blocks consensus, and admits several concurrent callers (bounded)' querycli from NewReadOnlyABCIClient(); only mempool and consensus share localClientCreator.mtx (proxy/client.go:43)"
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/bls12381/bls12381.go",
+      "line": 14,
+      "angle": "catalog",
+      "summary": "The package-level ethDST slice might be appended to inside HashToG2 (its cap exceeds its len), racing the parallel tests",
+      "settled_by": "grep -rn 'append(dst\\|dst = append\\|dst\\[' gnark-crypto@v0.20.1/field/hash/*.go: no output; ExpandMsgXmd (hashutils.go:11) only writes dst into the hash"
+    }
+  ]
+}
