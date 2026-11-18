@@ -1,0 +1,79 @@
+{
+ "candidates": [
+  {
+   "index": 1,
+   "file": "gno.land/pkg/sdk/vm/convert.go",
+   "line": 216,
+   "angle": "lines",
+   "summary": "a []byte MsgCall argument now arrives with cap(b) = base64 DecodedLen(len(arg)) instead of len(b), so cap depends on padding and whitespace in the encoding",
+   "failure_scenario": "MsgCall to `func Cap(cur realm, b []byte) int { return cap(b) }` with arg \"AQ==\" (one byte) returns 3; with \"AQ==\" followed by 400 newlines it returns 303. At the merge base both return 1. NewSliceFromData sets Maxcap = cap(data) and exposes data[:cap] as the base array, while base64.DecodeString returns dbuf[:n] over a DecodedLen-sized buffer. One argument value now reaches the realm as many distinct slices (the malleability the file header forbids), and a realm that stores b persists the slack bytes in its base array, sized by the sender's padding.",
+   "verify_by": "go test ./gno.land/pkg/sdk/vm -run TestFinder1SliceArgCapCall -v (tests/solo-finder-1-slice-arg-cap.go) at a5370a166 and at 6c49f5420; fix is alloc.NewSliceFromData(bz[:len(bz):len(bz)])",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head: `arg len 4 -> cap(b) = (3 int)`, `arg len 404 -> cap(b) = (303 int)`; merge base: `(1 int)` for both. Direct convertArgToGno probe at head: `Length=1 Maxcap=3003 baseData=3003` for \"AQ==\"+4000 newlines.",
+   "repro_path": "tests/solo-finder-1-slice-arg-cap.go"
+  },
+  {
+   "index": 2,
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 2503,
+   "angle": "catalog",
+   "summary": "map-literal duplicate-key detection skips only non-comparable typed nils, so two typed nil pointer keys, which Go does not treat as constants, are rejected as duplicates; the ComputeMapKey keying makes map[any] reject what the merge base accepted",
+   "failure_scenario": "`a := map[any]int{(*int)(nil): 1, (*int)(nil): 2}` compiles and prints len 1 under Go 1.25 and passes at the merge base, but at head preprocess panics `duplicate key (nil *int) in map literal`, so a package carrying it fails addpkg. The guard added this round (isComparable) covers slice/map/func and misses *PointerType, which is comparable but also folds to a non-constant ConstExpr. Sibling `map[*int]int{nil: 1, nil: 2}` fails at both head and base (pre-existing member of the same class).",
+   "verify_by": "cp tests/solo-finder-1-nil-pointer-map-key.gno gnovm/tests/files/zz_finder1_nk1.gno && go test ./gnovm/pkg/gnolang -run 'TestFiles/zz_finder1_nk1' -count=1 at a5370a166 (FAIL) and 6c49f5420 (ok); fix: only hash keys whose kind is bool, string or numeric (a real Go constant)",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head: `--- FAIL: TestFiles/zz_finder1_nk1.gno ... unexpected panic: main/zz_finder1_nk1.gno:4:7-50: duplicate key (nil *int) in map literal`; base: nk1 passes, only nk2 (map[*int]) fails; `go run` of the same program: `1 1 1`.",
+   "repro_path": "tests/solo-finder-1-nil-pointer-map-key.gno"
+  },
+  {
+   "index": 3,
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 2503,
+   "angle": "lines",
+   "summary": "the `cx.T == nil ||` disjunct is unreachable: a TypedValue with nil T and nil V is undefined, and the preceding !IsUndefined() already excludes it",
+   "failure_scenario": "No behaviour; a reader takes the guard to admit untyped-nil keys into ComputeMapKey, which never happens (map[any]int{nil: 1, nil: 2} passes at head).",
+   "verify_by": "read values.go:1328 IsUndefined (T == nil implies V == nil in debug) and drop the disjunct; map[any]int{nil: 1, nil: 2} still passes",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 4643,
+   "angle": "lines",
+   "summary": "round-2 Critical: folded string const backing differs between a long-running and a restarted node",
+   "settled_by": "round-2 repro b2-catalog-const-backing-restart_test.go at a5370a166: `long-running node: ... share a backing = false, recount = 2096` and `restarted node: ... share a backing = false, recount = 2096`, PASS. Block nodes are never amino-loaded (store.go setBlockNode backend write commented out), and PrepareNewValues copies static values only for new names, so no other path carries a cached static string into a later tx."
+  },
+  {
+   "file": "gnovm/pkg/gnolang/preprocess.go",
+   "line": 2503,
+   "angle": "lines",
+   "summary": "round-2 Warning: map[any] literal with a typed-nil slice key rejected at preprocess",
+   "settled_by": "round-2 repro b2-lines-maplit-unhashable-const-key.gno as gnovm/tests/files/b2lines_maplit_a.gno at a5370a166: `ok github.com/gnolang/gno/gnovm/pkg/gnolang`"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/alloc.go",
+   "line": 600,
+   "angle": "claims",
+   "summary": "mintString godoc claims exactly three callers",
+   "settled_by": "grep -rn 'mintString(' gnovm/pkg gno.land/pkg gnovm/stdlibs minus tests: realm.go:1899, preprocess.go:4643, alloc.go:591"
+  },
+  {
+   "file": "gnovm/pkg/gnolang/values.go",
+   "line": 117,
+   "angle": "claims",
+   "summary": "invariant comment claims ClearObjectCache runs per message and resets alloc.bytes and the object cache",
+   "settled_by": "keeper.go:401 getGnoTransactionStore calls txStore.ClearObjectCache(); store.go:1505 ClearObjectCache does ds.alloc.Reset() and ds.cacheObjects = make(...); alloc.go:363 Reset sets alloc.bytes = 0"
+  }
+ ]
+}

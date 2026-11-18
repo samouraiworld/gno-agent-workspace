@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gno.land/pkg/sdk/vm/convert.go",
+      "line": 216,
+      "angle": "reach",
+      "summary": "a []byte call argument now arrives with cap = base64.DecodedLen(len(arg)) instead of len(decoded), so ignored \\r\\n padding picks the slice's cap and the size of the array persisted, the malleability this file's header forbids",
+      "failure_scenario": "MsgCall to `func Probe(cur realm, b []byte) (int, int) { Stored = b; return len(b), cap(b) }` with arg \"AAAA\" returns (3, 3); with \"AAAA\\n\\n\\n\\n\" returns (3, 6); with \"AAAA\" + 8x\"\\r\\n\" returns (3, 15). NewSliceFromData takes data[:cap(data)] as the base array, and base64.DecodeString returns a buffer of DecodedLen(len(arg)), so one byte string has unboundedly many encodings that differ in realm-visible cap and in the zero-filled array a realm persists (a len check in the realm passes while cap, storage and the alloc charge grow with the padding). At the merge base all three return (3, 3).",
+      "verify_by": "cp tests/solo-finder-2-bytes-arg-cap-malleable_test.go gno.land/pkg/sdk/vm/zz_sf2cap_test.go && go test ./gno.land/pkg/sdk/vm -run TestSF2BytesArgCapMalleable -count=1 -v -timeout 2m; fix: alloc.NewSliceFromData(bz[:len(bz):len(bz)]) (or slices.Clip) and the run prints (3, 3) for all three",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head a5370a166: arg=\"AAAA\" -> \"(3 int)\\n(3 int)\"; arg=\"AAAA\\n\\n\\n\\n\" -> \"(3 int)\\n(6 int)\"; arg=\"AAAA\\r\\n x8\" -> \"(3 int)\\n(15 int)\". merge base 6c49f5420: all three -> \"(3 int)\\n(3 int)\".",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6110-vm-owned-string-backing-id/3-a5370a166/tests/solo-finder-2-bytes-arg-cap-malleable_test.go"
+    },
+    {
+      "index": 1002,
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 2503,
+      "angle": "removed",
+      "summary": "the new guard skips typed-nil slice/map/func keys as 'no Go constant' but misses the typed-nil pointer member of that class, which ComputeMapKey dedups: map[any]int{(*int)(nil): 1, (*int)(nil): 2} is now rejected at preprocess though Go and the merge base accept it",
+      "failure_scenario": "A package with `m := map[any]int{(*int)(nil): 1, (*int)(nil): 2}` fails to preprocess with \"duplicate key (nil *int) in map literal\" at head; go run prints 1 and the merge base runs it. The same class's map[*int]int{nil: 1, nil: 2} is rejected at both head and base (pre-existing, Go accepts it). A realm using such a literal cannot be deployed. isComparable(*PointerType) is true, so the guard lets it through to the kset dedup; nil is not a Go constant, so Go never dedups it.",
+      "verify_by": "cp tests/solo-finder-2-maplit-nil-f.gno gnovm/tests/files/sf2_maplit_nil_f.gno && go test ./gnovm/pkg/gnolang -run TestFiles/sf2_maplit_nil_f -count=1 -timeout 2m at head (unexpected panic: duplicate key (nil *int)) and at 6c49f5420 (ok); same for _b (fails at both). Fix: dedup only keys whose value is a Go constant (skip any ConstExpr whose V is nil and whose T is not a primitive kind)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: --- FAIL: TestFiles/sf2_maplit_nil_b.gno ... duplicate key (nil *int) in map literal; --- FAIL: TestFiles/sf2_maplit_nil_f.gno ... duplicate key (nil *int) in map literal; a,c,d,e (map[any]int{(*int)(nil):1}, map[any]int{nil:1,nil:2}, map[error]int{nil:1}, map[any]int{error(nil):1,any(nil):2}) pass. base: only sf2_maplit_nil_b fails. Go 1.25.9 go run: b prints '1 2', f prints '1'.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6110-vm-owned-string-backing-id/3-a5370a166/tests/solo-finder-2-maplit-nil-f.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/sdk/vm/convert.go",
+      "line": 216,
+      "angle": "reach",
+      "summary": "NewSliceFromData now stamps the arg's base array with alloc.currentRealmID, which Machine.Release never clears, so a second MsgCall in one tx might stamp a []byte arg with the first message's realm and persist it as a foreign object",
+      "settled_by": "go test ./gno.land/pkg/sdk/vm -run TestSF2BytesArgStaleRealmStamp -v (Call r/aa.Bump then r/bb.Set(b) in one tx store, then Mut in the next): 'multi=true Stored base oid=06a9901f...:8 ownedByAA=false ownedByBB=true', 'multi=true Mut err=<nil>'"
+    },
+    {
+      "file": "gno.land/pkg/sdk/vm/convert.go",
+      "line": 37,
+      "angle": "reach",
+      "summary": "nil allocator on query/render paths reaching the new NewArrayFromData/NewSliceFromData charge",
+      "settled_by": "grep -rn 'convertArgToGno' gno.land gnovm tm2 (non-test): only keeper.go:1366 convertArgToGno(m.Alloc, ...) in Call; alloc.go:403 Allocate and alloc.go:582 stampPkgID both return early on alloc == nil"
+    },
+    {
+      "file": "gno.land/pkg/integration/testdata/stdlib_ibc_crypto_determinism.txtar",
+      "line": 41,
+      "angle": "removed",
+      "summary": "merge conflict resolution of EXACT_GAS, and txtars pinning gas against the new []byte arg charge",
+      "settled_by": "git diff 525d94291^2 a5370a166 -- the txtar: master's 1850271 -> 1850456, the same +185 the branch carried; every CI check run is green on a5370a166, so any EXACT_GAS fixture the new charge moved is caught by CI"
+    }
+  ]
+}

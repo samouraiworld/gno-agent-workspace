@@ -1,0 +1,37 @@
+diff --git a/gno.land/pkg/sdk/vm/convert.go b/gno.land/pkg/sdk/vm/convert.go
+index 559474850..f395964b0 100644
+--- a/gno.land/pkg/sdk/vm/convert.go
++++ b/gno.land/pkg/sdk/vm/convert.go
+@@ -213,7 +213,7 @@ func convertArgToGno(alloc *gno.Allocator, arg string, argT gno.Type) (tv gno.Ty
+ 					"error parsing byte array %q: %v",
+ 					arg, err))
+ 			}
+-			tv.V = alloc.NewSliceFromData(bz)
++			tv.V = alloc.NewSliceFromData(bz[:len(bz):len(bz)])
+ 			return
+ 		} else {
+ 			panic("unexpected slice type in contract arg")
+diff --git a/gnovm/pkg/gnolang/preprocess.go b/gnovm/pkg/gnolang/preprocess.go
+index ec14f7d67..029a3a804 100644
+--- a/gnovm/pkg/gnolang/preprocess.go
++++ b/gnovm/pkg/gnolang/preprocess.go
+@@ -2500,7 +2500,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
+ 						// A typed nil slice/map/func folds to a ConstExpr but is
+ 						// no Go constant: Go skips it, and ComputeMapKey would panic.
+ 						cx, ok := elt.Key.(*ConstExpr)
+-						if ok && !cx.TypedValue.IsUndefined() && (cx.T == nil || isComparable(cx.T)) {
++						if ok && !cx.TypedValue.IsUndefined() && isConstKeyKind(cx.T) {
+ 							mk, isNaN := cx.TypedValue.ComputeMapKey(nil, store, false)
+ 							if isNaN {
+ 								continue // NaN never equals itself
+@@ -6634,3 +6634,10 @@ func SaveBlockNodes(store Store, fn *FileNode) {
+ 	})
+ 	store.SetBlockNodes(bns)
+ }
++
++// isConstKeyKind reports whether a folded key of type t is a Go constant
++// (bool, string or numeric); only those take part in duplicate-key checks.
++func isConstKeyKind(t Type) bool {
++	_, ok := baseOf(t).(PrimitiveType)
++	return ok
++}

@@ -6,22 +6,22 @@ PR: [gnolang/gno#6110](https://github.com/gnolang/gno/pull/6110)
 
 ## TLDR
 
-Before, [`StringValue`](https://github.com/gnolang/gno/blob/0099b3138/gnovm/pkg/gnolang/values.go#L85)
+Before, [`StringValue`](https://github.com/gnolang/gno/blob/6c49f5420/gnovm/pkg/gnolang/values.go#L85)
 was a plain Go `string`, and the GC recount charged every string value it met
 `allocString + len` through
-[`GetShallowSize`](https://github.com/gnolang/gno/blob/0099b3138/gnovm/pkg/gnolang/alloc.go#L885-L887).
+[`GetShallowSize`](https://github.com/gnolang/gno/blob/6c49f5420/gnovm/pkg/gnolang/alloc.go#L885-L887).
 Two copies of one string paid its bytes twice, a slice paid only its own
 length, and a string loaded from the store paid nothing at load.
 
-After, [`StringValue`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L111-L114)
+After, [`StringValue`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L117-L120)
 is a struct carrying a pointer `B` to a
-[`stringBacking`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L91-L93).
-[`NewString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L589-L592)
+[`stringBacking`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L91-L93).
+[`NewString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L589-L592)
 creates one; copies and slices share it. The GC charges each distinct
 backing's bytes once per run, and
-[`loadObjectSafe`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/store.go#L557) charges a loaded
+[`loadObjectSafe`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/store.go#L557) charges a loaded
 object's strings in its single up-front
-[`Allocate`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/store.go#L602).
+[`Allocate`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/store.go#L602).
 
 It exists to make allocation and GC gas match what the program keeps
 alive. It is an alternative to
@@ -35,20 +35,23 @@ this change.
 
 | Where | Before | After |
 | --- | --- | --- |
-| A program builds a string | charged `allocString + len`, through [`NewString`](https://github.com/gnolang/gno/blob/0099b3138/gnovm/pkg/gnolang/alloc.go#L585-L588) | charged the same, then given a fresh backing, through [`NewString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L589-L592) and [`mintString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L599-L607) |
-| A program slices a string, `s[i:j]` | charged `allocString + (j-i)` as a new string, through [`GetSlice`](https://github.com/gnolang/gno/blob/0099b3138/gnovm/pkg/gnolang/values.go#L2671) | charged `allocString` only, the slice sharing the source's backing, through [`GetSlice`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L2709-L2717) |
-| The GC recounts a live string | `allocString + len(Str)` for every value it visits, through [`GCVisitorFn`](https://github.com/gnolang/gno/blob/0099b3138/gnovm/pkg/gnolang/garbage_collector.go#L324) | `allocString` per value plus `Extent` once per distinct backing, through [`GCVisitorFn`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/garbage_collector.go#L335-L340) |
-| An object loads from the store | its strings charge nothing, through [`loadObjectSafe`](https://github.com/gnolang/gno/blob/0099b3138/gnovm/pkg/gnolang/store.go#L597) and [`fillTypesOfValue`](https://github.com/gnolang/gno/blob/0099b3138/gnovm/pkg/gnolang/realm.go#L1894) | its strings charge `allocString + len` each inside the one `Allocate`, through [`internalStringSize`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/store.go#L596-L602); the fill then gives each a backing without charging, through [`fillTypesOfValue`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/realm.go#L1899) |
-| A transaction argument becomes a string | built uncharged as a raw `StringValue` | minted and charged, through [`convertArgToGno`](https://github.com/gnolang/gno/blob/c800a571a/gno.land/pkg/sdk/vm/convert.go#L56) called with the machine's allocator from [`keeper.go`](https://github.com/gnolang/gno/blob/c800a571a/gno.land/pkg/sdk/vm/keeper.go#L1280) |
-| `cur.Address()`, `cur.PkgPath()` | a fresh untracked copy | the realm handle's own value, same backing, through [`.grealm.Address`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/uverse.go#L1589) and [`.grealm.PkgPath`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/uverse.go#L1600) |
-| `runtimeError.Error()`, `realm.Subpath()` | an untracked copy from `typedString` | a charged copy from [`newTypedString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L3383-L3385), at [`Error`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/uverse.go#L798) and [`Subpath`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/uverse.go#L1797) |
-| A map literal is checked for duplicate keys | keyed by Go `==` on `TypedValue` | keyed by `MapKey`, through [`ComputeMapKey`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/preprocess.go#L2505-L2517), since `==` now compares `B` too |
-| A string is saved to the store | written as the string | written as the string, `B` dropped, through [`MarshalAmino`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L119) |
+| A program builds a string | charged `allocString + len`, through [`NewString`](https://github.com/gnolang/gno/blob/6c49f5420/gnovm/pkg/gnolang/alloc.go#L585-L588) | charged the same, then given a fresh backing, through [`NewString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L589-L592) and [`mintString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L600-L608) |
+| A program slices a string, `s[i:j]` | charged `allocString + (j-i)` as a new string, through [`GetSlice`](https://github.com/gnolang/gno/blob/6c49f5420/gnovm/pkg/gnolang/values.go#L2683) | charged `allocString` only, the slice sharing the source's backing, through [`GetSlice`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L2727-L2735) |
+| The GC recounts a live string | `allocString + len(Str)` for every value it visits, through [`GCVisitorFn`](https://github.com/gnolang/gno/blob/6c49f5420/gnovm/pkg/gnolang/garbage_collector.go#L324) | `allocString` per value plus `Extent` once per distinct backing, through [`GCVisitorFn`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/garbage_collector.go#L335-L340) |
+| An object loads from the store | its strings charge nothing, through [`loadObjectSafe`](https://github.com/gnolang/gno/blob/6c49f5420/gnovm/pkg/gnolang/store.go#L597) and [`fillTypesOfValue`](https://github.com/gnolang/gno/blob/6c49f5420/gnovm/pkg/gnolang/realm.go#L1894) | its strings charge `allocString + len` each inside the one `Allocate`, through [`internalStringSize`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/store.go#L596-L602); the fill then gives each a backing without charging, through [`fillTypesOfValue`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/realm.go#L1899) |
+| A transaction argument becomes a string | built uncharged as a raw `StringValue`, in [`convertArgToGno`](https://github.com/gnolang/gno/blob/6c49f5420/gno.land/pkg/sdk/vm/convert.go#L51) | minted and charged, through [`convertArgToGno`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/convert.go#L56) called with the machine's allocator from [`keeper.go`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/keeper.go#L1366) |
+| A transaction argument becomes a `[N]byte` or `[]byte` | built uncharged as a raw [`ArrayValue`](https://github.com/gnolang/gno/blob/6c49f5420/gno.land/pkg/sdk/vm/convert.go#L198-L200) or [`SliceValue`](https://github.com/gnolang/gno/blob/6c49f5420/gno.land/pkg/sdk/vm/convert.go#L213-L220) | charged like any program-built array or slice, through [`NewArrayFromData`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/convert.go#L203) and [`NewSliceFromData`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/convert.go#L216) |
+| `cur.Address()`, `cur.PkgPath()` | a fresh untracked copy | the realm handle's own value, same backing, through [`.grealm.Address`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/uverse.go#L1589) and [`.grealm.PkgPath`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/uverse.go#L1600) |
+| `runtimeError.Error()`, `realm.Subpath()` | an untracked copy from `typedString` | a charged copy from [`newTypedString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L3409-L3411), at [`Error`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/uverse.go#L798) and [`Subpath`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/uverse.go#L1797) |
+| A map literal is checked for duplicate keys | keyed by Go `==` on `TypedValue`, in a [`map[TypedValue]` set](https://github.com/gnolang/gno/blob/6c49f5420/gnovm/pkg/gnolang/preprocess.go#L2495-L2504) | keyed by `MapKey`, through [`ComputeMapKey`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/preprocess.go#L2496-L2511), since `==` now compares `B` too; a [key of a type Go cannot compare](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/preprocess.go#L2500-L2503), a typed nil slice, map or func, skips the check, as [`maplit16.gno`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/tests/files/maplit16.gno#L5-L9) pins |
+| A string const is folded at preprocess | the folded value is a plain string | [`evalConst`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/preprocess.go#L4639-L4644) gives it its own backing, through `mintString`, uncharged |
+| A const is defined again over the same name | the old and new values compared with [`!=`](https://github.com/gnolang/gno/blob/6c49f5420/gnovm/pkg/gnolang/nodes.go#L2410), which for a string compares content | strings compared by `Str` in [`StaticBlock.Define2`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/nodes.go#L2410-L2416), since a second fold of the same const mints a second backing |
+| A string is saved to the store | written as the string | written as the string, `B` dropped, through [`MarshalAmino`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L125) |
 
 ## How the GC recount works
 
 The chart shows the head. Each node is a function or field in
-[`garbage_collector.go`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/garbage_collector.go#L290-L340).
+[`garbage_collector.go`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/garbage_collector.go#L290-L340).
 
 ```mermaid
 flowchart TD
@@ -64,17 +67,17 @@ flowchart TD
     VA --> V
 ```
 
-- [`GCVisitorFn`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/garbage_collector.go#L290)
+- [`GCVisitorFn`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/garbage_collector.go#L290)
   builds one visitor per GC run, with its own
-  [`countedStrings`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/garbage_collector.go#L295)
+  [`countedStrings`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/garbage_collector.go#L295)
   set, so the next run starts empty and the allocator holds no string state.
-- [`StringValue.GetShallowSize`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L904-L907)
+- [`StringValue.GetShallowSize`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L905-L908)
   returns the 48-byte header and nothing for the bytes.
 - The dedup check charges `allocStringByte * B.Extent` the first time a
   backing is seen in this run. `Extent` is the length at the mint, so a short
   slice still carries its source's full length.
 - A nil `B` adds nothing past the header. Panic text built by
-  [`typedString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L3374)
+  [`typedString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L3400)
   is the case that carries a nil `B`.
 - Objects still dedup by stamping `LastGCCycle` on themselves. Strings do
   not stamp, because a cached literal is shared by every machine in the
@@ -86,9 +89,9 @@ Each row is a set of live values handed to the visitor in one run. Both
 columns were measured by calling `GCVisitorFn` on each tree, base and head,
 from a test file overlaid with `go test -overlay`. The head column agrees with
 the project's own tests
-[`TestStringGCRecount`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc_test.go#L49-L70)
+[`TestStringGCRecount`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc_test.go#L49-L70)
 and
-[`TestStringSliceOutlivesSource`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc_test.go#L95-L105),
+[`TestStringSliceOutlivesSource`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc_test.go#L95-L105),
 which pass at the head.
 
 | Live values | Before, bytes | After, bytes |
@@ -102,7 +105,7 @@ which pass at the head.
 
 Creating that 32-byte slice charged 80 bytes before and 48 after, measured the
 same way. On the head,
-[`internalStringSize`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L1032)
+[`internalStringSize`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L1033)
 of a struct holding one 100-byte string returns 148, the charge that object's
 load now carries; before, the load charged 0 for it.
 
@@ -121,24 +124,58 @@ flowchart LR
     F --> M["mintString: new B,<br/>no Allocate"]
 ```
 
-- [`internalStringSize`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L1032)
+- [`internalStringSize`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L1033)
   walks the same inline slots the fill walks and sums `allocString + len` per
   string. A child object is a `RefValue` slot and pays when it loads itself.
-- The one [`Allocate`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/store.go#L602)
+- The one [`Allocate`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/store.go#L602)
   runs before the
-  [`cacheObjects` insert](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/store.go#L625).
+  [`cacheObjects` insert](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/store.go#L625).
   An `Allocate` after the insert could start a GC while the object sits in the
   cache unreachable from any root; the GC would evict it, and the next
   `GetObject` for that ID would decode a second copy.
-- [`mintString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L599-L607)
+- [`mintString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L600-L608)
   never charges, which keeps the fill free of `Allocate` calls.
-  [`gc_load_evicts_object.txtar`](https://github.com/gnolang/gno/blob/c800a571a/gno.land/pkg/integration/testdata/gc_load_evicts_object.txtar#L29)
+  [`gc_load_evicts_object.txtar`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/integration/testdata/gc_load_evicts_object.txtar#L29)
   loads one array through two slices with the allocator parked near its cap
   and expects both to land on the same array.
 
+## Why every node groups strings the same way
+
+`B` is a Go pointer, and no node stores or hashes it:
+[`MarshalAmino`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L125)
+writes `Str` alone. The recount reads only which live values share a backing.
+That grouping has to come out the same on every validator, or the recount and
+the gas differ between them. Three places keep it the same:
+
+- **A load mints.**
+  [`fillTypesOfValue`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/realm.go#L1899)
+  gives every string it loads a new backing, so the grouping depends only on
+  the stored bytes.
+- **A fold mints.**
+  [`evalConst`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/preprocess.go#L4639-L4644)
+  gives every folded string const its own backing. A `ConstExpr` stays on the
+  preprocessed code after the transaction ends, and
+  [`OpEval` pushes a copy of its value](https://github.com/gnolang/gno/blob/a5370a166/gnovm/adr/pr6110_string_backing_id.md?plain=1#L56-L63)
+  each time it runs. Without the mint, two realms folding the same imported
+  const `pp.A` would share one backing on a node that restarted and loaded
+  `pp` once, and hold two on a node that loaded `pp` once per deploy.
+  [`TestConstBackingPartitionSurvivesRestart`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/keeper_const_backing_test.go#L16-L45)
+  deploys that case and checks the two folds hold separate backings before and
+  after a restart.
+- **The object cache empties per message.**
+  [`AddPackage`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/keeper.go#L767),
+  [`Call`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/keeper.go#L1249)
+  and [`Run`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/keeper.go#L1519)
+  each take their store from
+  [`getGnoTransactionStore`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/keeper.go#L399-L403),
+  which calls `ClearObjectCache`, so every object loads again from the same
+  bytes. The
+  [doc on `StringValue`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L110-L113)
+  names this as the invariant the grouping rests on.
+
 ## Read the code in this order
 
-1. [`gnovm/pkg/gnolang/values.go:91-125`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L91-L125) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/values.go#L91)
+1. [`gnovm/pkg/gnolang/values.go:91-125`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L91-L125) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/values.go#L91)
    defines the new type and its wire form. If `MarshalAmino` wrote `B`, the
    stored bytes and the object hashes would change.
    ```go
@@ -151,7 +188,7 @@ flowchart LR
    }
    func (sv StringValue) MarshalAmino() (string, error) { return sv.Str, nil }
    ```
-2. [`gnovm/pkg/gnolang/alloc.go:589-607`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L589-L607) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/alloc.go#L589)
+2. [`gnovm/pkg/gnolang/alloc.go:589-608`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L589-L608) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/alloc.go#L589)
    is where a backing is born. Every string a program can hold should come
    from here, or the recount sees only its header.
    ```go
@@ -166,7 +203,7 @@ flowchart LR
    	return StringValue{Str: s, B: &stringBacking{Extent: int64(len(s))}}
    }
    ```
-3. [`gnovm/pkg/gnolang/values.go:2709-2717`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L2709-L2717) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/values.go#L2709)
+3. [`gnovm/pkg/gnolang/values.go:2727-2735`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L2727-L2735) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/values.go#L2727)
    is slicing, which now shares `B` instead of minting.
    ```go
    alloc.Allocate(allocString)
@@ -176,7 +213,7 @@ flowchart LR
    	V: StringValue{Str: src.Str[low:high], B: src.B},
    }
    ```
-4. [`gnovm/pkg/gnolang/garbage_collector.go:290-340`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/garbage_collector.go#L290-L340) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/garbage_collector.go#L290)
+4. [`gnovm/pkg/gnolang/garbage_collector.go:290-340`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/garbage_collector.go#L290-L340) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/garbage_collector.go#L290)
    is the recount. A dedup set that outlived one run would undercount the
    next one.
    ```go
@@ -189,8 +226,8 @@ flowchart LR
    	}
    }
    ```
-5. [`gnovm/pkg/gnolang/store.go:594-602`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/store.go#L594-L602) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/store.go#L594)
-   and [`gnovm/pkg/gnolang/realm.go:1899`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/realm.go#L1899) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/realm.go#L1899)
+5. [`gnovm/pkg/gnolang/store.go:594-602`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/store.go#L594-L602) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/store.go#L594)
+   and [`gnovm/pkg/gnolang/realm.go:1899`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/realm.go#L1899) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/realm.go#L1899)
    are the load. If `internalStringSize` skips a slot the fill re-mints, that
    string loads uncharged.
    ```go
@@ -200,23 +237,36 @@ flowchart LR
    // ...
    ds.alloc.Allocate(ss + rs + strs)
    ```
-6. [`gnovm/pkg/gnolang/alloc.go:1032`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L1032) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/alloc.go#L1032)
+6. [`gnovm/pkg/gnolang/alloc.go:1033`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L1033) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/alloc.go#L1033)
    is that walk. It must visit the same slots as `fillTypesOfValue`, and it
    panics on a value type it does not list.
-7. [`gnovm/pkg/gnolang/preprocess.go:2505-2517`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/preprocess.go#L2505-L2517) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/preprocess.go#L2505)
-   is the map-literal duplicate check, which compared keys with Go `==`. Two equal literals
-   from different mints differ in `B`, so a `map[TypedValue]` set would miss
-   the duplicate.
+7. [`gnovm/pkg/gnolang/preprocess.go:2496-2511`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/preprocess.go#L2496-L2511) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/preprocess.go#L2496)
+   is the map-literal duplicate check, which compared keys with Go `==`. Two
+   equal literals from different mints differ in `B`, so a `map[TypedValue]`
+   set would miss the duplicate. A key whose type Go cannot compare is
+   skipped, since `ComputeMapKey` panics on it.
    ```go
    kset := make(map[MapKey]struct{})
    // ...
-   mk, isNaN := cx.TypedValue.ComputeMapKey(nil, store, false)
-   if isNaN {
-   	continue // NaN never equals itself
-   }
-   if _, ok := kset[mk]; ok {
+   cx, ok := elt.Key.(*ConstExpr)
+   if ok && !cx.TypedValue.IsUndefined() && (cx.T == nil || isComparable(cx.T)) {
+   	mk, isNaN := cx.TypedValue.ComputeMapKey(nil, store, false)
+   	if isNaN {
+   		continue // NaN never equals itself
+   	}
+   	if _, ok := kset[mk]; ok {
    ```
-8. [`gnovm/pkg/gnolang/uverse.go:1589`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/uverse.go#L1589) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/uverse.go#L1589)
+8. [`gnovm/pkg/gnolang/preprocess.go:4639-4644`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/preprocess.go#L4639-L4644) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/preprocess.go#L4639)
+   and [`gnovm/pkg/gnolang/nodes.go:2410-2416`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/nodes.go#L2410-L2416) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/nodes.go#L2410)
+   are the const fold and the check on a second definition. If the fold kept
+   the backing it was handed, two nodes with different cache histories would
+   group the same strings differently.
+   ```go
+   if sv, ok := cv.V.(StringValue); ok {
+   	cv.V = mintString(sv.Str)
+   }
+   ```
+9. [`gnovm/pkg/gnolang/uverse.go:1589`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/uverse.go#L1589) · [↗](../../../../.worktrees/gno-review-6110/gnovm/pkg/gnolang/uverse.go#L1589)
    and the other native methods decide which returned strings carry a backing.
    A result built with `typedString` instead keeps a nil `B` and recounts as
    header only.
@@ -235,8 +285,13 @@ string contents a program sees do not change.
   a realm near its allocation cap can now fail where it fit before.
 - **Loading an object costs more.** Every inline string in it charges
   `allocString + len` at load; before it charged nothing.
+- **A byte argument costs more.** A `[]byte` or `[N]byte` argument to a call
+  now goes through `Allocate`, which
+  [counts it toward the allocation limit](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L407)
+  and [charges allocation gas](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L434-L436);
+  before it did neither.
 - **Gas totals move.** The
-  [`alloc_0.gno`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/tests/files/alloc_0.gno#L25)
+  [`alloc_0.gno`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/tests/files/alloc_0.gno#L25)
   golden goes from 8174 to 8898 bytes, and six integration txtars change their
   expected gas. Nodes running the base and the head would compute different
   gas for the same transaction; that is an inference from those goldens, which
@@ -248,21 +303,24 @@ string contents a program sees do not change.
 
 | Name | What it is |
 | --- | --- |
-| [`StringValue`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L111-L114) | The VM's string value: the Go string `Str` plus the backing pointer `B`; 24 bytes, up from 16. |
-| [`stringBacking`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L91-L93) | One per mint; two values share a backing exactly when their `B` pointers are equal. |
+| [`StringValue`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L117-L120) | The VM's string value: the Go string `Str` plus the backing pointer `B`; 24 bytes, up from 16. |
+| [`stringBacking`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L91-L93) | One per mint; two values share a backing exactly when their `B` pointers are equal. |
 | `Extent` | The byte length of the string at its mint, kept by every slice of it. |
 | mint | One call of `mintString` with a non-empty string, which creates a new `stringBacking`. |
-| [`mintString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L599-L607) | Builds a `StringValue` with a fresh backing and charges nothing; `""` gets a nil `B`. |
-| [`NewString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L589-L592) | Charges `allocString + len` through `AllocateString`, then calls `mintString`. |
-| [`allocString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L135) | The header charge per string value: `_allocHeap + 16`, which is 48 bytes. |
-| [`allocStringByte`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L136) | The charge per string byte: 1. |
-| [`GCVisitorFn`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/garbage_collector.go#L290) | Builds the visitor one GC run uses to recount every live value. |
-| [`countedStrings`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/garbage_collector.go#L295) | The set of backings already charged in the current GC run, empty at the start of each run. |
-| [`internalStringSize`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/alloc.go#L1032) | The sum of `allocString + len` over every inline string of an object being loaded. |
-| [`loadObjectSafe`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/store.go#L557) | Decodes one object from the store, charges it, caches it and fills it. |
+| [`mintString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L600-L608) | Builds a `StringValue` with a fresh backing and charges nothing; `""` gets a nil `B`. |
+| [`NewString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L589-L592) | Charges `allocString + len` through `AllocateString`, then calls `mintString`. |
+| [`allocString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L135) | The header charge per string value: `_allocHeap + 16`, which is 48 bytes. |
+| [`allocStringByte`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L136) | The charge per string byte: 1. |
+| [`GCVisitorFn`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/garbage_collector.go#L290) | Builds the visitor one GC run uses to recount every live value. |
+| [`countedStrings`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/garbage_collector.go#L295) | The set of backings already charged in the current GC run, empty at the start of each run. |
+| [`internalStringSize`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/alloc.go#L1033) | The sum of `allocString + len` over every inline string of an object being loaded. |
+| [`loadObjectSafe`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/store.go#L557) | Decodes one object from the store, charges it, caches it and fills it. |
 | `cacheObjects` | The store's in-memory map from object ID to loaded object; the GC can evict an entry no root reaches. |
-| [`fillTypesOfValue`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/realm.go#L1890) | Walks a freshly loaded value to restore its types, and now gives each string a backing. |
-| [`typedString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L3374) | Builds a string value with a nil `B` and no charge; used for panic text. |
-| [`newTypedString`](https://github.com/gnolang/gno/blob/c800a571a/gnovm/pkg/gnolang/values.go#L3383-L3385) | Builds a string value through `NewString`, charged and with a backing. |
+| [`fillTypesOfValue`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/realm.go#L1890) | Walks a freshly loaded value to restore its types, and now gives each string a backing. |
+| [`typedString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L3400) | Builds a string value with a nil `B` and no charge; used for panic text. |
+| [`newTypedString`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/values.go#L3409-L3411) | Builds a string value through `NewString`, charged and with a backing. |
 | `MapKey` | The byte key a runtime map uses for a value, compared by string content. |
-| [ADR](https://github.com/gnolang/gno/blob/c800a571a/gnovm/adr/pr6110_string_backing_id.md?plain=1#L20-L69) | The design record in the pull request, with the alternatives and the benchmarks. |
+| [`evalConst`](https://github.com/gnolang/gno/blob/a5370a166/gnovm/pkg/gnolang/preprocess.go#L4594) | Folds a constant expression at preprocess into a `ConstExpr`, and now gives a folded string its own backing. |
+| `ConstExpr` | A node holding a folded constant's value; it stays on the preprocessed code after the transaction that built it. |
+| [`ClearObjectCache`](https://github.com/gnolang/gno/blob/a5370a166/gno.land/pkg/sdk/vm/keeper.go#L401) | Empties the store's object cache; the keeper calls it each time a message takes its store. |
+| [ADR](https://github.com/gnolang/gno/blob/a5370a166/gnovm/adr/pr6110_string_backing_id.md?plain=1#L20-L77) | The design record in the pull request, with the alternatives and the benchmarks. |

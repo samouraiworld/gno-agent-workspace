@@ -1,0 +1,12 @@
+{
+ "dropped": [],
+ "candidates": [
+  {"index": 2001, "file": "gnovm/pkg/gnolang/values_conversions.go", "line": 1044, "angle": "removed",
+   "summary": "sibling sweep by shape: the other NewSliceFromData caller, the string to []byte conversion, could pass a buffer whose cap exceeds len the way convert.go:216 does",
+   "failure_scenario": "[]byte(s) in Go may round cap up to a size class; passed whole, cap(b) in gno would follow the Go runtime",
+   "verify_by": "grep -rn 'NewSliceFromData(' --include='*.go' gno.land gnovm tm2, then a filetest printing len and cap of []byte(\"abcde\") at head and base",
+   "band": "Warning", "fix_kind": "code", "checked": true, "run": true,
+   "evidence": "two callers at head: convert.go:216 and values_conversions.go:1044; refl_cap filetest prints 5 5 at head and base"}
+ ],
+ "completeness": "Catalog classes walked: determinism and gas (candidate 1, cap and charge follow base64 padding), VM semantics vs Go and type-check (candidate 2, map literal Go accepts is refused), realm state safety (round 2 Critical artifact rerun, closed). Global state, coin, storage deposit, caller identity, twin input paths, older stored data and VM-fault recoverability: the diff touches none. Sibling of the map-literal guard swept by type kind: chan is refused before the guard (channels are not permitted), so the pointer kind is the only comparable non-constant member."
+}
