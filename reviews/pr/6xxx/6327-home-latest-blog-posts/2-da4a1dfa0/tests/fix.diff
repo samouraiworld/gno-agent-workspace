@@ -1,0 +1,10 @@
+--- /home/davd/.cache/claude-tmp/claude-1000/-home-davd--claude-spares-spare-eoRZPd/dbd0950d-8987-4071-8996-80b46bed7b70/scratchpad/latest.sh	2026-11-19 20:05:23.181855390 +0800
++++ /home/davd/.cache/claude-tmp/claude-1000/-home-davd--claude-spares-spare-eoRZPd/dbd0950d-8987-4071-8996-80b46bed7b70/scratchpad/latest_fixed.sh	2026-11-19 20:05:42.452559290 +0800
+@@ -4,6 +4,6 @@
+     !on { next }
+     { gsub(/\]\(\/r\/gnoland\/blog/, "](" base "/r/gnoland/blog") }
+     /^### / { print "**" substr($0, 5) "**"; print ""; next }
+-    { print }
++    /^(<gno-columns>|<gno-columns-sep>|<\/gno-columns>|[0-9][0-9] [A-Z][a-z][a-z] [0-9][0-9][0-9][0-9])$/ { print }
+     /^<\/gno-columns>$/ { exit }'
+ }
