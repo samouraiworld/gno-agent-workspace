@@ -1,4 +1,5 @@
 # Review: [#6425](https://github.com/gnolang/gno/pull/6425)
+Posted: https://github.com/gnolang/gno/pull/6425#pullrequestreview-5974584286
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. The gas-use cache in [gas_use.go](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/gas_use.go#L122) drops a good measure on a slow indexer read, a Warning the branch introduces; the rest are Suggestions and Nits.
 Model: claude-opus-5-5, standard review
@@ -18,7 +19,7 @@ Round: 1. 3 finders, one reflector, 9 candidates, the Criticals and Warnings run
   ```
   </details>
 
-## gno.land/pkg/gnoweb/gas_use.go:122 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/gas_use.go#L122) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/gas_use.go#L122) · Warning
+## gno.land/pkg/gnoweb/gas_use.go:122 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/gas_use.go#L122) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/gas_use.go#L122) · Warning [posted](https://github.com/gnolang/gno/pull/6425#discussion_r4628381964)
 
 A partial indexer read with zero rows counts as success. One slow read then wipes a package's last gas measure for five minutes, and its commands fall back to the 10 M default.
 
@@ -59,7 +60,7 @@ Missing test: the node-down row in [handler_http_test.go](https://github.com/gno
 
 Not posted: a PLAUSIBLE Missing test that no verifier ran.
 
-## gno.land/pkg/gnoweb/components/ui/command.html:18 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/components/ui/command.html#L18) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/components/ui/command.html#L18) · Nit
+## gno.land/pkg/gnoweb/components/ui/command.html:18 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/components/ui/command.html#L18) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/components/ui/command.html#L18) · Nit [posted](https://github.com/gnolang/gno/pull/6425#discussion_r4628381976)
 
 Nit: the note rounds the gas cap up, printing 38 M beside `-gas-wanted 37_600_000`, because [FormatGas](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/components/gas.go#L25) drops the decimal from 10 M upward.
 
@@ -71,7 +72,7 @@ NewTxGas(FallbackGasPrice, GasUse{Max: 18_800_000, Calls: 13}).Secure.WantedFlag
 ```
 </details>
 
-## gno.land/pkg/gnoweb/markdown/context.go:60 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/markdown/context.go#L60) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/markdown/context.go#L60) · Nit
+## gno.land/pkg/gnoweb/markdown/context.go:60 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/markdown/context.go#L60) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/markdown/context.go#L60) · Nit [posted](https://github.com/gnolang/gno/pull/6425#discussion_r4628381981)
 
 Nit: no reader takes the gas lookup copied into each `<gno-foreign>` context, since [the foreign parser](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/markdown/ext_foreign.go#L431) loads no forms.
 
@@ -81,11 +82,11 @@ Suggestion: [GasPrice](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693
 
 Not posted: carried by the section on client.go:261, and no judge ran it.
 
-## gno.land/pkg/gnoweb/client.go:261 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/client.go#L261) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/client.go#L261) · Suggestion
+## gno.land/pkg/gnoweb/client.go:261 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/client.go#L261) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/client.go#L261) · Suggestion [posted](https://github.com/gnolang/gno/pull/6425#discussion_r4628381996)
 
 Suggestion: a failed refresh resets `gasAt` and keeps the old price, so the page labels a price of any age as the chain's own. I think GasPrice should return an error past a few TTLs, so the page shows the estimated label.
 
-## gno.land/pkg/gnoweb/components/gas.go:35 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/components/gas.go#L35) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/components/gas.go#L35) · Suggestion
+## gno.land/pkg/gnoweb/components/gas.go:35 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/components/gas.go#L35) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/components/gas.go#L35) · Suggestion [posted](https://github.com/gnolang/gno/pull/6425#discussion_r4628382004)
 
 Suggestion: a call with no indexer data gets `-gas-wanted 10_000_000`, and [-indexer-url defaults to empty](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/cmd/gnoweb/main.go#L152). A call above 10 M then fails its simulation with no figure in the note to raise to; I think the note should name the ceiling and the fee per 1000 gas.
 
@@ -97,7 +98,7 @@ grep -n 'indexer-url' -A3 gno.land/cmd/gnoweb/main.go
 ```
 </details>
 
-## gno.land/pkg/gnoweb/components/gas.go:135 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/components/gas.go#L135) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/components/gas.go#L135) · Suggestion
+## gno.land/pkg/gnoweb/components/gas.go:135 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/components/gas.go#L135) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/components/gas.go#L135) · Suggestion [posted](https://github.com/gnolang/gno/pull/6425#discussion_r4628382012)
 
 Suggestion: the raise case has no `minGasUseCalls` check, and [gasUses](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/gas_use.go#L61) keeps the maximum. Any single 400 M call raises that function's command to the 1 GNOT cap for every viewer.
 
@@ -116,6 +117,6 @@ Suggestion: the dry run and the broadcast sit on [separate lines](https://github
 
 Not posted: gfanton's [open thread](https://github.com/gnolang/gno/pull/6425#discussion_r4626768204) asks for the same `&&` and blocks on it.
 
-## gno.land/pkg/gnoweb/markdown/ext_forms.go:254 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/markdown/ext_forms.go#L254) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/markdown/ext_forms.go#L254) · Suggestion
+## gno.land/pkg/gnoweb/markdown/ext_forms.go:254 [gh](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/markdown/ext_forms.go#L254) · [↗](../../../../../.worktrees/gno-review-6425/gno.land/pkg/gnoweb/markdown/ext_forms.go#L254) · Suggestion [posted](https://github.com/gnolang/gno/pull/6425#discussion_r4628382029)
 
 Suggestion: a form on a `/u/` page looks its gas up under `gno.land/u/<name>`, a path no call targets. [GetUserView](https://github.com/gnolang/gno/blob/6b7e7bdfc61f4db559693bfdc521da564f364f41/gno.land/pkg/gnoweb/handler_http.go#L1138) renders `/r/<name>/home` with the `/u/` URL, so the measure never applies and each page spends an indexer read.
