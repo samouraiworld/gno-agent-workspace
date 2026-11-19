@@ -1,0 +1,2 @@
+{"candidates": [], "dropped": [],
+ "completeness": "Sibling sweep by shape: `NewStore(nil,` in non-test Go under gnovm, gno.land, misc and contribs returned nothing; every hit is a gnolang unit test building a bare store with no filetest runner. The machine-on-a-separate-allocator shape in gnovm/pkg/test/test.go is named by the PR body as a follow-up. Catalog: Gas and Determinism are the classes the diff touches, covered by candidates 1-3; no VM, realm, banker, deposit, caller or decoder code changes, so the other classes have no material."}

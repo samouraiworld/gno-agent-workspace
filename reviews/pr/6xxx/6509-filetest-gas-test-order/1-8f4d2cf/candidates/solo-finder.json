@@ -1,0 +1,86 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/pkg/test/imports.go",
+      "line": 248,
+      "angle": "removed",
+      "summary": "Giving the root test store its own allocator stops machines in other StoreWithOptions consumers (gno run, gno repl, multiarch-determinism) from sharing their store's allocator. That is the reverse of what the PR does for filetests.",
+      "failure_scenario": "`gno run` builds its machine with MaxAllocBytes 500_000_000 (run.go:237). The store is test.ProdStore's root in non-realm mode, or a BeginTransaction of it in realm mode (run.go:229). At base the root had no allocator, so machine.go:189-190 installed the machine's. Store-side allocations then counted against the 500 MB cap and were seen by the machine's GC: object loads (store.go:597) and the FuncValue copies made while preprocessing a generic builtin (preprocess.go:1979, 2304). At head the store keeps a separate MaxInt64 allocator with no GC hook and no gas meter, so those allocations escape gno run's cap. The same detachment hits gno repl (repl.go:88, root store) and misc/multiarch-determinism (main.go:46, MaxAllocBytes on the root). The PR body's follow-up list names only test.go as still running on a different allocator. The parent's m1 mutation shows filetest.go alone makes filetest gas order-independent, so within this PR the imports.go hunk is load-bearing only for the require.Same assertion.",
+      "verify_by": "In both worktrees, add `fmt.Fprintln(os.Stderr, m.Store.GetAllocator() == m.Alloc)` after the machine is built at run.go:240. Run `go run ./gnovm/cmd/gno run x.gno` on a main-package file, and again with `-pkgpath gno.land/r/demo/x`. Expected: base prints true both times, head prints false both times.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "machine.go:189-190 `} else if store.GetAllocator() == nil { store.SetAllocator(alloc)` is the only install path; run.go:229 `store = testStore.BeginTransaction(nil, nil, nil, nil)` and run.go:237 `MaxAllocBytes: maxAllocRun` (500_000_000 at run.go:412); store.go:273 forks `ds.alloc.Fork().Reset()`, which is non-nil once the root has one.",
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "gnovm/pkg/test/filetest.go",
+      "line": 471,
+      "angle": "lines",
+      "summary": "A realm filetest is preprocessed and runs its init on a nested store whose allocator is a gasless fork. The PR's new charging of preprocessing allocations therefore skips every PKGPATH under /r/.",
+      "failure_scenario": "For PKGPATH gno.land/r/..., runTest replaces m.Store with m.Store.BeginTransaction(nil, nil, nil, nil) before m.RunMemPackage(mpkg, true). BeginTransaction (store.go:273) gives that store ds.alloc.Fork().Reset(): the same MAXALLOC, bytes reset to 0, and no gas meter or GC hook. The whole file, main included, is preprocessed on that store. A generic-builtin specialization such as make is then neither charged gas nor counted against the filetest's shared allocator, while the same file under PKGPATH main is charged (+113 gas per site, the delta behind the 19 goldens). Store-side allocations during realm init also get a second MAXALLOC budget with no GC, which panics 'allocation limit exceeded (no GC)' instead of collecting. The PR body says preprocessing allocations are now charged gas and count against MAXALLOC; that holds only for non-realm filetests. No filetest carries both a Gas golden and a realm PKGPATH (grep: 0 of the 47 Gas goldens), so nothing pins either behaviour.",
+      "verify_by": "Write a filetest with `// PKGPATH: gno.land/r/test/x` whose main has one `make([]byte, 10)` site, then a copy with two sites, and RunFiletest both. Do the same pair with no PKGPATH. Expected: the main pair's per-site gas delta includes the 113 preprocessing charge and the realm pair's does not. Add `txs.SetAllocator(m.Alloc)` after filetest.go:471 and the realm delta should gain it.",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "filetest.go:471 `orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil, nil)`, then `m.RunMemPackage(mpkg, true)` on txs; store.go:273 `alloc: ds.alloc.Fork().Reset()`; alloc.go:381-391 Fork copies only maxBytes and bytes. `grep -rln '^// Gas:' gnovm/tests/files | xargs grep -l 'PKGPATH: gno.land/r/'` returned nothing, out of 47 files with a Gas golden.",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "gnovm/pkg/gnolang/files_test.go",
+      "line": 128,
+      "angle": "removed",
+      "summary": "TestFiles still gives each alloc_* filetest a fresh store, because their goldens were order-dependent on a pooled store. The cause may be the same allocator dependence this PR removes.",
+      "failure_scenario": "files_test.go:128-138 sends every alloc_* filetest to a newly built store. Its comment gives the reason: their absolute allocator byte goldens 'depend on which packages a pooled, previously-used store has already loaded'. At base, the first stdlib load installed its allocator on the pooled root store. Every later filetest's transaction then forked a separate allocator, so object loads and preprocessing copies stopped counting in the machine's allocator. That is the order dependence this PR removes by sharing one allocator per filetest. If it was the alloc_* cause too, each alloc_* test now builds a whole store for nothing, and the carve-out keeps the suite's memory and time cost.",
+      "verify_by": "Drop the `strings.HasPrefix(subTestName, \"alloc\")` clause at files_test.go:128. Run `go test ./gnovm/pkg/gnolang -run 'TestFiles' -count=3` at head. Green means the carve-out is dead. Run the same at base to confirm it was needed there.",
+      "band": "Suggestion",
+      "fix_kind": "test",
+      "checked": false,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/test/filetest.go",
+      "line": 85,
+      "angle": "removed",
+      "summary": "Replacing MaxAllocBytes with Alloc: NewAllocator(maxAlloc) changes behaviour for a zero or negative MAXALLOC: before, it silently became unlimited.",
+      "settled_by": "filetest.go:40-42 maps 0 to math.MaxInt64 before NewAllocator, so zero behaves as before. `grep -rn 'MAXALLOC: -\\|MAXALLOC: 0' gnovm/tests/files` returned no hits, so no filetest uses a non-positive cap, and a negative one now fails loudly instead of silently."
+    },
+    {
+      "file": "gnovm/pkg/test/imports.go",
+      "line": 248,
+      "angle": "catalog",
+      "summary": "A non-nil root allocator, written by root-store loads and read by every BeginTransaction Fork, could race once tests run in parallel.",
+      "settled_by": "cmd/gno/test.go:302-305 'One TestOptions (and store) per worker'. files_test.go:139-140 draws each store from optsPool and returns it only when the subtest ends, so no store is shared concurrently. preprocess_test.go:66-69 runs its shared-store subtests sequentially, with no t.Parallel."
+    },
+    {
+      "file": "gnovm/pkg/test/imports.go",
+      "line": 248,
+      "angle": "catalog",
+      "summary": "The PR body's claim that the root store gets its own allocator 'as VMKeeper.Initialize does', and whether on-chain gas moves.",
+      "settled_by": "keeper.go:275-276 `alloc := gno.NewAllocator(maxAllocTx)` and `vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)`, so the parity claim holds. The diff header shows 22 files, all under gnovm/pkg/test and gnovm/tests/files, so no keeper or VM code changes."
+    },
+    {
+      "file": "gnovm/pkg/test/test.go",
+      "line": 345,
+      "angle": "reach",
+      "summary": "Package tests run by `gno test` may report different gas now that tgs forks a non-nil root allocator.",
+      "settled_by": "test.go:351-363: at base, m2 (MaxAllocBytes MaxInt64, nil GasMeter) installed its allocator on tgs through machine.go:189. At head, tgs holds a gasless MaxInt64 fork. In both cases, runTestFiles overwrites m.Alloc (test.go:532, 557), so no gas meter ever saw the store-side allocations and the reported GAS line is unchanged."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/preprocess.go",
+      "line": 1979,
+      "angle": "catalog",
+      "summary": "With the root's own allocator, FuncValue copies made while preprocessing on the root store could get a different PkgID.",
+      "settled_by": "`grep -n 'func (fv \\*FuncValue) Copy' -A 25 values.go` shows only `alloc.AllocateFunc()`, with no stampPkgID call, so the copy's ownership is independent of which allocator it gets."
+    }
+  ]
+}
