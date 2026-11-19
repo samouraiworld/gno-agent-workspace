@@ -1,4 +1,5 @@
 # Review: [#6509](https://github.com/gnolang/gno/pull/6509)
+Posted: https://github.com/gnolang/gno/pull/6509#pullrequestreview-5979593429
 
 Event: APPROVE
 Verdict: APPROVE. Nothing blocks: the three Suggestions are `gno run` and `gno repl` losing the shared allocator, realm filetests still preprocessing uncharged, and a fresh-store carve-out in `TestFiles` that has lost its reason.
@@ -80,7 +81,7 @@ Round: 1. One finder, a reflector pass, 3 candidates, each run from scratch by a
   The same run at the merge base fails eight to ten `alloc_*` goldens, which ones depending on scheduling, the case the comment describes.
   </details>
 
-## gnovm/pkg/test/imports.go:248 [gh](https://github.com/gnolang/gno/blob/8f4d2cfa37a865f98e3b096cc6e27a2c58f5919c/gnovm/pkg/test/imports.go#L248) · [↗](../../../../../.worktrees/gno-review-6509/gnovm/pkg/test/imports.go#L248) · Suggestion
+## gnovm/pkg/test/imports.go:248 [gh](https://github.com/gnolang/gno/blob/8f4d2cfa37a865f98e3b096cc6e27a2c58f5919c/gnovm/pkg/test/imports.go#L248) · [↗](../../../../../.worktrees/gno-review-6509/gnovm/pkg/test/imports.go#L248) · Suggestion [posted](https://github.com/gnolang/gno/pull/6509#discussion_r4632187479)
 
 Suggestion: with this allocator, `gno run` and `gno repl` machines no longer [share the store's allocator](https://github.com/gnolang/gno/blob/8f4d2cfa37a865f98e3b096cc6e27a2c58f5919c/gnovm/pkg/gnolang/machine.go#L189-L190), so store allocations escape the 500 MB cap of `gno run`. Share one allocator there too, or list both commands as follow-ups.
 
