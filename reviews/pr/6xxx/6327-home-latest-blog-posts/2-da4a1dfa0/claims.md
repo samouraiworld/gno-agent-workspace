@@ -4,7 +4,7 @@ A hand-run pass over `latest_blogposts`, the failed-query path and `staticFile`;
 
 | Line | # | Band | State | Base | Draft |
 | --- | --- | --- | --- | --- | --- |
-| [`gnoalias.sh:37`](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/misc/deployments/home-alias/gnoalias.sh#L37) | 1 | Warning | CONFIRMED | new, the base script has no blog query | not posted |
+| [`gnoalias.sh:37`](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/misc/deployments/home-alias/gnoalias.sh#L37) | 1 | Nit | CONFIRMED | new, the base script has no blog query | not posted |
 | [`alias_static.go:169-177`](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/gno.land/pkg/gnoweb/alias_static.go#L169-L177) | 2 | Suggestion | CONFIRMED | new, the base reads the file once at startup | not posted |
 | [`gnoalias.sh:67`](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/misc/deployments/home-alias/gnoalias.sh#L67) | 3 | Nit | the reviewer's own note | new | not posted |
 
@@ -16,7 +16,7 @@ A hand-run pass over `latest_blogposts`, the failed-query path and `staticFile`;
 - Posted repro: a hand-written blog render in place of the realm query, run verbatim on a copy of `misc/deployments/home-alias` at da4a1dfa0; its output puts the `<!--` line above the five headings the live run lost. The realm side rests on the run above.
 - Check, every shape: [`tests/render_probe.go`](tests/render_probe.go) renders through `NewHTMLRenderer` and `RenderRealm` as `GetMarkdownView` does. Second-line `<!--`: table of contents 10 entries to 5, the Boards heading and the Read-the-blog button gone. Second-line ```` ``` ````: 10 to 5, the five sections inside a code block. `## `: 11 entries. `<details>`, `<gno-columns>`, `<gno-columns-sep>`: 10, unchanged. Inputs and outputs under [`tests/cases/`](tests/cases/).
 - Fix, run both ways: [`tests/fix.diff`](tests/fix.diff). Every case above, plus a first title line of `<!--` or ```` ``` ````, renders the full page with the Boards heading and `Stay connected` last, `tests/cases/fixed_*.md`. On the live mainnet index, `vm/qrender gno.land/r/gnoland/blog:` read 2026-11-19, [`tests/render_mainnet.md`](tests/render_mainnet.md), its output is byte for byte the unfixed script's. The gnokey image the compose file runs is built `FROM alpine:3`, `Dockerfile:120`, so its awk is busybox: in `alpine:3.24.4`, BusyBox v1.37.0, `render_override` with and without the fix gives output byte for byte the GNU Awk 5.4.1 output, on the `<!--` title, the `## ` title and the mainnet index.
-- Band: Warning. Only the blog admin, its moderators or a passed govDAO proposal write titles, and the same text on the blog page hides only the rest of the blog page; on the homepage it removes half of gno.land's front page, against the script's own comment at lines 29-30 that a title becomes one bold paragraph.
+- Band: Nit, on the reviewer's call; the case for Warning was this: only the blog admin, its moderators or a passed govDAO proposal write titles, and the same text on the blog page hides only the rest of the blog page; on the homepage it removes half of gno.land's front page, against the script's own comment at lines 29-30 that a title becomes one bold paragraph.
 - Not raised before: round 1's two script threads, `discussion_r4297641063` and `discussion_r4297641085`, cover the failed-query path and the interval.
 
 ## 2. `staticFile` caches a read that costs 2% of the render beside it

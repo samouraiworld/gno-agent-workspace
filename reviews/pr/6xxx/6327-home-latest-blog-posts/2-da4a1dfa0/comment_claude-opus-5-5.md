@@ -1,6 +1,6 @@
 # PR [#6327](https://github.com/gnolang/gno/pull/6327): feat(home): show the latest blog posts, and let gnoweb re-read static pages
-Event: REQUEST_CHANGES
-Verdict: REQUEST CHANGES. A blog title whose second line is `<!--` hides every homepage section below the blog, and the branch is what copies that line into `home.md`; the rest of the head since 4ee1b62ff was read for the cache type and the failed-query path only.
+Event: APPROVE
+Verdict: APPROVE. Nothing blocks: the title that can hide the homepage sections below the blog is a Nit, since only the blog's admin and moderators write titles; the rest of the head since 4ee1b62ff was read for the cache type and the failed-query path only.
 Model: claude-opus-5-5, hand-run pass at high effort, no finders or judges
 Commit: da4a1dfa0 (latest)
 Overview: [overview](../overview.md)
@@ -10,9 +10,9 @@ Round: 2. The head moved from 4ee1b62ff to da4a1dfa0. Two findings run here, on 
 
 ## Body
 
-## misc/deployments/home-alias/gnoalias.sh:37 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/misc/deployments/home-alias/gnoalias.sh#L37) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L37) · Warning
+## misc/deployments/home-alias/gnoalias.sh:37 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/misc/deployments/home-alias/gnoalias.sh#L37) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L37) · Nit [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4630774829)
 
-This `{ print }` copies a blog title's later lines into `home.md`, so a title whose second line is `<!--` hides every homepage section below the blog.
+Nit: this `{ print }` copies a blog title's later lines into `home.md`, so a title whose second line is `<!--` hides every homepage section below the blog.
 
 ```suggestion
     /^(<gno-columns>|<gno-columns-sep>|<\/gno-columns>|[0-9][0-9] [A-Z][a-z][a-z] [0-9][0-9][0-9][0-9])$/ { print }
@@ -50,10 +50,10 @@ The `<!--` from the title opens a comment no later line closes, so gnoweb serves
 [`prepareAndSetPost`](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/examples/gno.land/p/gnoland/blog/v0/blog.gno#L176) trims only the ends of a title, so `ModAddPost` stores this one with its newline.
 </details>
 
-## gno.land/pkg/gnoweb/alias_static.go:169-177 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/gno.land/pkg/gnoweb/alias_static.go#L169-L177) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L169) · Suggestion
+## gno.land/pkg/gnoweb/alias_static.go:169-177 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/gno.land/pkg/gnoweb/alias_static.go#L169-L177) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L169) · Suggestion [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4630774866)
 
 Suggestion: read `home.md` on every request and drop this cache, its lock and its 2 s settle window, since [`GetMarkdownView`](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/gno.land/pkg/gnoweb/handler_http.go#L745) already renders the whole page on every request.
 
-## misc/deployments/home-alias/gnoalias.sh:67 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/misc/deployments/home-alias/gnoalias.sh#L67) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L67) · Nit
+## misc/deployments/home-alias/gnoalias.sh:67 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/misc/deployments/home-alias/gnoalias.sh#L67) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L67) · Nit [posted](https://github.com/gnolang/gno/pull/6327#discussion_r4630774873)
 
 nit: by default, you should add a sentence if the script fails to fetch from the RPC.
