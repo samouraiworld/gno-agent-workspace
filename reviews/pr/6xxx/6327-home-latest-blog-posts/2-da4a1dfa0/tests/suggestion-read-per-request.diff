@@ -1,0 +1,125 @@
+diff --git a/gno.land/pkg/gnoweb/alias_static.go b/gno.land/pkg/gnoweb/alias_static.go
+index ec4c0007a..f4e945761 100644
+--- a/gno.land/pkg/gnoweb/alias_static.go
++++ b/gno.land/pkg/gnoweb/alias_static.go
+@@ -4,8 +4,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"strings"
+-	"sync"
+-	"time"
++	"sync/atomic"
+ 
+ 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
+ )
+@@ -155,9 +154,9 @@ func isBlockIndicator(v string) bool {
+ }
+ 
+ // NewStaticFileAlias reads a static-markdown alias from path. The page is
+-// re-read whenever the file's size or modification time changes, so the file
+-// can be replaced (ideally by renaming a new one over it) without restarting
+-// gnoweb. If a later read fails, the last content read is kept.
++// read again on every request, so the file can be replaced (ideally by
++// renaming a new one over it) without restarting gnoweb. If a later read
++// fails, the last content read is kept.
+ func NewStaticFileAlias(path string) (AliasTarget, error) {
+ 	t, err := (&staticFile{path: path}).current()
+ 	if err != nil {
+@@ -167,55 +166,39 @@ func NewStaticFileAlias(path string) (AliasTarget, error) {
+ }
+ 
+ type staticFile struct {
+-	path string
+-
+-	mu      sync.Mutex
+-	modTime time.Time // zero: read the file again on the next request
+-	size    int64
+-	target  AliasTarget
+-	failing bool // the last read failed, and its error was returned then
++	path    string
++	last    atomic.Pointer[AliasTarget] // the last page read, served when a read fails
++	failing atomic.Bool                 // the last read failed, and its error was returned then
+ }
+ 
+-// staticFileSettle is how old a file's modification time must be before a
+-// read of it is trusted. A write within the same timestamp tick as the read
+-// (coarse filesystem clocks, an in-place write caught halfway) would
+-// otherwise leave stale content until the next change.
+-const staticFileSettle = 2 * time.Second
+-
+ // current returns the page as the file is now. A failed read keeps the last
+ // page read, and its error is returned only when reads start failing.
+ func (f *staticFile) current() (AliasTarget, error) {
+-	f.mu.Lock()
+-	defer f.mu.Unlock()
+-	err := f.reload()
+-	reported := f.failing
+-	f.failing = err != nil
+-	if reported {
++	t, err := f.read()
++	if err == nil {
++		f.last.Store(&t)
++	} else if last := f.last.Load(); last != nil {
++		t = *last
++	}
++	if f.failing.Swap(err != nil) {
+ 		err = nil
+ 	}
+-	t := f.target
+ 	t.file = f
+ 	return t, err
+ }
+ 
+-// reload reads the file again if its size or modification time changed.
+-func (f *staticFile) reload() error {
++func (f *staticFile) read() (AliasTarget, error) {
+ 	info, err := os.Stat(f.path)
+-	if err != nil || (info.ModTime().Equal(f.modTime) && info.Size() == f.size) {
+-		return err
++	if err != nil {
++		return AliasTarget{}, err
+ 	}
+-	// A FIFO or device could block the read while f.mu is held.
++	// A FIFO or device could block the request reading it.
+ 	if !info.Mode().IsRegular() {
+-		return fmt.Errorf("%s: not a regular file", f.path)
++		return AliasTarget{}, fmt.Errorf("%s: not a regular file", f.path)
+ 	}
+ 	content, err := os.ReadFile(f.path)
+ 	if err != nil {
+-		return err
+-	}
+-	f.target, f.size, f.modTime = NewStaticAlias(string(content)), info.Size(), info.ModTime()
+-	// Abs: a time ahead of the clock (skew) would otherwise never settle.
+-	if time.Since(f.modTime).Abs() < staticFileSettle {
+-		f.modTime = time.Time{}
++		return AliasTarget{}, err
+ 	}
+-	return nil
++	return NewStaticAlias(string(content)), nil
+ }
+diff --git a/gno.land/pkg/gnoweb/alias_static_test.go b/gno.land/pkg/gnoweb/alias_static_test.go
+index 7d8b51715..656d9ea87 100644
+--- a/gno.land/pkg/gnoweb/alias_static_test.go
++++ b/gno.land/pkg/gnoweb/alias_static_test.go
+@@ -308,20 +308,3 @@ func TestNewStaticFileAliasRereadsUnsettledFile(t *testing.T) {
+ 	require.NoError(t, err)
+ 	assert.Equal(t, "# Two", target.Value)
+ }
+-
+-func TestNewStaticFileAliasTrustsFutureModTime(t *testing.T) {
+-	path := filepath.Join(t.TempDir(), "home.md")
+-	require.NoError(t, os.WriteFile(path, []byte("# One"), 0o644))
+-	ahead := time.Now().Add(time.Hour) // clock skew: an hour ahead still counts as settled
+-	require.NoError(t, os.Chtimes(path, ahead, ahead))
+-
+-	target, err := gnoweb.NewStaticFileAlias(path)
+-	require.NoError(t, err)
+-
+-	// Same size and mtime: cached, not re-read on every request.
+-	require.NoError(t, os.WriteFile(path, []byte("# Two"), 0o644))
+-	require.NoError(t, os.Chtimes(path, ahead, ahead))
+-	target, err = gnoweb.ResolveAlias(target)
+-	require.NoError(t, err)
+-	assert.Equal(t, "# One", target.Value)
+-}
