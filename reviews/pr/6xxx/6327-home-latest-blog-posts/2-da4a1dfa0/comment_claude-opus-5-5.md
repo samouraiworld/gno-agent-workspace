@@ -28,6 +28,7 @@ printf '<gno-columns>\n### [Upgrade notice\n<!--](/r/gnoland/blog:p/x)\n30 Oct 2
 sed -n '/^BLOG_MARKER=/p;/^latest_blogposts() {/,/^}/p;/^render_override() {/,/^}/p' gnoalias.sh > funcs.sh
 cp home.mainnet.md home-override.md
 qrender() { cat render.md; }; . ./funcs.sh; render_override | grep -E '^<!--|^## ' | sed 's/<gno-icon[^>]*> //; s/](.*//'
+rm render.md funcs.sh home-override.md
 ```
 
 The `<!--` from the title opens a comment no later line closes, so gnoweb serves only the five sections above it:
@@ -51,26 +52,7 @@ The `<!--` from the title opens a comment no later line closes, so gnoweb serves
 
 ## gno.land/pkg/gnoweb/alias_static.go:169-177 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/gno.land/pkg/gnoweb/alias_static.go#L169-L177) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L169) · Suggestion
 
-Suggestion: read `home.md` on every request and drop the lock, `modTime`, `size` and the settle window, since the read costs 7.6 µs beside a 373 µs render.
-
-<details><summary>patch and timing</summary>
-
-The patch keeps the last good page in an `atomic.Pointer` and deletes `TestNewStaticFileAliasTrustsFutureModTime`, which pins the cache serving stale content; the other alias tests pass with `-race`.
-
-```bash
-# from a local clone of gnolang/gno:
-gh pr checkout 6327 -R gnolang/gno
-base=https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6327-home-latest-blog-posts/2-da4a1dfa0/tests
-curl -fsSL $base/suggestion-read-per-request.diff | git apply
-go test -count=1 -race ./gno.land/pkg/gnoweb/ ./gno.land/cmd/gnoweb/ -run Alias
-mkdir -p .bench && curl -fsSL -o .bench/main.go $base/bench_read_vs_render.go && go run ./.bench misc/deployments/home-alias/home.mainnet.md
-```
-
-```text
-stat+read+NewStaticAlias: 7.58µs per request
-RenderRealm:              373.493µs per request
-```
-</details>
+Suggestion: read `home.md` on every request and drop this cache, its lock and its 2 s settle window, since [`GetMarkdownView`](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/gno.land/pkg/gnoweb/handler_http.go#L745) already renders the whole page on every request.
 
 ## misc/deployments/home-alias/gnoalias.sh:67 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/misc/deployments/home-alias/gnoalias.sh#L67) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L67) · Nit
 
