@@ -73,26 +73,20 @@ Suggestion: read `home.md` on every request and drop the lock, `modTime`, `size`
 
 <details><summary>patch and timing</summary>
 
-The patch keeps the last page behind an `atomic.Pointer` and the warn-once flag behind an `atomic.Bool`, and deletes `TestNewStaticFileAliasTrustsFutureModTime`, which asserts that the cache serves `# One` after the file changed to `# Two`. Every other test under `-run 'TestNewStaticFileAlias|TestNewStaticAlias|Alias'` in `gno.land/pkg/gnoweb` and `gno.land/cmd/gnoweb` passes with `-race`, the FIFO and unsettled-file tests included.
+The patch keeps the last good page in an `atomic.Pointer` and deletes `TestNewStaticFileAliasTrustsFutureModTime`, which pins the cache serving stale content; the other alias tests pass with `-race`.
 
 ```bash
 # from a local clone of gnolang/gno:
 gh pr checkout 6327 -R gnolang/gno
-curl -fsSL https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6327-home-latest-blog-posts/2-da4a1dfa0/tests/suggestion-read-per-request.diff | git apply
-go test -count=1 -race ./gno.land/pkg/gnoweb/ ./gno.land/cmd/gnoweb/ -run 'TestNewStaticFileAlias|TestNewStaticAlias|Alias'
-```
-
-The timing averages 2000 rounds of each on a 16-core Linux laptop, with the page rendered through `RenderRealm` as `GetMarkdownView` does on every request:
-
-```bash
-mkdir -p .bench && curl -fsSL -o .bench/main.go https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6327-home-latest-blog-posts/2-da4a1dfa0/tests/bench_read_vs_render.go
-go run ./.bench misc/deployments/home-alias/home.mainnet.md
+base=https://raw.githubusercontent.com/samouraiworld/gno-agent-workspace/main/reviews/pr/6xxx/6327-home-latest-blog-posts/2-da4a1dfa0/tests
+curl -fsSL $base/suggestion-read-per-request.diff | git apply
+go test -count=1 -race ./gno.land/pkg/gnoweb/ ./gno.land/cmd/gnoweb/ -run Alias
+mkdir -p .bench && curl -fsSL -o .bench/main.go $base/bench_read_vs_render.go && go run ./.bench misc/deployments/home-alias/home.mainnet.md
 ```
 
 ```text
 stat+read+NewStaticAlias: 7.58µs per request
 RenderRealm:              373.493µs per request
-ratio: 49x
 ```
 </details>
 
