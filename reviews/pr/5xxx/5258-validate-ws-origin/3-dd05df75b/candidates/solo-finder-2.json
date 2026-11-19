@@ -1,0 +1,102 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "tm2/pkg/bft/rpc/lib/server/handlers.go",
+      "line": 1144,
+      "angle": "user topic: no-Origin client under every CORSAllowedOrigins value; removed behaviour; twin input paths",
+      "summary": "a node whose cors_allowed_origins is narrowed refuses /websocket to every client that sends no Origin header, the in-tree Go WS client included, while it still serves the same client's HTTP POST",
+      "failure_scenario": "Operator sets cors_allowed_origins = [\"https://gno.land\"] (or [\"https://*.gno.land\"]). node.go:951-953 hands that list to NewWebsocketManager, which installs rs/cors OriginAllowed as CheckOrigin; OriginAllowed lower-cases the empty Origin and finds it in no list (rs/cors v1.11.1 cors.go:462-480), so gorilla answers 403. rpcclient.NewWSClient (ws.NewClient dials with a nil header) fails with 'unable to dial RPC, websocket: bad handshake', so tx-archive backup over ws and gnohealth timestamp over ws stop working against that node, as do curl, websocat and Node ws clients; an HTTP POST with no Origin to the same node still answers 200. At the merge base every row connects. Under nil and [\"*\"] the no-Origin client still connects. A browser cannot omit Origin on a WebSocket handshake, so accepting an absent Origin keeps the CSWSH protection.",
+      "verify_by": "cp tests/solo-finder-2-no-origin-client_test.go tm2/pkg/bft/rpc/lib/server/zz_solo_finder_2_no_origin_test.go && go test -count=1 -v -run TestSoloFinder2_NoOriginClient ./tm2/pkg/bft/rpc/lib/server/ : the two narrowed rows fail at head; with the origins argument dropped (merge base, via go test -overlay) all four rows pass",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head dd05df75b: cors_allowed_origins=[\"https://gno.land\"] HTTP POST=200 ws.NewClient err=unable to dial RPC, websocket: bad handshake; [\"https://*.gno.land\"] HTTP POST=200 ws.NewClient err=unable to dial RPC, websocket: bad handshake; [] and [\"*\"] err=<nil>. Merge base d25b308c1 (overlay, constructor without origins): all four rows err=<nil>, PASS.",
+      "repro_path": "tests/solo-finder-2-no-origin-client_test.go"
+    },
+    {
+      "index": 1002,
+      "file": "contribs/gnodev/pkg/emitter/server.go",
+      "line": 30,
+      "angle": "removed behaviour",
+      "summary": "gnodev hot reload stops working for a page opened at the documented http://localhost:8888, since the injected script dials ws://127.0.0.1:8888/_events and the new same-origin default refuses it",
+      "failure_scenario": "Default gnodev: -web-listener 127.0.0.1:8888, and app.go:492 builds the hot-reload target from that string, so hotreload.js dials ws://127.0.0.1:8888/_events. docs/resources/gnodev.md:39, docs/builders/quickstart.md:22, docs/builders/getting-started.md:198 and contribs/gnodev/README.md:16 tell users to open http://localhost:8888. The browser then sends Origin: http://localhost:8888 with Host: 127.0.0.1:8888; with CheckOrigin nil, gorilla's checkSameOrigin compares the two host strings and answers 403. The page never reloads on save, and nothing outside the browser console says why. Any -web-listener string differing from the host the user types (0.0.0.0, a LAN IP, a hostname) fails the same way. At the merge base the upgrade succeeds.",
+      "verify_by": "cp tests/solo-finder-2-gnodev-page-origin_test.go contribs/gnodev/pkg/emitter/zz_solo_finder_2_origin_test.go && (cd contribs/gnodev && go test -count=1 -v -run TestSoloFinder2_PageOrigin ./pkg/emitter/) : localhost row 403 at head, 101 at the merge base",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head dd05df75b: page http://127.0.0.1:35051 dials ws://127.0.0.1:35051/_events: status=101; page http://localhost:35051 dials ws://127.0.0.1:35051/_events: status=403, FAIL. Merge base d25b308c1 (same file via go test -overlay): both rows status=101, PASS.",
+      "repro_path": "tests/solo-finder-2-gnodev-page-origin_test.go"
+    },
+    {
+      "index": 1003,
+      "file": "tm2/pkg/bft/rpc/lib/server/handlers_test.go",
+      "line": 994,
+      "angle": "tests",
+      "summary": "TestWebsocketManagerCheckOrigin pins a missing Origin only under an empty list, so the narrowed-list no-Origin cell has no test and candidate 1001 ships with the table green",
+      "failure_scenario": "The 'no origin header is allowed' row sets allowedOrigins []string{}, which takes the nil branch (gorilla same-origin, which passes an absent Origin by construction); every narrowed-list row sets an Origin. Neither the current refusal of a no-Origin client under [\"http://good.com\"] nor a fix accepting it turns any row red, and the [\"*\"] no-Origin cell is pinned only incidentally by newWSServer callers.",
+      "verify_by": "add a row {allowedOrigins: []string{\"http://good.com\"}, origin: \"\", expectAllowed: true} and run go test -run TestWebsocketManagerCheckOrigin ./tm2/pkg/bft/rpc/lib/server/: red at head, green once an absent Origin is accepted",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 1004,
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 952,
+      "angle": "tests",
+      "summary": "no test drives startRPC's WebSocket origin wiring, so dropping or widening the list the node passes stays green",
+      "failure_scenario": "Mutate node.go:952 to leave wsAllowedOrigins nil, or set it to []string{\"*\"}: the only node-level WebSocket dial, node_test.go:105, uses the default config (cors_allowed_origins [\"*\"]) and a nil header, so it upgrades either way; TestABCIQuery_CodeExecutionOverEveryTransport and every rpcserver test build their own manager. A regression that stops the node enforcing cors_allowed_origins on /websocket, the PR's whole purpose, ships with every test green.",
+      "verify_by": "apply either mutation to node.go:952 and run go test ./tm2/pkg/bft/node/ ./tm2/pkg/bft/rpc/...: expect a red test, observe none",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "index": 1005,
+      "file": "contribs/gnodev/pkg/emitter/server.go",
+      "line": 30,
+      "angle": "tests",
+      "summary": "the gnodev emitter's new origin restriction has no test: reverting CheckOrigin to return true keeps every gnodev test green",
+      "failure_scenario": "server_test.go TestServer_ServeHTTP dials /_events with a nil header, which the same-origin default and the old always-true check both accept; no test sends a cross-origin or a localhost-vs-127.0.0.1 Origin, so neither the hardening nor the hot-reload regression of 1002 is pinned.",
+      "verify_by": "set CheckOrigin back to func(*http.Request) bool { return true } and run (cd contribs/gnodev && go test ./pkg/emitter/): expect red, observe green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "contribs/gnokeykc/go.mod",
+      "line": 206,
+      "angle": "removed behaviour",
+      "summary": "a module importing rpcserver without rs/cors in its go.mod/go.sum would stop building",
+      "settled_by": "grep -L rs/cors over every go.mod replacing github.com/gnolang/gno lists contribs/gnobr, contribs/github-bot, contribs/gnokms; go list -deps -test ./... | grep -c 'rpc/lib/server\\|rs/cors' prints 0 in each"
+    },
+    {
+      "file": "contribs/gnodev/pkg/emitter/server.go",
+      "line": 30,
+      "angle": "user topic",
+      "summary": "gnobro's dev client to gnodev /_events could be refused by the same-origin default",
+      "settled_by": "contribs/gnobro/main.go:267 devcl.Run(ctx, devpoint, nil) dials with a nil header; gorilla v1.5.3 server.go:90-93 checkSameOrigin returns true when the Origin header is absent"
+    },
+    {
+      "file": "tm2/pkg/bft/rpc/lib/server/handlers.go",
+      "line": 1140,
+      "angle": "catalog: error and panic handling",
+      "summary": "every refused origin logs at Error level, letting a remote fill node logs",
+      "settled_by": "WebsocketHandler's 'Failed to upgrade to websocket connection' Error log is unchanged context in the diff and already fires at the merge base for any malformed upgrade, e.g. a GET /websocket with no Upgrade header; the class predates the diff"
+    }
+  ]
+}

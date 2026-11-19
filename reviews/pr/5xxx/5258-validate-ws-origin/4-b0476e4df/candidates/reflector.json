@@ -1,0 +1,20 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "index": 5,
+      "file": "tm2/pkg/bft/rpc/config/config.go",
+      "line": 28,
+      "angle": "claims / reach (completeness)",
+      "summary": "the cors_allowed_origins comment an operator reads calls [] the default and names only cross-domain HTTP requests, while the default is [\"*\"] and the list now also decides which Origin /websocket upgrades",
+      "failure_scenario": "an operator reading config.toml takes the shipped default for [] (CORS off) and does not learn that the default [\"*\"] lets every website open /websocket, nor that [] keeps the websocket same-origin while a narrowed list refuses an Origin naming the node's own host",
+      "verify_by": "sed -n '28p;108p;170,172p' tm2/pkg/bft/rpc/config/config.go: line 28 says \"Default value '[]' disables cors support\", line 108 sets CORSAllowedOrigins: []string{\"*\"}",
+      "band": "Nit",
+      "fix_kind": "doc",
+      "checked": true,
+      "evidence": "config.go:28 comment:\"A list of origins a cross-domain request can be executed from\\n Default value '[]' disables cors support\\n Use '[\\\"*\\\"]' to allow any origin\"; config.go:108 CORSAllowedOrigins: []string{\"*\"}; the line sits outside the round 4 diff",
+      "run": false,
+      "repro_path": ""
+    }
+  ]
+}

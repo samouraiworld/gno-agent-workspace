@@ -1,0 +1,10 @@
+<!doctype html>
+<html><body><pre id="out"></pre><script>
+// hotreload.js:8 dials 'ws://' + window.location.host; the second line derives the scheme from the page.
+const out = [];
+for (const scheme of ['ws://', (location.protocol === 'https:' ? 'wss://' : 'ws://')]) {
+  try { new WebSocket(scheme + window.location.host + '/_events'); out.push(scheme + ' constructed'); }
+  catch (e) { out.push(scheme + ' ' + e.name + ': ' + e.message); }
+}
+document.getElementById('out').textContent = out.join('\n');
+</script></body></html>

@@ -1,0 +1,79 @@
+{
+ "candidates": [
+  {
+   "index": 1,
+   "file": "contribs/gnodev/pkg/emitter/server.go",
+   "line": 30,
+   "angle": "user topic / reach",
+   "summary": "gnodev hot reload is refused when the page is opened at http://localhost:8888, the URL the docs give, because the same-origin check compares localhost:8888 with the 127.0.0.1:8888 host the injected script dials",
+   "failure_scenario": "gnodev local on its default -web-listener 127.0.0.1:8888 (command_local.go:34); user opens http://localhost:8888 as docs/resources/gnodev.md:39 and contribs/gnodev/README.md:16 say; hotreload.js dials ws://127.0.0.1:8888/_events (app.go:492 builds it from webListenerAddr) with Origin http://localhost:8888; CheckOrigin nil falls to gorilla checkSameOrigin, which compares Origin host localhost:8888 to Host 127.0.0.1:8888 and returns 403. The page never reloads on file save, tx or reset; the only trace is a console 'WebSocket Error' and an 'unable to upgrade connection' line in gnodev's Event log. At the merge base CheckOrigin returned true and the same page reloads.",
+   "verify_by": "cp tests/solo-finder-1-gnodev-localhost-hotreload_test.go contribs/gnodev/pkg/emitter/ && (cd contribs/gnodev && go test -count=1 -run TestSoloFinder1 -v ./pkg/emitter): head localhost_page 403, base 101; real app: bash tests/solo-finder-1-gnodev-localhost-hotreload.sh <gnodev built from the tree> <tree> <tag> loads http://localhost:18888 in chromium",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head go test: 'page origin http://localhost:41731 -> ws://127.0.0.1:41731/_events status 403 err websocket: bad handshake', 127_page 101; base (overlay, d25b308c1): both 101, PASS. Real gnodev + headless chromium at head, page http://localhost:18888/: console 'WebSocket Error: [object Event]', gnodev log 'unable to upgrade connection ... error=\"websocket: request origin not allowed by Upgrader.CheckOrigin\"'; page http://127.0.0.1:18888/: 0 errors. Same run on a gnodev built at the merge base: 0 upgrade errors for both pages.",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5258-validate-ws-origin/3-dd05df75b/tests/solo-finder-1-gnodev-localhost-hotreload_test.go"
+  },
+  {
+   "index": 2,
+   "file": "tm2/pkg/bft/rpc/lib/server/handlers.go",
+   "line": 1144,
+   "angle": "line by line / claims",
+   "summary": "with cors_allowed_origins narrowed to any list without \"*\", OriginAllowed reads an absent Origin as \"\" and refuses the upgrade, so every non-browser websocket client is cut off, unlike the HTTP CORS path the PR body says it matches (carried from round 2, re-verified at dd05df75b)",
+   "failure_scenario": "Operator sets cors_allowed_origins = [\"https://gno.land\", \"https://*.gno.land\"] to keep foreign dApps off; node.go:951-952 passes the list to NewWebsocketManager; a subscriber using the in-tree ws client (tm2/pkg/bft/rpc/lib/client/ws/client.go:42 dials with nil headers) or any gorilla/Go/CLI client sends no Origin and gets 403, so indexers and event subscribers stop connecting after a config change that HTTP clients survive (rs/cors handleActualRequest passes a missing Origin through, cors.go:415-416). The test case 'no origin header is allowed' only runs the empty list, which takes gorilla's same-origin path, so no test covers a narrowed list without Origin.",
+   "verify_by": "cp tests/solo-finder-1-narrowed-no-origin_test.go tm2/pkg/bft/rpc/lib/server/ && go test -count=1 -run TestSoloFinder1 -v ./tm2/pkg/bft/rpc/lib/server: expect no_origin_cli 101, observe 403",
+   "band": "Warning",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head: 'origin \"\" -> status 403 err websocket: bad handshake' (expected 101, actual 403); allowed_page https://app.gno.land 101; cross_site_page 403; null_origin_page 403. Base NewWebsocketManager took no origins and its CheckOrigin returned true (diff lines removed at handlers.go). rs/cors v1.11.1 cors.go:415-416 HTTP path: 'Actual request no headers added: missing origin' then serves.",
+   "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/5xxx/5258-validate-ws-origin/3-dd05df75b/tests/solo-finder-1-narrowed-no-origin_test.go"
+  },
+  {
+   "index": 3,
+   "file": "tm2/pkg/bft/node/node.go",
+   "line": 951,
+   "angle": "line by line (guard the callee already applies)",
+   "summary": "the IsCorsEnabled guard around wsAllowedOrigins repeats the len(allowedOrigins) > 0 check NewWebsocketManager already makes, so passing n.config.RPC.CORSAllowedOrigins directly carries the same behaviour in four fewer lines",
+   "failure_scenario": "No wrong output: IsCorsEnabled is len(CORSAllowedOrigins) != 0 (config.go:171) and NewWebsocketManager builds the cors validator only when len(allowedOrigins) > 0 (handlers.go:1140), so an empty list reaches nil either way; the duplicate guard is a second place to keep in sync if either definition changes.",
+   "verify_by": "sed -n 171p tm2/pkg/bft/rpc/config/config.go; sed -n 1140p tm2/pkg/bft/rpc/lib/server/handlers.go; replace lines 950-953 with a direct pass and rerun go test -run 'TestWebsocket' ./tm2/pkg/bft/rpc/lib/server",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "",
+   "repro_path": ""
+  }
+ ],
+ "dropped": [
+  {
+   "file": "contribs/gnohealth/go.mod",
+   "line": 34,
+   "angle": "reach",
+   "summary": "another module importing rpc/lib/server lacks the rs/cors requirement the diff adds to gnohealth and gnokeykc",
+   "settled_by": "go list -deps ./... | grep -c 'tm2/pkg/bft/rpc/lib/server$' in each go.mod without rs/cors (contribs/gnokms, gnobr, gnomd, github-bot, misc/gnopreview, misc/audit-pattern-harness): 0 for every one"
+  },
+  {
+   "file": "tm2/pkg/bft/rpc/lib/server/handlers.go",
+   "line": 1144,
+   "angle": "user topic",
+   "summary": "a cross-site or opaque-origin page still opens the websocket of a node whose list is narrowed",
+   "settled_by": "solo-finder-1-narrowed-no-origin_test.go at head: cross_site_page https://evil.example -> 403, null_origin_page 'null' -> 403; only listed origins upgrade"
+  },
+  {
+   "file": "tm2/pkg/bft/node/node.go",
+   "line": 951,
+   "angle": "user topic",
+   "summary": "with cors_allowed_origins = [] a DNS-rebinding page passes gorilla's same-origin check and opens the websocket",
+   "settled_by": "grep -rn 'r.Host\\|req.Host\\|AllowedHosts' tm2/pkg/bft/rpc/lib/server (non-test): no hits, so the HTTP routes carry the same rebinding exposure and the websocket adds no reach beyond them; a Host allowlist is a separate change"
+  },
+  {
+   "file": "tm2/pkg/bft/node/node.go",
+   "line": 951,
+   "angle": "claims",
+   "summary": "the PR body says any website could open a cross-site websocket to a user's node, and the default cors_allowed_origins [\"*\"] keeps that true",
+   "settled_by": "sed -n 108p tm2/pkg/bft/rpc/config/config.go: CORSAllowedOrigins []string{\"*\"}; the HTTP CORS middleware serves the same route map to any origin under that default, so the websocket under \"*\" matches HTTP and only the description's wording is at stake"
+  }
+ ]
+}

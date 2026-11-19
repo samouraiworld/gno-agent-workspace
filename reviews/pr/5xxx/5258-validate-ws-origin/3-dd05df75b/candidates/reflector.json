@@ -1,0 +1,20 @@
+{
+ "dropped": [],
+ "candidates": [
+  {
+   "index": 3001,
+   "file": "tm2/pkg/bft/rpc/lib/server/handlers.go",
+   "line": 1139,
+   "angle": "reach",
+   "summary": "with cors_allowed_origins = [] a page served from the node's own public origin through a Host-rewriting reverse proxy is refused on /websocket",
+   "failure_scenario": "node.go:951 passes nil when CORS is disabled, so handlers.go:1139 leaves gorilla's same-origin check, which compares the Origin host with the Host the node receives. nginx's proxy_pass default rewrites Host to the upstream, so Origin https://rpc.example.com meets Host 127.0.0.1:26657 and gets 403. Needs the non-default [] list; the default [\"*\"] is unaffected.",
+   "verify_by": "go test -run TestJudgeR1_ProxyHost ./tm2/pkg/bft/rpc/lib/server at head and at the merge base via -overlay",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": true,
+   "evidence": "head: proxy_keeps_host 101, proxy_rewrites_host 403 'websocket: bad handshake'; merge base (overlay, constructor without origins): both 101, PASS",
+   "repro_path": "tests/judge-r1-proxy-host_test.go"
+  }
+ ]
+}

@@ -1,0 +1,94 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "tm2/pkg/bft/node/node_test.go",
+      "line": 119,
+      "angle": "removed behaviour / reach",
+      "summary": "the node-level origin test pins a narrowed list only, so the decided cors_allowed_origins = [] -> same-origin wiring at startRPC has no test",
+      "failure_scenario": "node.go:951 now passes CORSAllowedOrigins straight through and relies on NewWebsocketManager's len>0 guard to keep [] same-origin. A later edit at startRPC mapping an empty list to []string{\"*\"} (the obvious answer to the proxy-rewrites-Host complaint of round 3) stays green: TestNodeRPCWebsocketOrigin sets [\"https://gno.land\"], TestNodeRPCBatchLimit uses the default [\"*\"] with no Origin, and handlers_test pins []string{} only at the constructor. An operator who set [] to disable CORS then has every website able to open /websocket on their node again, with CI green.",
+      "verify_by": "in a scratch tree, change node.go:951 to pass []string{\"*\"} when len(n.config.RPC.CORSAllowedOrigins)==0; go test -count=1 -run 'TestNodeRPC|TestWebsocketManagerCheckOrigin' ./tm2/pkg/bft/node ./tm2/pkg/bft/rpc/lib/server: expect ok on both (no red); grep -rn CORSAllowedOrigins --include='*_test.go' shows node_test.go:119 as the only node-level setter",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "evidence": "grep -rn CORSAllowedOrigins --include='*_test.go': gno.land/cmd/gnoland config_set_test.go:604, config_get_test.go:710, misc/gnoe2e override_test.go:72,79 (config parsing only), tm2/pkg/bft/node/node_test.go:119 'config.RPC.CORSAllowedOrigins = []string{\"https://gno.land\"}' (the only node-level list); mutation not run (Missing test is read, never run)",
+      "run": false,
+      "repro_path": ""
+    },
+    {
+      "index": 2,
+      "file": "contribs/gnodev/pkg/emitter/static/hotreload.js",
+      "line": 8,
+      "angle": "line by line / reach",
+      "summary": "the hot-reload socket now follows the page's host but keeps a hard-coded ws:// scheme, so a gnodev page served over https never hot-reloads",
+      "failure_scenario": "gnodev behind a TLS-terminating proxy (staging mode, which keeps the watcher and the injected script on by default per command_staging.go; a Codespaces or ngrok https forward; a local Caddy front): the page at https://<host>/ runs new WebSocket('ws://<host>/_events'), which the browser blocks as mixed content for a non-loopback host, so the developer saves a file and the page never reloads, with only a console error. Deriving the scheme from the page, (location.protocol === 'https:' ? 'wss://' : 'ws://'), lets the same-origin check the emitter now applies pass through a Host-preserving proxy.",
+      "verify_by": "read hotreload.js:8 and command_staging.go defaults (noWatch unset, so middleware injected); headful chromium (xvfb-run) on a page served over https by a local TLS proxy in front of gnodev: console shows a mixed-content block for ws://, no /_events upgrade reaches gnodev",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "evidence": "hotreload.js:8: const ws = new WebSocket('ws://' + window.location.host + '{{- .Path -}}'); command_staging.go: webListenerAddr 127.0.0.1:8888, staging true, no noWatch override; gnodev serves no TLS itself (grep -i tls/wss in contribs/gnodev/*.go and pkg/emitter: no hit)",
+      "run": false,
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "tm2/pkg/bft/rpc/lib/server/handlers.go",
+      "line": 1149,
+      "angle": "reach / removed behaviour (case space)",
+      "summary": "the absent-Origin carve-out assumes non-browser clients send no Origin; Python websocket-client sends its own target as Origin by default and is refused once the list is narrowed, though [] accepts it",
+      "failure_scenario": "websocket-client (_handshake.py:98-104) sends 'Origin: http://<host:port>' unless suppress_origin is set. Against a node with cors_allowed_origins = [] that Origin equals Host and gorilla's same-origin check upgrades it; narrow the list to [\"https://gno.land\"] and the same script gets 403 on /websocket while its HTTP POST still answers. Adding an origin to the list thus revokes a client the empty list served, and the new comment tells the operator such clients send no Origin. Either accept an Origin whose host equals r.Host beside the list (parity with [], giving up the DNS-rebinding refusal only a narrowed list has) or state in the cors_allowed_origins comment that a narrowed list must name what non-browser clients send: a design call for the author.",
+      "verify_by": "read site-packages/websocket/_handshake.py:95-104; go test in ./tm2/pkg/bft/rpc/lib/server dialing NewWebsocketManager(funcs, []string{\"https://gno.land\"}) and NewWebsocketManager(funcs, []string{}) with header Origin: \"http://\"+listener addr: expect 403 and 101",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "evidence": "grep -n -i origin websocket/_handshake.py: 98 'if not options.get(\"suppress_origin\"):', 102 'headers.append(f\"Origin: https://{hostport}\")', 104 'headers.append(f\"Origin: http://{hostport}\")'; handlers.go:1149 'return r.Header.Get(\"Origin\") == \"\" || corsValidator.OriginAllowed(r)'",
+      "run": false,
+      "repro_path": ""
+    },
+    {
+      "index": 4,
+      "file": "contribs/gnodev/pkg/emitter/middleware.go",
+      "line": 21,
+      "angle": "removed behaviour (rename sweep)",
+      "summary": "muRemote is read-locked on every request but no code ever write-locks it, and the rename of remote to path leaves it named after a field that no longer exists",
+      "failure_scenario": "ServeHTTP takes m.muRemote.RLock for each page while path is set once in NewMiddleware and never written; git history holds no muRemote.Lock, so the mutex guards nothing and its name now points a reader at a missing remote field. Drop the field and the two lock lines at middleware.go:63-64.",
+      "verify_by": "grep -rn muRemote contribs/gnodev (3 hits: decl, RLock, RUnlock); git log -S'muRemote.Lock' -- contribs/gnodev (empty)",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "evidence": "grep -rn muRemote contribs/gnodev: middleware.go:21 decl, :63 RLock, :64 RUnlock only; git log --oneline -S'muRemote.Lock' -- contribs/gnodev: no output",
+      "run": false,
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "tm2/pkg/bft/node/node.go",
+      "line": 951,
+      "angle": "removed behaviour",
+      "summary": "dropping the IsCorsEnabled guard could change what reaches NewWebsocketManager",
+      "settled_by": "grep config.go: 'return len(cfg.CORSAllowedOrigins) != 0' (IsCorsEnabled); handlers.go NewWebsocketManager builds the validator only under 'if len(allowedOrigins) > 0', so [] and nil both leave gorilla's same-origin check, as the removed guard did"
+    },
+    {
+      "file": "contribs/gnodev/pkg/emitter/server.go",
+      "line": 30,
+      "angle": "reach",
+      "summary": "gnobro's dev client could be refused by the emitter's same-origin check",
+      "settled_by": "contribs/gnobro/main.go:267 'devcl.Run(ctx, devpoint, nil)' and client_dev.go:90 'dialer.DialContext(ctx, addr, header)' with that nil header: no Origin sent, which gorilla's checkSameOrigin accepts"
+    },
+    {
+      "file": "contribs/gnodev/pkg/emitter/static/hotreload.js",
+      "line": 8,
+      "angle": "reach",
+      "summary": "a Content-Security-Policy connect-src on gnoweb pages could block the page-relative socket",
+      "settled_by": "grep -rn Security-Policy gno.land contribs (non-test): only gno.land/cmd/gnoweb/main.go:531 sets it; gnodev's setupGnoWebServer path sets no CSP"
+    },
+    {
+      "file": "contribs/gnodev/pkg/emitter/server_test.go",
+      "line": 349,
+      "angle": "catalog: global mutable state & concurrency",
+      "summary": "the added t.Parallel tests could race on shared state",
+      "settled_by": "go test -race -count=1 ./pkg/emitter: ok 1.021s; go test -race -count=1 -run 'TestWebsocketManagerCheckOrigin|TestNodeRPCWebsocketOrigin|TestNodeRPCBatchLimit' ./tm2/pkg/bft/rpc/lib/server ./tm2/pkg/bft/node: ok 1.018s, ok 1.055s"
+    }
+  ]
+}
