@@ -1,0 +1,167 @@
+{
+  "candidates": [
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 281,
+      "angle": "reach",
+      "summary": "\"N deployments this week\" counts every successful MsgAddPackage, parked and refused submissions included, while the list under it keeps only live packages",
+      "failure_scenario": "onyx and mainnet run code_submission_policy \"inert\": MsgAddPackage succeeds by parking the package, which is online only once enabled. source_deployed writes deployed-count from every success row before live_rows checks vm/qfile, so on onyx today the --builders page prints **31** deployments this week while 5 of those 31 answer no vm/qfile (four gno.land/r/nym-mnsrehearsal001/*/v3, one sinopia4/safe/v2). The script's own comment says addpkg alone does not put a package online.",
+      "verify_by": "WHATSNEW=$PWD/misc/deployments/home-alias/whatsnew.sh bash tests/b2-lines-reach-rollout-page-catalog-deployed-count-parked.sh (live, read-only, onyx RPC and indexer): expect the count to equal the live deployments, observe 31 counted and 26 online",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "code_submission_policy: \"inert\" / source deployed rc=0 / deployments this week (page): 31 / Recently deployed rows (page): 5 / counted deployments online now: 26 of 31 / not-live gno.land/r/nym-mnsrehearsal001/nsnft/v3 ... not-live gno.land/p/g1jz6j9hj6rdf5ltl2kcrpa4jwtdh3w30z0yul06/sinopia4/safe/v2",
+      "repro_path": "tests/b2-lines-reach-rollout-page-catalog-deployed-count-parked.sh"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 244,
+      "angle": "lines",
+      "summary": "a week with no matching realm call fails source_used instead of counting zero, so the page keeps last week's \"active users this week\", \"realms used this week\" and ranking",
+      "failure_scenario": "The indexer answers, the week holds no MsgCall in USED_NAMESPACES: grep -E \"$realms\" gets no input and exits 1, pipefail makes calls=$(...) fail, errexit ends `--source used` before the activity line is written. The previous run's activity and used files stay, is_recent accepts them for 7 days, and render_builders prints them beside a fresh **0** deployments this week (source_deployed writes its zero with grep -c || true).",
+      "verify_by": "WHATSNEW=$PWD/misc/deployments/home-alias/whatsnew.sh bash tests/b2-lines-reach-rollout-page-catalog-zero-call-week.sh: expect rc 0 and activity 0 0 for the empty week, observe rc=1 and yesterday's 1 1 rendered",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "week with one call: rc=0 activity=[1 1] / week with no call:  rc=1 out=[] activity=[1 1] mtime=2026-11-18 19:23 / **0** deployments this week / **1** active users this week / **1** realms used this week / 1. [demo/foo](/r/demo/foo) · 1",
+      "repro_path": "tests/b2-lines-reach-rollout-page-catalog-zero-call-week.sh"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 73,
+      "angle": "page",
+      "summary": "stripping tags glues the word before a link to the link's replacement, and the mainnet home's X row reads \"CompleteGno.land\" today",
+      "failure_scenario": "X's oEmbed html for status 2123072056153759774 carries `Upgrade: Complete<a href=\"https://t.co/UPaevcA79z\">https://t.co/UPaevcA79z</a> mainnet`, with no space where the post had a blank line. gsub(\"<[^>]*>\"; \"\") joins Complete to the t.co URL and expand_links turns it into Gno.land, so the visitor reads \"Gno.land v1.8.0 Mainnet Upgrade: CompleteGno.land mainnet is now running v1.8.0, a security release with…\".",
+      "verify_by": "STATE_DIR=$(mktemp -d) bash misc/deployments/home-alias/whatsnew.sh --source x | grep -c 'CompleteGno'; and curl publish.x.com/oembed for that status to see the missing break",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "--source x rc=0, third row: 20261118\thttps://x.com/_gnoland/status/2123072056153759774\tGno\\.land v1\\.8\\.0 Mainnet Upgrade\\: CompleteGno\\.land mainnet is now running v1\\.8\\.0\\, a security release with…; oEmbed html: Upgrade: Complete<a href=\"https://t.co/UPaevcA79z\">",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 447,
+      "angle": "page",
+      "summary": "each Explore column names one destination twice: the \"Top realms\" heading and the \"Explore realms\" button both go to /r/, and the same holds for packages, releases and merged PRs",
+      "failure_scenario": "render_used's heading links **[Top realms](/r/)** and render_trending puts with_button ... /r/ 'Explore realms' under the same list (line 427); /p/ is both \"Top packages\" and \"Explore packages\", the GitHub releases page both \"Gno.land releases\" and \"All releases\", the merged-PR search both \"Just merged on GitHub\" and \"All merged PRs\". A visitor clicking \"Top realms\" expects the ranking and gets the full /r/ listing the button already offers.",
+      "verify_by": "sed -n '427p;447p;454p;461p;470p;421,423p' misc/deployments/home-alias/whatsnew.sh: each heading link equals its column's button href",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "427: render_columns \"$(with_button \"$used\" /r/ 'Explore realms')\" ...; 447: printf '<gno-icon name=\"flame\" /> **[Top realms](/r/)** · weekly users\\n\\n'",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/deployments/home-alias/README.md",
+      "line": 91,
+      "angle": "rollout",
+      "summary": "the multi-host route through gnoalias.sh restarts gnoweb on every block change, the request drop the README warns ON_CHANGE would cause, for as long as #6327 stays open",
+      "failure_scenario": "gnoalias.sh (unchanged) polls every 60 s, copies home-override.md over home.md whenever cmp differs, and then runs docker restart on every gnoweb:master container. With whatsnew.sh writing home-override.md, each new X post (three in the last ~36 h), blog post, release, daily ranking change and, with --builders, each merged feat/fix PR restarts gnoweb on every host; gh pr view 6327 answers state OPEN, so no gnoweb re-reads the page without that restart.",
+      "verify_by": "sed -n '26,31p;51,55p' misc/deployments/home-alias/gnoalias.sh and gh pr view 6327 -R gnolang/gno --json state; count the page rewrites a day from STATE_DIR mtimes on a running host",
+      "band": "Suggestion",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "gnoalias.sh: if cmp -s home-override.md home.md; then return 1 else cp home-override.md home.md; return 0 ... echo \"Restarting Gnoweb service deliberately\"; eval \"$RELOAD_CMD\" (docker restart); gh: {\"mergedAt\":null,\"state\":\"OPEN\",\"title\":\"feat(home): show the latest blog posts, and let gnoweb re-read static pages\"}",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 310,
+      "angle": "reach",
+      "summary": "vm/qpaths?limit=10000 sits at the handler's maxLimit, so a chain past 10000 packages would be ranked on a silent prefix",
+      "settled_by": "live qpaths on rpc.gno.land: 248 paths under gno.land/p/, 463 under gno.land/r/, far from the 10_000 cap in handler.go:255"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 265,
+      "angle": "reach",
+      "summary": "vm/qfile might answer for a parked package, so live_rows would list parked code as deployed",
+      "settled_by": "keeper.go:2065 QueryFile reads store.GetMemPackageAll (active store; parked code sits under inert_pkg:<path>), and the onyx run printed not-live for 5 parked paths"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 314,
+      "angle": "reach",
+      "summary": "the imports ranking has no namespace guard, so throwaway importers could push a package up",
+      "settled_by": "params/vm:p:code_submission_policy answers \"inert\" on rpc.gno.land: an importer is online only once enabled, so throwaway deploys do not reach qpaths"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 136,
+      "angle": "page",
+      "summary": "X oEmbed author_url or the date link might be twitter.com, emptying the X row",
+      "settled_by": "live `--source x` rc=0 printed 3 rows, the oEmbed html dates link https://x.com/_gnoland/status/...\">November 18, 2026</a>"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 161,
+      "angle": "page",
+      "summary": "the blog capture might not match the blog realm's list format",
+      "settled_by": "blog.gno:309-312 writes \"\\n### [%s](%s)\\n\" then Format(\"02 Jan 2006\"); live `--source blog` rc=0 printed 3 rows"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 293,
+      "angle": "reach",
+      "summary": "/status might carry no build_version, so the Runs line never shows",
+      "settled_by": "tm2 responses.go:164 BuildVersion `json:\"build_version\"`; live `--source version` printed v1.8.0"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 489,
+      "angle": "page",
+      "summary": "Gnoscan and Gnockpit links for onyx might lead nowhere",
+      "settled_by": "gnockpit.onyx.testnets.gno.land answers 200; one gnoscan.io JS chunk names onyx, and onyx's upgrades.json chain_id is onyx-1"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 403,
+      "angle": "page",
+      "summary": "the Read the blog button's ${LINK_BASE}/blog might 404",
+      "settled_by": "redirect.go:11 \"/blog\": \"/r/gnoland/blog\"; curl https://gno.land/blog answers 302 to /r/gnoland/blog; /r/ and /p/ answer 200"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 402,
+      "angle": "lines",
+      "summary": "${X_ACCOUNT/_/\\\\_} might drop the backslash under bash 5.2+ patsub_replacement",
+      "settled_by": "bash 5.3.20: x=_gnoland; echo \"${x/_/\\\\_}\" printed \\_gnoland"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 244,
+      "angle": "reach",
+      "summary": "tx-indexer's like might not be a regular expression, emptying the namespace-filtered scan",
+      "settled_by": "live `--source used` on indexer.gno.land rc=0 printed gnoland/wugnot 71, gnoswap/gns 68 ...; onyx with USED_NAMESPACES= rc=0, activity 27 18"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 331,
+      "angle": "rollout",
+      "summary": "a timer period equal to a TTL would skip every other refresh, the stamp being a few seconds younger than the TTL",
+      "settled_by": "README timer is OnUnitActiveSec=10min with RandomizedDelaySec=2min against FEED_TTL 30: no period equals a TTL"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 401,
+      "angle": "page",
+      "summary": "an icon name the script uses might be missing from gnoweb's set",
+      "settled_by": "ICONS.md lists book:75, box:80, branch:86, cube:178, flame:233, newspaper:352, rocket:420, signal:440"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 1,
+      "angle": "catalog",
+      "summary": "invariant catalog classes against a deployment shell script",
+      "settled_by": "skills/invariant-catalog.md classes (determinism, gas, realm state, caller, coin, storage deposit, VM faults, VM semantics, type-check, older-binary data) all concern gno code; the script touches none"
+    }
+  ]
+}

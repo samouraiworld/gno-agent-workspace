@@ -1,0 +1,95 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 1181,
+      "angle": "lines",
+      "summary": "the node-down row pins only the fee, so nothing at the handler pins that a failed GasPrice reads as 'the chain's price was unavailable' rather than as the chain's own price",
+      "failure_scenario": "page_kind.go:271 returning components.FallbackGasPrice on error instead of std.GasPrice{} still prints -gas-fee 30000ugnot, so 'help, node down' stays green, while every priced page then reads 'at the chain's price of 1ugnot/1000gas, times 3 in case it rises' for a price the node never gave; the zero-price-means-unavailable wiring the gasPrice godoc describes is pinned only by components/gas_test.go and render_test.go, which call NewTxGas directly and never go through the handler",
+      "verify_by": "in gno.land/pkg/gnoweb/page_kind.go gasPrice replace `return std.GasPrice{}` with `return components.FallbackGasPrice`, run `go test ./gno.land/pkg/gnoweb -run TestHTTPHandler_CommandGas`: expect red, observe green; grep -n 'unavailable' handler_http_test.go shows no assertion on the gas note",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'unavailable\\|Estimated' handler_http_test.go: only lines 2177, 2281 ('node unavailable' stub errors) and 4258-4307 ('Address unavailable'), none on the fee note; line 1181 wants only \"-gas-fee 30000ugnot\"",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/context.go",
+      "line": 60,
+      "angle": "reach",
+      "summary": "getGnoContext carries the Gas lookup into the <gno-foreign> inner instance, which never loads the forms extension, so the added line has no reader",
+      "failure_scenario": "a realm with <gno-foreign> blocks: ext_foreign.go:228 stores getGnoContext(pc) on each foreign node and ext_foreign.go:382 rebuilds the inner context from it, but buildInnerForeignMarkdown (ext_foreign.go:438-460) registers no ExtForms ('gno-form is intentionally NOT loaded', line 431); the only other reader of gGasContextKey is getGasFromContext, called solely from FormParser.Open (ext_forms.go:254), so the closure, which holds the request ctx and the handler, rides every foreign node and is never called",
+      "verify_by": "grep -rn 'gGasContextKey\\|getGasFromContext(' gno.land/pkg/gnoweb/markdown --include='*.go' | grep -v _test: readers are context.go and ext_forms.go:254 only; delete `gas, _ := ...` and `Gas: gas,` from getGnoContext and run go test ./gno.land/pkg/gnoweb/...: stays green",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/ext_forms.go",
+      "line": 254,
+      "angle": "reach",
+      "summary": "on a /u/ page an exec form is priced against gno.land/u/<segment>, a path no MsgCall targets, so the indexer is read for nothing and measured gas never applies there; the printed -pkgpath is the same wrong path, which predates the diff",
+      "failure_scenario": "/u/<address> whose /r/<address>/home renders <gno-form exec=\"Bump\">: GetUserView passes the /u/ URL to RenderRealm (handler_http.go:1138), FormParser.Open sets RealmName from it (ext_forms.go:232), and the Gas lookup at ext_forms.go:254 asks gasUse for \"gno.land/u/<address>\": one indexer read per 5 minutes per such page, always empty, so the fast command stays at 10 M; the command beside it prints -pkgpath \"gno.land/u/<address>\" (pre-existing, issue-shaped)",
+      "verify_by": "handler test: stubClient realmFunc returns \"<gno-form exec=\\\"Bump\\\">\\n</gno-form>\\n\" for \"/r/<addr>/home\", cfg.Indexer = &gasIndexer{}; GET /u/<addr>; expect askedPaths [\"gno.land/r/<addr>/home\"], observe [\"gno.land/u/<addr>\"], and the body contains -pkgpath \"gno.land/u/<addr>\"",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/command.html",
+      "line": 15,
+      "angle": "page",
+      "summary": "the secure note says the dry run stops an out-of-gas call 'first', but the copied script runs the broadcast on its own line whatever the dry run returned",
+      "failure_scenario": "a reader pastes the last two secure-mode lines on the online machine: `gnokey broadcast -dry-run` prints 'out of gas' and exits 1 (gnoweb_airgapped.txtar asserts the non-zero exit), the shell runs the next line anyway, and the call is charged its full fee, 0.03 GNOT at the default and up to 1 GNOT when the gas was raised; joining them as `gnokey broadcast -dry-run ... call.tx && gnokey broadcast ... call.tx` makes the note at command.html:20 hold for a pasted block",
+      "verify_by": "read command.html:15-16 and :20; in a shell `false` then `echo broadcast` on two lines prints broadcast, `false && echo broadcast` does not; the goldens under markdown/golden/ext_forms change with the template",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 233,
+      "angle": "lines",
+      "summary": "a typed-nil Indexer would make gasUse.recent a method value on a nil client and panic in the background read",
+      "settled_by": "grep -n Indexer gno.land/pkg/gnoweb/app.go: the only assignment is app.go:247 `handlerCfg.Indexer = indexer.New(cfg.IndexerURL, cfg.IndexerToken)` inside `if cfg.IndexerURL != \"\"`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 776,
+      "angle": "catalog",
+      "summary": "the background gas-use read could race the measured cases or ask the indexer twice (Global mutable state & concurrency class)",
+      "settled_by": "go test -race -count=3 -run 'TestHTTPHandler_CommandGas|TestRenderRealm_FormCommand' ./gno.land/pkg/gnoweb/ in a detached head worktree: `ok github.com/gnolang/gno/gno.land/pkg/gnoweb 1.273s`; go test ./gno.land/pkg/gnoweb/markdown/: `ok ... 13.223s`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http_test.go",
+      "line": 609,
+      "angle": "reach",
+      "summary": "ClientAdapter gained GasPrice, breaking implementers outside gnoweb",
+      "settled_by": "grep -rn 'func (.*) PublicEval(ctx' --include='*.go' .: only client.go:203, client_mock.go:244, handler_http_test.go:71, all in package gnoweb"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/command.html",
+      "line": 15,
+      "angle": "rollout",
+      "summary": "a reader's older gnokey may lack broadcast -dry-run or maketx simulation, so the copy's free-failure promise would not hold",
+      "settled_by": "git log -S'\"dry-run\"' -- tm2/pkg/crypto/keys/client/broadcast.go: earliest 98cc986cb 2023-04-03, contained in chain/gnoland1.0 onward; git log -S'SimulateTest' maketx.go: 3ea1b47e2 2024-05-13, default \"test\" at maketx.go:107"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/handler_http.go",
+      "line": 486,
+      "angle": "lines",
+      "summary": "a non-crossing function on $help would render a command priced at the fallback and labelled 'unavailable' since only crossing functions trigger the price read",
+      "settled_by": "grep -n 'ui/command' components/views/action.html: line 185 `{{ if .Crossing }}` then 186 `{{ template \"ui/command\" (buildCommandData $data .) }}`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/feature/run/view_test.go",
+      "line": 27,
+      "angle": "removed",
+      "summary": "the removed CallGas != RunGas assertion leaves $run's hardcoded RunGas as an unpriced sibling of the rewritten command gas",
+      "settled_by": "gno.land/adr/pr6425_gnoweb_gas_fee.md: 'The `$run` page is untouched: it keeps its own editable defaults (`components.RunGas`, 50 M gas for 0.1 GNOT) and has no dry run.'; grep for callGas/CallGas in *.html returns nothing"
+    }
+  ]
+}

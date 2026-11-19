@@ -1,0 +1,102 @@
+{
+  "verdicts": [
+    {
+      "index": 9,
+      "angle": "rollout",
+      "verify_by": "sed -n '26,31p;51,55p' misc/deployments/home-alias/gnoalias.sh and gh pr view 6327 -R gnolang/gno --json state; count the page rewrites a day from STATE_DIR mtimes on a running host",
+      "state": "CONFIRMED",
+      "band": "Suggestion",
+      "file": "misc/deployments/home-alias/README.md",
+      "line": 91,
+      "tldr": "the gnoalias.sh route the README recommends for several hosts restarts gnoweb on every host each time the block changes, the request drop the README warns against",
+      "details": "README.md:85-87 warns that restarting gnoweb with ON_CHANGE on several hosts makes every host drop requests for the same post, then line 91 sends multi-host setups through gnoalias.sh writing home-override.md. gnoalias.sh copies home-override.md over home.md whenever cmp differs and then runs RELOAD_CMD, which by default is docker restart of every gnoweb:master container, so each block change restarts gnoweb on every host within a 60 s poll. #6327, which would let gnoweb re-read the page, is still OPEN. How many restarts a day this costs was not measured here. Fix: say in the README that the gnoalias route restarts gnoweb on each change until #6327 lands, or hold that route until then.",
+      "evidence": "gnoalias.sh:28-31 `if cmp -s home-override.md home.md; then return 1 else cp home-override.md home.md; return 0`; :53-55 `if check_gnoland_home; then ... eval \"$RELOAD_CMD\"`; :12-13 DEFAULT_RELOAD_CMD `docker ps -a --filter ancestor=\"ghcr.io/gnolang/gno/gnoweb:master\" ... | xargs -r docker restart`; :6 SLEEPING_TIME=60. gh pr view 6327: {\"state\":\"OPEN\"}. Restart count per day not measured: no running host here.",
+      "repro_path": "",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 2,
+      "angle": "page",
+      "verify_by": "curl -fsSL https://rpc.onyx.testnets.gno.land:443/status | jq .result.build_version; curl -fsSL https://rpc.gno.land:443/status | jq .result.build_version: the copy holds only if they match or onyx is ahead",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 3,
+      "tldr": "the testnet home says Onyx runs mainnet's code, but Onyx runs v1.8.0-rc.1 while mainnet runs v1.8.0",
+      "details": "home.testnet.md:3 opens with 'Onyx runs mainnet's code with free test tokens.' Today the two chains report different builds, and Onyx is the older one, so a visitor who tests gas or VM behaviour on Onyx as a mainnet stand-in can get different results. Fix: word the line so it holds whatever the version gap is, e.g. 'Onyx runs the same or the next release of mainnet's code', or drop the claim.",
+      "evidence": "curl rpc.onyx.testnets.gno.land/status: result.build_version \"v1.8.0-rc.1\"; curl rpc.gno.land/status: result.build_version \"v1.8.0\" (2026-11-19).",
+      "repro_path": "",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 3,
+      "angle": "page",
+      "verify_by": "read home.testnet.md:28-82 in order as a fresh reader; on gnodev, add key k1, fund it, then run the two blocks as printed with <your-g1-addr> = k1's address: expect the deploy to land, observe that alice is unfunded",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 58,
+      "tldr": "the page asks for a key to be added and funded before the block that adds it, so a reader can end up signing with a second, unfunded alice",
+      "details": "Step 1 at line 18 says 'Install gnokey and add a key' and step 2 says get test GNOT; line 58 again says to add a key and fund its address, 'Then write a realm:'. The block right after opens with `gnokey add alice`, and the deploy block signs with alice. A reader who added and funded a key with another name before reaching the block creates a new, empty alice, and addpkg fails on fees. The gnodev run was not done; the read settles the order. Fix: move `gnokey add alice` into the prose before the faucet step, or start the block after the key is made and sign with the key the reader funded.",
+      "evidence": "home.testnet.md:18 `1. [Install gnokey](...) and add a key`; :58 `Add a key (`gnokey list` prints its g1 address), and fund that address at the [faucet]... Then write a realm:`; :61 `gnokey add alice`; :79 `alice` as the addpkg signer.",
+      "repro_path": "",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 4,
+      "angle": "page",
+      "verify_by": "build gnoweb from head, serve a copy of home.mainnet.md filled by whatsnew with -aliases /x=static:<file>, take a screenshot with chromium --headless --window-size=1280,5200 --screenshot, and compare it with one at 1440",
+      "state": "PLAUSIBLE",
+      "band": "Nit",
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 376,
+      "tldr": "the X card header may wrap onto three lines at 1280 wide; only a render can show it",
+      "details": "render_post prints `<icon> **[Gno.land @_gnoland · Nov 19](url)**`, so the header is the icon followed by a bold link and a date, and whether it wraps depends on the column width gnoweb gives it. A read cannot settle the layout and no render was taken here, as this judge runs nothing that builds. Confirm with a headless screenshot of the filled page at 1280 and 1440. Fix: none until a screenshot shows the wrap; SKIP.",
+      "evidence": "whatsnew.sh:376 `printf '%s **[%s · %s](%s)**\\n\\n%s' \"$1\" \"$2\" \"$(short_date \"$date\")\" \"$url\" \"$text\"`. No screenshot taken.",
+      "repro_path": "",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 7,
+      "angle": "page",
+      "verify_by": "STATE_DIR=$(mktemp -d) bash misc/deployments/home-alias/whatsnew.sh --source x | grep -c 'CompleteGno'; and curl publish.x.com/oembed for that status to see the missing break",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 73,
+      "tldr": "the mainnet home's X post reads 'CompleteGno.land' because tag stripping glues the word before a link to the link's replacement",
+      "details": "X's oEmbed html for status 2123072056153759774 has no space or <br> between 'Complete' and the <a> tag, where the post had a line break. html_to_text removes the tag, leaving 'Completehttps://t.co/UPaevcA79z', and expand_links swaps that t.co URL for 'Gno.land' since it redirects to https://gno.land/, so visitors read 'Upgrade: CompleteGno.land mainnet is now running v1.8.0'. Fix: replace each <a ...> opening tag with a space before stripping tags, e.g. gsub(\"<a [^>]*>\"; \" \"), so the later space squeeze keeps one blank.",
+      "evidence": "curl publish.x.com/oembed?url=.../2123072056153759774 | jq -r .html: `Upgrade: Complete<a href=\"https://t.co/UPaevcA79z\">https://t.co/UPaevcA79z</a> mainnet`; that string through the html_to_text gsubs: `Upgrade: Completehttps://t.co/UPaevcA79z mainnet`; curl -w '%{redirect_url}' https://t.co/UPaevcA79z: `https://gno.land/`, which expand_links:86-87 rewrites to `Gno.land`.",
+      "repro_path": "",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 8,
+      "angle": "page",
+      "verify_by": "sed -n '427p;447p;454p;461p;470p;421,423p' misc/deployments/home-alias/whatsnew.sh: each heading link equals its column's button href",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 447,
+      "tldr": "each Explore column links its heading and its button to the same page, so a visitor sees two links to one place",
+      "details": "The 'Top realms' heading links /r/ and the button under it, 'Explore realms', also goes to /r/; the same holds for /p/ (Top packages, Explore packages), the GitHub releases page (Gno.land releases, All releases) and the merged-PR search (Just merged on GitHub, All merged PRs). A visitor who clicks the heading expecting the ranking gets the full listing the button already offers. Fix: make the headings plain bold text and keep the buttons, or drop the buttons.",
+      "evidence": "whatsnew.sh:447 `**[Top realms](/r/)**` with :427 `with_button \"$used\" /r/ 'Explore realms'`; :454 `**[Top packages](/p/)**` with :421 `/p/ 'Explore packages'`; :461 `**[Gno.land releases](https://github.com/gnolang/gno/releases)**` with :422 `https://github.com/gnolang/gno/releases 'All releases'`; :470 `pulls?q=is%%3Apr+is%%3Amerged` (printf gives %3A) with :423 `\"$pulls\" 'All merged PRs'`, $pulls = `...pulls?q=is%3Apr+is%3Amerged`.",
+      "repro_path": "",
+      "base_behaves_the_same": false
+    },
+    {
+      "index": 11,
+      "angle": "page",
+      "verify_by": "extract the block as line 225 does, then `bash -c 'source block.sh; source block.sh'` with gnokey and gno stubbed; ls myrealm/myrealm",
+      "state": "CONFIRMED",
+      "band": "Nit",
+      "file": "misc/deployments/home-alias/whatsnew_test.sh",
+      "line": 233,
+      "tldr": "the 'second run' test re-runs the block from a fresh shell, while a reader who re-pastes it in the same terminal is already inside myrealm/ and gets myrealm/myrealm/",
+      "details": "Both runs at lines 226 and 233 start with `cd \"$work/deploy\"` in a new subshell, so the check can only catch a missing -p on mkdir. The block does `mkdir -p myrealm && cd myrealm`, and in a real terminal that cd persists, so a re-paste after fixing <your-g1-addr> writes into myrealm/myrealm/; the check's name says a second run still writes into myrealm/. The double-source run was not done; the shell semantics follow from the lines. Fix: run the second paste from inside myrealm/ in the test, and make the block safe to re-paste, e.g. `[ \"${PWD##*/}\" = myrealm ] || { mkdir -p myrealm && cd myrealm; }`, or rename the check to what it covers.",
+      "evidence": "whatsnew_test.sh:233 `(cd \"$work/deploy\" && PATH=... bash -e block.sh ...)` then :234 `check \"a second run still writes into myrealm/\" '[ ! -e \"$work/deploy/myrealm.gno\" ] ...'`; home.testnet.md:62 `mkdir -p myrealm && cd myrealm`.",
+      "repro_path": "",
+      "base_behaves_the_same": false
+    }
+  ]
+}

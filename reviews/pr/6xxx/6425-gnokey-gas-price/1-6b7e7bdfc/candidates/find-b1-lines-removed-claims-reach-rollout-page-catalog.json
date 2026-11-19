@@ -1,0 +1,160 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/command.html",
+      "line": 25,
+      "angle": "claims",
+      "summary": "No test renders the production note: the live-price branch ('the chain's price of'), the capped-headroom branch ('may not cover a rise', line 29) and the singular provenance ('its last successful call', line 18) are unpinned",
+      "failure_scenario": "A node answering auth/gasprice normally renders 'at the chain's price of 1ugnot/1000gas, times 3 in case it rises', the text every visitor of a live gnoweb reads; golden files only render the estimated branch, render_test.go the too-high branch, handler_http_test.go the plural 'per the indexer'. Rewording or breaking the live-price, capped or singular branch leaves every test green.",
+      "verify_by": "for s in \"the chain's price of\" \"may not cover a rise\" \"its last successful call\"; do grep -rlF \"$s\" --include='*_test.go' --include='*.txtar' gno.land/pkg/gnoweb; done (no hit); then change 'the chain's price of' to 'the price of' in command.html:25 and run go test ./gno.land/pkg/gnoweb/...: stays green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep over *_test.go and *.txtar: \"the chain's price is\" only in render_test.go; \"capped at 1 GNOT\" in render_test.go and gas_test.go; \"per the indexer\" in handler_http_test.go; \"the chain's price of\", \"may not cover a rise\", \"its last successful call\": no file",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/gas_test.go",
+      "line": 138,
+      "angle": "claims",
+      "summary": "The foreign-denom block says 'a measure lowers the fast-mode gas but never raises either mode' and pins only the no-raise half",
+      "failure_scenario": "The only foreign-denom case is use(500_000_000, 20), which asserts both modes stay at 10 M. Disabling lowering for a foreign denom, e.g. adding `&& g.Price.Price.Denom == \"ugnot\"` to the `w < TxGasWanted` case in NewTxGas, keeps every test green while the comment says it lowers.",
+      "verify_by": "add `&& g.Price.Price.Denom == \"ugnot\"` to `case w < TxGasWanted && use.Calls >= minGasUseCalls:` in components/gas.go and run go test ./gno.land/pkg/gnoweb/components -run TestNewTxGas: expect red, observe green",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "gas_test.go:138-142 reads the comment then `foo := std.GasPrice{Gas: 1, Price: std.NewCoin(\"foo\", 100_000_000_000)}` with use(500_000_000, 20) only; no other foreign-denom case passes a GasUse",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/gas.go",
+      "line": 35,
+      "angle": "removed",
+      "summary": "The 10 M default undoes #5146 (edeca7758), which raised the copied gas to 1,000 M because copied commands ran out of gas; with no indexer measure, every call above 10 M fails again",
+      "failure_scenario": "#5146 by Morgan: 'many gnoweb transactions can't simply be copy-pasted as gnokey commands, because they will run out of gas. This PR fixes it.' gnoweb's -indexer-url is empty by default, so on such a deployment, and on any package's first view or after eviction, a GovDAO vote (16.6-18.8 M) or valopers.Register (40-83 M) gets -gas-wanted 10_000_000 -gas-fee 30000ugnot: fast mode fails at simulation, secure mode fails at the dry run after signing (offline). The note says neither how far to raise -gas-wanted nor that -gas-fee must rise with it: past 30 M, 30000ugnot is under 1ugnot/1000gas and CheckTx rejects it, a second failed try.",
+      "verify_by": "git show edeca7758 (message quoted); grep -n 'indexer-url' -A3 gno.land/cmd/gnoweb/main.go (default empty); in a gnoland integration txtar, call a realm function that burns ~15 M gas with the head command's flags (-gas-fee 30000ugnot -gas-wanted 10_000_000): out of gas at simulation; with the base flags (-gas-fee 1000000ugnot -gas-wanted 1_000_000_000): succeeds",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "git show edeca7758: 'chore(gnoweb): bump max gas wanted (#5146)' changing -gas-wanted 5000000 to 1_000_000_000 in ui/command.html; main.go:152 '-indexer-url ... Empty (the default) keeps gnoweb talking only to its RPC node'",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/command.html",
+      "line": 15,
+      "angle": "claims",
+      "summary": "The secure note says the dry run 'stops that first', but the dry run is a separate line: pasted with the broadcast below it, a failed dry run still broadcasts and the out-of-gas call is charged",
+      "failure_scenario": "Airgapped flow: sign offline, then on the online machine paste lines 15-16 together. `gnokey broadcast -dry-run` exits non-zero on out of gas, the shell runs the next line anyway, `gnokey broadcast` sends the tx, DeliverTx runs out of gas, and the fee (0.03 GNOT, up to 1 GNOT when raised from the indexer) is burned. Joining them with `&&` makes the note's claim true.",
+      "verify_by": "copy gnoweb_airgapped.txtar; after `! gnokey broadcast -dry-run $WORK/low.tx` add `! gnokey broadcast $WORK/low.tx` then query auth/accounts: sequence 1 and coins lower by 230001ugnot, the charge the note says the dry run prevents",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "command.html:15 `gnokey broadcast -dry-run -remote \"{{.Remote}}\" call.tx` and :16 `gnokey broadcast -remote \"{{.Remote}}\" call.tx` on separate lines; note at :20 'the dry run before it stops that first'",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/command.html",
+      "line": 18,
+      "angle": "page",
+      "summary": "FormatGas rounds the advertised cap up: a 37.6 M raise prints 'for up to 38 M gas' beside -gas-wanted 37_600_000",
+      "failure_scenario": "FormatGas(37_600_000) takes the `math.Round(f/1e6) < 1_000` branch with 0 decimals: '38 M'. The test case 'raises both' (a GovDAO vote) yields Wanted 37,600,000, and 'too few, raises' yields 33,900,000, which prints '34 M'. Every raised gas between 10 M and 100 M that is not a whole million overstates the cap by up to 0.5 M, in both notes (lines 18 and 20).",
+      "verify_by": "go test snippet in components: FormatGas(37_600_000) == \"38 M\" and FormatGas(33_900_000) == \"34 M\", against NewTxGas(FallbackGasPrice, GasUse{Max: 18_800_000, Calls: 13}).Secure.WantedFlag() == \"37_600_000\"",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "gas.go FormatGas: `case math.Round(f/1e6) < 1_000: return strconv.FormatFloat(f/1e6, 'f', 0, 64) + \" M\"`; gas_test.go 'raises both': ugnot(37_600_000, 112_800)",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/adr/pr6425_gnoweb_gas_fee.md",
+      "line": 25,
+      "angle": "claims",
+      "summary": "ADR: tm2 moves the price at least one unit per busy block; a full block raises it ~4.3% (compressor 10, target 70%); x3 covers ~26 full blocks",
+      "settled_by": "tm2/pkg/sdk/auth/keeper.go:458 `diff := maxBig(num, bigOne)` in the increase branch; params.go:25-26 DefaultGasPricesChangeCompressor 10, DefaultTargetGasRatio 70; (1-0.7)/0.7/10 = 4.29%, ln3/ln1.0429 = 26.2"
+    },
+    {
+      "file": "gno.land/adr/pr6425_gnoweb_gas_fee.md",
+      "line": 105,
+      "angle": "claims",
+      "summary": "ADR: the dry run skips the price check (ante.go, !simulate)",
+      "settled_by": "tm2/pkg/sdk/auth/ante.go:84 `if ctx.IsCheckTx() && !simulate {` guards EnsureSufficientMempoolFees"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/command.html",
+      "line": 15,
+      "angle": "rollout",
+      "summary": "A user's older gnokey lacks broadcast -dry-run ('a flag every gnokey has')",
+      "settled_by": "tm2/pkg/crypto/keys/client/broadcast.go:68-71 registers \"dry-run\"; git log -S DryRun on that file: earliest 5ad12cd2b 2024-01-15"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/command.html",
+      "line": 18,
+      "angle": "claims",
+      "summary": "Fast note: 'gnokey simulates first' for the fast command, which carries no -broadcast flag",
+      "settled_by": "tm2/pkg/crypto/keys/client/maketx.go:96-110 `\"broadcast\", true` and `\"simulate\", \"test\"` defaults; broadcast.go:133-136 only DryRun or testSimulate simulate, so the standalone broadcast does not (secure note holds too)"
+    },
+    {
+      "file": "gno.land/adr/pr6425_gnoweb_gas_fee.md",
+      "line": 47,
+      "angle": "claims",
+      "summary": "ADR constants: last 20 calls, last 100 txs, 5 min TTL, 30 s after failure, 4 reads, 1,024 packages, 64-byte func, 30 s price TTL, 2 s wait, single successful MsgCall with positive gas",
+      "settled_by": "gas_use.go:20-40 gasUseTxs 100, gasUseCalls 20, gasUseTTL 5m, gasUseRetry 30s, maxGasUseReads 4, maxGasUsePkgs 1024, maxGasUseFunc 64; :50-55 Success, GasUsed > 0, one message, MsgCall; client.go:162 gasPriceTTL 30s, :165 gasPriceTimeout 2s"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/frontend/js/controller-action-function.ts",
+      "line": 83,
+      "angle": "rollout",
+      "summary": "After a deploy a cached old controller-action-function.js would leave the notes not following the mode",
+      "settled_by": "cache.go CacheHandler: unversioned module imports such as controller.js 'are revalidated against the ETag, so a deploy never leaves a stale copy'; only ?v=<this version> or content-hashed files get immutable"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/public/main.css",
+      "line": 1,
+      "angle": "lines",
+      "summary": "Built assets out of step with frontend sources (.note rule, note toggle)",
+      "settled_by": "grep -c 'b-code .note' public/main.css: 1; public/js/controller-action-function.js contains `getTargets(\"note\").forEach(e=>{e.classList.toggle(\"u-hidden\",this.getValue(\"mode\",e)!==t)})`"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/view_action.go",
+      "line": 23,
+      "angle": "removed",
+      "summary": "Removing CallGas and the callGas template func leaves a stale reference or doc",
+      "settled_by": "grep -rn 'callGas|CallGas' over the head tree: no hit; grep of docs/ for gnoweb gas, $help and Actions page fee text: no hit"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/view_action.go",
+      "line": 134,
+      "angle": "reach",
+      "summary": "A CommandData built without Gas prints `-gas-fee  -gas-wanted 0` (Coin.String is empty for zero)",
+      "settled_by": "only two constructions: view_action.go:134 `Gas: fn.Gas` with handler_http.go:1286 `Gas: components.NewTxGas(price, uses[fn.Name])` for every function, and ext_forms.go:610 `Gas: n.Gas` set at :254 by getGasFromContext, which falls back to NewTxGas(std.GasPrice{}, ...); NewTxGas always yields a fee >= 1"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/ui/command.html",
+      "line": 25,
+      "angle": "reach",
+      "summary": "A markdown render path without the Gas lookup would print 'the chain's price was unavailable' while it is available",
+      "settled_by": "all RenderRealm calls pass h.renderContext (handler_http.go:739, 856, 1138, 1317), which sets Gas; ext_foreign.go:382 rebuilds from GnoCtx, which context.go now carries Gas into"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/gas.go",
+      "line": 131,
+      "angle": "catalog",
+      "summary": "Coin math / swallowed result: `fee, _ = txFee(g.Price, w)` could drop an overflow or an over-cap price",
+      "settled_by": "for ugnot w <= maxWanted = floor(1e6*Gas/Amount) so ceil(w*A/G) <= 1e6 and x3 <= 3e6 fits int64; for a foreign denom maxWanted returns TxGasWanted so the fee is at most the 10 M fee txFee already accepted; test cases 'fee overflows' and 'at the old gas' cover both ends"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/gas.go",
+      "line": 55,
+      "angle": "catalog",
+      "summary": "Global mutable state: exported package-level var FallbackGasPrice read by parallel tests",
+      "settled_by": "grep 'FallbackGasPrice *=' over the tree: only the declaration at gas.go:55; never reassigned at runtime"
+    }
+  ]
+}

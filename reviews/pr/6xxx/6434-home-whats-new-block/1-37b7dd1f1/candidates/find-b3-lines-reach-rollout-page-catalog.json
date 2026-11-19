@@ -1,0 +1,132 @@
+{
+  "candidates": [
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 61,
+      "angle": "page",
+      "summary": "the deploy block re-adds the key the prose just had the visitor fund, and gnokey's default-yes override replaces it",
+      "failure_scenario": "Line 58 says 'Add a key ... and fund that address at the faucet ... Then write a realm:', and the block under it opens on `gnokey add alice`. A visitor who added and funded alice pastes the block: gnokey asks 'Override the existing key \"alice\" [Y/n]:', whose empty answer is yes (tm2/pkg/commands/utils.go GetConfirmation), so Enter replaces the funded key with a new unfunded address; addpkg then signs as an unfunded alice whose address is not the <your-g1-addr> namespace the visitor substituted, and the deploy fails. The keybase is shared across chains, so any existing 'alice' is replaced. A visitor who named the key otherwise gets a second, unfunded alice that addpkg signs with. whatsnew_test.sh:222 stubs gnokey as `exit 0`, so its 'the deploy block runs' check passes. The merge-base page has no `gnokey add`.",
+      "verify_by": "bash tests/b3-lines-reach-rollout-page-catalog-deploy-block-readds-key.sh from the head tree: builds gnokey from the tree, runs `gnokey add alice` twice on a pty with Enter presses, compares `gnokey list` addresses",
+      "band": "Warning",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": true,
+      "evidence": "block line 1: gnokey add alice / funded: g1vs8frmpyksyg6xjdlxy37s0mg9pg6t8prfdhsj / after:  g196plzzzqmw06fjsyxntk39yk79mqeqv85f2t9q / FUNDED KEY REPLACED (rc=1); the earlier pty run printed 'Override the existing key \"alice\" [Y/n]:' before the replacement",
+      "repro_path": "reviews/pr/6xxx/6434-home-whats-new-block/1-37b7dd1f1/tests/b3-lines-reach-rollout-page-catalog-deploy-block-readds-key.sh"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 103,
+      "angle": "reach",
+      "summary": "no check covers to_md, expand_links or html_to_text, the escaping the body's Safety section rests on",
+      "failure_scenario": "to_md is the only thing stopping an X post or a blog title from forming a link, image, tag or mention on gno.land's home. Make its escape gsub (line 111) a no-op, or drop expand_links' final URL strip: all 34 checks of whatsnew_test.sh stay green, since none feeds hostile text through a source. The body's Tested list names 'hostile content rendered through gnoweb', which the committed suite does not hold.",
+      "verify_by": "grep -nE 'to_md|expand_links|html_to_text' misc/deployments/home-alias/whatsnew_test.sh (no hit); then mutate line 111 to `gsub(\"(?<c>x)\"; \"\\(.c)\")` and run bash whatsnew_test.sh: expect PASS",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep of the test for to_md|expand_links|html_to_text|fill_block|refresh|reload|'nothing to show' hits only ON_CHANGE at lines 151, 156, 190",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 580,
+      "angle": "reach",
+      "summary": "no check covers the outage, lost-state and keep-previous paths: main's empty-block guard, refresh's failure branch, fill_block, the reload retry",
+      "failure_scenario": "The body's Safety section says a failing source keeps its last good output and a failed run or write leaves the page as it was, and Tested lists outages, lost state and a failed ON_CHANGE. The suite never calls refresh (line 336), fill_block (518), reload (526) or main's `[ -z \"$block$trending\" ]` guard (580): delete that guard, or make refresh `mv` an empty tmp, and every check stays green, while a host that lost its state then wipes a filled block.",
+      "verify_by": "grep -nE 'refresh|fill_block|reload|nothing to show' misc/deployments/home-alias/whatsnew_test.sh (no hit); delete line 580-583 and run bash whatsnew_test.sh: expect PASS",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "same grep: no hit for refresh, fill_block, reload or 'nothing to show'",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew_test.sh",
+      "line": 4,
+      "angle": "reach",
+      "summary": "no CI job runs whatsnew_test.sh, and ci-dir-misc excludes the .md whose deploy block it tests",
+      "failure_scenario": "A later edit to whatsnew.sh, or to home.testnet.md's deploy block that check 'the deploy block runs' reads, merges with every job green: ci-dir-misc.yml runs `go test` over a fixed program list and its paths filter drops '**/*.md', and no workflow names whatsnew_test.sh. The 34 checks run only when someone remembers README line 81.",
+      "verify_by": "grep -rn whatsnew_test .github (no hit); sed -n 10,15p .github/workflows/ci-dir-misc.yml",
+      "band": "Missing test",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "repo-wide grep for whatsnew_test hits only the test itself and README.md:81; ci-dir-misc.yml:13 'This only runs `go test` on the Go programs under misc/', :15 '!**/*.md'",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew_test.sh",
+      "line": 223,
+      "angle": "lines",
+      "summary": "the gno stub accepts what the real `gno mod init` refuses, so the deploy-block checks pin the stub, not the block",
+      "failure_scenario": "The stub writes gnomod.toml for any argument, and line 231 then greps the stub's own output for gno.land/r/<your-g1-addr>/myrealm. The real `gno mod init` runs module.CheckImportPath (gnovm/cmd/gno/mod.go:317), which refuses '<', and refuses a second init with 'file already exists' (mod.go:314); the second run's exit status (line 232) is never checked. The block as printed fails under the real tool while 'the deploy block runs' and 'with its module path' pass.",
+      "verify_by": "go build ./gnovm/cmd/gno from the head tree; in an empty dir run `gno mod init \"gno.land/r/<your-g1-addr>/myrealm\"`: expect an invalid-char error; run a valid init twice: expect 'file already exists'",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "gnovm/cmd/gno/mod.go:313-318 read: os.Stat(modFilePath) -> 'create gnomod.toml: file already exists'; module.CheckImportPath(modPath) from golang.org/x/mod/module",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew_test.sh",
+      "line": 194,
+      "angle": "reach",
+      "summary": "the read-only half runs only as uid 0, so a developer or CI never runs it, though `unshare -r` runs it unprivileged",
+      "failure_scenario": "Line 194 skips the only check pinning whatsnew.sh:600 (the mode bit, not -w) unless id -u is 0; nobody runs this suite as root, so reverting line 600 to a -w test stays green everywhere it runs. Under a user namespace the check runs and passes.",
+      "verify_by": "unshare -r bash misc/deployments/home-alias/whatsnew_test.sh | grep 'read-only'",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "plain run: 'skip a read-only page stays read-only under root (not root)'; `unshare -r bash whatsnew_test.sh`: 'ok   a read-only page stays read-only under root' then PASS",
+      "repro_path": ""
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew_test.sh",
+      "line": 233,
+      "angle": "page",
+      "summary": "'a second run still writes into myrealm/' models a fresh shell, while a visitor's re-paste runs inside myrealm/ and writes myrealm/myrealm/",
+      "failure_scenario": "Each run starts from `cd \"$work/deploy\"`, so the check can only see a missing -p. In a terminal the first paste's `cd myrealm` persists, so a re-paste after fixing <your-g1-addr> runs `mkdir -p myrealm && cd myrealm` again and writes into myrealm/myrealm/; the check name claims the opposite.",
+      "verify_by": "extract the block as line 225 does, then `bash -c 'source block.sh; source block.sh'` with gnokey and gno stubbed; ls myrealm/myrealm",
+      "band": "Nit",
+      "fix_kind": "test",
+      "checked": false,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 293,
+      "angle": "reach",
+      "summary": "source_version's -rc.N-only regex (pinned by the version test) might miss the live chains' build_version shape",
+      "settled_by": "curl rpc.onyx.testnets.gno.land/status and rpc.gno.land/status: {\"b\":\"v1.8.0-rc.1\",...} and {\"b\":\"v1.8.0\",...}, both match ^v[0-9.]+(-rc\\.[0-9]+)?$"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew_test.sh",
+      "line": 194,
+      "angle": "lines",
+      "summary": "the root-only read-only check might fail when it does run",
+      "settled_by": "unshare -r bash whatsnew_test.sh: 'ok   a read-only page stays read-only under root' ... PASS"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew_test.sh",
+      "line": 45,
+      "angle": "lines",
+      "summary": "the stub case answering null for negative getBlocks heights looked unreachable",
+      "settled_by": "whatsnew.sh:217 `from=$((tip > RATE_PROBE ? tip - RATE_PROBE : 1))`: the case makes a regression dropping that guard fail scan_week, so it pins the guard rather than dead code"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew_test.sh",
+      "line": 1,
+      "angle": "lines",
+      "summary": "the suite might not pass at head, or the body's '34 checks' might not match",
+      "settled_by": "bash whatsnew_test.sh at 37b7dd1f1: 33 'ok', 1 'skip ... (not root)', PASS rc=0; grep -c 'check ' = 35 including the definition, so 34 checks"
+    }
+  ]
+}

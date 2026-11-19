@@ -1,0 +1,90 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/gas_use.go",
+      "line": 122,
+      "angle": "reach",
+      "summary": "read() takes an ErrPartial with zero rows as a success, so a slow indexer read replaces the last measure with an empty map for the full 5 min TTL, the outcome the comment at 125-127 says it prevents",
+      "failure_scenario": "A package was measured (e.g. Deposit Max 1.4M, Calls 12, or valopers.Register raised to 165.9M). On the next read the indexer answers each band in ~3.2 s, under its 4 s client timeout; after three bands indexer.recent breaks on minWindowBudget and returns 0 rows with ErrPartial. read() stores gasUseEntry{uses: {}, expires: now+gasUseTTL}: lookup reports it fresh for 5 min, get returns no use, and NewTxGas falls back to TxGasWanted. Fast mode loses its lowered fee; a function measured above 10 M goes back to 10 M in both modes, so the copied command fails its dry run/simulation and the user has no figure to raise -gas-wanted to (the pre-PR command asked 1,000 M). A hard error on the same read keeps the last measure, so only the slow-but-answering indexer drops it.",
+      "verify_by": "cp reviews/pr/6xxx/6425-gnokey-gas-price/1-6b7e7bdfc/tests/b2-lines-reach-catalog-partial-drops-measure_test.go gno.land/pkg/gnoweb/zz_b2_partial_drops_measure_test.go && go test ./gno.land/pkg/gnoweb/ -run TestB2PartialEmptyDropsMeasure -v -count=1: expect the last measure kept, observe {Max:0 Calls:0} fresh for 5m0s",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "RecentByPackage: 12 rows, err=searched the most recent blocks only, took 0s / first read: Deposit = {Max:1400000 Calls:12} / RecentByPackage: 0 rows, err=searched the most recent blocks only, took 9.6s / after a slow read: Deposit = {Max:0 Calls:0}, entry fresh=true, expires in 5m0s, uses=map[] / --- FAIL: TestB2PartialEmptyDropsMeasure (9.60s). Control: 4.6 s bands fail on Client.Timeout as an error and the measure is kept (PASS).",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6425-gnokey-gas-price/1-6b7e7bdfc/tests/b2-lines-reach-catalog-partial-drops-measure_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/gas_use.go",
+      "line": 97,
+      "angle": "lines",
+      "summary": "No test pins the detached context of the background gas-use read: stubRecent.recent ignores its ctx and every test passes context.Background(), so dropping context.WithoutCancel stays green",
+      "failure_scenario": "Mutate `ctx := context.WithoutCancel(ctx)` to `ctx := ctx`. In production net/http cancels r.Context() as soon as ServeHTTP returns, and get never waits, so every background read is cancelled with the page that started it and no package is ever measured; the suite stays green because stubRecent.recent takes `_ context.Context` and no test cancels the ctx it hands get.",
+      "verify_by": "apply the mutation and run go test ./gno.land/pkg/gnoweb/ -run 'GasUse' -race -count=1: expect a red test, observe green; the test to add hands get a context cancelled right after the call and a stub that returns ctx.Err() when it is done",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 251,
+      "angle": "lines",
+      "summary": "No test pins queryGasPrice's context.WithoutCancel: gasCaller.SendRequest ignores its ctx, so the stale-while-revalidate refresh and the shared first read stay green when the request context is passed through",
+      "failure_scenario": "Mutate `context.WithoutCancel(ctx)` to `ctx` in queryGasPrice. The background refresh runs on the request context, which net/http cancels once the page is written, so the refresh fails and the price is never renewed past the first read; the first read is cut short for every waiter when its leader leaves. TestGasPriceFirstReadLeavesOnCancel cancels after the slot is acquired and gasCaller.SendRequest takes `_ context.Context`, so it still sees the read land.",
+      "verify_by": "apply the mutation and run go test ./gno.land/pkg/gnoweb/ -run 'GasPrice' -race -count=1: expect TestGasPriceFirstReadLeavesOnCancel or the stale-while-revalidate test red, observe green unless the RPC client checks ctx after SendRequest returns",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 235,
+      "angle": "lines",
+      "summary": "GasPrice serves the last good price with no bound on its age: a refresh that keeps failing resets gasAt and keeps gasOK, so an hours-old price is shown as current with Estimated false",
+      "failure_scenario": "The node answers auth/gasprice once, then every refresh times out on a saturated rpcSlots pool or the node lags; each failure sets gasAt=now and leaves gasPrice in place, so the page prices the copied command at the old figure indefinitely and nothing on the page says so. With x3 headroom and CheckTx rejecting a short fee for free, the cost is a rejected broadcast, not funds.",
+      "verify_by": "read TestGasPriceStaleWhileRevalidate's last block: a failed refresh keeps 2ugnot; repeat caller.set(\"\", nil); c.expire(); c.GasPrice; waitRefresh N times and observe the old price returned with err nil every time",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/client.go",
+      "line": 215,
+      "angle": "catalog",
+      "summary": "Global mutable state & concurrency: the new gas price cache, gas-use LRU, atomics and background goroutines race under -race",
+      "settled_by": "go test -race -count=1 ./gno.land/pkg/gnoweb/ -> ok github.com/gnolang/gno/gno.land/pkg/gnoweb 45.537s; go test -race -run 'GasPrice|GasUse' -count=50 -> ok 1.783s"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/client_test.go",
+      "line": 552,
+      "angle": "lines",
+      "summary": "TestGasPriceFirstReadIsShared/LeavesOnCancel flake: a caller whose snapshot predates the cache write but whose DoChan follows singleflight's key removal starts a second query",
+      "settled_by": "go test -race -run 'FirstReadIsShared|FirstReadLeaves|StaleWhile' -count=1000 -cpu 1,4,16 ./gno.land/pkg/gnoweb/ -> ok 45.608s"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/gas_use.go",
+      "line": 80,
+      "angle": "reach",
+      "summary": "rpcClient and gasUseCache carry a Mutex, atomics and a singleflight.Group by value inside HTTPHandler: a copy would split the lock",
+      "settled_by": "go vet ./gno.land/pkg/gnoweb/ -> vet-exit=0 (copylocks clean)"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/gas_use.go",
+      "line": 122,
+      "angle": "reach",
+      "summary": "An indexer band slower than the client timeout drops the last measure",
+      "settled_by": "repro with 4.6 s bands: RecentByPackage: 0 rows, err=Post ...: context deadline exceeded (Client.Timeout exceeded while awaiting headers); after a slow read: Deposit = {Max:1400000 Calls:9}, expires in 30s -> PASS (error path keeps the measure)"
+    }
+  ]
+}

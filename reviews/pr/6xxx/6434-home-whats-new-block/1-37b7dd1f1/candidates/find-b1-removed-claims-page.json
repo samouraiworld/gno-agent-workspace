@@ -1,0 +1,140 @@
+{
+  "candidates": [
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 82,
+      "angle": "page",
+      "summary": "The testnet page sends a builder whose package is not enabled to https://gpao.onyx.testnets.gno.land/status/..., a host with no DNS record",
+      "failure_scenario": "A builder follows 'Deploy from your terminal' on the onyx home (1280 and 1440 wide, same copy). The package parks, so the builder opens the cited status URL to see why. The name returns NXDOMAIN and curl fails with exit 6, so the only troubleshooting step the page gives leads nowhere. Nothing in the tree deploys that host, and gpao serves its status board only when --status-listen is set (off by default, contribs/gpao/README.md:95).",
+      "verify_by": "bash projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6434-home-whats-new-block/1-37b7dd1f1/tests/b1-removed-claims-page-gpao-status-host.sh misc/deployments/home-alias/home.testnet.md from the head tree: expect DoH Status 0 and an HTTP answer, observe Status 3 and curl_exit=6",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "DoH gpao.onyx.testnets.gno.land: {\"Status\":3,\"A\":[]} ; DoH rpc.onyx.testnets.gno.land: {\"Status\":0,...} ; GET https://gpao.onyx.testnets.gno.land/status/gno.land/r/gnoland/home: http=000 curl_exit=6 ; tree mentions of the host outside the page: 0 ; getent hosts: no resolve",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6434-home-whats-new-block/1-37b7dd1f1/tests/b1-removed-claims-page-gpao-status-host.sh"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 3,
+      "angle": "page",
+      "summary": "'Onyx runs mainnet's code' does not hold today: onyx runs v1.8.0-rc.1 while mainnet runs v1.8.0",
+      "failure_scenario": "A visitor reads the testnet home's first line and tests a package on onyx as if it were mainnet. /status reports build_version v1.8.0-rc.1 on onyx-1 and v1.8.0 on gnoland-1, and the page's own Live on onyx block lists #6504 'Consensus, transaction, gas and VM fixes from v1.8.0' as just merged, so gas and VM results on onyx can differ from mainnet's. gno.land/adr/pr6244 plans onyx one candidate ahead of mainnet; today it is one behind.",
+      "verify_by": "curl -fsSL https://rpc.onyx.testnets.gno.land:443/status | jq .result.build_version; curl -fsSL https://rpc.gno.land:443/status | jq .result.build_version: the copy holds only if they match or onyx is ahead",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "evidence": "onyx: {\"net\":\"onyx-1\",\"build\":\"v1.8.0-rc.1\"}; mainnet: {\"net\":\"gnoland-1\",\"build\":\"v1.8.0\"}"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 58,
+      "angle": "page",
+      "summary": "The prose asks for funding before the block that creates the key, so a reader who added a key as told then creates and signs with a second, unfunded 'alice'",
+      "failure_scenario": "Step 1 of 'Deploy a realm' says 'Install gnokey and add a key', and line 58 says to add a key and fund its address 'Then write a realm:'. The block that follows opens with 'gnokey add alice' (line 61), and the deploy block signs with alice. A reader who funded the key from step 1 creates a new, empty alice, and addpkg signed by alice fails on fees. If they put the funded key's address in -pkgpath it also does not match the signer.",
+      "verify_by": "read home.testnet.md:28-75 in order as a fresh reader; on gnodev, add key k1, fund it, run the two blocks as printed with <your-g1-addr> = k1's address: expect the deploy to land, observe alice unfunded",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "evidence": "line 58: 'Add a key (`gnokey list` prints its g1 address), and fund that address at the [faucet]..., picking Onyx. Then write a realm:'; line 61: 'gnokey add alice'"
+    },
+    {
+      "file": "misc/deployments/home-alias/whatsnew.sh",
+      "line": 376,
+      "angle": "page",
+      "summary": "At 1280 wide the What's new X cards wrap their header onto three lines: the X icon alone, then 'Gno.land @_gnoland', then '· Nov 19'",
+      "failure_scenario": "On the mainnet home filled by the script and served by the head's gnoweb, the X row at 1280 shows the icon on its own line above the bold link and the date on a third line. The blog row below keeps a one-line header, so the two rows of the block look different. At 1440 the same header fits on one line.",
+      "verify_by": "build gnoweb from head, serve a whatsnew-filled copy of home.mainnet.md with -aliases /x=static:<file>, chromium --headless --window-size=1280,5200 --screenshot, and compare with 1440",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "evidence": "screenshots hmf-1280.png / hmf-1440.png: at 1280 the X card header is three lines; at 1440 it is one line"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/adr/pr6434_home_whats_new.md",
+      "line": 61,
+      "angle": "claims",
+      "summary": "ADR: the scan copies gnoweb's chain map with the same rate probe, band width and window",
+      "settled_by": "whatsnew.sh:38-43 ACTIVITY_WINDOW=604800 RATE_PROBE=20000 BAND_WIDTH=25000 MIN_BAND_WIDTH=250; activity.go:18 activityWindow = 7*24h, :34 rateProbe = 20_000, :41 bandWidth = 25_000, :45 minBandWidth = 250"
+    },
+    {
+      "file": "gno.land/adr/pr6434_home_whats_new.md",
+      "line": 75,
+      "angle": "claims",
+      "summary": "ADR: only a release tag goes into the version link, an untagged build leaves the line out",
+      "settled_by": "whatsnew.sh:293 jq test(\"^v[0-9.]+(-rc\\\\.[0-9]+)?$\") else \"\"; :488 [ -z \"$tag\" ] || printf 'Runs [...]'; a live --builders run rendered 'Runs v1.8.0-rc.1'"
+    },
+    {
+      "file": "misc/deployments/home-alias/README.md",
+      "line": 26,
+      "angle": "claims",
+      "summary": "README: without the script the marker lines render as nothing",
+      "settled_by": "head gnoweb serving the unfilled home.testnet.md: the markers come out as HTML comments only (grep -c 'whats-new|raw HTML omitted' = 2), nothing visible in the screenshot"
+    },
+    {
+      "file": "misc/deployments/home-alias/README.md",
+      "line": 91,
+      "angle": "claims",
+      "summary": "README: with gnoalias.sh, run whatsnew on home-override.md with ON_CHANGE empty",
+      "settled_by": "gnoalias.sh:26-31 copies home-override.md over home.md when they differ, inside a 60 s loop that then runs the reload command"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 78,
+      "angle": "page",
+      "summary": "Deploy command's -chainid and -gas-fee might be wrong for onyx",
+      "settled_by": "onyx /status node_info.network = onyx-1; abci auth/gasprice = {gas 1000, price 1ugnot}, so 20000000 gas needs 20000ugnot and 40000ugnot covers it"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 38,
+      "angle": "page",
+      "summary": "New headings use icons lightbulb and rocket, and the filled block uses signal and branch, which may be unknown to gnoweb",
+      "settled_by": "gno.land/pkg/gnoweb/markdown/icons/icons.txt:196 rocket, :199 lightbulb, :177 'signal signal_full', :155 branch; head render shows no 'gno-icon: unknown name' comment"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 46,
+      "angle": "page",
+      "summary": "Build with AI column says gnomcp creates its own key and funds itself",
+      "settled_by": "mcp.gno.dev page: 'Funding a key and deploying to testnet. gno_faucet_fund agent key funded', and tool list includes gno_key_generate and gno_faucet_fund"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 111,
+      "angle": "page",
+      "summary": "Get a grant links to github.com/gnolang/grants, which may be gone",
+      "settled_by": "gh api repos/gnolang/grants: archived false; README opens 'Gno.land Grants Program'"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 34,
+      "angle": "page",
+      "summary": "'the list' link to /r/ may lead nowhere",
+      "settled_by": "head gnoweb GET /r/ = 200, page title 'Realms - gno.land'"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 1,
+      "angle": "removed",
+      "summary": "Removed testnet items (On this testnet frames, Boards, faucet as first use link, the testnet notice) may have been added at a reviewer's request",
+      "settled_by": "git log -S at d0cbe58c3: 'On this testnet', 'Boards is deployed on this testnet', 'Get free testnet GNOTs' added in b884b4a56 (#6293) and '**This is a testnet.**' in 21136dcae (#6223), both by the PR's own author; the notice's content survives in the new NOTE ('package names here are not reserved for production')"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.mainnet.md",
+      "line": 33,
+      "angle": "page",
+      "summary": "PR body: shorter descriptions make the three column buttons line up",
+      "settled_by": "head gnoweb screenshots of the filled mainnet home at 1280 and 1440: Explore the ecosystem, Getting started guide and Join gno.world sit on one baseline at both widths"
+    },
+    {
+      "file": "misc/deployments/home-alias/home.testnet.md",
+      "line": 53,
+      "angle": "page",
+      "summary": "Gnockpit and Gnoscan links in the filled Live on onyx block may not serve onyx",
+      "settled_by": "curl -L https://gnockpit.onyx.testnets.gno.land = 200; https://gnoscan.io/?chainId=onyx-1 = 200"
+    }
+  ]
+}

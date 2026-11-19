@@ -1,0 +1,29 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/components/view_action.go",
+      "line": 68,
+      "angle": "sweep",
+      "band": "Suggestion",
+      "summary": "The diff moves call commands from the hardcoded CallGas to a chain-priced TxGas and deletes CallGas, but leaves the sibling RunGas (the $run script command) at a hardcoded 100000ugnot fee, so the run command on the same site does not follow the chain's price",
+      "failure_scenario": "The chain's gas price rises above 2ugnot/1000gas (tm2 moves it by at least one unit per busy block, per gas.go:38-39). The Actions page prices its call commands from auth/gasprice, while the $run page (feature/run/handler.go:21 `Gas: components.RunGas`) still prints -gas-wanted 50_000_000 -gas-fee 100000ugnot, below the minimum, and CheckTx rejects the copied script. The removed assertion in feature/run/view_test.go (`assert.NotEqual(t, components.CallGas, components.RunGas, ...)`) was the one test relating the two.",
+      "verify_by": "grep -rn 'RunGas' gno.land/pkg/gnoweb --include='*.go' | grep -v _test: only view_action.go:68 and feature/run/handler.go:21; render the run page with a stub client whose GasPrice returns {Gas:1000, Price:5ugnot}: the command still carries 100000ugnot, while TestHTTPHandler_CommandGas's Actions page carries the chain-priced fee",
+      "fix_kind": "code",
+      "checked": true,
+      "evidence": "feature/run/handler.go:21: `Gas:     components.RunGas,`; view_action.go:68 `RunGas = Gas{Wanted: \"50_000_000\", Fee: \"100000ugnot\"}`; CallGas/callGas no longer present at head (grep empty), present at base view_action.go:62,90"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/components/gas.go",
+      "line": 135,
+      "angle": "reach",
+      "band": "Suggestion",
+      "summary": "A raise needs a single measured call (minGasUseCalls gates only lowering), so any account making one costly successful call to a function raises the fee every viewer's copied command offers, fast mode included, up to 1 GNOT, while Max stays in the window of the last 20 calls",
+      "failure_scenario": "A function costing ~1 M gas per normal call (fast command: -gas-wanted 2_000_000, fee 6000ugnot). One caller sends a successful single-MsgCall tx through a path that burns 400 M gas (e.g. a loop over a long argument). gasUses sets Max=400M; NewTxGas hits `case w > TxGasWanted` and sets Secure and Fast to the capped 1,000,000ugnot fee for every page view until 20 newer calls push it out. Unused gas is not refunded, so each user copying either command pays 1 GNOT instead of 6000ugnot. Not worse than base's hardcoded 1 GNOT, but it reverses the PR's own saving at one attacker's cost.",
+      "verify_by": "go test snippet in gnoweb: uses := gasUses([]indexer.Tx{callTx(400_000_000,true,call(\"F\")), callTx(1_000_000,true,call(\"F\")), callTx(1_000_000,true,call(\"F\"))}, testPkg); g := components.NewTxGas(components.FallbackGasPrice, uses[\"F\"]); expect g.Fast.Fee.Amount == 1_000_000 and g.Fast.Capped",
+      "fix_kind": "code",
+      "checked": false,
+      "evidence": ""
+    }
+  ]
+}
