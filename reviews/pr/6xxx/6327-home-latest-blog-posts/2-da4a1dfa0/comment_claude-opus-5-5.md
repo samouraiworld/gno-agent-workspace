@@ -10,8 +10,6 @@ Round: 2. The head moved from 4ee1b62ff to da4a1dfa0. Three findings from a hand
 
 ## Body
 
-- I think gnoweb should parse the posts apart from `home.md`, through an include tag it lacks today, so a title never reaches the rest of the page.
-
 ## misc/deployments/home-alias/gnoalias.sh:37 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/misc/deployments/home-alias/gnoalias.sh#L37) · [↗](../../../../../.worktrees/gno-review-6327/misc/deployments/home-alias/gnoalias.sh#L37) · Warning
 
 This `{ print }` copies a blog title's later lines into `home.md`, so a title whose second line is `<!--` hides every homepage section below the blog.
