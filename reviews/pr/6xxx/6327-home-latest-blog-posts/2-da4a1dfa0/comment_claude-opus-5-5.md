@@ -1,12 +1,12 @@
 # PR [#6327](https://github.com/gnolang/gno/pull/6327): feat(home): show the latest blog posts, and let gnoweb re-read static pages
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. A blog title whose second line is `<!--` hides every homepage section below the blog, and the branch is what copies that line into `home.md`; the rest of the head since 4ee1b62ff was read for the cache type and the failed-query path only.
-Model: claude-opus-5-5, single-finding pass at high effort, no finders or judges
+Model: claude-opus-5-5, hand-run pass at high effort, no finders or judges
 Commit: da4a1dfa0 (latest)
 Overview: [overview](../overview.md)
 Local worktree: `git -C gno worktree add ../.worktrees/gno-review-6327 da4a1dfa0`
 Open the code: [github.dev](https://github.dev/alexiscolin/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c) · [vscode.dev](https://vscode.dev/github/alexiscolin/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c)
-Round: 2. The head moved from 4ee1b62ff to da4a1dfa0. Three findings from a hand-run read of `latest_blogposts`, the failed-query path and `staticFile`, each run here; the author answered both round 1 threads on the script.
+Round: 2. The head moved from 4ee1b62ff to da4a1dfa0. Two findings run here, on `latest_blogposts` and `staticFile`, and the reviewer's own note on the failed-query path; the author answered both round 1 threads on the script.
 
 ## Body
 
