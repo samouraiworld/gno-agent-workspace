@@ -20,51 +20,33 @@ This `{ print }` copies a blog title's later lines into `home.md`, so a title wh
 
 <details><summary>repro</summary>
 
-A moderator post titled `Upgrade notice` then `<!--` on a second line, rendered by `r/gnoland/blog`, passed through the script's own `render_override`, and served by this branch's gnoweb.
-
 ```bash
 # from a local clone of gnolang/gno:
 gh pr checkout 6327 -R gnolang/gno
-cat > examples/gno.land/r/gnoland/blog/newline_title_test.gno <<'EOF'
-package blog
-
-import "testing"
-
-func TestNewlineTitle(cur realm, t *testing.T) {
-	clearState(t)
-	testing.SetOriginCaller(adminAddr)
-	testing.SetRealm(testing.NewUserRealm(adminAddr))
-	ModAddPost(cross(cur), "b", "B", "body", "2026-10-29T00:00:00Z", "", "")
-	ModAddPost(cross(cur), "c", "C", "body", "2026-10-28T00:00:00Z", "", "")
-	ModAddPost(cross(cur), "upgrade", "Upgrade notice\n<!--", "body", "2026-10-30T00:00:00Z", "", "")
-	println("RENDER-BEGIN")
-	println(Render(""))
-	println("RENDER-END")
-}
-EOF
-(cd examples && go run ../gnovm/cmd/gno test -v -run TestNewlineTitle ./gno.land/r/gnoland/blog 2>&1) | sed -n '/RENDER-BEGIN/,/RENDER-END/p' | sed '1d;$d' > render.md
-sed -n '/^BLOG_MARKER=/p;/^latest_blogposts() {/,/^}/p;/^render_override() {/,/^}/p' misc/deployments/home-alias/gnoalias.sh > funcs.sh
-mkdir -p home && cp misc/deployments/home-alias/home.mainnet.md home/home-override.md
-(cd home && qrender() { cat ../render.md; } && . ../funcs.sh && BLOG_LINK_BASE= render_override > home.md)
-go build -o gnoweb-bin ./gno.land/cmd/gnoweb
-./gnoweb-bin --aliases=/=static:$PWD/home/home.md --bind 127.0.0.1:8899 > gnoweb.log 2>&1 &
-until curl -sf -o /dev/null http://127.0.0.1:8899/; do sleep 1; done
-curl -s http://127.0.0.1:8899/ | grep -o "<h2[^>]*>.*</h2>" | sed "s/<[^>]*>//g"
-kill %1
+cd misc/deployments/home-alias
+printf '<gno-columns>\n### [Upgrade notice\n<!--](/r/gnoland/blog:p/x)\n30 Oct 2026\n</gno-columns>\n' > render.md
+sed -n '/^BLOG_MARKER=/p;/^latest_blogposts() {/,/^}/p;/^render_override() {/,/^}/p' gnoalias.sh > funcs.sh
+cp home.mainnet.md home-override.md
+qrender() { cat render.md; }; . ./funcs.sh; render_override | grep -E '^<!--|^## ' | sed 's/<gno-icon[^>]*> //; s/](.*//'
 ```
 
-The page ends at the blog heading, where the same run with a one-line title lists five more sections, from `Boards: on-chain forum` to `Stay connected`:
+The `<!--` from the title opens a comment no later line closes, so gnoweb serves only the five sections above it:
 
 ```text
-Contents
- Use apps
- Build with Gno
- Community
- Live on mainnet
- Latest from the blog
+## Use apps
+## Build with Gno
+## Community
+## Live on mainnet
+## Latest from the blog
+<!--
+## Boards: on-chain forum
+## Explore packages and realms
+## About Gno.land
+## Developer resources
+## Stay connected
 ```
 
-[`prepareAndSetPost`](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/examples/gno.land/p/gnoland/blog/v0/blog.gno#L176) trims only the ends of a title, so the realm stores the newline, and the markdown parser reads `home.md` whole, so the comment opened inside the posts runs to the end of the page. A second line of ```` ``` ```` turns the same five sections into one code block, and `## ` adds an entry to the table of contents. With the suggested line, all three cases and a title whose first line is `<!--` or ```` ``` ```` render the full page, and the live mainnet blog index comes out byte for byte as it does today.
+[`prepareAndSetPost`](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/examples/gno.land/p/gnoland/blog/v0/blog.gno#L176) trims only the ends of a title, so `ModAddPost` stores this one with its newline.
 </details>
 
 ## gno.land/pkg/gnoweb/alias_static.go:169-177 [gh](https://github.com/gnolang/gno/blob/da4a1dfa0805bf95acb56049579cd4e030dd126c/gno.land/pkg/gnoweb/alias_static.go#L169-L177) · [↗](../../../../../.worktrees/gno-review-6327/gno.land/pkg/gnoweb/alias_static.go#L169) · Suggestion
