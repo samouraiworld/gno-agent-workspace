@@ -1,0 +1,36 @@
+{
+ "dropped": [],
+ "candidates": [
+  {
+   "index": 7,
+   "file": "gnovm/cmd/benchstore/store_test.go",
+   "line": 445,
+   "angle": "removed",
+   "summary": "BenchmarkStoreGetCacheSweep still skips silently when -cache-sweep is missing, the shape the requireDB change calls a defect",
+   "failure_scenario": "go test -bench CacheSweep -db=pebbledb in gnovm/cmd/benchstore prints PASS after measuring nothing, since b.Skip at line 445 is silent without -v; a b.Fatal there would also turn every -bench . -db=pebbledb run red, so the fix is a design call",
+   "verify_by": "cd gnovm/cmd/benchstore && go test -run '^$' -bench CacheSweep -db=pebbledb .: expect PASS with no benchmark row",
+   "band": "Nit",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false
+  },
+  {
+   "index": 8,
+   "file": "misc/benchci/check.sh",
+   "line": 28,
+   "angle": "catalog",
+   "summary": "B/op rows get limit -1 and never fail, though bytes allocated is as machine-independent as allocs/op",
+   "failure_scenario": "A change that grows one allocation from 8KiB to 80KiB keeps allocs/op flat; unless sec/op also moves 20%, check.sh passes it",
+   "verify_by": "Read check.sh:28 'limit = unit == \"sec/op\" ? max_time : unit == \"allocs/op\" ? max_alloc : -1'; an A/A run of B/op deltas would settle whether a B/op floor adds false reds",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false
+  }
+ ],
+ "completeness": {
+  "catalog": "invariant-catalog.md classes apply to GnoVM, stdlib and .gno code; the diff touches CI scripts, a workflow and two test files, so no class applies",
+  "siblings": "grep b.Skip(\"TODO over *_test.go at head: no hit left; b.Skip(\"use - only in gnovm/cmd/benchstore/store_test.go (candidate 7); NewWALWriter/NewWALReader in wal_test.go: lines 55/59 share maxTestMsgSize, 277/294 share maxSize, no mismatched pair left",
+  "thin": "PR body and comments read: only the bot comment; body claims checked under candidates 1 and 4"
+ }
+}

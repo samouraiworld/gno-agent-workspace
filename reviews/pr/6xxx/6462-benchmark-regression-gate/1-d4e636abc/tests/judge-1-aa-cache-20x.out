@@ -1,0 +1,13 @@
+rep 56: REGRESSION CacheStoreGetKeyFound-16 sec/op: +23.63% (limit 20%, p=0.041 n=10) 
+rep 132: REGRESSION CacheStoreGetNoKeyFound-16 sec/op: +28.27% (limit 20%, p=0.035 n=10) 
+rep 225: REGRESSION CacheStoreGetKeyFound-16 sec/op: +20.02% (limit 20%, p=0.016 n=10) 
+red 3/250
+sec/op deltas (first 8 reps):
+CacheStoreGetNoKeyFound-16,~,p=0.542 n=10 CacheStoreGetKeyFound-16,~,p=0.579 n=10 
+CacheStoreGetNoKeyFound-16,~,p=0.165 n=10 CacheStoreGetKeyFound-16,~,p=0.956 n=10 
+CacheStoreGetNoKeyFound-16,~,p=0.684 n=10 CacheStoreGetKeyFound-16,~,p=0.078 n=10 
+CacheStoreGetNoKeyFound-16,~,p=0.670 n=10 CacheStoreGetKeyFound-16,~,p=0.078 n=10 
+CacheStoreGetNoKeyFound-16,~,p=0.739 n=10 CacheStoreGetKeyFound-16,~,p=0.100 n=10 
+CacheStoreGetNoKeyFound-16,~,p=0.353 n=10 CacheStoreGetKeyFound-16,~,p=0.781 n=10 
+CacheStoreGetNoKeyFound-16,~,p=0.912 n=10 CacheStoreGetKeyFound-16,~,p=0.897 n=10 
+CacheStoreGetNoKeyFound-16,~,p=1.000 n=10 CacheStoreGetKeyFound-16,~,p=0.566 n=10 
