@@ -1,4 +1,5 @@
 # Review: [#6462](https://github.com/gnolang/gno/pull/6462)
+Posted: https://github.com/gnolang/gno/pull/6462#pullrequestreview-6004593948
 
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES. Two Warnings in the new gate block it: the `20x` cache line fails same-tree comparisons by noise alone, and `check.sh` passes any allocs/op regression from a zero base.
@@ -11,7 +12,7 @@ Round: 1. One finder, a reflector pass, 8 candidates, each run or read from scra
 
 ## Body
 
-## misc/benchci/check.sh:26 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/misc/benchci/check.sh#L26) · [↗](../../../../../.worktrees/gno-review-6462/misc/benchci/check.sh#L26) · Warning
+## misc/benchci/check.sh:26 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/misc/benchci/check.sh#L26) · [↗](../../../../../.worktrees/gno-review-6462/misc/benchci/check.sh#L26) · Warning [posted](https://github.com/gnolang/gno/pull/6462#discussion_r4651965128)
 
 This check skips the `?` benchstat prints for a zero base, so a benchmark going from 0 to 1 allocs/op passes at p=0.000.
 
@@ -50,7 +51,7 @@ check.sh exit=1
 The `allocs/op` table of this pull request's own `ci / bench` run shows `Benchdata/loop.gno-4 0.000 ± 0%` on both sides.
 </details>
 
-## misc/benchci/suite.txt:14 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/misc/benchci/suite.txt#L14) · [↗](../../../../../.worktrees/gno-review-6462/misc/benchci/suite.txt#L14) · Warning
+## misc/benchci/suite.txt:14 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/misc/benchci/suite.txt#L14) · [↗](../../../../../.worktrees/gno-review-6462/misc/benchci/suite.txt#L14) · Warning [posted](https://github.com/gnolang/gno/pull/6462#discussion_r4651965131)
 
 The `20x` here also covers both `CacheStoreGet` benchmarks, whose samples last only microseconds, so 3 of 250 same-tree runs failed the gate.
 
@@ -91,7 +92,7 @@ Nit: the sweep benchmark still skips silently without its sweep flag, so it repo
 
 Not posted: line 445 sits outside the diff, and failing there would turn every `-bench . -db=pebbledb` run red, since the sweep is opt-in.
 
-## misc/benchci/check.sh:23 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/misc/benchci/check.sh#L23) · [↗](../../../../../.worktrees/gno-review-6462/misc/benchci/check.sh#L23) · Nit
+## misc/benchci/check.sh:23 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/misc/benchci/check.sh#L23) · [↗](../../../../../.worktrees/gno-review-6462/misc/benchci/check.sh#L23) · Nit [posted](https://github.com/gnolang/gno/pull/6462#discussion_r4651965136)
 
 Nit: this `NF < 7` guard drops the three-field CSV row of a benchmark renamed on one side, so the gate stays green without comparing it.
 
@@ -105,11 +106,11 @@ benchci: no regression above the limits
 ```
 </details>
 
-## misc/benchci/run.sh:22 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/misc/benchci/run.sh#L22) · [↗](../../../../../.worktrees/gno-review-6462/misc/benchci/run.sh#L22) · Nit
+## misc/benchci/run.sh:22 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/misc/benchci/run.sh#L22) · [↗](../../../../../.worktrees/gno-review-6462/misc/benchci/run.sh#L22) · Nit [posted](https://github.com/gnolang/gno/pull/6462#discussion_r4651965139)
 
 Nit: this `mkdir -p` leaves earlier binaries in a reused output directory, so a failed base build benchmarks a stale one.
 
-## .github/workflows/ci-bench.yml:12 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/.github/workflows/ci-bench.yml#L12) · [↗](../../../../../.worktrees/gno-review-6462/.github/workflows/ci-bench.yml#L12) · Suggestion
+## .github/workflows/ci-bench.yml:12 [gh](https://github.com/gnolang/gno/blob/d4e636abca2dd92070e6cf84da811aee3c12a0c4/.github/workflows/ci-bench.yml#L12) · [↗](../../../../../.worktrees/gno-review-6462/.github/workflows/ci-bench.yml#L12) · Suggestion [posted](https://github.com/gnolang/gno/pull/6462#discussion_r4651965142)
 
 Suggestion: no suite package imports `gno.land`, so a change confined to `gno.land/` runs the job on identical code that can only fail on noise.
 
