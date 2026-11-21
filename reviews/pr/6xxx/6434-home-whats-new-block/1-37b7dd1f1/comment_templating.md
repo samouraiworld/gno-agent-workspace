@@ -5,7 +5,7 @@ Status: draft, waits for `post`
 
 ## Body
 
-I think it works and I like the concept, but `whatsnew.sh` mixes two jobs, fetching the data and rendering the page, and the rendering half is hard to maintain in shell. A Go [`text/template`](https://pkg.go.dev/text/template) could take the rendering, leaving the script, or a small Go command, to fetch.
+I think it works and I like this new part of the home, but `whatsnew.sh` mixes two jobs, fetching the data and rendering the page, and the rendering half is hard to maintain in shell. A Go [`text/template`](https://pkg.go.dev/text/template) could take the rendering, leaving the script, or a small Go command, to fetch.
 
 - The [13 `render_*` functions](https://github.com/gnolang/gno/blob/37b7dd1f15a79144153303fe49a98e71f6ff9846/misc/deployments/home-alias/whatsnew.sh#L359-L497) build the markdown with `printf` and `awk`, and [`markers_ok`, `page_ok` and `fill_block`](https://github.com/gnolang/gno/blob/37b7dd1f15a79144153303fe49a98e71f6ff9846/misc/deployments/home-alias/whatsnew.sh#L500-L523) paste it between marker lines. With `home.mainnet.md` as the template, `{{range .Posts}}` replaces both, and a layout change becomes an edit to the page instead of to a shell function.
 - The escaping stays in one place: [`to_md`](https://github.com/gnolang/gno/blob/37b7dd1f15a79144153303fe49a98e71f6ff9846/misc/deployments/home-alias/whatsnew.sh#L103-L113) becomes a template function, called as `{{.Text | md}}`. `html/template` cannot do this part, since its automatic escaping knows HTML and not markdown.
