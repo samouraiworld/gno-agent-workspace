@@ -1,4 +1,5 @@
 # Review: [#6434](https://github.com/gnolang/gno/pull/6434)
+Posted: https://github.com/gnolang/gno/pull/6434#pullrequestreview-6003039099
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES, rendering should move out of shell into a template.
 Commit: 37b7dd1f1 (latest)
