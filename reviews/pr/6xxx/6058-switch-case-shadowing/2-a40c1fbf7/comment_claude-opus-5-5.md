@@ -1,4 +1,5 @@
 # Review: [#6058](https://github.com/gnolang/gno/pull/6058)
+Posted: https://github.com/gnolang/gno/pull/6058#pullrequestreview-6039428906
 Event: APPROVE
 Verdict: APPROVE. One Nit stays open: a blank type switch variable reaches `defineFauxCopy` with a slot it never got, which only the REPL and expression parsing hit.
 Model: claude-opus-5-5, standard review, the finder at xhigh and the judge at high
@@ -11,7 +12,7 @@ Round: 2. The head moved from 391840aa7 to a40c1fbf7, a merge of master that car
 
 - Unresolved: [accounted allocation grows with the length of a `fallthrough` chain](https://github.com/gnolang/gno/pull/6058#discussion_r3863669975).
 
-## gnovm/pkg/gnolang/preprocess.go:1057 [gh](https://github.com/gnolang/gno/blob/a40c1fbf7/gnovm/pkg/gnolang/preprocess.go#L1057) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L1057) · Nit
+## gnovm/pkg/gnolang/preprocess.go:1057 [gh](https://github.com/gnolang/gno/blob/a40c1fbf7/gnovm/pkg/gnolang/preprocess.go#L1057) · [↗](../../../../../.worktrees/gno-review-6058/gnovm/pkg/gnolang/preprocess.go#L1057) · Nit [posted](https://github.com/gnolang/gno/pull/6058#discussion_r4680171350)
 Nit: a blank type switch variable gets no slot, so the REPL fails `switch _ := i.(type)` here with an internal error instead of Go's `no new variables`.
 
 <details><summary>repro</summary>
