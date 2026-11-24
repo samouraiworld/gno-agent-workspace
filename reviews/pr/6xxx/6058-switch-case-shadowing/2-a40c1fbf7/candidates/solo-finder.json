@@ -1,0 +1,84 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2356,
+      "angle": "lines / user topic: defineFauxCopy panics in every build",
+      "summary": "A blank type switch variable (`switch _ := x.(type)`) never gets a slot, since Reserve returns on `_`, but defineSwitchVar still calls defineFauxCopy(numFauxCopiedNames(), \"_\"), which now panics in every build",
+      "failure_scenario": "Filetest `var i any = 42; switch _ := i.(type) { case int: x := 3; println(x) }`: Reserve skips `_` (nodes.go:2309), so slot numFauxCopiedNames() holds `x`; defineSwitchVar (preprocess.go:1056) hits the now-unconditional check and preprocess fails with `faux copy slot 0 holds x, not _`; a bodyless clause fails with index out of range. The base wrote by name (Define2 ignores `_`) and ran the version with a body. Go and gno's typecheck both reject the source (`no new variables on left side of :=`, confirmed with gno run), so no deployable or node-boot source reaches it. Only the filetest runner, which preprocesses despite a TypeCheckError (redefine6.gno), and untypechecked paths show an internal error in place of the Go diagnostic. The ADR sentence 'the variable is reserved at exactly numFauxCopiedNames()' does not hold for `_`.",
+      "verify_by": "Add tests/solo-finder-blank-tsvar.gno as gnovm/tests/files/blank_tsvar.gno and run `go test ./gnovm/pkg/gnolang -run TestFiles/blank_tsvar.gno`: expect the Error `faux copy slot 0 holds x, not _` at head. Fix shape: skip defineSwitchVar when ss.VarName == blankIdentifier, or reject it in preprocess with Go's message",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "Read: nodes.go:2309 `if nx.Name == blankIdentifier { return }`; preprocess.go:1056-1057 `csb.defineFauxCopy(csb.numFauxCopiedNames(), ss.VarName, anyValue(t))` guarded only by `ss.VarName != \"\"`; base preprocess.go:1069 used last.Define by name. gno run at head stops at typecheck: `blank2.gno:5:9: no new variables on left side of :=`.",
+      "repro_path": "tests/solo-finder-blank-tsvar.gno"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 1908,
+      "angle": "user topic: GetIsConstAt with a const shadow in a faux case block",
+      "summary": "A use or assignment of the outer name before, after, in a closure, in a nested if or block, and through fallthrough might resolve against the const shadow",
+      "settled_by": "gno run tests/solo-finder-const-shadow-paths.gno at head prints `closure-before 2 c / closure-after c / nested-if c / inner-before c / inner-after 7 / fell 2 / fell2 9`, the same as go run. The if/else form (`5 c`) matches too."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2312,
+      "angle": "removed",
+      "summary": "The removed NSTypeSwitch guard in Reserve might have been the only stop for a clause body redeclaring the type switch variable",
+      "settled_by": "grep NSTypeSwitch: the only setter is preprocess.go:641, on a clause block, after the copy loop at :637. Copies take the faux parent's NameSources (:591, :637), and a SwitchStmt or IfStmt never holds NSTypeSwitch, so the guard was unreachable for idx < numFauxCopiedNames(). The variable sits at numFauxCopiedNames(), which takes the `idx >=` return."
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2356,
+      "angle": "user topic: defineFauxCopy at node boot",
+      "summary": "Node boot re-preprocess of stored packages might see a case block whose copied names do not line up with the parent, now a panic in every build",
+      "settled_by": "machine.go:343 `fset := m.ParseMemPackage(mpkg)` in PreprocessAllFilesAndSaveBlockNodes parses fresh nodes, so the copy loop always lays out the parent's names first in order. Only blank tsvar (candidate 1) breaks alignment, and typecheck rejects it."
+    },
+    {
+      "file": "gnovm/tests/files/typeswitch11.gno",
+      "line": 16,
+      "angle": "reach: sibling shapes",
+      "summary": "A type switch variable shadowing an init name, or a clause shadow captured by closures (heap items) in a loop, might pick the wrong slot",
+      "settled_by": "gno run tests/solo-finder-typeswitch-shadow-closures.gno at head prints `5 t 42 / ts 7 / 0 0 / 2 10`, the same as go run"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes.go",
+      "line": 2309,
+      "angle": "user topic: master Reserve guards ahead of the faux-copy branch",
+      "summary": "The iota refusal or blank return placed before GetLocalIndex might skip or wrongly refuse a shadow of a faux-copied slot",
+      "settled_by": "Base nodes.go:2311 carries the same iota guard ahead of everything. Blank never gets a slot in the parent either: base Define2 ignores `_`, head nodes.go:2309 returns. A `_` therefore never occupies a copied slot, and only an iota declaration is refused, as on master."
+    },
+    {
+      "file": "gnovm/adr/pr6058_faux_block_shadowing.md",
+      "line": 168,
+      "angle": "claims",
+      "summary": "ADR: on master the case-body const form is rejected with `StaticBlock.Define2(v) cannot change const status`",
+      "settled_by": "Base read: the copy loop reserves `v` non-const via Define2; base Reserve no-ops on the existing name for `const v`; base copyFromFauxBlock (preprocess.go:4275) calls bn.Define(n); the const decl's Define2(true, v) then hits nodes.go `isConst != sb.getLocalIsConst(n)` and panics with that message"
+    },
+    {
+      "file": "gnovm/adr/pr6058_faux_block_shadowing.md",
+      "line": 118,
+      "angle": "claims",
+      "summary": "ADR: the fallthrough truncation landed separately in #6056",
+      "settled_by": "git -C <base> log --grep 6056 returns `0cf310707 fix(gnovm): drop clause-local names on switch fallthrough (#6056)`, which is in the merge base; head op_exec.go:767 `b.Values = b.Values[:ss.GetNumNames()]`"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/nodes_test.go",
+      "line": 325,
+      "angle": "claims",
+      "summary": "ADR: putting buildNameIndex back to first-wins fails TestStaticBlock_GetLocalIndex_LastWinsPastThreshold at width 40",
+      "settled_by": "Read: width 40 > nameIndexThreshold (32) builds nameIndex lazily in GetLocalIndex (nodes.go:1956). First-wins maps `v` to 0, and `assert.Equal(t, uint16(3), idx)` fails. Width 20 takes the reverse linear scan and pins that branch."
+    },
+    {
+      "file": "gnovm/tests/files/switch52.gno",
+      "line": 24,
+      "angle": "reach: type-decl shadow before use",
+      "summary": "A `type T` shadow in a case body might be predefined ahead of a prior use of the outer `T`, which then resolves to the type",
+      "settled_by": "gno run at head fails the case form with `expected type expr but got *gnolang.SwitchClauseStmt`, and the plain nested-block form (`T := 1; { println(T); type T string }`) fails identically with `*gnolang.BlockStmt`. The behaviour predates the PR, is shared with ordinary blocks, and is outside this round's diff."
+    }
+  ]
+}

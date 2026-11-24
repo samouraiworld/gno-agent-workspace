@@ -1,0 +1,23 @@
+diff --git a/gnovm/pkg/gnolang/go2gno.go b/gnovm/pkg/gnolang/go2gno.go
+index b3a5d065d..bfef7bef8 100644
+--- a/gnovm/pkg/gnolang/go2gno.go
++++ b/gnovm/pkg/gnolang/go2gno.go
+@@ -629,13 +629,17 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
+ 	case *ast.TypeSwitchStmt:
+ 		switch as := gon.Assign.(type) {
+ 		case *ast.AssignStmt:
+-			return &SwitchStmt{
++			ss := &SwitchStmt{
+ 				Init:         toStmt(fs, gon.Init),
+ 				X:            toExpr(fs, as.Rhs[0].(*ast.TypeAssertExpr).X),
+ 				IsTypeSwitch: true,
+ 				Clauses:      toClauses(fs, gon.Body.List),
+ 				VarName:      toName(as.Lhs[0].(*ast.Ident)),
+ 			}
++			if ss.VarName == blankIdentifier {
++				ss.VarName = "" // the blank identifier never gets a slot.
++			}
++			return ss
+ 		case *ast.ExprStmt:
+ 			return &SwitchStmt{
+ 				Init:         toStmt(fs, gon.Init),

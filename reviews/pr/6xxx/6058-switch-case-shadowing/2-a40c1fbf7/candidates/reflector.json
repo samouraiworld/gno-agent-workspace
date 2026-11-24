@@ -1,0 +1,24 @@
+{
+ "candidates": [
+  {
+   "index": 2,
+   "file": "gnovm/pkg/gnolang/nodes.go",
+   "line": 2470,
+   "angle": "completeness / sibling guard: defineNew duplicate check stays debugAssert-only",
+   "summary": "The diff makes the defineFauxCopy slot check unconditional, while its sibling invariant check in defineNew, which the ADR calls enforced, still runs only under debugAssert",
+   "failure_scenario": "A caller appending a second slot for a name at or past numFauxCopiedNames() in a release build gets a silent duplicate, and GetLocalIndex resolves every later use to the new slot",
+   "verify_by": "grep every defineNew caller and confirm each one returns before appending a name already at or past the boundary",
+   "band": "Suggestion",
+   "fix_kind": "code",
+   "checked": true,
+   "run": false,
+   "evidence": "grep defineNew( in gnovm/pkg/gnolang: two callers, nodes.go:2332 (Reserve) and nodes.go:2459 (Define2 else branch)"
+  }
+ ],
+ "dropped": [],
+ "completeness": [
+  "Catalog: VM semantics vs Go and Type-check & preprocess are the classes this diff touches; candidate 1 is the preprocess one. Determinism, gas, realm state, caller identity, coins, storage deposit, global state, twin inputs and stored data are untouched by these five files.",
+  "VM-fault recoverability: the two preprocess panics candidate 1 reaches (a string panic and a Go index out of range) are recovered by the REPL's RunStatements and by doRecoverQuery on qeval; addpkg and node boot never reach them, since DeclarationErrors rejects `_ :=` there.",
+  "Sibling sweep by shape: defineFauxCopy has two callers (preprocess.go:1056, :4269); the copy loop at :4269 indexes names the parent holds, and a parent never holds `_`. The other debugAssert guard on the same invariant is candidate 2."
+ ]
+}
