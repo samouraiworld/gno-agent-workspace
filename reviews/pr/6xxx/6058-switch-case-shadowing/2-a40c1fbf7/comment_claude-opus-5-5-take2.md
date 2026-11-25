@@ -143,4 +143,4 @@ Overview: [overview](../overview.md)
   </details>
 
 - Missing test: a case declaring `type v int` over the init `v` panics here through #5662, and prints `before 1`, `x 7`, `outer 1` as Go does once #6060 is merged in, so whichever of the two lands second can carry it.
-- I think the longer-term layout gives a case only its own names, numbered after the statement's, so no static block holds a name twice and a lookup by name cannot pick the wrong copy; it is a refactor of its own and not this PR's job, proposed in #ISSUE.
+- I think a case should later hold only the names it declares itself, in slots that start where the `switch`'s names end, rather than copies of the `switch`'s names. No name would then appear twice in a case, so no future lookup by name could land on the copy instead of the shadow. That refactor is for later, not for this PR, and #ISSUE proposes it.
