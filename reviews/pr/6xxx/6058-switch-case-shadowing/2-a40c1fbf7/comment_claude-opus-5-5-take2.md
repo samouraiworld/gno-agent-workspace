@@ -7,6 +7,24 @@ Overview: [overview](../overview.md)
 
 ## Body
 
+- The fix you made looks good to me, but I think we should not copy the `switch`'s names into the case at all. The case would keep only its own names, starting at the slot right after the `switch`'s:
+
+  ```go
+  switch a, b := 1, 2; b {
+  case 2:
+  	c := 3
+  	b := "x"
+  	println(a, b, c)
+  }
+  ```
+
+  ```
+  runtime block:   [a][b][c][b']   the same both ways
+  case, this PR:   [a, b, c, b]    b twice, the last one wins
+  case, proposed:  [c, b]          starts at slot 2, after the switch's a and b
+  ```
+
+  Each name then exists once in the case, so no last-wins rule is needed. #ISSUE applies the same idea to every scope of a function.
 - Missing test: these shapes run the same as Go at this head, and no filetest pins them:
   - a shadow that `goto` jumps back over
   - an `else if` under an `if` init, with a closure made before the shadow
@@ -143,23 +161,6 @@ Overview: [overview](../overview.md)
   </details>
 
 - Missing test: a case declaring `type v int` over the init `v` panics here through #5662, and prints `before 1`, `x 7`, `outer 1` as Go does once #6060 is merged in, so whichever of the two lands second can carry it.
-- The fix you made looks good to me, but I think we should not copy the `switch`'s names into the case at all. The case would keep only its own names, starting at the slot right after the `switch`'s:
-
-  ```go
-  switch a, b := 1, 2; a {
-  case 1:
-  	c := 3
-  	b := "x"
-  }
-  ```
-
-  ```
-  runtime block:   [a][b][c][b']   the same both ways
-  case, this PR:   [a, b, c, b]    b twice, the last one wins
-  case, proposed:  [c, b]          starts at slot 2, after the switch's a and b
-  ```
-
-  Each name then exists once in the case, so no last-wins rule is needed. #ISSUE applies the same idea to every scope of a function.
 
 <details><summary>all 21 programs against Go</summary>
 
