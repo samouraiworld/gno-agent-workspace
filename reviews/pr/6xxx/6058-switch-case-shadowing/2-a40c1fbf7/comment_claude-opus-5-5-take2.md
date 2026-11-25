@@ -25,7 +25,7 @@ Overview: [overview](../overview.md)
   case names, proposed:      c  b      the case's names start at index 2
   ```
 
-  The case stays at depth 1 in the same runtime block, and its static block drops the copies and records that its own names start at index 2. Each name then exists once in the case, so no last-wins rule is needed. #ISSUE applies the same idea to every scope of a function.
+  The case stays at depth 1 in the same runtime block, and its static block drops the copies and records that its own names start at index 2. Each name then exists once in the case, so no last-wins rule is needed. The cost is that every step from a slot to the case's static block subtracts that start index: `ExpandWith` filling the case's slots, `GetBlockNodeForPath` telling the switch's slots from the case's, and heap marking. #ISSUE applies the same idea to every scope of a function.
 - Missing test: these shapes run the same as Go at this head, and no filetest pins them:
   - a shadow that `goto` jumps back over
   - an `else if` under an `if` init, with a closure made before the shadow
