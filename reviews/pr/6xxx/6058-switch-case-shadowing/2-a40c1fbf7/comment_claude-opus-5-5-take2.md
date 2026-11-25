@@ -1,4 +1,5 @@
 # Review: [#6058](https://github.com/gnolang/gno/pull/6058)
+Posted: https://github.com/gnolang/gno/pull/6058#issuecomment-7167825135, as a PR comment, with #ISSUE filled in as #6529
 Event: REPLY on https://github.com/gnolang/gno/pull/6058#pullrequestreview-6039428906, the review already posted at this head
 Verdict: NEEDS DISCUSSION. The fix runs the same as Go on every case tried, and an offset for the case's own names would replace the duplicate slot.
 Model: claude-opus-5-5, high, no review round: a differential run of 21 programs under Go 1.25.9, gno at a40c1fbf7, gno at its base and gno at a40c1fbf7 merged with #6060
@@ -25,7 +26,7 @@ Overview: [overview](../overview.md)
   case names, proposed:      c  b      start at index 2
   ```
 
-  The case stays at depth 1 in the same block. Each name exists once, so no last-wins rule is needed; the cost is subtracting that start index wherever a slot maps back to the case's names: `ExpandWith`, `GetBlockNodeForPath` and heap marking. #ISSUE applies the same idea to every scope of a function.
+  The case stays at depth 1 in the same block. Each name exists once, so no last-wins rule is needed; the cost is subtracting that start index wherever a slot maps back to the case's names: `ExpandWith`, `GetBlockNodeForPath` and heap marking. #6529 applies the same idea to every scope of a function.
 - Missing test: no filetest covers these shapes, which already match Go here:
   - `goto` jumping back over a shadow
   - `else if` under an `if` init, with a closure made before the shadow
