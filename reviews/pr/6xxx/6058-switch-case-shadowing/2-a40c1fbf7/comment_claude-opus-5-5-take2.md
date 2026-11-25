@@ -7,7 +7,7 @@ Overview: [overview](../overview.md)
 
 ## Body
 
-- The fix you made looks good to me, but I think we should not copy the `switch`'s names into the case at all. The case would keep only its own names, starting at the slot right after the `switch`'s:
+- The fix you made looks good to me, but I think we should not copy the `switch`'s names into the case's static block at all. With this PR, the case's names start with those copies, so a shadow needs a second entry for the same name. The case would instead keep only its own names, starting at the index right after the `switch`'s:
 
   ```go
   switch a, b := 1, 2; b {
@@ -19,12 +19,13 @@ Overview: [overview](../overview.md)
   ```
 
   ```
-  runtime block:   [a][b][c][b']   the same both ways
-  case, this PR:   [a, b, c, b]    b twice, the last one wins
-  case, proposed:  [c, b]          starts at slot 2, after the switch's a and b
+               index:  0  1  2  3
+  runtime block:       a  b  c  b'     b' is the case's b, in both layouts
+  case names, this PR: a  b  c  b      b twice, a lookup takes the last
+  case names, proposed:      c  b      the case's names start at index 2
   ```
 
-  Each name then exists once in the case, so no last-wins rule is needed. #ISSUE applies the same idea to every scope of a function.
+  The case stays at depth 1 in the same runtime block, and its static block drops the copies and records that its own names start at index 2. Each name then exists once in the case, so no last-wins rule is needed. #ISSUE applies the same idea to every scope of a function.
 - Missing test: these shapes run the same as Go at this head, and no filetest pins them:
   - a shadow that `goto` jumps back over
   - an `else if` under an `if` init, with a closure made before the shadow
@@ -160,11 +161,11 @@ Overview: [overview](../overview.md)
 
   </details>
 
-- Missing test: a case declaring `type v int` over the init `v` panics here through #5662, and prints `before 1`, `x 7`, `outer 1` as Go does once #6060 is merged in, so whichever of the two lands second can carry it.
+- Missing test: a case declaring `type v int` over the init `v` panics at this head because its base predates #6060, which lets a type be declared inside a nested block. With #6060 merged in it prints `before 1`, `x 7`, `outer 1` as Go does, so a merge of master lets this PR pin it.
 
 <details><summary>all 21 programs against Go</summary>
 
-Each program ran under `go run` on Go 1.25.9 and under `gno run` built from this head, from its base, and from this head merged with #6060. A value of a locally declared type is printed through `int(x)`, since gno's `println` prints such a value with its type.
+Each program ran under `go run` on Go 1.25.9 and under `gno run` built from this head, from its base, and from this head merged with #6060. A value of a locally declared type is printed through `int(x)`, since gno's `println` prints such a value with its type name. `n1` to `n3` declare a type in a nested block without shadowing anything, and `n4` shadows at function level. Together they show the `type v int` panic comes from the nested type, not from the shadow.
 
 | Program | What it checks | This head | Base | With #6060 |
 |---|---|---|---|---|
@@ -177,7 +178,7 @@ Each program ran under `go run` on Go 1.25.9 and under `gno run` built from this
 | `c07_const_len` | `const v` used as an array length | same | panics | same |
 | `c08_loop_closures` | closures made in a loop capture the shadow | same | differs | same |
 | `c09_pointer_outer` | pointer to the outer `v` taken before the shadow | same | differs | same |
-| `c10_typeswitch` | type switch: body shadows an init name, the variable shadows one | same | panics | same |
+| `c10_typeswitch` | type switch: the body shadows an init name, and the switch variable shadows another | same | panics | same |
 | `c11_nested` | nested switch shadowing again | same | differs | same |
 | `c12_multi_define` | `v, w := v+1, 3` | same | differs | same |
 | `c13_if_else` | `if`/`else` body shadow, `var v = v * 3` | same | same | same |
