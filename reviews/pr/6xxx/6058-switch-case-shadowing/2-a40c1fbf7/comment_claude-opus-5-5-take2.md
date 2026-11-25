@@ -143,7 +143,7 @@ Overview: [overview](../overview.md)
   </details>
 
 - Missing test: a case declaring `type v int` over the init `v` panics here through #5662, and prints `before 1`, `x 7`, `outer 1` as Go does once #6060 is merged in, so whichever of the two lands second can carry it.
-- The fix you made looks good to me, but I think we should stop copying the `switch`'s names into the case's static block and give the case only its own names, at an offset equal to the `switch`'s `NumNames`, so slot = offset + position in the case. The runtime block stays the same, and `b` appears once per static block instead of twice:
+- The fix you made looks good to me, but I think we should not copy the `switch`'s names into the case at all. The case would keep only its own names, starting at the slot right after the `switch`'s:
 
   ```go
   switch a, b := 1, 2; a {
@@ -154,13 +154,12 @@ Overview: [overview](../overview.md)
   ```
 
   ```
-  runtime block:        [a][b][c][b']     slots 0..3, the same both ways
-  switch static block:  Names [a, b]      NumNames 2
-  case, this PR:        Names [a, b, c, b]   position = slot, b twice, last wins
-  case, with an offset: Names [c, b]         offset 2, c is slot 2, b' is slot 3
+  runtime block:   [a][b][c][b']   the same both ways
+  case, this PR:   [a, b, c, b]    b twice, the last one wins
+  case, proposed:  [c, b]          starts at slot 2, after the switch's a and b
   ```
 
-  A lookup of `b` in the case then finds one `b` there, else goes to the `switch`'s block, so no last-wins rule is needed and no later lookup by name can land on the copy. `GetBlockNodeForPath` already splits slots below the offset to the parent, and `ExpandWith` would read the case's values at `slot - offset`. #ISSUE takes the same idea to every scope of a function.
+  Each name then exists once in the case, so no last-wins rule is needed. #ISSUE applies the same idea to every scope of a function.
 
 <details><summary>all 21 programs against Go</summary>
 
