@@ -1,6 +1,6 @@
 # Review: [#6058](https://github.com/gnolang/gno/pull/6058)
 Event: REPLY on https://github.com/gnolang/gno/pull/6058#pullrequestreview-6039428906, the review already posted at this head
-Verdict: APPROVE, unchanged. Seven case shapes run the same as Go here and no filetest pins them; the design note is for later work.
+Verdict: NEEDS DISCUSSION. The fix runs the same as Go on every case tried, and an offset for the case's own names would replace the duplicate slot.
 Model: claude-opus-5-5, high, no review round: a differential run of 21 programs under Go 1.25.9, gno at a40c1fbf7, gno at its base and gno at a40c1fbf7 merged with #6060
 Commit: a40c1fbf7 (latest)
 Overview: [overview](../overview.md)
@@ -143,7 +143,7 @@ Overview: [overview](../overview.md)
   </details>
 
 - Missing test: a case declaring `type v int` over the init `v` panics here through #5662, and prints `before 1`, `x 7`, `outer 1` as Go does once #6060 is merged in, so whichever of the two lands second can carry it.
-- I think the case's static block should later stop copying the `switch`'s names and hold only its own, at an offset equal to the `switch`'s `NumNames`, so slot = offset + position in the case. The runtime block stays the same, and `b` appears once per static block instead of twice:
+- The fix you made looks good to me, but I think we should stop copying the `switch`'s names into the case's static block and give the case only its own names, at an offset equal to the `switch`'s `NumNames`, so slot = offset + position in the case. The runtime block stays the same, and `b` appears once per static block instead of twice:
 
   ```go
   switch a, b := 1, 2; a {
@@ -160,7 +160,7 @@ Overview: [overview](../overview.md)
   case, with an offset: Names [c, b]         offset 2, c is slot 2, b' is slot 3
   ```
 
-  A lookup of `b` in the case then finds one `b` there, else goes to the `switch`'s block, so no last-wins rule is needed. `GetBlockNodeForPath` already splits slots below the offset to the parent, and `ExpandWith` would read the case's values at `slot - offset`. That refactor is for later, not for this PR, and #ISSUE proposes it.
+  A lookup of `b` in the case then finds one `b` there, else goes to the `switch`'s block, so no last-wins rule is needed and no later lookup by name can land on the copy. `GetBlockNodeForPath` already splits slots below the offset to the parent, and `ExpandWith` would read the case's values at `slot - offset`. #ISSUE takes the same idea to every scope of a function.
 
 <details><summary>all 21 programs against Go</summary>
 

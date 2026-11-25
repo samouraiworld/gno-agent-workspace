@@ -1,5 +1,5 @@
 Target: https://github.com/gnolang/gno/issues/new
-Status: draft, not posted. Searched every title and the full text of gnolang/gno issues and pull requests for faux block, frame per function, flatten blocks, stack frame, escape analysis, closure captures heap, block allocation per scope, redesign blocks and loopvar rename on 2026-11-25: no issue proposes this. Nearest miss: #4588, closed, a gas charge by frame size.
+Status: draft, not posted. Searched every title and the full text of gnolang/gno issues and pull requests for faux block, frame per function, flatten blocks, stack frame, escape analysis, closure captures heap, block allocation per scope, redesign blocks and loopvar rename on 2026-11-25: no issue proposes this. Comments searched too for faux block, stack frame, flatten, escape analysis and heap item closure: no written proposal found; the user recalls the idea from an earlier conversation, place unknown. Nearest misses: #4588, closed, a gas charge by frame size; #4098, where a comment proposes a frame depth beside the block depth for `goto`.
 
 ## Title
 
