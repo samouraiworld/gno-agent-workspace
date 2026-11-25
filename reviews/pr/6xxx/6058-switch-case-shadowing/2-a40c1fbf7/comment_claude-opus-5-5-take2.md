@@ -7,7 +7,7 @@ Overview: [overview](../overview.md)
 
 ## Body
 
-- The fix you made looks good to me, but I think we should not copy the `switch`'s names into the case's static block at all. With this PR, the case's names start with those copies, so a shadow needs a second entry for the same name. The case would instead keep only its own names, starting at the index right after the `switch`'s:
+- The fix you made looks good to me, but I think we should not copy the `switch`'s names into the case's static block at all. With this PR, the case's names start with those copies, so after `b := "x"` the case lists `b` twice: the copy of the `switch`'s `b` and the case's own `b`. The case would instead keep only its own names, starting at the index right after the `switch`'s:
 
   ```go
   switch a, b := 1, 2; b {
