@@ -3,7 +3,7 @@ Status: draft, not posted. Searched every title and the full text of gnolang/gno
 
 ## Title
 
-gnovm: lay out a function's variables in one block, each scope after its parent's
+gnovm: refactor variable layout to one block per function, each scope after its parent's
 
 ## Body
 
@@ -15,7 +15,7 @@ The VM gives each scope of a function its own block of variable slots, and the p
 
 A variable that a closure captures or whose address is taken already lives in a heap item. [`addHeapCapture`](https://github.com/gnolang/gno/blob/ed1a7c859f0f083ccf458ba22c4b053230f67236/gnovm/pkg/gnolang/preprocess.go#L3853) records each capture on the function literal, and at run time the closure holds the variable's heap item in [`FuncValue.Captures`](https://github.com/gnolang/gno/blob/ed1a7c859f0f083ccf458ba22c4b053230f67236/gnovm/pkg/gnolang/values.go#L668). [`&v` marks `v`](https://github.com/gnolang/gno/blob/ed1a7c859f0f083ccf458ba22c4b053230f67236/gnovm/pkg/gnolang/preprocess.go#L3737-L3746) for the same treatment. A closure or a pointer therefore reads the heap item, not the block slot.
 
-Proposal: give each function call one block, each scope's slots starting where its parent's end and sibling scopes reusing the same slots, so a name compiles to a slot number and no case needs a copy. A scope that reuses a slot after another has left it cannot overwrite a variable a closure or a pointer still holds, since those read the heap item.
+Proposal, as a refactor: once #6058 lands nothing here is broken, so this is not needed for correctness, but I think it is a better design. Give each function call one block, each scope's slots starting where its parent's end and sibling scopes reusing the same slots, so a name compiles to a slot number and no case needs a copy. A scope that reuses a slot after another has left it cannot overwrite a variable a closure or a pointer still holds, since those read the heap item.
 
 - [ ] A `switch` or `if` case holds only its own names, starting at the slot right after the statement's, with no copies.
 - [ ] Every scope of a function shares the function's block.
