@@ -7,7 +7,7 @@ Overview: [overview](../overview.md)
 
 ## Body
 
-- The fix you made looks good to me, but I think we should not copy the `switch`'s names into the case's static block at all. With this PR, the case's names start with those copies, so after `b := "x"` the case lists `b` twice: the copy of the `switch`'s `b` and the case's own `b`. The case would instead keep only its own names, starting at the index right after the `switch`'s:
+- The fix you made looks good to me, but I think we should not copy the `switch`'s names into the case at all, and start the case's own names at the index right after the `switch`'s:
 
   ```go
   switch a, b := 1, 2; b {
@@ -20,20 +20,20 @@ Overview: [overview](../overview.md)
 
   ```
                index:  0  1  2  3
-  runtime block:       a  b  c  b'     b' is the case's b, in both layouts
-  case names, this PR: a  b  c  b      b twice, a lookup takes the last
-  case names, proposed:      c  b      the case's names start at index 2
+  runtime block:       a  b  c  b'     b' is the case's b; unchanged
+  case names, this PR: a  b  c  b      b twice, the last one wins
+  case names, proposed:      c  b      start at index 2
   ```
 
-  The case stays at depth 1 in the same runtime block, and its static block drops the copies and records that its own names start at index 2. Each name then exists once in the case, so no last-wins rule is needed. The cost is that every step from a slot to the case's static block subtracts that start index: `ExpandWith` filling the case's slots, `GetBlockNodeForPath` telling the switch's slots from the case's, and heap marking. #ISSUE applies the same idea to every scope of a function.
-- Missing test: these shapes run the same as Go at this head, and no filetest pins them:
-  - a shadow that `goto` jumps back over
-  - an `else if` under an `if` init, with a closure made before the shadow
+  The case stays at depth 1 in the same block. Each name exists once, so no last-wins rule is needed; the cost is subtracting that start index wherever a slot maps back to the case's names: `ExpandWith`, `GetBlockNodeForPath` and heap marking. #ISSUE applies the same idea to every scope of a function.
+- Missing test: no filetest covers these shapes, which already match Go here:
+  - `goto` jumping back over a shadow
+  - `else if` under an `if` init, with a closure made before the shadow
   - a pointer to the outer name taken before the shadow
-  - a `defer` reading the outer name
-  - `v, w := v+1, 3`, where the right-hand `v` is the outer one
+  - `defer` reading the outer name
+  - `v, w := v+1, 3`
   - a shadowed second init name
-  - a switch reused across loop iterations
+  - a switch reused in a loop
 
   <details><summary>test cases</summary>
 
@@ -161,7 +161,7 @@ Overview: [overview](../overview.md)
 
   </details>
 
-- Missing test: a case declaring `type v int` over the init `v` panics at this head because its base predates #6060, which lets a type be declared inside a nested block. With #6060 merged in it prints `before 1`, `x 7`, `outer 1` as Go does, so a merge of master lets this PR pin it.
+- Missing test: `type v int` shadowing the init `v` panics here because the base predates #6060; after a merge of master it matches Go.
 
 <details><summary>all 21 programs against Go</summary>
 
