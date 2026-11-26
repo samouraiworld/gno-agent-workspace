@@ -1,0 +1,42 @@
+{
+  "candidates": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/sanitize_integration_test.go",
+      "line": 575,
+      "angle": "removed",
+      "summary": "liveExtension still omits gno-details after the regex from alexiscolin's nit was applied, and the footer check cannot see a details wrap, so TestExtensionAndFooterIsolation stays green if a user's <gno-details> opener gets past the sanitizer",
+      "failure_scenario": "A later sanitizer change lets `<gno-details summary=\"x\">` through in one of the 41 repro shapes. The page renders `<details class=\"gno-details\">` around the trusted footer, so the footer is collapsed under the attacker's summary, which SANITIZE.md's BlockRich row describes as a breakout around the realm's block. All four assertions still pass. The regex has form|columns|column|frame|foreign|button|alert but no details. `<strong>Trusted Realm Footer</strong>` and `href=\"https://realm.example/home\"` still render inside the <details>. No repro input feeds a details, frame, button or foreign opener anyway: every one uses `<gno-form path=\"x\">` or `<gno-columns>`. At head the sanitizer escapes all of them (0 of 288 slipped), so this is a test gap and not a code defect.",
+      "verify_by": "Compose `# Trusted Realm Title\\n\\n<gno-details summary=\"x\">\\n` with the test's chromeFooter, renderMarkdown it, and apply the four assertions of TestExtensionAndFooterIsolation: all pass while the HTML holds `<details class=\"gno-details\">` around the footer. Then add `details` to the regex and feed each shape a details opener; that run must stay green at head.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "go test ./gno.land/pkg/gnoweb/markdown -run 'TestB6|TestExtensionAndFooterIsolation' at a8bdd53b0 under the sandbox: TestB6AssertionsBlindToDetails PASS with rendered `<h1>Trusted Realm Title</h1>\\n<details class=\"gno-details\">\\n<summary>...<span>x</span></summary>\\n<div>\\n<hr>\\n<p><strong>Trusted Realm Footer</strong> <a href=\"https://realm.example/home\" ...` while all four isolation assertions hold. TestB6DetailsAndSiblingOpenersThroughCorpus logged `slipped=0 of 288` for details, frame, button and uppercase details openers across 18 shapes and all four helpers, so the sanitizer holds today.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6304-sanitize-gno-tags/1-a8bdd53b0/tests/b6-lines-reach-catalog-removed-details-regex-blind_test.go"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go",
+      "line": 254,
+      "angle": "removed",
+      "summary": "The rewritten hash comment no longer has the bisection line from 1c377bf89 that pinned the move to markdown.gno alone, so the new value might hide another consensus-relevant change from the merge",
+      "settled_by": "In a scratch worktree at a8bdd53b0: `go test ./gno.land/pkg/sdk/vm -run 'TestAppHashCrossrealm38$'` printed `ok`. With `git show d25b308c1:gnovm/stdlibs/chain/markdown/markdown.gno` written over the file, the same run printed `actual  : \"91649bb8181ca02d61f2880ddb7b5c9f59359d14d8e5a4c2cb429ab7893937b4\"`, the merge base's pinned value. markdown.gno alone moves the hash, and its diff against the base is comment lines only.",
+      "output": "actual  : \"91649bb8181ca02d61f2880ddb7b5c9f59359d14d8e5a4c2cb429ab7893937b4\""
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/sanitize_integration_test.go",
+      "line": 575,
+      "angle": "reach",
+      "summary": "The `[\" ]` suffix in liveExtension might miss the class attribute some extensions actually render",
+      "settled_by": "grep of the gnoweb ext_*.go render calls: `<form class=\"gno-form\"`, `<div class=\"gno-columns\">`, `<div class=\"gno-column\">`, `<section class=\"gno-frame\">`, `<div class=\"gno-foreign\" role=...`, `class=\"gno-button gno-button-outline`, `class=\"gno-alert gno-alert-%s`. Each is followed by `\"` or a space, so the suffix matches every container the regex names."
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/sanitize_integration_test.go",
+      "line": 568,
+      "angle": "catalog",
+      "summary": "The new test sends 167 subtests through the shared package-level sanitize driver Machine (global mutable state class)",
+      "settled_by": "grep 'Parallel()' gno.land/pkg/gnoweb/markdown/*_test.go finds hits only in ext_links_test.go. TestExtensionAndFooterIsolation and callSanitizeGno's callers run sequentially, so nothing touches the driver Machine concurrently."
+    }
+  ]
+}

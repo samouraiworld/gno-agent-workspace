@@ -1,0 +1,31 @@
+| File | Link | Resolves | Lines |
+| --- | --- | --- | --- |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1012) | yes | L1012-L1012 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/cmd/calibrate/gen_native_table.py](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/cmd/calibrate/gen_native_table.py#L209-L210) | yes | L209-L210 of 983 |
+| comment_claude-opus-5-5.md | [gnovm/cmd/calibrate/markdown_bench_test.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/cmd/calibrate/markdown_bench_test.go#L379) | yes | L379-L379 of 437 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/native_gas.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/native_gas.go#L184-L185) | yes | L184-L185 of 310 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L505) | yes | L505-L505 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L567-L570) | yes | L567-L570 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L882) | yes | L882-L882 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L917) | yes | L917-L917 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1155) | yes | L1155-L1155 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1057) | yes | L1057-L1057 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1123) | yes | L1123-L1123 of 1976 |
+| comment_claude-opus-5-5.md | [examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno#L161-L162) | yes | L161-L162 of 1784 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1316) | yes | L1316-L1316 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1736) | yes | L1736-L1736 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1927) | yes | L1927-L1927 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1712) | yes | L1712-L1712 of 1976 |
+| comment_claude-opus-5-5.md | [gno.land/adr/pr6304_sanitize_gno_tags.md](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gno.land/adr/pr6304_sanitize_gno_tags.md?plain=1#L41) | yes | L41-L41 of 64 |
+| comment_claude-opus-5-5.md | [gno.land/adr/pr6304_sanitize_gno_tags.md](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gno.land/adr/pr6304_sanitize_gno_tags.md?plain=1#L43) | yes | L43-L43 of 64 |
+| comment_claude-opus-5-5.md | [gno.land/adr/pr6304_sanitize_gno_tags.md](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gno.land/adr/pr6304_sanitize_gno_tags.md?plain=1#L61) | yes | L61-L61 of 64 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L476) | yes | L476-L476 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L412) | yes | L412-L412 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L391) | yes | L391-L391 of 1976 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/chain/markdown/markdown_test.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown_test.go#L258) | yes | L258-L258 of 718 |
+| comment_claude-opus-5-5.md | [gnovm/stdlibs/native_gas.go](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/native_gas.go#L185) | yes | L185-L185 of 310 |
+| comment_claude-opus-5-5.md | [examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno#L173) | yes | L173-L173 of 1784 |
+| comment_claude-opus-5-5.md | [examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno#L362-L365) | yes | L362-L365 of 1784 |
+| comment_claude-opus-5-5.md | [examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno#L578) | yes | L578-L578 of 1784 |
+
+27 links over 2 files, 0 missing.

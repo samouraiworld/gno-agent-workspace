@@ -1,0 +1,15 @@
+{
+ "dropped": [],
+ "candidates": [
+  {"index": 4, "file": "misc/deployments/topaz.gno.land/VALIDATOR.md", "line": 101, "angle": "siblings",
+   "summary": "topaz and test13 VALIDATOR.md repeat sections 1-5 of the edited files and get no section 6.",
+   "failure_scenario": "A topaz or test13 validator at a coordinated halt meets the same idle process with no guidance.",
+   "verify_by": "ls misc/deployments/{topaz,test13}.gno.land/ for an UPGRADES.md and grep -n -i halt in their VALIDATOR.md: section 6 links ./UPGRADES.md and only fits a network that runs coordinated upgrades.",
+   "band": "Suggestion", "fix_kind": "comment", "checked": false, "run": false, "evidence": "", "repro_path": ""},
+  {"index": 5, "file": "misc/deployments/mainnet.gno.land/VALIDATOR.md", "line": 159, "angle": "claims",
+   "summary": "`gnoland config get halt_height` reads ./gnoland-data/config/config.toml unless --config-path is passed, so the check run outside the node directory reads another file.",
+   "failure_scenario": "An operator runs the check from their home directory while the node runs with a config elsewhere; the command reads a different or missing file.",
+   "verify_by": "Run gnoland config get halt_height in an empty directory and in one holding a stale gnoland-data/config/config.toml: an error is loud, a stale file printing 0 is the silent case.",
+   "band": "Nit", "fix_kind": "comment", "checked": false, "run": false, "evidence": "", "repro_path": ""}
+ ]
+}

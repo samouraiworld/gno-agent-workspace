@@ -1,0 +1,44 @@
+// Repro from a plain clone (golden case for TestSanitizeIntegration):
+//
+//	git clone https://github.com/gnolang/gno && cd gno
+//	git fetch origin pull/6304/head && git checkout a8bdd53b08e988227136f8b74f4cd6571956e5f4
+//	cp <this file> gno.land/pkg/gnoweb/markdown/golden/sanitize/
+//	go test ./gno.land/pkg/gnoweb/markdown -run 'TestSanitizeIntegration/b3-lines-removed-reach-catalog-dedent-split-deletes-lrd' -count=1 -v
+//
+// BlockRich, document level: a fence opened 1 space in (CM 4.5 allows 0-3),
+// content at column 0. goldmark alone renders one code block holding all
+// three lines, and sanitize.Block still does. closeFencesAtDedent
+// (gnovm/stdlibs/chain/markdown/markdown.go) writes a closer before
+// `# install`, so the code lines render as markdown: `# install` becomes an
+// <h1>, and the bracket walker then deletes `[a]: http://x` as a link
+// reference definition. The ADR's fidelity cost says such a line "shows a
+// backslash"; here it vanishes from the page.
+//
+// Sections below pin the head's actual output (the test passes at head).
+// Fixed expectation, once the documented cost holds: output.html keeps a
+// `\[a]: http://x` (or `[a]: http://x`) line visible instead of dropping it.
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: REALM BEFORE\n%s\nREALM AFTER
+-- input.md --
+ ```sh
+# install
+[a]: http://x
+make
+ ```
+-- output.md --
+
+
+ ```sh
+ ```
+# install
+make
+ ```
+ ```
+
+-- output.html --
+<p>REALM BEFORE</p>
+<pre><code class="language-sh"></code></pre>
+<h1>install</h1>
+<p>make</p>
+<pre><code></code></pre>
+<p>REALM AFTER</p>

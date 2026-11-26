@@ -1,0 +1,33 @@
+{
+  "candidates": [],
+  "dropped": [
+    {"file": "misc/deployments/betanet/Makefile", "line": 35, "angle": "removed",
+     "summary": "betanet `make test` greps node output for a log line that might only print at debug, so the boot check would fail at the new info default",
+     "settled_by": "git grep -n 'ABCI Handshake App Info' -> tm2/pkg/bft/consensus/replay.go:251: h.logger.Info(\"ABCI Handshake App Info\","},
+    {"file": "gno.land/cmd/gnoland/UPGRADES.md", "line": 150, "angle": "removed",
+     "summary": "UPGRADES.md and UPGRADES-TESTING.md tell operators to watch for halt log lines that might only print at debug",
+     "settled_by": "git grep -n -E 'GovDAO halt height reached|Halt height configured|CONSENSUS FAILURE' -> gno.land/pkg/gnoland/app.go:1177 app.Logger().Info(, gno.land/cmd/gnoland/start.go:291 logger.Info(\"Halt height configured\", tm2/pkg/bft/consensus/state.go:655 cs.Logger.Error(\"CONSENSUS FAILURE!!!\""},
+    {"file": "tm2/pkg/p2p/switch.go", "line": 477, "angle": "reach",
+     "summary": "peer dial and handshake failures might log only at debug, so a misconfigured node (wrong chain id, unreachable peer) would go silent at the info default",
+     "settled_by": "sed -n 477,478p tm2/pkg/p2p/switch.go -> sw.Logger.Error( \"unable to dial peer\"; transport.go:203 mt.logger.Warn(\"accept p2p connection error\"; transport.go:215 mt.logger.Error("},
+    {"file": "gno.land/cmd/gnoland/start_test.go", "line": 78, "angle": "claims",
+     "summary": "PR body claims TestStart_DefaultLogLevel fails on master; the test might stay green with the old default",
+     "settled_by": "scratch worktree at 1a97619ca, $SANDBOX <tree> -- go test ./gno.land/cmd/gnoland -run 'TestStart_DefaultLogLevel$' -count=1: head prints `ok github.com/gnolang/gno/gno.land/cmd/gnoland 0.043s`; with start.go reverted to zapcore.DebugLevel.String() it prints `--- FAIL: TestStart_DefaultLogLevel` expected: \"info\" actual: \"debug\"",
+     "output": "--- FAIL: TestStart_DefaultLogLevel (0.01s) expected: \"info\" actual  : \"debug\""},
+    {"file": "gno.land/pkg/integration/testscript_gnoland.go", "line": 505, "angle": "claims",
+     "summary": "PR body claims integration testscripts do not reach the start default; they might parse gnoland start flags through startCfg",
+     "settled_by": "sed -n 505p -> fs := flag.NewFlagSet(\"start\", flag.ContinueOnError) with only non-validator, lock-transfer, no-parallel, max-gas; git grep 'RegisterFlags|startCfg{' in gno.land/pkg/integration returns nothing"},
+    {"file": "contribs/gnokms/internal/common/flags.go", "line": 58, "angle": "removed",
+     "summary": "sibling long-running daemons (gnokms, gnofaucet) might still default -log-level to debug, a class member the diff missed",
+     "settled_by": "git grep -E 'zapcore\\.(Debug|Info)Level\\.String\\(\\)|\"log-level\"' -> contribs/gnokms/internal/common/flags.go:58 LogLevel: zapcore.InfoLevel.String(), contribs/gnofaucet/serve.go:154 \"info\"; no other debug default in the tree"},
+    {"file": "gno.land/cmd/gnoland/README.md", "line": 62, "angle": "removed",
+     "summary": "another doc might still state the old debug default after the README rewrite",
+     "settled_by": "git grep -n -i -e log-level -e log_level -e LOG_LEVEL over the tree, plus git grep -i 'default.*debug|debug.*default' over *.md: only gno.land/cmd/gnoland/README.md:62,65,76,209, all describing the new default"},
+    {"file": "gno.land/cmd/gnoland/start_test.go", "line": 70, "angle": "catalog",
+     "summary": "the new t.Parallel test calls gnoenv.RootDir through RegisterFlags, which might race on package state",
+     "settled_by": "git grep in gnovm/pkg/gnoenv -> gnoroot.go:30 var muGnoRoot sync.Mutex guarding _GNOROOT"},
+    {"file": ".github/workflows/ci-genesis-verify.yml", "line": 59, "angle": "reach",
+     "summary": "CI genesis verify runs gnoland start without -log-level and might depend on debug output",
+     "settled_by": "sed -n 59,61p -> `timeout 60s gnoland start -lazy --genesis \"$file\" || exit_code=$?` then `if [ \"$exit_code\" -eq 124 ]`: exit code only, no output parsed"}
+  ]
+}

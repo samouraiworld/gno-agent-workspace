@@ -1,0 +1,81 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/cmd/gno/run.go",
+      "line": 404,
+      "angle": "lines",
+      "summary": "Beyond the func-mediated cycle notJoon already reported, every initialization-cycle shape (through a method, a closure, a two-function chain) still aborts gno run with a Go panic, because resolveEffectiveDeps panics with a plain string that runFiles' type switch re-throws at default: panic(r)",
+      "failure_scenario": "gno run on a package with `type T struct{}; func (T) M() int { return a }; var a = T{}.M()` (or `var a = func() int { return a }()`, or `var a = f(); func f() int { return g() }; func g() int { return a }`) prints `panic: main/<dir>/main.gno:3:5: circular dependency: a -> T.M -> a [recovered, repanicked]` with a goroutine dump and exits 2, the exact behaviour the PR sets out to remove; a fix or test keyed on the reported func shape alone leaves the method and closure shapes uncovered",
+      "verify_by": "build gno at ce6b30394, run GNO=<bin> sh tests/solo-finder-1-cycle-shapes.sh: each of the four cases exits 2 with a circular dependency panic; after a fix (wrap the resolveEffectiveDeps panic in an error or handle it in runFiles) all four exit 1 with one (code=gnoPreprocessError) line",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: `ok   cycle_method: exit 2` / `panic: main/cycle_method/main.gno:7:5: circular dependency: a -> T.M -> a [recovered, repanicked]`; `ok   cycle_closure: exit 2` / `panic: main/cycle_closure/main.gno:3:5: circular dependency: a -> a [recovered, repanicked]`; `ok   cycle_twohop: exit 2` / `... circular dependency: a -> f -> g -> a [recovered, repanicked]`. Base 398e5960d: same four exit 2 (not caused by the diff; the diff's goal leaves them). Other recursive shapes are handled at head: `const a = b; const b = a`, `var x = x`, `type A = B; type B = A`, `type I interface{ I }` each exit 1 with `invalid recursive value/type ... (code=gnoPreprocessError)`, since they raise inside Preprocess and are wrapped by doRecover.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6451-gno-run-preprocess-error/1-ce6b30394/tests/solo-finder-1-cycle-shapes.sh"
+    },
+    {
+      "index": 2,
+      "file": "gnovm/cmd/gno/common.go",
+      "line": 237,
+      "angle": "reach",
+      "summary": "The guessIssueFromError fix also changes gno lint and gno test output for every preprocess error (base printed `gno.land/p/f1/l2:gno.land/p/f1/l2/l2.gno:3:1-21: ...`, head prints `l2.gno:3:1-21: ...`), and no lint or test case pins it: only TestRunApp's run-path cases reach the new code, through guessFilePathLoc's dir \".\" branch, not the in-pkgPath branch lint and test use",
+      "failure_scenario": "a later edit to guessIssueFromError or guessFilePathLoc's `s in pkgPath` branch regresses gno lint / gno test locations back to the doubled `pkgpath:pkgpath/file` form (or worse) and every CI test stays green, since no testdata under gnovm/cmd/gno/testdata asserts a (code=gnoPreprocessError) line",
+      "verify_by": "grep -rln gnoPreprocessError gnovm/cmd/gno/testdata returns 0 files; add a txtar under gnovm/cmd/gno/testdata/lint with a package declaring `func F(cur realm) {}` in a /p/ module and assert stderr `l2.gno:3:1-21: crossing function (realm first argument) declared in non-realm package: ... (code=gnoPreprocessError)`; revert the common.go hunk and watch it go red",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -rln gnoPreprocessError gnovm/cmd/gno/testdata | wc -l -> 0. Measured outputs (gno lint . inside a module gno.land/p/f1/l2 with `func F(cur realm) {}`): base `gno.land/p/f1/l2:gno.land/p/f1/l2/l2.gno:3:1-21: crossing function ... (code=gnoPreprocessError)`, head `l2.gno:3:1-21: crossing function ... (code=gnoPreprocessError)`; gno test . gives the same pair.",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "gnovm/cmd/gno/run.go",
+      "line": 387,
+      "angle": "catalog",
+      "summary": "doRecover wraps every panic raised inside Preprocess, internal invariant failures and Go runtime errors included, as *gno.PreprocessError, so runFiles now prints a VM bug as a one-line user source error with exit 1 and drops both the Go stack and the preprocess stack the base panic carried",
+      "failure_scenario": "gno run on `func (int) M() {}` prints `g5_builtinrecv/main.gno:3:1-18: should not happen (code=gnoPreprocessError)` and exits 1; a user cannot tell this internal assertion from a mistake in their code, and a bug report carries no trace unless they know to set DEBUG_PANIC=1 (gno lint and gno test already behave this way through printError, so this aligns run with them rather than diverging)",
+      "verify_by": "gno run on a file containing `func (int) M() {}` at ce6b30394: one `should not happen (code=gnoPreprocessError)` line, exit 1; at 398e5960d: Go panic with the preprocess stack",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "head run: `== g5_builtinrecv rc=1` / `g5_builtinrecv/main.gno:3:1-18: should not happen (code=gnoPreprocessError)`; doRecover (preprocess.go:690-718) wraps any recovered value, error or not, into &PreprocessError{err, stack}.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/cmd/gno/run.go",
+      "line": 393,
+      "angle": "reach",
+      "summary": "TrimPrefix(pkgPath+\"/\") plus guessIssueFromError(\".\", \".\") might misplace the file for an absolute path, a -pkgpath realm path with a ../ file, a directory argument, or a run from inside the directory",
+      "settled_by": "ran gno-head in the sandbox: abs path -> `c7_pkgvar/main.gno:3:5-18: bigint overflows target kind (code=gnoPreprocessError)` (relativized to cwd, same file); `-pkgpath gno.land/r/a/b ../c7_pkgvar/main.gno` -> `../c7_pkgvar/main.gno:3:5-18`; `run .` inside the dir -> `main.gno:3:5-18`; every location names the right file",
+      "output": "== run pkgpath realm dotdot [head]\n../c7_pkgvar/main.gno:3:5-18: bigint overflows target kind (code=gnoPreprocessError)"
+    },
+    {
+      "file": "gnovm/cmd/gno/common.go",
+      "line": 230,
+      "angle": "lines",
+      "summary": "a multi-line preprocess message would fail ReErrorLine (no (?s)) and fall back to location `.:0`",
+      "settled_by": "ran three messages most likely to span lines (crossing func with a multi-statement body dumped in the message, struct conversion, func-literal conversion with a multi-line span): each printed one line with its file location, e.g. `e3_funclitconv/main.gno:4:6-9:3: cannot use func(string) string as func(int) int (code=gnoPreprocessError)`",
+      "output": "== e1_crossbody rc=1 lines=1"
+    },
+    {
+      "file": "gnovm/cmd/gno/common.go",
+      "line": 273,
+      "angle": "reach",
+      "summary": "guessFilePathLoc's GNOROOT branch slices the suffix `dir[len(dir)-len(pkgPath):]` where the root is the prefix `dir[:len(dir)-len(pkgPath)]`, so a location in another package under the same root never resolves to a filesystem path",
+      "settled_by": "out of the diff's scope: pre-existing, guessFilePathLoc is unchanged by the PR and the own-package case is caught by the earlier `s in pkgPath` branch; sed -n 273p gnovm/cmd/gno/common.go -> `gnoRoot := dir[len(dir)-len(pkgPath):]`. Candidate for an issue draft, not this review."
+    },
+    {
+      "file": "gnovm/cmd/gno/run.go",
+      "line": 397,
+      "angle": "lines",
+      "summary": "the RedeclarationErrors branch might swallow a non-duplicate error, or a runtime init panic, as a preprocess error",
+      "settled_by": "errors.As only matches a chain holding RedeclarationErrors, raised solely by checkDuplicates (grep: machine.go:524,670,762); the PR's own run_init_panic case and a run of `panic(\"boom\")` in init re-panic as before; gno-level panics surface as UnhandledPanicError, not RedeclarationErrors"
+    }
+  ]
+}

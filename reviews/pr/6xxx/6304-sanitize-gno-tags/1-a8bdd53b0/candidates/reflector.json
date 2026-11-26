@@ -1,0 +1,33 @@
+{
+  "dropped": [],
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 882,
+      "angle": "reach (missed class member: container-relative fence indent)",
+      "band": "Warning",
+      "summary": "parseFenceOpener caps the opener's indent at 3 absolute spaces. A list item's fence opened 4-6 spaces in (indent 0-3 from the item's content column) is invisible to the tracker. The item's own closer, written at the content column, then reads to the tracker as an opener, so the item text after it stays unescaped and [home] binds to the realm's definition. This is the third member of the class candidates 8 (HTML block after a list marker) and 9 (tab indent) belong to.",
+      "failure_scenario": "EscapeBlockHazardsRich(\"- a\\n\\n     ```\\n  ```\\n  see [home]\\n\") returns \"- a\\n\\n     ```\\n  ```\\n  see [home]\\n  ```\\n\" and EscapeBlockHazardsRich(\"1. a\\n\\n    ```\\n   ```\\n   see [home]\\n\") returns the same shape, with [home] unescaped in both. The control \"- a\\n\\n  see [home]\\n\" returns \"see \\\\[home\\\\]\". Under CM, goldmark opens the fence at the 5-space line (indent 3 from the item's content column 2) and closes it at the 2-space line, so `see [home]` is a live paragraph in the item and links to the realm's [home]. The 4-space fence under `1. ` is the ordinary way to write code in an ordered list item.",
+      "verify_by": "Add both inputs to a TestB2FenceMismatch-style gnoweb integration case (realm chrome defining [home]: https://realm.example/home, BlockRich) and run go test ./gno.land/pkg/gnoweb/markdown -run <case> -v. The rendered <a href=\"https://realm.example/home\"> inside the user's item confirms it. Measure it in the same harness as candidates 8 and 9, since the three are one class.",
+      "checked": true,
+      "run": true,
+      "evidence": "Native output was measured at a8bdd53b0 with a temporary test in gnovm/stdlibs/chain/markdown, since removed. \"- a\\n\\n     ```\\n  ```\\n  see [home]\\n\" returned \"- a\\n\\n     ```\\n  ```\\n  see [home]\\n  ```\\n\". \"1. a\\n\\n    ```\\n   ```\\n   see [home]\\n\" returned \"1. a\\n\\n    ```\\n   ```\\n   see [home]\\n   ```\\n\". The control returned \"- a\\n\\n  see \\\\[home\\\\]\\n\". The goldmark render was not run.",
+      "repro_path": "",
+      "fix_kind": "code"
+    },
+    {
+      "file": "gnovm/cmd/calibrate/markdown_bench_test.go",
+      "line": 72,
+      "angle": "decay (gas calibration pipeline)",
+      "band": "Warning",
+      "summary": "No step of the calibration pipeline reads the new _Slow_ benchmarks. A re-fit therefore drops the hand-scaled factors: strict falls back to x1 and Rich has no fitted row at all.",
+      "failure_scenario": "gen_native_table.py:209-210 fits EscapeBlockHazards only from `BenchmarkNative_Markdown_EscapeBlockHazards_(\\d+)-`. That pattern does not match `..._Slow_1000`, and the base strict bench still fills `[a]: u\\n(x\\n` (markdown_bench_test.go:283). The script has no EscapeBlockHazardsRich row, and the Rich base bench now fills `  ```\\nx\\n` (line 321), which the bench's own comment puts at about 1.7x, not 2.95x. The checked-in markdown_bench_output.txt holds 0 Slow rows. The next recalibration that regenerates native_gas_table.go.txt and is pasted into native_gas.go sets strict back to about 27361 (x1, not x2.45). If Rich is re-fit from its base bench, it lands near x1.7, not x2.95. Either way the shapes this PR measured as slowest are undercharged again, and nothing in the tree records the x2.45/x2.95 measurement.",
+      "verify_by": "grep -n 'EscapeBlockHazards' gnovm/cmd/calibrate/gen_native_table.py; grep -c Slow gnovm/cmd/calibrate/markdown_bench_output.txt; run `go test -bench='BenchmarkNative_Markdown_EscapeBlockHazards' -count=3 .` in gnovm/cmd/calibrate, feed the output to gen_native_table.py, and compare the emitted EscapeBlockHazards slope with native_gas.go's 67034",
+      "checked": true,
+      "run": false,
+      "evidence": "gen_native_table.py:209-210 holds `(\"chain/markdown\", \"EscapeBlockHazards\", 0, \"LenString\", r\"BenchmarkNative_Markdown_EscapeBlockHazards_(\\d+)-\\d+...`, and the file has no EscapeBlockHazardsRich row (grep -i markdown|EscapeBlock lists none). markdown_bench_test.go:283 holds fillWorstCase(n, \"[a]: u\\n(x\\n\") and :321 holds fillWorstCase(n, \"  ```\\nx\\n\"). `grep -c Slow markdown_bench_output.txt` returned 0.",
+      "repro_path": "",
+      "fix_kind": "code"
+    }
+  ]
+}

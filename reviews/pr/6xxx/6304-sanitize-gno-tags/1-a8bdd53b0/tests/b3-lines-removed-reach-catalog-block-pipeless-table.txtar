@@ -1,0 +1,46 @@
+// Repro from a plain clone (golden case for TestSanitizeIntegration):
+//
+//	git clone https://github.com/gnolang/gno && cd gno
+//	git fetch origin pull/6304/head && git checkout a8bdd53b08e988227136f8b74f4cd6571956e5f4
+//	cp <this file> gno.land/pkg/gnoweb/markdown/golden/sanitize/
+//	go test ./gno.land/pkg/gnoweb/markdown -run 'TestSanitizeIntegration/b3-lines-removed-reach-catalog-block-pipeless-table' -count=1 -v
+//
+// Strict sanitize.Block promises user content cannot inject "GFM table rows"
+// and stays paragraph-shaped, but escapeLineLeader only escapes a
+// line-LEADING `|`. GFM tables need no leading pipe, so a header line and a
+// `--- | ---` delimiter row (neither a thematic break, a list marker nor a
+// setext underline) render a live <table> through Block. Predates this PR:
+// the merge base escapes only a line-leading `|` too.
+//
+// Sections below pin the head's actual output (the test passes at head).
+// Fixed expectation: output.html is paragraph text, no <table>.
+// MARKDOWNFUNC: Block
+// CONTEXT: REALM BEFORE\n%s\nREALM AFTER
+-- input.md --
+a | b
+--- | ---
+c | d
+-- output.md --
+
+
+a | b
+--- | ---
+c | d
+
+-- output.html --
+<p>REALM BEFORE</p>
+<table>
+<thead>
+<tr>
+<th>a</th>
+<th>b</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c</td>
+<td>d</td>
+</tr>
+</tbody>
+</table>
+<p>REALM AFTER</p>

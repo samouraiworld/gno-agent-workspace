@@ -1,0 +1,69 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 1057,
+      "angle": "reach",
+      "summary": "Rich mode's dedent closer at document level turns everything the user writes after a column-0 fence closer into code, not the 'two empty code blocks' the ADR and the thread accept",
+      "failure_scenario": "BlockRich(\" ```\\ncode\\n```\\n\\nprose after\\n\\n## heading after\\n\"): closeFencesAtDedent writes a closer before the dedented `code`, so the user's own column-0 closer opens a new fence that no line dedents from; it runs to the EOF autoclose. Rendered: `<pre><code></code></pre><p>code</p><pre><code>\\nprose after\\n\\n## heading after\\n</code></pre>`, where goldmark alone renders one code block then the paragraph and heading. Same with a `~~~` fence opened 2 spaces in, and through BlockquoteRich. ADR Consequences (pr6304_sanitize_gno_tags.md:60) and the author's thread note describe only `foo` split between two empty code blocks / three blocks, which alexiscolin accepted at 43afbb384; the swallow of the rest of the user's post is not stated. Measured alternative: re-indent the dedented line to the opener's column (write fenceOpen[:indent], skip its own leading spaces, inFence = !closes) instead of closing before it; all three cases then render as goldmark does, TestExtensionAndFooterIsolation (41 inputs x 4 helpers, idempotency included) and TestBlockRichSetextCannotReachRealm stay green, the container probe stays clean, and only the goldens pinning the split change (blockrich-gno-form-in-list-fence{,-blank-line}, blockrich-gno-button-after-fence-in-list-item, TestEscapeBlockHazardsRich).",
+      "verify_by": "cp tests/b4-lines-removed-reach-catalog-dedent-closer-swallows-prose_test.go gno.land/pkg/gnoweb/markdown/zz_dedent_closer_test.go && go test ./gno.land/pkg/gnoweb/markdown -run TestRichDedentCloserSwallowsProse -count=1 -v: defect cases assert the prose renders inside <pre><code>; controls (content at the opener's column, strict Block) keep <p>prose after</p>",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "backtick-1-space: sanitized=\"\\n\\n ```\\n ```\\ncode\\n```\\n\\nprose after\\n\\n## heading after\\n```\\n\\n\" rendered=\"<pre><code></code></pre>\\n<p>code</p>\\n<pre><code>\\nprose after\\n\\n## heading after\\n</code></pre>\\n\"; control-strict rendered=\"<pre><code>code\\n</code></pre>\\n<p>prose after</p>\\n\"; with the re-indent mutation: \"<pre><code>code\\n</code></pre>\\n<p>prose after</p>\\n<h2>heading after</h2>\\n\" and --- PASS: TestExtensionAndFooterIsolation, --- PASS: TestBlockRichSetextCannotReachRealm",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6304-sanitize-gno-tags/1-a8bdd53b0/tests/b4-lines-removed-reach-catalog-dedent-closer-swallows-prose_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/sanitize_integration_test.go",
+      "line": 575,
+      "angle": "reach",
+      "summary": "the merge brought gno-details in, but no fixture or test pins the #6300 `</gno-details>`-after-list-fence shape master's 3e2f34c70 says this PR closes, and liveExtension has no `details` alternative",
+      "failure_scenario": "3e2f34c70 (#5593) states BlockRich's one gap, 'after a fence indented under a list item, a `</gno-details>` on the next unindented line closes the realm's block early', is closed by #6304. At a8bdd53b0 the five gno-details fixtures cover line-start breakout, fold and the blockquote case only; sanitize_integration_test.go and markdown_test.go mention gno-details 0 times, and the isolation regex `class=\"gno-(?:form|columns|column|frame|foreign|button|alert)[\" ]` cannot see a live `gno-details` from any repro input. A later change to closeFencesAtDedent that reopens the list-fence gap for details passes every test. Behaviour at head is right: the shipped fixture renders the injected line inside the realm's details with ## Footer outside, and a 37-input container probe (lists, quotes, alerts, tabs, form feed, uppercase) x 4 helpers x 3 contexts found 0 live tags against 87 for unsanitized input.",
+      "verify_by": "cp tests/b4-lines-removed-reach-catalog-details-close-after-list-fence.txtar into golden/sanitize/, bump SANITIZE.md's BlockRich row and total, go test ./gno.land/pkg/gnoweb/markdown -run 'TestSanitizeIntegration/blockrich-gno-details-close-after-list-fence'; then add `details` to liveExtension and a details-wrapped chrome case to the repro loop",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": true,
+      "evidence": "--- PASS: TestSanitizeIntegration (blockrich-gno-details-close-after-list-fence); output.html keeps <p>&lt;/gno-details&gt;\\ninjected after breakout</p> inside the realm's <details class=\"gno-details\"> and ends </details>\\n<h2>Footer</h2>; grep -c gno-details sanitize_integration_test.go markdown_test.go: 0 and 0",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6304-sanitize-gno-tags/1-a8bdd53b0/tests/b4-lines-removed-reach-catalog-details-close-after-list-fence.txtar"
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-details-in-blockquote.txtar",
+      "line": 10,
+      "angle": "removed",
+      "summary": "the merge regenerated master's fixture, dropping the live nested gno-details master asserted inside a blockquote; suspected a removed feature or a container shape the escape misses",
+      "settled_by": "3e2f34c70's message: 'User content cannot open or close one'; probe TestZZProbe over 37 container shapes (list, ordered, nested quote, list-in-quote, alert, tab, form feed, NBSP, uppercase, task item, html-block-hidden fence) x Block/BlockRich/Blockquote/BlockquoteRich x plain/details/columns contexts: 0 BAD rows for the helpers, 87 BAD rows for the unsanitized control"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/sanitize/block-ext-delim-inside-fence-escaped.txtar",
+      "line": 15,
+      "angle": "removed",
+      "summary": "renamed from #5714's block-ext-delim-inside-fence-preserved (Jae Kwon), flipping the preserved-in-fence contract: every user code sample naming a gno tag now shows a stray backslash",
+      "settled_by": "ADR pr6304_sanitize_gno_tags.md:61 records 'a block-start `<gno-…>` tag ... inside real code shows a backslash'; alexiscolin's CHANGES_REQUESTED at 43afbb384: 'apart from the costs the ADR records (a backslash in code, 1-3 space fences split in Rich), which I'm fine with'"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/sanitize/block-ext-delim-four-spaces.txtar",
+      "line": 12,
+      "angle": "lines",
+      "summary": "a 4-space indented `<gno-card>` after a blank line now shows `\\<gno-card>` in an indented code block; suspected an escape goldmark never needed",
+      "settled_by": "a 4-space line is a block start inside a list item (`- a\\n\\n    <gno-card>`), which the sanitizer cannot tell apart; ADR pr6304_sanitize_gno_tags.md:14 places the backslash after the indent to keep the code block; fence probe: Block(\"    <gno-columns>\") renders <pre><code>\\\\&lt;gno-columns&gt;</code></pre>, no live tag"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-form-in-list-fence.txtar",
+      "line": 25,
+      "angle": "lines",
+      "summary": "the user's closer after the dedented tag becomes an empty doc-level code block; suspected the same swallow as the document-level case",
+      "settled_by": "in the list reading goldmark itself ends the item at the dedented line and reads the user's closer as a doc-level opener (ADR pr6304_sanitize_gno_tags.md:11), so the sanitized output agrees with goldmark on unsanitized input; only the document-level fence diverges, which the Warning covers"
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 1049,
+      "angle": "catalog",
+      "summary": "Determinism/consensus: the fixture rewrites show a native stdlib's output changing for existing inputs, which changes realm state on replay",
+      "settled_by": "ADR pr6304_sanitize_gno_tags.md:64 'This change requires a coordinated protocol upgrade on gno.land ... cannot be deployed unilaterally'; status line 5 'Proposed (coordinated chain upgrade required)'"
+    }
+  ]
+}

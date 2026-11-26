@@ -1,0 +1,30 @@
+=== ## gnovm/stdlibs/chain/markdown/markdown.go:505 exit 0
+    zz_repro_test.go:15: "- a\n\n  see [home]\n" realm-link=false
+    zz_repro_test.go:15: "- <div>\n  ```\n\n  see [home]\n" realm-link=true
+
+=== ## gnovm/stdlibs/chain/markdown/markdown.go:882 exit 0
+    zz_repro_test.go:16: "- a\n\n  see [home]\n" realm-link=false
+    zz_repro_test.go:16: "- a\n\n     ```\n  ```\n  see [home]\n" realm-link=false
+    zz_repro_test.go:16: "1. a\n\n    ```\n   ```\n   see [home]\n" realm-link=false
+
+=== ## gnovm/stdlibs/chain/markdown/markdown.go:917 exit 0
+    zz_repro_test.go:16: "- a\n\n  see [home]\n" realm-link=false
+    zz_repro_test.go:16: "- a\n\n\t```\n  ```\n  see [home]\n" realm-link=false
+    zz_repro_test.go:16: "- a\n\n  ```\n\t```\n  see [home]\n" realm-link=true
+
+=== ## gnovm/stdlibs/chain/markdown/markdown.go:1057 exit 0
+    zz_repro_test.go:12: Block prose-is-paragraph=true
+    zz_repro_test.go:12: BlockRich prose-is-paragraph=true
+    zz_repro_test.go:12: BlockquoteRich prose-is-paragraph=true
+
+=== ## gnovm/stdlibs/chain/markdown/markdown.go:1123 exit 0
+    zz_repro_test.go:11: table=true
+
+=== ## gnovm/stdlibs/chain/markdown/markdown.go:1316 exit 0
+    zz_repro_test.go:16: "> [!WARNING] spoof\n" alert=false realm-link=false
+    zz_repro_test.go:16: "[a\n> [!WARNING] spoof](/u)\n" alert=true realm-link=false
+    zz_repro_test.go:16: "[a\n> see [home]](/u)\n" alert=false realm-link=true
+
+=== ## gnovm/stdlibs/chain/markdown/markdown.go:1712 exit 0
+    zz_repro_test.go:28: k=8 tail=0: definition line deleted, footer in code block=true
+

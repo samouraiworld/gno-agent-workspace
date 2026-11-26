@@ -1,0 +1,59 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "misc/deployments/mainnet.gno.land/VALIDATOR.md",
+      "line": 159,
+      "angle": "claims",
+      "summary": "The pre-halt check reads config.toml, not the running node: a future halt_height cleared without a restart passes the check and the node still halts at it (same text at onyx VALIDATOR.md:147).",
+      "failure_scenario": "A validator started with halt_height=C in config.toml, C below the voted halt H. Following section 6 the operator runs `gnoland config get halt_height`, sees C, runs `gnoland config set halt_height 0`, re-checks and gets `0`. The running node applied halt_height once at startup (gno.land/cmd/gnoland/start.go:288-291, SetHaltHeight), so it still halts at C, out of step with the network, and idles until someone notices; validators holding a third of the power doing this stall the chain short of H. Section 6 never says a changed value needs a restart before the halt; only the linked gnoland UPGRADES.md says the node reads it once at startup.",
+      "verify_by": "PATH=<bin with gnoland built at df2c4ffca>:$PATH GNOROOT=<tree> bash tests/solo-finder-config-cleared-no-restart.sh 6: expect no halt at 6 once the check prints 0; observe 'config get after clearing: 0' followed by 'halt height 6 reached, node shutting down'.",
+      "band": "Warning",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": true,
+      "evidence": "Sandbox run at df2c4ffca, lazy local node: 'config get before start: 6' / 'Halt height configured {\"height\": 6}' / 'config get after clearing: 0' / 'halt height 6 reached, node shutting down' / 'process alive 5s after the halt' / 'exited 2s after SIGTERM, rc=0'. Recovery is a restart with halt_height 0 before H; the loss is the validator's blocks from C until someone restarts it.",
+      "repro_path": "tests/solo-finder-config-cleared-no-restart.sh"
+    },
+    {
+      "index": 2,
+      "file": "misc/deployments/mainnet.gno.land/VALIDATOR.md",
+      "line": 161,
+      "angle": "claims",
+      "summary": "'The process does not exit' is stated for every node, but a validator still block-syncing at the halt exits with code 2, so Restart=on-failure does fire (same text at onyx VALIDATOR.md:149).",
+      "failure_scenario": "A validator that fell behind is catching up through block sync when the network reaches the governance halt. The halt panic in BeginBlock of halt+1 is not caught there (tm2/pkg/bft/blockchain/reactor.go:536 ApplyBlock; the reactor's only recover, :269, covers respondRoutine), so the process exits with code 2, as gno.land/cmd/gnoland/UPGRADES.md:175 says. systemd Restart=on-failure restarts the old binary, which the after-halt gate refuses below halt_min_version, so the operator meets a restart loop where section 6 told them the supervisor does not fire, and must stop the unit, not only the process, before starting the new version.",
+      "verify_by": "Read gno.land/cmd/gnoland/UPGRADES.md:175 and grep -n 'recover()' tm2/pkg/bft/blockchain/reactor.go: only :269 in respondRoutine, none around ApplyBlock at :536.",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "UPGRADES.md:175 'A node still catching up through block sync ... the process exits with code 2, so a supervisor configured to restart on exit does fire'; reactor.go recover only at :269 (respondRoutine).",
+      "repro_path": ""
+    },
+    {
+      "index": 3,
+      "file": "misc/deployments/mainnet.gno.land/VALIDATOR.md",
+      "line": 161,
+      "angle": "reach",
+      "summary": "'start the new version on the same data directory' is unconditional, while the coordinated path the linked UPGRADES.md defines also covers replaying history into a fresh genesis when the state format changes (same text at onyx VALIDATOR.md:149).",
+      "failure_scenario": "A future halt whose release changes the state format and ships a new genesis: an operator following section 6 starts the new binary on the old data directory, which replays the last block from the block store (UPGRADES.md:129) instead of starting at InitialHeight from the new genesis, and does not join the new chain until told otherwise by the release notes.",
+      "verify_by": "Read gno.land/cmd/gnoland/UPGRADES.md:13 (Coordinated row) and :129 (genesis replay at halt_height + 1); every row of misc/deployments/mainnet.gno.land/UPGRADES.md so far resumed on the same data directory.",
+      "band": "Suggestion",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "UPGRADES.md:13 'then restarts on the new binary — replaying history into a fresh genesis if the state format changed'.",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {"file": "misc/deployments/mainnet.gno.land/VALIDATOR.md", "line": 159, "angle": "claims", "summary": "`gnoland config get halt_height` may not print a bare `0` on a default config", "settled_by": "sandbox: gnoland config init; gnoland config get halt_height", "output": "0 / rc=0"},
+    {"file": "misc/deployments/mainnet.gno.land/VALIDATOR.md", "line": 161, "angle": "claims", "summary": "the halted node may not idle, or may not exit on SIGTERM, so 'wait until it has exited' could hang", "settled_by": "sandbox run of tests/solo-finder-config-cleared-no-restart.sh 6", "output": "process alive 5s after the halt / exited 2s after SIGTERM, rc=0"},
+    {"file": "misc/deployments/mainnet.gno.land/VALIDATOR.md", "line": 161, "angle": "claims", "summary": "the quoted halt log line may not match the code or be filtered by the default log level", "settled_by": "gno.land/pkg/gnoland/app.go:1178 Info \"GovDAO halt height reached, will halt after this block\"; gnoland start --help", "output": "-log-level debug"},
+    {"file": "misc/deployments/mainnet.gno.land/VALIDATOR.md", "line": 161, "angle": "claims", "summary": "the Details link or its anchor may not resolve", "settled_by": "grep -n halt gno.land/cmd/gnoland/UPGRADES.md", "output": "127:### What a halt actually looks like"},
+    {"file": "misc/deployments/mainnet.gno.land/VALIDATOR.md", "line": 159, "angle": "reach", "summary": "the check run from another directory could read the wrong config and print 0", "settled_by": "sandbox: cd / && gnoland config get halt_height", "output": "unable to load config; try running `gnoland config init` or use the -lazy flag, open gnoland-data/config/config.toml: no such file or directory / rc=1"},
+    {"file": "misc/deployments/onyx.gno.land/VALIDATOR.md", "line": 146, "angle": "reach", "summary": "onyx section 6 drops section 1's VERSION= caveat for a from-source candidate build, which could report the final version", "settled_by": "gno.land/cmd/gnoland/UPGRADES.md Restart gates: 'a pre-release sorts below the release it leads to', so a build reporting the final still meets an rc floor after the halt, and section 6 starts it only after the halt"},
+    {"file": "misc/deployments/onyx.gno.land/VALIDATOR.md", "line": 144, "angle": "claims", "summary": "PR body: the two sections differ only in the GovDAO link", "settled_by": "diff.md lines 32 and 66 differ only in the r/gov/dao URL; lines 34-37 equal 68-71"},
+    {"file": "misc/deployments/mainnet.gno.land/VALIDATOR.md", "line": 154, "angle": "catalog", "summary": "invariant catalog classes against the diff", "settled_by": "docs-only PR; the gno delta's Review the diff says skip the catalog for docs- or tooling-only PRs"}
+  ]
+}

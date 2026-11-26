@@ -1,0 +1,44 @@
+// Missing fixture: the #6300 gno-details shape that master's 3e2f34c70
+// (#5593) says this PR closes, "after a fence indented under a list item, a
+// `</gno-details>` on the next unindented line closes the realm's block
+// early". No fixture or test at a8bdd53b0 carries it, and the liveExtension
+// regex in TestExtensionAndFooterIsolation has no `details` alternative.
+// Generated at a8bdd53b0 with -update-golden-tests; the realm's block keeps
+// the injected line and the footer stays outside it.
+//
+// Repro from a plain clone:
+//   git clone https://github.com/gnolang/gno && cd gno
+//   git checkout a8bdd53b08e988227136f8b74f4cd6571956e5f4
+//   cp <this file> gno.land/pkg/gnoweb/markdown/golden/sanitize/blockrich-gno-details-close-after-list-fence.txtar
+//   (bump the BlockRich row and the total in gno.land/pkg/gnoweb/markdown/SANITIZE.md by one)
+//   go test ./gno.land/pkg/gnoweb/markdown -run 'TestSanitizeIntegration/blockrich-gno-details-close-after-list-fence' -count=1 -v
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: <gno-details summary="Comments">\n%s\n</gno-details>\n\n## Footer
+-- input.md --
+- a
+  ```
+</gno-details>
+injected after breakout
+-- output.md --
+
+
+- a
+  ```
+  ```
+\</gno-details>
+injected after breakout
+
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>Comments</span></summary>
+<div>
+<ul>
+<li>a
+<pre><code></code></pre>
+</li>
+</ul>
+<p>&lt;/gno-details&gt;
+injected after breakout</p>
+</div>
+</details>
+<h2>Footer</h2>

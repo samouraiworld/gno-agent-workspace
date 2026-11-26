@@ -1,0 +1,71 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 185,
+      "angle": "claims",
+      "summary": "The x2.95 EscapeBlockHazardsRich slope does not cover the shape the ADR names as Rich's slowest: measured 3.2x-4.6x the old native's calibration cost per byte",
+      "failure_scenario": "ADR Decision 7 / Consequences say x2.95 covers the slowest Rich shape (~75% `  ```\\nx\\n` + 64x `[a]: u\\n(x\\n` + backtick tail) and the author re-timed it at 2.90x after the master merge. Timed in one process against a copy of the merge-base native on the calibration shape at 100 KB, 15 interleaved runs, that exact shape came out 3.38, 3.84, 3.23 and 4.57 across four runs, and neighbours beat it too (50% + 256x: 3.40; 75% + 256x: 3.28/3.23). A realm calling sanitize.BlockRich on such user text is charged gas for ~2.95x the calibration time while the native runs 3.2-4.6x, so the repricing that ships with this upgrade still undercharges its own worst case. Strict at x2.45 straddles: the 16x shape read 2.50, 2.54, 2.18.",
+      "verify_by": "From a clone at a8bdd53b0: copy d25b308c1's chain/markdown/markdown.go into gnovm/stdlibs/chain/markdown/zzold as package zzold, drop tests/b1-removed-claims-gas-factors_test.go in as gnovm/stdlibs/chain/markdown/zz_gasprobe_test.go, run go test ./gnovm/stdlibs/chain/markdown -run 'TestGasProbe$|TestGasProbeSweep|TestGasProbeLongFence' -v -count=1 and read new/oldcal for the rich rows against 2.95; repeat on the calibration reference machine, since the ratio is machine-dependent",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "rich   author rich: 75% fence-dedent + 64x lrd-title + `\\n new/oldcal= 3.38 (factor 2.95) ... <-- above factor; sweep run 1: rich 75% fence-dedent + 64x lrd-title new/oldcal= 3.84, 50% + 64x 3.44; sweep run 2: 75% + 64x 3.23, 50% + 256x 3.40; long-fence run: rich 75% fence run 3 + 64x lrd-title new/oldcal= 4.57. Strict 16x shape: 2.50, 2.54, 2.18 vs 2.45 (inconclusive).",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6304-sanitize-gno-tags/1-a8bdd53b0/tests/b1-removed-claims-gas-factors_test.go"
+    },
+    {
+      "file": "gno.land/pkg/gnoweb/markdown/sanitize_integration_test.go",
+      "line": 575,
+      "angle": "claims",
+      "summary": "TestExtensionAndFooterIsolation's liveExtension regex omits gno-details, so the test the ADR says checks for live gno-* elements cannot see a live details block",
+      "failure_scenario": "gnoweb renders `<details class=\"gno-details\"` (ext_details.go:337), and SANITIZE.md's Block/BlockRich rows list `<gno-details>` opening around the realm's content and `</gno-details>` closing it early as threats, the #6300 gap this PR closes. The regex alternation is form|columns|column|frame|foreign|button|alert and no reproCase carries a details tag, so a fence-mismatch shape that opened or closed a details block through any of the four helpers would pass. The ADR Consequences line ('checks for live gno-* elements') overstates what the test pins.",
+      "verify_by": "Mutate escapeGnoExtDelimiters to return line unchanged when rest has prefix gno-details or /gno-details, run go test ./gno.land/pkg/gnoweb/markdown -run TestExtensionAndFooterIsolation: expect green (pins nothing); then add details to the regex and a case like \"- a\\n  ```\\n<gno-details summary=\\\"x\\\">\\n```\\n\" and watch it go red under the mutation",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep: ext_details.go:337 w.WriteString(\"<details class=\\\"gno-details\\\"\"); sanitize_integration_test.go:575 regex lacks details; reproCases 579-619 contain no gno-details input",
+      "repro_path": ""
+    },
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 476,
+      "angle": "removed",
+      "summary": "The generic <gno-…> escape still runs after the bracket walker, so a pointy link destination that starts a continuation line breaks and [label] binds to the realm's own definition; the <gno-button escape was moved before the walker for this exact shape",
+      "failure_scenario": "Block, BlockRich, Blockquote and BlockquoteRich of \"[home](\\n<gno-a b>)\" and \"- [home](\\n  <gno-a b>)\" sanitize to \"[home](\\n\\\\<gno-a b>)\": the walker kept [home](<gno-a b>) as a link, the line loop then escaped the < at block start, the destination is no longer pointy, and the user's 'home' renders as a link to the realm's https://realm.example/home instead of gno-a%20b. The one-line control \"> [home](<gno-a b>)\" keeps its own destination. The PR body says angle-bracket URLs survive, and gfanton's row 4 was this binding mid-line. Predates the diff by reading: the base's line-start escape also ran after the walker (not run at the base).",
+      "verify_by": "Copy tests/b1-removed-claims-pointy-dest-quote_test.go to gno.land/pkg/gnoweb/markdown/zz_pointy_dest_quote_test.go and run go test ./gno.land/pkg/gnoweb/markdown -run TestPointyDestOnQuoteContinuation -v at a8bdd53b0 and at d25b308c1; a fix moves escapeGnoExtDelimiters before escapeBracketsOutsideLinks as escapeGnoButtonTags was",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "BlockRich \"[home](\\n<gno-a b>)\\n\" bound-to-realm=true own-dest=false sanitized=\"\\n\\n[home](\\n\\\\<gno-a b>)\\n\\n\"; BlockRich \"- [home](\\n  <gno-a b>)\\n\" bound-to-realm=true own-dest=false; BlockRich \"> [home](<gno-a b>)\\n\" bound-to-realm=false own-dest=true (same for Block, Blockquote, BlockquoteRich)",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6304-sanitize-gno-tags/1-a8bdd53b0/tests/b1-removed-claims-pointy-dest-quote_test.go"
+    },
+    {
+      "file": "gno.land/adr/pr6304_sanitize_gno_tags.md",
+      "line": 41,
+      "angle": "claims",
+      "summary": "Decision 7 writes the calibration shape with raw newlines inside a code span, so it renders as `[a]: u (x ` and the backtick spans after it pair off wrong",
+      "failure_scenario": "Lines 41-43 hold \"shape `[a]: u\" / \"(x\" / \"`, both timed...\", where every other shape in the ADR uses the escaped \\n form; rendered on GitHub the span shows `[a]: u (x ` and the following \"`\\n to the end\" fragments open spans the text never closes.",
+      "verify_by": "sed -n 41,43p gno.land/adr/pr6304_sanitize_gno_tags.md; render the ADR and read Decision 7",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "sed -n 43p: \"`, both timed alternately in one process at 100 KB: ×2.45 for strict (slowest: 16× `[a]: u\\n(x\\n` then `\\n to the end, e\"",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {"file": "gnovm/stdlibs/chain/markdown/markdown.go", "line": 543, "angle": "claims", "summary": "A \\f- or \\v-only line is non-blank to prevParagraph but blank to goldmark, so strict would leave an empty list item unescaped", "settled_by": "grep spaceTable in goldmark@v1.8.2/util/util.go: entries 11 (\\v) and 12 (\\f) are 0, so goldmark does not treat those lines as blank either"},
+    {"file": "gnovm/stdlibs/chain/markdown/markdown.go", "line": 1268, "angle": "claims", "summary": "ADR Decision 1: walker no longer quadratic in leading spaces", "settled_by": "TestGasProbeLongFence on head", "output": "strict 1 MiB of spaces: 14.424646ms / strict 2 MiB of spaces: 27.07465ms"},
+    {"file": "gno.land/adr/pr6304_sanitize_gno_tags.md", "line": 63, "angle": "claims", "summary": "Not-addressed O(n^1.5) LRD-title-then-thematic-break shape costs the same before and after", "settled_by": "TestGasProbe on head vs d25b308c1 copy", "output": "strict not-addressed: sqrt(n) lrd-title then --- new/old(same shape)= 0.96; rich ... = 0.85"},
+    {"file": "gnovm/stdlibs/chain/markdown/markdown.go", "line": 476, "angle": "removed", "summary": "Quote continuation \"> [home](\\n> <gno-a b>)\" newly escaped after > would bind [home] to the realm", "settled_by": "TestPointyDestOnQuoteContinuation at head", "output": "BlockRich \"> [home](\\n> <gno-a b>)\\n\" bound-to-realm=false own-dest=false sanitized=\"\\n\\n> \\\\[home\\\\](\\n> \\\\<gno-a b>)\\n\\n\""},
+    {"file": "gnovm/stdlibs/native_gas.go", "line": 184, "angle": "claims", "summary": "Slope arithmetic 27361x2.45 and 27597x2.95 against the merge-base rows", "settled_by": "git show d25b308c1:gnovm/stdlibs/native_gas.go | grep EscapeBlockHazards: Slope 27361 / 27597; head 67034 / 81411 = 27361x2.45, 27597x2.95"},
+    {"file": "gno.land/adr/pr6299_gnoweb_frame.md", "line": 172, "angle": "claims", "summary": "Annotation says frame tags after > or list markers are now escaped, which the blockrich-gno-frame-* goldens show", "settled_by": "cat blockrich-gno-frame-in-list.txtar / -in-blockquote.txtar: output.md '- \\<gno-frame>' and '> \\<gno-frame>', html '&lt;gno-frame&gt;'"},
+    {"file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md", "line": 107, "angle": "removed", "summary": "Removed #6300 known-gap sentence leaves a sibling doc still naming the gap", "settled_by": "grep -rn 6300 --include=*.md: pr5593_gnoweb_details_block.md:53 ends '#6304 closes the gap.'; pr6299 annotated '(Resolved in PR #6304)'"},
+    {"file": "gno.land/pkg/gnoweb/markdown/SANITIZE.md", "line": 108, "angle": "claims", "summary": "Blockquote row: button after a fence under an HTML tag line, the tag escaped", "settled_by": "cat blockquote-gno-button-after-fence-in-html-block.txtar: output.md '> \\<div>' and '> \\<gno-button ...' inside the code block"},
+    {"file": "gno.land/adr/pr6297_gnoweb_inline_icons.md", "line": 251, "angle": "claims", "summary": "Icons at the start of a list item or quote keep rendering", "settled_by": "escapeGnoExtDelimiters markdown.go:713 '!isClose && hasContainer && hasGnoIconPrefix(rest)' returns line; sanitize_integration_test.go:660-675 asserts <svg class=\"gno-icon\" for list-bullet, list-numbered, blockquote"}
+  ]
+}

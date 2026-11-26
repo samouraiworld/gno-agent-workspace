@@ -1,0 +1,42 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 1712,
+      "angle": "removed",
+      "summary": "The master merge a8bdd53b0 gates 1c377bf89's text-after-destination rejection on skipSpace's ok, so out of budget scanLRDTail accepts `[a]: u ```` as a definition, deletes `[a]: u` and leaves a fence closeFencesAtDedent never saw",
+      "failure_scenario": "BlockRich input: 9x `[a]: u\\n(x\\n`, 269x \"`\\n\", a blank line, then the PR's own lrd-text-after-destination case `[a]: u ```\\n```\\n- y\\n  ```\\n~~~\\n`. The prefix's title walks leave the budget at 5-6 when the target's URL ends, the trailing skipSpace returns ok=false, the check is skipped and the span `[a]: u` is deleted. Output ` ```\\n```\\n- y\\n  ```\\n~~~\\n\\n\\n  ```\\n`: goldmark ends the list-item fence at `~~~`, opens a tilde fence there, and the appended `  ```` cannot close it, so the realm's chrome after the user text renders inside a code block. 1c377bf89's unbudgeted whitespace loop always rejected this line; master's budgeted skip had no check; the merge combined them fail-open.",
+      "verify_by": "cp tests/b5-lines-removed-reach-catalog-lrd-budget-trailing-text_test.go gnovm/stdlibs/chain/markdown/zz_lrd_budget_test.go && go test ./gnovm/stdlibs/chain/markdown -run TestLRDTrailingTextOutOfBudget -v: fails at a8bdd53b0; change line 1712 to `if !ok || end < len(s) && s[end] != '\\n' {` and it passes with TestEscapeBlockHazards and TestEscapeBlockHazardsRich still green",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head: `k=9 tail=269 pad=0: `[a]: u ```` deleted; footer in code block: true` output tail \"...\\n\\n ```\\n```\\n- y\\n  ```\\n~~~\\n\\n\\n  ```\\n\"; with `if !ok || ...` at 1712: `ok github.com/gnolang/gno/gnovm/stdlibs/chain/markdown 3.307s` (repro plus TestEscapeBlockHazards*). Pre-merge side read: a8bdd53b0^1 scanLRDTail skips trailing spaces unbudgeted then `if end < len(s) && s[end] != '\\n' { return 0, false }`; master a8bdd53b0^2 has `end, _ = skipSpace(s, end, 0, budget)` and no check.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6304-sanitize-gno-tags/1-a8bdd53b0/tests/b5-lines-removed-reach-catalog-lrd-budget-trailing-text_test.go"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 185,
+      "angle": "catalog",
+      "summary": "The Rich slope 27597x2.95 is the PR's own slowest-shape ratio with no headroom (author re-timed 2.90x); on a second x86-64 host the same shape measures 3.07-3.25x the old native, so the price does not travel across machines",
+      "failure_scenario": "fillRichSlow(100000) (~75% `  ```\\nx\\n`, 64 LRDs, \"`\\n\" tail) timed interleaved against the merge-base native on `[a]: u\\n(x\\n`: median factor 3.25, 3.10, 3.09, 3.07 over four 31-round runs (two with GOMAXPROCS=1), every one above the charged 2.95, i.e. 4-10% of the native's CPU unbilled on this host; strict reads 2.29-2.50 against 2.45. The root causes alexiscolin named (isBlockInterrupt unbudgeted in the title walk, the Rich budget taken after closeFencesAtDedent grows the input) are priced, not fixed, so the factor tracks each CPU's branch and call costs. Host was shared (load ~25 on 16 cores), so magnitudes carry that noise. Suggestion: add headroom, or bound the work to the input (take the budget from len(s) before closeFencesAtDedent and spend it in isBlockInterrupt).",
+      "verify_by": "cp tests/b5-lines-removed-reach-catalog-rich-long-fence-gas_test.go into gnovm/stdlibs/chain/markdown with the merge-base markdown.go as package zzold (header has the commands); GOMAXPROCS=1 go test -run TestGasShapeFactors -v on a quiet host: the `rich, PR slow shape` median above 2.95 confirms",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "GOMAXPROCS=1: `rich, PR slow shape      out=155919  factor median 3.09 [p25 2.69, p75 3.35] vs charged 2.95` and `factor median 3.07 [p25 2.84, p75 3.25]`; default procs: medians 3.25 and 3.10; strict `factor median 2.40 [p25 2.18, p75 2.55] vs charged 2.45`. Thread: alexiscolin 2026-10-26 called the factors not blocking; nikhil-singh91 2026-11-24 re-timed 2.35x / 2.90x.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6304-sanitize-gno-tags/1-a8bdd53b0/tests/b5-lines-removed-reach-catalog-rich-long-fence-gas_test.go"
+    }
+  ],
+  "dropped": [
+    {"file": "gnovm/stdlibs/native_gas.go", "line": 185, "angle": "reach", "summary": "Rich shapes with a larger or longer-run fence region (budget is 8*len after closeFencesAtDedent, up to ~2x) beat the PR's slow shape", "settled_by": "TestGasShapeFactors GOMAXPROCS=1, same rounds as the PR shape", "output": "rich, frac=0.90 run=30   out=183806  factor median 2.62 [p25 2.38, p75 2.78] vs charged 2.95  covered"},
+    {"file": "gnovm/stdlibs/chain/markdown/markdown.go", "line": 1155, "angle": "catalog", "summary": "isCloseFence rejects a closer followed by \\f or \\v that goldmark accepts, leaving the tracker in a fence goldmark closed", "settled_by": "goldmark v1.8.2 util/util.go:806 spaceTable marks only bytes 9, 10, 13 and 32 as space, so goldmark rejects that closer too"},
+    {"file": "gnovm/stdlibs/native_gas.go", "line": 185, "angle": "reach", "summary": "Rich output up to ~1.9x the input is returned without allocation accounting", "settled_by": "generated.go wrapper returns via gno.Go2GnoValue(m.Alloc,...), gonative.go:92 `tv.V = alloc.NewString(rv.String())`"},
+    {"file": "gnovm/cmd/calibrate/markdown_bench_test.go", "line": 321, "angle": "removed", "summary": "Rich calibration bench moved off the fit shape `[a]: u\\n(x\\n` to `  ```\\nx\\n`, and gen_native_table.py reads neither the Slow benches nor a Rich row, so a refit would drop the x2.95", "settled_by": "native_gas_table.go.txt carries no chain/markdown row (grep empty), so the markdown rows are hand-written; the bench shape is alexiscolin's 2026-10-26 native_gas.go thread (`the bench's ... comes out ~1.1x`)"},
+    {"file": "gnovm/stdlibs/chain/markdown/markdown.go", "line": 1012, "angle": "reach", "summary": "closeFencesAtDedent closes every 1-3 space document-level fence at the first less-indented line, moving code into markdown or the rest of the text into code", "settled_by": "alexiscolin CHANGES_REQUESTED 2026-10-26: `apart from the costs the ADR records (a backslash in code, 1-3 space fences split in Rich), which I'm fine with`"},
+    {"file": "gnovm/stdlibs/chain/markdown/markdown.go", "line": 1933, "angle": "removed", "summary": "1c377bf89 alert guard misses an alert shape gnoweb renders", "settled_by": "ext_alert.go:102-119 opens an alert only on `>` plus at most one space or tab then `^\\[!`; parseContainerPrefix (markdown.go:623-646) skips exactly those and the guard requires `>` in s[ls:q]"},
+    {"file": "gnovm/stdlibs/chain/markdown/markdown_test.go", "line": 525, "angle": "catalog", "summary": "isBlockInterruptFn is a package var a test reassigns", "settled_by": "`git show d25b308c1:.../markdown.go | grep -c isBlockInterruptFn` = 3 (predates the PR); no t.Parallel in the package"},
+    {"file": "gnovm/stdlibs/chain/markdown/markdown_test.go", "line": 1, "angle": "removed", "summary": "merge a8bdd53b0 dropped master-side lines in bundle files", "settled_by": "every master-side added line since merge-base bcfcfd525 is present verbatim in a8bdd53b0 except two scanLRDTail lines, both rewritten (one is the Warning above)"}
+  ]
+}

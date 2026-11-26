@@ -1,0 +1,75 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gnovm/cmd/gno/run.go",
+      "line": 397,
+      "angle": "removed",
+      "summary": "Duplicate declarations are still accepted silently by `gno run <dir>` with no -pkgpath; the new RedeclarationErrors branch is only reachable under a non-stdlib-looking path",
+      "failure_scenario": "Two files a.gno and b.gno in one directory both declare `func helper()`; with no gnomod.toml and no -pkgpath the package path defaults to the package name \"main\", gno.IsStdlib(\"main\") is true, so Machine.RunFiles (machine.go:646) calls runFileDecls with withOverrides=true and checkDuplicates never runs. `gno run dir/` prints b.gno's result `2` and exits 0, at head and at the merge base. The PR's own duplicate-declaration test only reaches the new branch because it passes `-pkgpath example.com/main`. A user running a plain directory gets the wrong helper with exit 0 instead of the redeclaration error the PR advertises. Predates the diff; in scope as a missed member of the duplicate-declaration class the diff sweeps.",
+      "verify_by": "go test ./gnovm/cmd/gno -run TestRunDefaultPkgPathDuplicateDecl -count=1 with tests/solo-finder-2-default-pkgpath-dup_test.go copied into gnovm/cmd/gno: CURRENT expectation stdout \"2\\n\" passes; the FIXED expectation (stderr redeclarations, exit code 1) fails. Same fixture by hand with the base binary prints 2, rc 0.",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "head test: `--- PASS: TestRunDefaultPkgPathDuplicateDecl` with stdout `2`. Binaries: `[gno-head c1 dir (default pkgpath)] 2 rc=0`, `[gno-base ...] 2 rc=0`; with `-pkgpath example.com/main` head prints `running package \"example.com/main\": redeclarations for identifiers: \"helper\" (code=gnoPreprocessError)`.",
+      "repro_path": "tests/solo-finder-2-default-pkgpath-dup_test.go"
+    },
+    {
+      "index": 1002,
+      "file": "gnovm/cmd/gno/run.go",
+      "line": 394,
+      "angle": "lines",
+      "summary": "A PreprocessError whose message carries no location prints the fabricated location `.:0` instead of none, dropping the importing file the old panic's preprocess stack named",
+      "failure_scenario": "main.gno imports an examples package (gno.land/p/zz/dup) whose two files both declare Helper. The duplicate panics as a wrapped error inside the importing file's predefine; doRecover wraps it with tm2 errors.Wrap, whose %v prints only the cause, so Unwrap().Error() has no location, ReErrorLine misses, and guessIssueFromError(\".\", \".\", ...) falls back to Location `.:0`. Head prints `.:0: running package \"gno.land/p/zz/dup\": redeclarations for identifiers: \"Helper\" (code=gnoPreprocessError)`; the base panic's stack named `file main/zz/cases2/i1/main.gno:1:1-7:2`. An editor or matcher parsing file:line jumps to `.` line 0. The doc comment promises no location when none is known.",
+      "verify_by": "GNOROOT=<tree with examples/gno.land/p/zz/dup a.gno+b.gno duplicating Helper> gno run dir/ where dir/main.gno imports it: head stderr starts with `.:0:`; base stderr contains `stack 1: file main/<dir>/main.gno`",
+      "band": "Nit",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "[gno-head rc=1] .:0: running package \"gno.land/p/zz/dup\": redeclarations for identifiers: \"Helper\" (code=gnoPreprocessError); base: `stack 1: file main/zz/cases2/i1/main.gno:1:1-7:2`",
+      "repro_path": ""
+    },
+    {
+      "index": 1003,
+      "file": "gnovm/cmd/gno/common.go",
+      "line": 236,
+      "angle": "removed",
+      "summary": "The guessIssueFromError rewrite also changes `gno lint` and `gno test` output, and no txtar pins either surface",
+      "failure_scenario": "guessIssueFromError serves printError for lint and test too. A package with `go f()` linted at base prints `main.gno:main.gno:6:2: goroutines are not permitted (code=gnoUnknownError)`, at head `main.gno:6:2: ...`. No file under gnovm/cmd/gno/testdata mentions gnoPreprocessError or gnoUnknownError, so a later regression of the lint location goes unseen; only the run cases pin the helper.",
+      "verify_by": "grep -rh 'gnoPreprocessError\\|gnoUnknownError' --include='*.txtar' gnovm returns nothing; add a lint txtar with `go f()` expecting `main.gno:6:2: goroutines are not permitted (code=gnoUnknownError)` and confirm it fails with the common.go hunk reverted",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep over every *.txtar: no hit. Binaries: `[gno-base lint c19_go] main.gno:main.gno:6:2: goroutines are not permitted (code=gnoUnknownError)` vs `[gno-head lint c19_go] main.gno:6:2: goroutines are not permitted (code=gnoUnknownError)`",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/cmd/gno/run.go",
+      "line": 409,
+      "angle": "lines",
+      "summary": "Self-reference through a func literal or a method (`var a = func() int { return a }()`, `var a = T{}.M()`) still exits 2",
+      "settled_by": "same resolveEffectiveDeps string panic as notJoon's open report, not a new case: `[gno-head rc=2] panic: main/zz/cases3/v3/main.gno:3:5: circular dependency: a -> a [recovered, repanicked]` and `... v4/main.gno:7:5: circular dependency: a -> T.M -> a`; direct var cycles (`var a = b; var b = a`, `var a = a`) are PreprocessErrors and print one line, rc 1",
+      "output": "[gno-head rc=1] zz/cases3/v1/main.gno:3:5-10: invalid recursive value: a -> b -> a (code=gnoPreprocessError)"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/machine.go",
+      "line": 500,
+      "angle": "rollout",
+      "summary": "Exporting redeclarationErrors could change node output read by an older binary",
+      "settled_by": "gno.land/pkg/sdk/vm/keeper.go formats VM panics with fmt.Errorf(\"%v\", r), so the type name never reaches a tx result; the message is unchanged and pinned by gnovm/tests/files/redeclaration6.gno, redeclaration8.gno, redeclaration10.gno",
+      "output": ""
+    },
+    {
+      "file": "gnovm/cmd/gno/run.go",
+      "line": 387,
+      "angle": "lines",
+      "summary": "Ordinary preprocess-error shapes might escape the PreprocessError branch or lose their location",
+      "settled_by": "14 shapes run at head (unknown import, undefined name, recursive type, method on non-local type, return count, missing return, duplicate method, const overflow, assignment mismatch, ...): each prints `<path as given>:<span>: msg (code=gnoPreprocessError)` and exits 1; base panics with exit 2 on each",
+      "output": "[gno-head rc=1] zz/cases/c2_import/main.gno:3:8-30: unknown import path gno.land/p/nope/nope (code=gnoPreprocessError)"
+    }
+  ]
+}

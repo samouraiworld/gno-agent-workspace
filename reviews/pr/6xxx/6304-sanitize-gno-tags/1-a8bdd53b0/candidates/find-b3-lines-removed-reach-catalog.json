@@ -1,0 +1,94 @@
+{
+  "candidates": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 1123,
+      "angle": "reach",
+      "summary": "strict sanitize.Block lets a GFM table through when no row starts with `|`: only a line-leading pipe is escaped",
+      "failure_scenario": "Block(\"a | b\\n--- | ---\\nc | d\") returns the lines unchanged (`--- | ---` is no thematic break, list marker or setext underline), and gnoweb renders a live <table> with header a/b, although Block's doc (sanitize.gno 352-357) promises user content cannot inject GFM table rows and stays paragraph-shaped. Bounded by the \\n\\n envelope, so a doc-spoof, not a chrome swallow. Predates this PR by read: the merge base's escapeLineLeader has the same line-leading-only `case '|'`.",
+      "verify_by": "cp tests/b3-lines-removed-reach-catalog-block-pipeless-table.txtar gno.land/pkg/gnoweb/markdown/golden/sanitize/ && go test ./gno.land/pkg/gnoweb/markdown -run 'TestSanitizeIntegration/b3-lines-removed-reach-catalog-block-pipeless-table' -v: passes with output.html holding <table>; run the same case at the merge base d25b308c1 to settle whether it predates the diff (judge)",
+      "band": "Warning",
+      "fix_kind": "code",
+      "checked": true,
+      "run": true,
+      "evidence": "golden passes at head: `--- PASS: TestSanitizeIntegration/b3-lines-removed-reach-catalog-block-pipeless-table`; pinned html `<table>\\n<thead>\\n<tr>\\n<th>a</th>\\n<th>b</th>`. Random 3000-input sweep over both modes: `COUNTS map[Block/strict-block:99]`, every hit a pipe-less `--- | ---` delimiter row, e.g. Block(\"+\\n*\\n--- | ---\") rendering `<table>⏎<thead>⏎<tr>⏎<th>*</th>`. Base grep: markdown.go:802 `case '|':` with `if escapePipe {` at 808, same shape.",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6304-sanitize-gno-tags/1-a8bdd53b0/tests/b3-lines-removed-reach-catalog-block-pipeless-table.txtar"
+    },
+    {
+      "file": "gno.land/adr/pr6304_sanitize_gno_tags.md",
+      "line": 61,
+      "angle": "reach",
+      "summary": "the fidelity cost says a `[label]: url` line in real code shows a backslash, but a Rich document-level fence split by closeFencesAtDedent deletes that line and renders `#` code lines as headings",
+      "failure_scenario": "BlockRich(\" ```sh\\n# install\\n[a]: http://x\\nmake\\n ```\") returns \"\\n\\n ```sh\\n ```\\n# install\\nmake\\n ```\\n ```\\n\\n\": closeFencesAtDedent closes the 1-space fence before the column-0 content, the walker then strips `[a]: http://x` as a definition, and gnoweb renders `<h1>install</h1>` and `<p>make</p>` between two empty code blocks. The user's code line vanishes; Block on the same input keeps one code block with `\\[a]: http://x`. The split itself is the cost alexiscolin accepted; the deleted line and the promoted heading are not in the ADR's sentence or sanitize.gno:580's row (`closer written before it`, `the fence may sit in a list item`). Same root as the b4 dedent finding.",
+      "verify_by": "cp tests/b3-lines-removed-reach-catalog-dedent-split-deletes-lrd.txtar gno.land/pkg/gnoweb/markdown/golden/sanitize/ && go test ./gno.land/pkg/gnoweb/markdown -run 'TestSanitizeIntegration/b3-lines-removed-reach-catalog-dedent-split-deletes-lrd' -v: passes with output.md missing the `[a]: http://x` line",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": true,
+      "evidence": "probe: `OUT  \"\\n\\n ```sh\\n ```\\n# install\\nmake\\n ```\\n ```\\n\\n\"` and `HTML <p>REALM BEFORE</p>⏎<pre><code class=\"language-sh\"></code></pre>⏎<h1>install</h1>⏎<p>make</p>⏎<pre><code></code></pre>⏎<p>REALM AFTER</p>`; Block on the same input: `<pre><code class=\"language-sh\"># install⏎\\[a]: http://x⏎make⏎</code></pre>`; golden `--- PASS: TestSanitizeIntegration/b3-lines-removed-reach-catalog-dedent-split-deletes-lrd`",
+      "repro_path": "projects/gno-agent-workspace/checkout/reviews/pr/6xxx/6304-sanitize-gno-tags/1-a8bdd53b0/tests/b3-lines-removed-reach-catalog-dedent-split-deletes-lrd.txtar"
+    },
+    {
+      "file": "examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno",
+      "line": 173,
+      "angle": "removed",
+      "summary": "package doc still says HTML block types 6 and 7 need no escape; the diff rewrote this claim at 362-365 and 453-456 but missed this sibling",
+      "failure_scenario": "A realm author reading the package-level threat list learns `Types 6 and 7 close on a blank line, so BlockRich's \\n\\n paragraph envelope already bounds them and no escape is needed`, while both modes now escape a line-start tag followed by a fence line before the next blank line (Block(\"<div>\\n```\\nx\") returns `\\<div>`), as the Block docstring and table rows 400-401 and 570-571 now say.",
+      "verify_by": "sed -n 165,174p sanitize.gno against sed -n 362,365p and 453,456p; Block(\"<div>\\n```\\nx\") output starts `\\<div>`",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "sanitize.gno:173 `Types 6 and 7 close on a blank line, so BlockRich's` / 174 `paragraph envelope already bounds them and no escape is needed.`; probe `Block(\"<div>\\n```\\nx\")` -> `OUT \"\\n\\n\\\\<div>\\n```\\nx\\n```\\n\\n\"`",
+      "repro_path": ""
+    },
+    {
+      "file": "examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno",
+      "line": 578,
+      "angle": "lines",
+      "summary": "BlockRich row promises every unclosed fence is autoclosed, but a fence opened on a list-marker or quote line is never tracked or closed",
+      "failure_scenario": "BlockRich(\"- ```\\nx\") returns \"\\n\\n- ```\\nx\\n\\n\" with no closer: parseFenceOpener reads only 0-3 spaces, so `- ```` and `> ```` openers are invisible to the autoclose. Harmless as rendered (the list item or quote ends at the \\n\\n envelope, and the realm footer survived 3000 random inputs), but the row reads as a guarantee the realm can rely on.",
+      "verify_by": "BlockRich(\"- ```\\nx\") and BlockRich(\"> ```\\n> x\") through the integration harness: output has no closing fence",
+      "band": "Nit",
+      "fix_kind": "comment",
+      "checked": true,
+      "run": false,
+      "evidence": "probe `BlockRich(\"- ```\\nx\")` -> `OUT  \"\\n\\n- ```\\nx\\n\\n\"`; `BlockRich(\"> ```\\n> x\")` -> `OUT  \"\\n\\n> ```\\n> x\\n\\n\"`",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/stdlibs/chain/markdown/markdown.go",
+      "line": 623,
+      "angle": "reach",
+      "summary": "a form feed before `<gno-card>` stops parseContainerPrefix while goldmark's util.TrimLeftSpace strips it, so the tag might open live",
+      "settled_by": "probe BlockRich(\"\\f<gno-card>\\nx\\n</gno-card>\") through the gnoweb renderer: every gno block parser triggers on '<' (or '>'), goldmark picks parsers by the first non-space byte, and the render is `<p><!-- raw HTML omitted -->⏎x⏎&lt;/gno-card&gt;</p>`, no card",
+      "output": "HTML <p>REALM BEFORE</p>⏎<p><!-- raw HTML omitted -->⏎x⏎&lt;/gno-card&gt;</p>⏎<p>REALM AFTER</p>⏎"
+    },
+    {
+      "file": "examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno",
+      "line": 435,
+      "angle": "reach",
+      "summary": "the new HTML-hides-fence escape, empty-item escape and dedent pre-pass could break Block/BlockRich idempotency, drop the realm footer, leave a gno-* element live or bind `[home]`",
+      "settled_by": "3000 random 1-6 line inputs over 42 line shapes (fences at 0-3 spaces and tab, `- ```, `> ```, <div>, <script>, <gno-card>, empty items, LRDs, `[home]`, alerts, tables) through Block and BlockRich twice and rendered between realm chrome with a realm `[home]` definition: zero idempotency, footer, gno-live or home-bound failures",
+      "output": "COUNTS map[Block/strict-block:99]"
+    },
+    {
+      "file": "examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno",
+      "line": 389,
+      "angle": "lines",
+      "summary": "Block table row claims empty list items are escaped too",
+      "settled_by": "probe: Block(\"-\") -> \"\\\\-\", Block(\"- \") -> \"\\\\- \", Block(\"1.\") -> \"1\\\\.\", Block(\"1)\") -> \"1\\\\)\", Block(\"+\\t\") -> \"\\\\+\\t\", Block(\"a\\n\\n*\") -> \"\\\\*\"; each renders <p>, no list",
+      "output": "OUT  \"\\n\\n1\\\\)\\n\\n\" HTML <p>REALM BEFORE</p>⏎<p>1)</p>⏎<p>REALM AFTER</p>"
+    },
+    {
+      "file": "examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno",
+      "line": 409,
+      "angle": "removed",
+      "summary": "Block row says an unclosed fence is autoclosed at its opener's column, and the rewritten 362-365 claim that types 6/7 are escaped only when a fence line follows",
+      "settled_by": "probe: Block(\"   ```\\nx\") -> \"\\n\\n   ```\\nx\\n   ```\\n\\n\"; Block(\"<div>\\n```\\nx\") escapes `\\<div>`; Block(\"<div>\\nx\\n\\n```\\ny\") leaves <div> and renders `<!-- raw HTML omitted -->`",
+      "output": "OUT  \"\\n\\n   ```\\nx\\n   ```\\n\\n\""
+    }
+  ]
+}

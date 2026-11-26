@@ -1,0 +1,23 @@
+{"dropped": [],
+ "candidates": [
+  {"file": "gno.land/cmd/gnoland/start_test.go", "line": 70, "angle": "tests",
+   "summary": "TestStart_DefaultLogLevel may stay green with the default put back to debug",
+   "failure_scenario": "start.go reverts to zapcore.DebugLevel.String() and the test still passes, so the default the PR fixes is unpinned",
+   "verify_by": "go test -run 'TestStart_DefaultLogLevel$' ./gno.land/cmd/gnoland/ at head, then with start.go:155 set back to DebugLevel: expect FAIL",
+   "band": "Missing test", "fix_kind": "test", "checked": true},
+  {"file": "gno.land/cmd/gnoland/start.go", "line": 155, "angle": "removed",
+   "summary": "another long-running binary in the tree may still default its log level to debug",
+   "failure_scenario": "gnokms, gnofaucet or gnoweb run beside a node with a debug default and fill the same disk",
+   "verify_by": "grep every \"log-level\" flag and every zapcore.DebugLevel assignment over the whole tree and read each default",
+   "band": "Warning", "fix_kind": "code", "checked": true},
+  {"file": "gno.land/cmd/gnoland/start.go", "line": 155, "angle": "reach",
+   "summary": "an event an operator needs at startup may log only at debug, so the info default hides it",
+   "failure_scenario": "a genesis tx fails to deliver under -skip-failing-genesis-txs and the failure is a Debug line, invisible at the new default",
+   "verify_by": "read the Logger() level of every genesis-replay failure path in gno.land/pkg/gnoland/app.go",
+   "band": "Warning", "fix_kind": "code", "checked": true},
+  {"file": "gno.land/cmd/gnoland/README.md", "line": 64, "angle": "claims",
+   "summary": "the callout tells operators on older binaries to pass -log-level info but names no way to tell an older binary",
+   "failure_scenario": "an operator reading 'releases before that change' cannot tell whether the binary they run is one, since the README names no release or version",
+   "verify_by": "read README.md:62-66 for a release, version or command that shows the binary's default",
+   "band": "Nit", "fix_kind": "doc", "checked": true}
+ ]}
