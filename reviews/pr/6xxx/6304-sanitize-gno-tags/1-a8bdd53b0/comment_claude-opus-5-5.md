@@ -1,4 +1,5 @@
 # Review: [#6304](https://github.com/gnolang/gno/pull/6304)
+Posted: https://github.com/gnolang/gno/pull/6304#pullrequestreview-6080530471
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES, a dedented fence turns the rest of a Rich post into code, a list-item fence indented 4-6 spaces or by a tab lets the user's `[home]` link to the realm's definition, and past the scan budget a definition line with trailing text still puts the realm's footer in a code block.
 Model: claude-opus-5-5, standard review
@@ -9,13 +10,11 @@ Round: 1. 6 finders, one reflector, 12 candidates, the Criticals and Warnings ru
 
 ## Body
 
-Automatic review, not manually checked, here to help the reviewer team.
-
 - This can't go in yet: three inputs the merge base handled now render wrongly, and the new check on text after a link definition stops at the scan's work cap. The blockers are the comments on the closing fence [`closeFencesAtDedent`](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1012) writes, the indent loop in `parseFenceOpener`, the tab guard in `isNonBlankIndentedLess` and the whitespace guard in `scanLRDTail`. The HTML-block, table and link-text comments, the Nits and the calibration bullet are optional.
 
 - Suggestion: [`gen_native_table.py:209-210`](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/cmd/calibrate/gen_native_table.py#L209-L210) fits `EscapeBlockHazards` only from `BenchmarkNative_Markdown_EscapeBlockHazards_(\d+)-`, which matches neither [`BenchmarkNative_Markdown_EscapeBlockHazards_Slow_1000`](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/cmd/calibrate/markdown_bench_test.go#L379) nor any `EscapeBlockHazardsRich` name. A re-fit pasted into [`native_gas.go`](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/native_gas.go#L184-L185) therefore drops the ×2.45 strict and ×2.95 Rich gas multipliers this pull request applies. Fix: for instance, add script rows for the `_Slow_` benchmarks and fit the shipped slopes from them, or carry the factors in the script's table.
 
-## gnovm/stdlibs/chain/markdown/markdown.go:505 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L505) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L505) · Warning
+## gnovm/stdlibs/chain/markdown/markdown.go:505 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L505) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L505) · Warning [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409112)
 
 Related: [`mayOpenHTMLBlock`](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L567-L570) misses a `<div>` after a list marker, so the sanitizer's fence tracker counts a fence goldmark ignores, and the item's `[home]` links to the realm's URL.
 
@@ -58,7 +57,7 @@ zz_repro_test.go:15: "- <div>\n  ```\n\n  see [home]\n" realm-link=true
 
 </details>
 
-## gnovm/stdlibs/chain/markdown/markdown.go:882 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L882) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L882) · Warning
+## gnovm/stdlibs/chain/markdown/markdown.go:882 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L882) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L882) · Warning [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409123)
 
 `i < 3` counts indent from column 0, so the sanitizer's fence tracker misses a fence 4-6 spaces into a list item, and the item's `[home]` links to the realm's URL.
 
@@ -111,7 +110,7 @@ zz_repro_test.go:16: "1. a\n\n    ```\n   ```\n   see [home]\n" realm-link=false
 
 </details>
 
-## gnovm/stdlibs/chain/markdown/markdown.go:917 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L917) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L917) · Warning
+## gnovm/stdlibs/chain/markdown/markdown.go:917 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L917) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L917) · Warning [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409134)
 
 `isNonBlankIndentedLess` returns false on a leading tab, so the sanitizer's fence tracker misses a tab-indented fence line in a list item, and the item's `[home]` links to the realm's URL.
 
@@ -164,7 +163,7 @@ zz_repro_test.go:16: "- a\n\n  ```\n\t```\n  see [home]\n" realm-link=true
 
 </details>
 
-## gnovm/stdlibs/chain/markdown/markdown.go:1057 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1057) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L1057) · Warning
+## gnovm/stdlibs/chain/markdown/markdown.go:1057 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1057) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L1057) · Warning [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409142)
 
 `closeFencesAtDedent` writes a closer before column-0 code in a fence indented 1-3 spaces, so the user's own column-0 closer then opens a new fence and every later paragraph renders as code.
 
@@ -213,7 +212,7 @@ zz_repro_test.go:12: BlockquoteRich prose-is-paragraph=true
 
 </details>
 
-## gnovm/stdlibs/chain/markdown/markdown.go:1123 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1123) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L1123) · Warning
+## gnovm/stdlibs/chain/markdown/markdown.go:1123 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1123) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L1123) · Warning [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409150)
 
 Related: only a line-leading `|` is escaped, so `Block` passes a GFM table with no leading pipe, against the [package doc](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/examples/gno.land/p/nt/markdown/sanitize/v0/sanitize.gno#L161-L162) promising no `<table>`.
 
@@ -250,7 +249,7 @@ zz_repro_test.go:11: table=true
 
 </details>
 
-## gnovm/stdlibs/chain/markdown/markdown.go:1316 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1316) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L1316) · Warning
+## gnovm/stdlibs/chain/markdown/markdown.go:1316 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1316) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L1316) · Warning [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409158)
 
 Related: `findBracketSpans` refuses a link span only across a fence or definition line, so a `> [!WARNING]` line inside link text renders a gnoweb alert.
 
@@ -296,7 +295,7 @@ zz_repro_test.go:16: "[a\n> see [home]](/u)\n" alert=false realm-link=true
 
 </details>
 
-## gnovm/stdlibs/chain/markdown/markdown.go:1712 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1712) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L1712) · Warning
+## gnovm/stdlibs/chain/markdown/markdown.go:1712 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L1712) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L1712) · Warning [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409161)
 
 Past the scan budget, `scanLRDTail` skips its trailing-text check, so a definition line ending in a fence is deleted and the next fence puts the realm's footer in code.
 
@@ -364,19 +363,19 @@ zz_repro_test.go:28: k=8 tail=0: definition line deleted, footer in code block=t
 
 </details>
 
-## gno.land/adr/pr6304_sanitize_gno_tags.md:41 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gno.land/adr/pr6304_sanitize_gno_tags.md?plain=1#L41) · [↗](../../../../../.worktrees/gno-review-6304/gno.land/adr/pr6304_sanitize_gno_tags.md#L41) · Nit
+## gno.land/adr/pr6304_sanitize_gno_tags.md:41 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gno.land/adr/pr6304_sanitize_gno_tags.md?plain=1#L41) · [↗](../../../../../.worktrees/gno-review-6304/gno.land/adr/pr6304_sanitize_gno_tags.md#L41) · Nit [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409177)
 
 Nit: the code span holding the gas calibration input breaks across lines, so it renders as `[a]: u (x `, and the unclosed `` `\n `` spans on [line 43](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gno.land/adr/pr6304_sanitize_gno_tags.md?plain=1#L43) turn prose into code.
 
 **Fix:** write the shape as `[a]: u\n(x\n`, as line 43 does, and close each `` `\n `` span on line 43.
 
-## gno.land/adr/pr6304_sanitize_gno_tags.md:61 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gno.land/adr/pr6304_sanitize_gno_tags.md?plain=1#L61) · [↗](../../../../../.worktrees/gno-review-6304/gno.land/adr/pr6304_sanitize_gno_tags.md#L61) · Nit
+## gno.land/adr/pr6304_sanitize_gno_tags.md:61 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gno.land/adr/pr6304_sanitize_gno_tags.md?plain=1#L61) · [↗](../../../../../.worktrees/gno-review-6304/gno.land/adr/pr6304_sanitize_gno_tags.md#L61) · Nit [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409188)
 
 Nit: the ADR promises a backslash on a `[label]: url` code line, while Rich mode's fence split at a less-indented line deletes it and renders `# install` as a heading.
 
 **Fix:** say that lines a dedent split moves out of the fence render as markdown, and that a definition-shaped line among them is deleted.
 
-## gnovm/stdlibs/chain/markdown/markdown.go:476 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L476) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L476) · Nit
+## gnovm/stdlibs/chain/markdown/markdown.go:476 [gh](https://github.com/gnolang/gno/blob/a8bdd53b08e988227136f8b74f4cd6571956e5f4/gnovm/stdlibs/chain/markdown/markdown.go#L476) · [↗](../../../../../.worktrees/gno-review-6304/gnovm/stdlibs/chain/markdown/markdown.go#L476) · Nit [posted](https://github.com/gnolang/gno/pull/6304#discussion_r4713409193)
 
 Related nit: the `<gno-…>` escape runs after the link scan, so it breaks a `<gno-a b>` destination on the next line, and the user's `home` links to the realm's URL.
 

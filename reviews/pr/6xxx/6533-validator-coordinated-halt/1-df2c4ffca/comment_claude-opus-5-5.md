@@ -1,7 +1,8 @@
 # Review: [#6533](https://github.com/gnolang/gno/pull/6533)
+Posted: https://github.com/gnolang/gno/pull/6533#pullrequestreview-6080535000
 Event: REQUEST_CHANGES
 Verdict: REQUEST CHANGES, the pre-halt `config get` check passes on a node that will still halt at an old `halt_height`, and section 6 ships that check to every validator.
-Model: claude-opus-5-5, solo round
+Model: claude-opus-5-5, quick review
 Commit: df2c4ffca (latest)
 Overview: [overview](../overview.md)
 Open the code: `git -C gno worktree add ../.worktrees/gno-review-6533 df2c4ffca`
@@ -9,11 +10,9 @@ Round: 1. One finder, one reflector, 5 candidates, the Warning run from scratch 
 
 ## Body
 
-Automatic review, not manually checked, here to help the reviewer team.
-
 - The pre-halt check can pass on a node that still halts at the wrong height, so this can't go in yet. The `config get` comment is the blocker; the block-sync and data-directory ones are optional.
 
-## misc/deployments/mainnet.gno.land/VALIDATOR.md:159 [gh](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/misc/deployments/mainnet.gno.land/VALIDATOR.md#L159) · [↗](../../../../../.worktrees/gno-review-6533/misc/deployments/mainnet.gno.land/VALIDATOR.md#L159) · Warning
+## misc/deployments/mainnet.gno.land/VALIDATOR.md:159 [gh](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/misc/deployments/mainnet.gno.land/VALIDATOR.md#L159) · [↗](../../../../../.worktrees/gno-review-6533/misc/deployments/mainnet.gno.land/VALIDATOR.md#L159) · Warning [posted](https://github.com/gnolang/gno/pull/6533#discussion_r4713412849)
 
 This check passes on a node that will still halt at an old height, since a changed value reaches the running node only at its next start ([`start.go:288-291`](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/gno.land/cmd/gnoland/start.go#L288-L291)).
 
@@ -46,13 +45,13 @@ halt height 6 reached, node shutting down
 
 </details>
 
-## misc/deployments/mainnet.gno.land/VALIDATOR.md:161 [gh](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · [↗](../../../../../.worktrees/gno-review-6533/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · Nit
+## misc/deployments/mainnet.gno.land/VALIDATOR.md:161 [gh](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · [↗](../../../../../.worktrees/gno-review-6533/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · Nit [posted](https://github.com/gnolang/gno/pull/6533#discussion_r4713412855)
 
 Nit: under block sync, nothing recovers the `BeginBlock` panic below [`ApplyBlock`](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/tm2/pkg/bft/blockchain/reactor.go#L536), so a validator still catching up at the halt exits with code 2 and `Restart=on-failure` does fire.
 
 **Fix:** say the process stays up on a node at the tip and exits on a node still syncing, as [`gno.land/cmd/gnoland/UPGRADES.md`](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/gno.land/cmd/gnoland/UPGRADES.md?plain=1#L175) does, in both files.
 
-## misc/deployments/mainnet.gno.land/VALIDATOR.md:161 [gh](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · [↗](../../../../../.worktrees/gno-review-6533/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · Suggestion
+## misc/deployments/mainnet.gno.land/VALIDATOR.md:161 [gh](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · [↗](../../../../../.worktrees/gno-review-6533/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · Suggestion [posted](https://github.com/gnolang/gno/pull/6533#discussion_r4713412861)
 
 Suggestion: a release that changes the state format restarts from a fresh genesis rather than the same data directory, per [`UPGRADES.md:13`](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/gno.land/cmd/gnoland/UPGRADES.md?plain=1#L13).
 
