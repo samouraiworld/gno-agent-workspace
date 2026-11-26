@@ -6,7 +6,7 @@ Round shape: solo round, 2 finders and one judge and writer, every Critical and 
 
 | Line | # | Band | State | Merge base | Draft |
 | --- | --- | --- | --- | --- | --- |
-| [`native_gas.go:130`](https://github.com/gnolang/gno/blob/b94116c74/gnovm/stdlibs/native_gas.go#L130) | 1 | Missing test | CONFIRMED | differs | posts |
+| [`native_gas.go:130`](https://github.com/gnolang/gno/blob/b94116c74/gnovm/stdlibs/native_gas.go#L130) | 1 | Missing test | CONFIRMED | differs | [posted](https://github.com/gnolang/gno/pull/6484#discussion_r4712541366) |
 | [`native_gas.go:130`](https://github.com/gnolang/gno/blob/b94116c74/gnovm/stdlibs/native_gas.go#L130) | 1001 | Missing test | CONFIRMED | differs | with row 1 |
 | [`recover.gno:32`](https://github.com/gnolang/gno/blob/b94116c74/gnovm/stdlibs/crypto/secp256k1/recover.gno#L32) | 1002 | Suggestion | CONFIRMED | differs | SKIP |
 
