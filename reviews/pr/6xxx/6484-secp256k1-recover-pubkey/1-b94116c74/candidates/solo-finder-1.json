@@ -1,0 +1,63 @@
+{
+  "candidates": [
+    {
+      "index": 1,
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 130,
+      "angle": "claims",
+      "summary": "The recoverPubkey row is derived by hand from the verify row (1.279 x verify at 64 B x 1.2), and no test ties the two: re-fitting verify, which #5688's own row comment requires before merge, leaves the recover charge stale with nothing red.",
+      "failure_scenario": "The verify row is re-fit on the reference machine, say up to Base 300,000. 1.279 x verify(64) x 1.2 is then about 463,000 gas, but recoverPubkey still charges 350,000. TestRecoverPubkeyGasBoundary and TestRecoverPubkeyFlatCharge read the recover row back from itself, and the txtar EXACT_GAS pins only the recover call. So every check stays green while a recovery bills validators about 25% less than the ratio the ADR uses for its price. Precedent for a test like this: TestModExpRowCoversMeasuredCalibrationPoint pins the modexp row against its measurement.",
+      "verify_by": "grep -n 'verify' gnovm/stdlibs/secp256k1_recover_test.go returns nothing, and of the *_test.go files under gnovm/stdlibs and gnovm/cmd/calibrate only the benchmark names recoverPubkey. Mutation: set the crypto/secp256k1 verify Base in native_gas.go to 2x, run go test ./gnovm/stdlibs -run 'TestRecoverPubkey|TestEveryRowValidates' -timeout 2m: expect red, observe green.",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'verify' gnovm/stdlibs/secp256k1_recover_test.go: no output. grep -rln 'recoverPubkey' gnovm/cmd/calibrate/*_test.go gnovm/stdlibs/*_test.go: secp256k1_recover_bench_test.go (a benchmark, not run in CI) and secp256k1_recover_test.go (reads only the recover row, recoverPubkeyCharge).",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/cmd/calibrate/secp256k1_recover_bench_test.go",
+      "line": 41,
+      "angle": "claims",
+      "summary": "The price rests on the dense-s input being near the most point additions decred's GLV and NAF variable-base multiplication can do. A slower input could exceed the 1.2 margin.",
+      "settled_by": "A Python run of the secp256k1 GLV split (the splitK constants) and the NAF weight of u2 = s/r: 'slowS (128, 127)' against 's (86, 127)', 'random adds median 86 max of 20000 101 doubl max 128'. 128 additions is the ceiling for two ~127-bit NAFs, so dense-s is the worst case."
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 97,
+      "angle": "claims",
+      "summary": "The '74 entries — exhaustive coverage' header after adding the recoverPubkey row.",
+      "settled_by": "comm of the table's rows against generated.go's nativeFuncs: 73 single-line rows plus the multi-line crypto/modexp.modExp row against 74 natives. The only difference is modExp's formatting."
+    },
+    {
+      "file": "gnovm/stdlibs/secp256k1_recover_test.go",
+      "line": 37,
+      "angle": "lines",
+      "summary": "The fitter drops the derived recoverPubkey row on regeneration, and a missing row panics chargeNativeGas on the first metered call.",
+      "settled_by": "CI catches a dropped row: recoverPubkeyCharge fails with t.Fatal(\"no gas row for crypto/secp256k1.recoverPubkey\"), and the txtar runs a metered call."
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/secp256k1/recover_test.go",
+      "line": 125,
+      "angle": "claims",
+      "summary": "The recovery-ID test reads 'recovery-ids-pure-go.json'. go-ethereum's pure-Go recovery accepts IDs 4 and 5, which the native refuses.",
+      "settled_by": "recover_test.go:125 compares against ids[seed][\"evm_precompile\"], which accepts only 0 and 1 (rejected_count 254). The 'recovery' block that accepts 4 and 5 is never asserted."
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/secp256k1/recover.go",
+      "line": 21,
+      "angle": "lines",
+      "summary": "The native's refusal set compared with decred RecoverCompact v4.4.1: does any reachable error path leave out a documented refusal, or panic?",
+      "settled_by": "Read of the module cache's ecdsa/signature.go RecoverCompact: the length is fixed, codes 27 and 28 only, R and S overflow and zero, R+N>=P only for codes 2 and 3 (refused first), DecompressY, then the infinity check. That matches the godoc list. The sandbox runs of go test ./stdlibs/crypto/secp256k1 -run TestRecoverPubkey and ./stdlibs -run 'TestRecoverPubkey|TestNativeWrapperBoundsCopy/secp256k1|TestEveryRowValidates' print 'ok'."
+    },
+    {
+      "file": "gnovm/stdlibs/crypto/secp256k1/testdata/vectors.json",
+      "line": 1,
+      "angle": "claims",
+      "summary": "The ADR counts 28 vectors, 19 of them fixed-size.",
+      "settled_by": "python3 json count: '28 19'."
+    }
+  ]
+}

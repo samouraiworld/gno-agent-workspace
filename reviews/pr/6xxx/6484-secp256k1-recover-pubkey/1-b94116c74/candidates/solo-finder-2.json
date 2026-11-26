@@ -1,0 +1,71 @@
+{
+  "candidates": [
+    {
+      "index": 1001,
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 130,
+      "angle": "reach",
+      "summary": "No test ties the derived recoverPubkey Base to the verify row it is computed from, so a verify re-fit leaves 350,000 stale with every check green",
+      "failure_scenario": "The verify row on line 129 says it must be re-fit before merge, and the recover row is defined as 1.279 x verify-at-64-bytes x 1.2. Re-fit verify on the reference machine (say its base rises to 300,000) and recoverPubkey still charges 350,000, now about 1.17x a verify instead of 1.53x, below the dense-s recovery's 1.279x worst-case measured ratio. Nothing fails: recoverPubkeyCharge only asserts the row is flat, the txtar's EXACT_GAS never calls Verify, and the fitter emits verify while skipping recoverPubkey. So validators run recoveries that cost more CPU time than the gas they charge. The same file already pins derived values this way: TestSubRealmGasMirrorsPackageAddress for packageAddress, and TestModExpRowCoversMeasuredCalibrationPoint for modexp.",
+      "verify_by": "grep -rn 'recoverPubkey' gnovm/stdlibs/*_test.go: only secp256k1_recover_test.go:25 recoverPubkeyCharge, which checks SlopeKind/Slope/Post* only; then set the verify row's Base to 300000 and run go test ./gnovm/stdlibs -run 'RecoverPubkey|EveryRow|Mirrors' -timeout 2m: expect green, which is the gap",
+      "band": "Missing test",
+      "fix_kind": "test",
+      "checked": true,
+      "run": false,
+      "evidence": "grep -n 'recoverPubkey\\|secp256k1' gnovm/stdlibs/native_gas_test.go gnovm/stdlibs/native_gas_validate_test.go returned nothing; secp256k1_recover_test.go:25-38 recoverPubkeyCharge returns e.Base after a flatness check and never reads the verify row",
+      "repro_path": ""
+    },
+    {
+      "index": 1002,
+      "file": "gnovm/stdlibs/crypto/secp256k1/recover.gno",
+      "line": 32,
+      "angle": "reach",
+      "summary": "A recovery ID other than 0 or 1 is refused only inside the native, after the 350,000-gas flat charge, though the wrapper could refuse it beside the length check",
+      "failure_scenario": "The doc comment warns about one mistake in particular: a realm that passes Ethereum's v unconverted (27/28, or an EIP-155 value). That realm pays 350,000 gas on every call to get false. The native refuses it at recover.go:21 in about 0.6 us (RefuseID, 621 ns median in secp256k1_recover_bench_m1pro.txt), roughly 560x less work than the charge. A check of signature[64] > 1 next to the len check in RecoverPubkey would return false for a few VM ops. TestRecoverPubkeyFlatCharge's 'recovery ID 2' case would then expect zero native charges.",
+      "verify_by": "read recover.go:21 (recoveryID > 1 refusal inside X_recoverPubkey), native_gas.go:130 (flat Base 350000 charged pre-call at op_call.go:612), and the 'recovery ID 2' input in TestRecoverPubkeyFlatCharge asserting nativeCharges == 1",
+      "band": "Suggestion",
+      "fix_kind": "code",
+      "checked": true,
+      "run": false,
+      "evidence": "recover.go:21 `if recoveryID > 1 {` is the native's first statement; recover.gno:32 checks only lengths before calling recoverPubkey",
+      "repro_path": ""
+    }
+  ],
+  "dropped": [
+    {
+      "file": "gnovm/pkg/gnolang/op_call.go",
+      "line": 612,
+      "angle": "reach",
+      "summary": "the native could start before its flat charge is levied",
+      "settled_by": "sed -n 610,616p op_call.go: `gi := m.chargeNativeGas(fv)` precedes `fv.nativeBody(m)`; machine.go:1455 incrCPU calls chargeCPUGas, which runs gm.ConsumeGas immediately (machine.go:1472), so an out-of-gas panic fires before argument conversion and recovery"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 130,
+      "angle": "removed",
+      "summary": "a fitter regeneration drops the derived row and RecoverPubkey then panics 'no calibrated gas entry' on chain",
+      "settled_by": "secp256k1_recover_test.go:25 recoverPubkeyCharge ends in t.Fatal(\"no gas row for crypto/secp256k1.recoverPubkey\"), reached by TestRecoverPubkeyGasBoundary and TestRecoverPubkeyFlatCharge in CI"
+    },
+    {
+      "file": "gnovm/cmd/calibrate/secp256k1_recover_bench_test.go",
+      "line": 1,
+      "angle": "reach",
+      "summary": "the dense-s input might not be the slowest recovery, leaving a constructed input above the flat charge",
+      "settled_by": "decred secp256k1/v4@v4.4.1 curve.go ScalarMultNonConst: `k1NAF, k2NAF := naf(k1Bytes[:]), naf(k2Bytes[:])`, a width-2 NAF over the GLV halves, so additions top out at density 1/2 against a mean of 1/3, and ScalarBaseMultNonConst does one table add per byte. The measured dense-s/typical ratio, 1.279/1.089 = 1.17, sits at that ceiling for the u2R share, and the row adds x1.2 on top"
+    },
+    {
+      "file": "gnovm/pkg/gnolang/gonative.go",
+      "line": 120,
+      "angle": "reach",
+      "summary": "the returned [65]byte could come back List-backed, storing as a different shape than a Gno-built key",
+      "settled_by": "gonative.go:119-120: a reflect.Array of Uint8 goes to alloc.NewDataArray, the same Data backing a Gno [65]byte has"
+    },
+    {
+      "file": "gnovm/stdlibs/native_gas.go",
+      "line": 97,
+      "angle": "removed",
+      "summary": "the rewritten '74 entries' count or the 'trailing 10 IBC-crypto entries' could be wrong after the insertion",
+      "settled_by": "awk over calibratedNativeGas: 74 `Pkg: \"` rows at head (72 at base), 10 after the IBC marker"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+ "candidates": [],
+ "dropped": [],
+ "completeness": "Catalog walked: determinism (recover.go calls decred v4 directly, no build tags, no package var; misc/multiarch-determinism/corpus.gno adds recover cases), gas (doOpCallNativeBody at op_call.go:610-612 runs chargeNativeGas before fv.nativeBody, so the flat charge precedes the work; the derived row is candidates 1/1001), error and panic (every RecoverCompact error maps to false, the wrapper refuses wrong lengths before the native), VM-fault (no index or nil path in recover.gno: lengths checked before copy). Realm state, caller identity, coin, storage deposit, twin input paths, older stored data and VM semantics are not touched: the change adds a pure function over fixed arrays. Sibling sweep: the edited deepfill_invariant_test.go list and native_input_bounds_test.go table carry the two new array params and the two RecoverPubkey slices; no other native in generated.go takes an array parameter, and Verify's rows belong to #5688. No candidate added."
+}
