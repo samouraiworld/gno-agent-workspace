@@ -10,13 +10,13 @@ Round: 1. One finder, one reflector, 5 candidates, the Warning run from scratch 
 
 ## Body
 
-- The pre-halt check can pass on a node that still halts at the wrong height, so this can't go in yet. The `config get` comment is the blocker; the block-sync and data-directory ones are optional.
+The pre-halt check can pass on a node that still halts at the wrong height, so this can't go in yet. The `config get` comment is the blocker; the block-sync and data-directory ones are optional.
 
 ## misc/deployments/mainnet.gno.land/VALIDATOR.md:159 [gh](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/misc/deployments/mainnet.gno.land/VALIDATOR.md#L159) · [↗](../../../../../.worktrees/gno-review-6533/misc/deployments/mainnet.gno.land/VALIDATOR.md#L159) · Warning [posted](https://github.com/gnolang/gno/pull/6533#discussion_r4713412849)
 
 This check passes on a node that will still halt at an old height, since a changed value reaches the running node only at its next start ([`start.go:288-291`](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/gno.land/cmd/gnoland/start.go#L288-L291)).
 
-**Fix:** say that a changed `halt_height` takes effect only after a restart, so a node found with a future value is restarted before that height, in both `VALIDATOR.md` files.
+**Proposed fix:** say that a changed `halt_height` takes effect only after a restart, so a node found with a future value is restarted before that height, in both `VALIDATOR.md` files.
 
 <details><summary>repro</summary>
 
@@ -49,13 +49,9 @@ halt height 6 reached, node shutting down
 
 Nit: under block sync, nothing recovers the `BeginBlock` panic below [`ApplyBlock`](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/tm2/pkg/bft/blockchain/reactor.go#L536), so a validator still catching up at the halt exits with code 2 and `Restart=on-failure` does fire.
 
-**Fix:** say the process stays up on a node at the tip and exits on a node still syncing, as [`gno.land/cmd/gnoland/UPGRADES.md`](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/gno.land/cmd/gnoland/UPGRADES.md?plain=1#L175) does, in both files.
-
 ## misc/deployments/mainnet.gno.land/VALIDATOR.md:161 [gh](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · [↗](../../../../../.worktrees/gno-review-6533/misc/deployments/mainnet.gno.land/VALIDATOR.md#L161) · Suggestion [posted](https://github.com/gnolang/gno/pull/6533#discussion_r4713412861)
 
 Suggestion: a release that changes the state format restarts from a fresh genesis rather than the same data directory, per [`UPGRADES.md:13`](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/gno.land/cmd/gnoland/UPGRADES.md?plain=1#L13).
-
-**Fix:** add "unless the release notes call for a genesis replay" after "on the same data directory", in both files.
 
 ## SKIP misc/deployments/mainnet.gno.land/VALIDATOR.md:159 [gh](https://github.com/gnolang/gno/blob/df2c4ffcaa229fbc574fdc6bb33de2a52641484f/misc/deployments/mainnet.gno.land/VALIDATOR.md#L159) · [↗](../../../../../.worktrees/gno-review-6533/misc/deployments/mainnet.gno.land/VALIDATOR.md#L159) · Nit
 

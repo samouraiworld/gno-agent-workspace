@@ -10,10 +10,9 @@ Round: 1. Two finders and one judge, 13 candidates: 7 settled by the finders' ow
 
 ## Body
 
-- This can go in once two escapes from [`runFiles`](https://github.com/gnolang/gno/blob/ce6b303940399f5fc07e1d2eea72ae03eb83ed4d/gnovm/cmd/gno/run.go#L379) are settled: an initialization cycle aborts with a Go panic, and a plain directory run accepts duplicate declarations. The cycle comment and the duplicate bullet are the open points; the test and location comments are optional.
-- Related: `gno run <dir>` with no `-pkgpath` runs the later of two duplicate declarations and exits 0. The default package path `main` makes [`IsStdlib(pv.PkgPath)`](https://github.com/gnolang/gno/blob/ce6b303940399f5fc07e1d2eea72ae03eb83ed4d/gnovm/pkg/gnolang/machine.go#L646) true, so the duplicate check never runs.
+This can go in once two escapes from [`runFiles`](https://github.com/gnolang/gno/blob/ce6b303940399f5fc07e1d2eea72ae03eb83ed4d/gnovm/cmd/gno/run.go#L379) are settled: an initialization cycle aborts with a Go panic, and a plain directory run accepts duplicate declarations. The cycle comment and the duplicate bullet are the open points; the test and location comments are optional.
 
-  **Fix:** run `checkDuplicates` for a package built from files on the command line whatever its path, for instance by passing `withOverrides` false from `execRun`'s path.
+- Related: `gno run <dir>` with no `-pkgpath` runs the later of two duplicate declarations and exits 0. The default package path `main` makes [`IsStdlib(pv.PkgPath)`](https://github.com/gnolang/gno/blob/ce6b303940399f5fc07e1d2eea72ae03eb83ed4d/gnovm/pkg/gnolang/machine.go#L646) true, so the duplicate check never runs.
 
   <details><summary>repro</summary>
 
@@ -42,8 +41,6 @@ Round: 1. Two finders and one judge, 13 candidates: 7 settled by the finders' ow
 
 ## gnovm/cmd/gno/run.go:404 [gh](https://github.com/gnolang/gno/blob/ce6b303940399f5fc07e1d2eea72ae03eb83ed4d/gnovm/cmd/gno/run.go#L404) · [↗](../../../../../.worktrees/gno-review-6451/gnovm/cmd/gno/run.go#L404) · Warning [posted](https://github.com/gnolang/gno/pull/6451#discussion_r4713408124)
 `panic(r)` re-throws the plain-string cycle panic from `resolveEffectiveDeps`, so a cycle through a method, a closure or two functions aborts with a Go panic and exit code 2.
-
-**Fix:** raise the cycle as a `*PreprocessError` carrying its location, or print a recovered `circular dependency` string the way the `*gno.PreprocessError` branch prints its message, for instance.
 
 <details><summary>repro</summary>
 
@@ -106,8 +103,6 @@ panic: main/cycle_twohop/main.gno:3:5: circular dependency: a -> f -> g -> a [re
 ## gnovm/cmd/gno/common.go:236 [gh](https://github.com/gnolang/gno/blob/ce6b303940399f5fc07e1d2eea72ae03eb83ed4d/gnovm/cmd/gno/common.go#L236) · [↗](../../../../../.worktrees/gno-review-6451/gnovm/cmd/gno/common.go#L236) · Missing test [posted](https://github.com/gnolang/gno/pull/6451#discussion_r4713408130)
 Missing test: lint and test errors take their location from this code too, and no txtar asserts the shorter `l2.gno:3:1-21:` form.
 
-**Fix:** add a lint txtar asserting the bare `<file>:<line>:<col>` location, for instance the case below.
-
 <details><summary>test cases</summary>
 
 ```
@@ -132,8 +127,6 @@ The merge base prints `gno.land/p/f1/l2:gno.land/p/f1/l2/l2.gno:3:1-21: crossing
 
 ## gnovm/cmd/gno/run.go:394 [gh](https://github.com/gnolang/gno/blob/ce6b303940399f5fc07e1d2eea72ae03eb83ed4d/gnovm/cmd/gno/run.go#L394) · [↗](../../../../../.worktrees/gno-review-6451/gnovm/cmd/gno/run.go#L394) · Nit [posted](https://github.com/gnolang/gno/pull/6451#discussion_r4713408134)
 Nit: this call writes the location `.:0` for a message that has none, so a duplicate inside an imported package prints `.:0: running package ...` where the doc comment promises no location.
-
-**Fix:** print the message alone when `gno.ReErrorLine` does not match it, as the `RedeclarationErrors` branch does.
 
 ## SKIP gnovm/cmd/gno/run.go:387 [gh](https://github.com/gnolang/gno/blob/ce6b303940399f5fc07e1d2eea72ae03eb83ed4d/gnovm/cmd/gno/run.go#L387) · [↗](../../../../../.worktrees/gno-review-6451/gnovm/cmd/gno/run.go#L387) · Suggestion
 Suggestion: an internal VM assertion reaches this branch too, so `func (int) M() {}` prints `should not happen` as a source error with no stack.
